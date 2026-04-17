@@ -232,6 +232,40 @@ const stageSingleChapter = async (relativeFolder = "Volume 1/Capitulo 3") => {
   await screen.findByTestId("manga-stage-page-surface-0");
 };
 
+const createStageChapterFixture = (pageCount = 3): StageChapter => {
+  const pages = Array.from({ length: pageCount }, (_, index) => {
+    const pageNumber = String(index + 1).padStart(3, "0");
+    const name = `${pageNumber}.jpg`;
+    return {
+      id: `page-${pageNumber}`,
+      file: new File(["image"], name, { type: "image/jpeg" }),
+      previewUrl: `blob:${name}`,
+      relativePath: `Volume 1/Capitulo 3/${name}`,
+      name,
+    };
+  });
+
+  return {
+    id: "stage-forward",
+    number: 3,
+    volume: 1,
+    title: "",
+    synopsis: "",
+    titleDetected: "",
+    sourceLabel: "Capitulo 3",
+    pages,
+    coverPageId: pages[0]?.id || null,
+    entryKind: "main",
+    entrySubtype: "chapter",
+    displayLabel: undefined,
+    publicationStatus: "draft",
+    progressStage: "aguardando-raw",
+    completedStages: [],
+    operation: "create",
+    warnings: [],
+  };
+};
+
 describe("MangaWorkflowPanel", () => {
   beforeEach(() => {
     apiFetchMock.mockReset();
@@ -579,6 +613,43 @@ describe("MangaWorkflowPanel", () => {
     });
 
     await waitFor(() => {
+      expect(screen.getByTestId("a11y-live-region")).toHaveTextContent(/movida para a posi/i);
+    });
+  });
+
+  it("move pagina do lote para frente mesmo quando o drop termina fora do card original", async () => {
+    renderWorkflow({
+      initialStagedChapters: [createStageChapterFixture(3)],
+      initialSelectedStageChapterId: "stage-forward",
+    });
+
+    await screen.findByTestId("manga-stage-page-surface-0");
+    mockStagePageSurfaceRects(3);
+    fireEvent.pointerDown(screen.getByTestId("manga-stage-page-surface-0"), {
+      pointerId: 10,
+      pointerType: "mouse",
+      button: 0,
+      clientX: 40,
+      clientY: 40,
+    });
+    fireEvent.pointerMove(window, {
+      pointerId: 10,
+      clientX: 280,
+      clientY: 40,
+    });
+
+    await waitFor(() => {
+      expect(getStagePageOrder()).toEqual(["blob:002.jpg", "blob:003.jpg", "blob:001.jpg"]);
+    });
+
+    fireEvent.pointerUp(window, {
+      pointerId: 10,
+      clientX: 280,
+      clientY: 40,
+    });
+
+    await waitFor(() => {
+      expect(getStagePageOrder()).toEqual(["blob:002.jpg", "blob:003.jpg", "blob:001.jpg"]);
       expect(screen.getByTestId("a11y-live-region")).toHaveTextContent(/movida para a posi/i);
     });
   });

@@ -11,7 +11,7 @@ export const dedicatedEditorSidebarPanelClassName =
 export const dedicatedEditorSidebarBodyClassName = "flex min-h-0 flex-1 flex-col";
 
 export const dedicatedEditorSidebarScrollRegionClassName =
-  "no-scrollbar min-h-0 flex-1 overflow-y-auto overscroll-contain";
+  "no-scrollbar min-h-0 flex-1 overflow-y-auto";
 
 export type DedicatedEditorSidebarHeightStyle = CSSProperties & {
   "--dedicated-editor-sidebar-height": string;

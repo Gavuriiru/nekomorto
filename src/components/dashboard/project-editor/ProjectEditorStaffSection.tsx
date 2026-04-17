@@ -111,7 +111,7 @@ const ProjectEditorStaffSectionComponent = ({
                 }}
                 onDrop={() => onDrop(index)}
               >
-                <div className="grid gap-3 md:grid-cols-[1fr_auto_auto]">
+                <div className="grid gap-3 md:grid-cols-[1fr_auto_auto] md:items-center">
                   {variant === "fansub" ? (
                     <Combobox
                       value={role.role || ""}

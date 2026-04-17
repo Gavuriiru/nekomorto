@@ -11,7 +11,10 @@ import {
 } from "lucide-react";
 import { useMemo } from "react";
 import PublicPageHero from "@/components/PublicPageHero";
-import { publicPageLayoutTokens } from "@/components/public-page-tokens";
+import {
+  publicInteractiveStackedSurfaceClassName,
+  publicPageLayoutTokens,
+} from "@/components/public-page-tokens";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { usePageMeta } from "@/hooks/use-page-meta";
@@ -167,7 +170,7 @@ const Recruitment = () => {
                 return (
                   <Card
                     key={role.title}
-                    className="group interactive-lift-md interactive-surface-transition bg-card/70 animate-fade-in opacity-0 hover:border-primary/60 hover:bg-card/90"
+                    className={`${publicInteractiveStackedSurfaceClassName} group bg-card/70 animate-fade-in opacity-0 hover:border-primary/60 hover:bg-card/90`}
                     style={{ animationDelay: `${index * 80}ms` }}
                   >
                     <CardContent className="space-y-3 p-5">

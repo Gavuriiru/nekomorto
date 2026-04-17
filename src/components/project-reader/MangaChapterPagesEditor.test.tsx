@@ -370,6 +370,52 @@ describe("MangaChapterPagesEditor", () => {
     ]);
   });
 
+  it("move uma pagina para frente mesmo quando o drop termina fora do card original", async () => {
+    const { onChangeSpy } = renderEditor({
+      chapter: createChapterFixture({
+        pages: createPageFixtures(3),
+      }),
+    });
+
+    mockPageSurfaceRects(3);
+    const draggedSurface = screen.getByTestId("manga-page-surface-0");
+    fireEvent.pointerDown(draggedSurface, {
+      pointerId: 9,
+      pointerType: "mouse",
+      button: 0,
+      clientX: 40,
+      clientY: 40,
+    });
+    fireEvent.pointerMove(window, {
+      pointerId: 9,
+      clientX: 280,
+      clientY: 40,
+    });
+
+    await waitFor(() => {
+      expect(getPageOrder()).toEqual([
+        "https://cdn.test/page-2.jpg",
+        "https://cdn.test/page-3.jpg",
+        "https://cdn.test/page-1.jpg",
+      ]);
+    });
+
+    fireEvent.pointerUp(window, {
+      pointerId: 9,
+      clientX: 280,
+      clientY: 40,
+    });
+
+    await waitFor(() => {
+      const lastCall = onChangeSpy.mock.lastCall?.[0] as ProjectEpisode | undefined;
+      expect(lastCall?.pages?.map((page) => page.imageUrl)).toEqual([
+        "https://cdn.test/page-2.jpg",
+        "https://cdn.test/page-3.jpg",
+        "https://cdn.test/page-1.jpg",
+      ]);
+    });
+  });
+
   it("mantem usar capa e remover acessiveis mesmo com acoes aparecendo so no hover", async () => {
     const { onChangeSpy } = renderEditor();
 

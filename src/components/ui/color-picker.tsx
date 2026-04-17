@@ -30,6 +30,9 @@ export interface ColorPickerProps extends Omit<AriaColorPickerProps, "children">
   popoverClassName?: string;
 }
 
+const responsivePanelWidthClassName =
+  "w-[min(18rem,calc(100vw-1rem))] min-w-[min(16rem,calc(100vw-1rem))] max-w-[calc(100vw-1rem)]";
+
 const HexField = ({ className }: { className: string }) => {
   const state = React.useContext(ColorPickerStateContext);
   const hexId = React.useId();
@@ -149,12 +152,15 @@ export const ColorPicker = ({
   popoverClassName,
   ...props
 }: ColorPickerProps) => {
-  const panelClasses = panelClassName
-    ? `rainbow-color-picker-panel flex flex-col ${panelClassName}`
-    : "rainbow-color-picker-panel flex flex-col";
+  const inlinePanelClasses = panelClassName
+    ? `rainbow-color-picker-panel flex flex-col ${responsivePanelWidthClassName} ${panelClassName}`
+    : `rainbow-color-picker-panel flex flex-col ${responsivePanelWidthClassName}`;
+  const dialogPanelClasses = panelClassName
+    ? `rainbow-color-picker-panel flex w-full flex-col ${panelClassName}`
+    : "rainbow-color-picker-panel flex w-full flex-col";
   const popoverClasses =
     popoverClassName ??
-    `z-50 rounded-xl border border-border/60 bg-card/95 p-0 ${floatingSurfaceShadowClassName}`;
+    `z-50 ${responsivePanelWidthClassName} overflow-hidden rounded-xl border border-border/60 bg-card/95 p-0 ${floatingSurfaceShadowClassName}`;
   const panelContent = (
     <>
       <ColorArea
@@ -177,7 +183,7 @@ export const ColorPicker = ({
   return (
     <AriaColorPicker {...props}>
       {inline ? (
-        <div className={panelClasses}>{panelContent}</div>
+        <div className={inlinePanelClasses}>{panelContent}</div>
       ) : (
         <DialogTrigger>
           <Button
@@ -202,7 +208,7 @@ export const ColorPicker = ({
             )}
           </Button>
           <Popover isNonModal placement="bottom start" className={popoverClasses}>
-            <Dialog className={panelClasses}>{panelContent}</Dialog>
+            <Dialog className={dialogPanelClasses}>{panelContent}</Dialog>
           </Popover>
         </DialogTrigger>
       )}

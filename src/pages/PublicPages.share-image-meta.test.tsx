@@ -1,6 +1,10 @@
 import { render, screen, waitFor } from "@testing-library/react";
 import { MemoryRouter } from "react-router-dom";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import {
+  publicInteractiveStackedSurfaceClassName,
+  publicStackedSurfaceClassName,
+} from "@/components/public-page-tokens";
 
 import About from "@/pages/About";
 import Donations from "@/pages/Donations";
@@ -319,10 +323,9 @@ describe("Public pages share image meta", () => {
     const highlightCard = screen.getByText(/Somos movidos/).closest(".group");
     expect(highlightCard).toHaveClass(
       "group",
-      "hover:-translate-y-1",
+      ...publicInteractiveStackedSurfaceClassName.split(" "),
       "hover:border-primary/60",
       "hover:bg-background/80",
-      "hover:shadow-public-card",
     );
     expect(screen.getByText(/Trabalhamos em equipe/)).toHaveClass(
       "transition-colors",
@@ -333,10 +336,9 @@ describe("Public pages share image meta", () => {
     for (const label of ["Manifesto", "Pipeline", "Qualidade em cada etapa"]) {
       expect(screen.getByText(label).closest(".group")).toHaveClass(
         "group",
-        "hover:-translate-y-1",
+        ...publicInteractiveStackedSurfaceClassName.split(" "),
         "hover:border-primary/60",
         "hover:bg-card/90",
-        "hover:shadow-public-card",
       );
     }
 
@@ -408,10 +410,9 @@ describe("Public pages share image meta", () => {
     const costTitle = screen.getByText("Hospedagem");
     expect(costTitle.closest(".group")).toHaveClass(
       "group",
-      "hover:-translate-y-1",
+      ...publicInteractiveStackedSurfaceClassName.split(" "),
       "hover:border-primary/60",
       "hover:bg-card/90",
-      "hover:shadow-public-card",
     );
     expect(costTitle).toHaveClass("transition-colors", "duration-300", "group-hover:text-primary");
     expect(screen.getByText(/Mantem servidor/)).toHaveClass(
@@ -443,7 +444,7 @@ describe("Public pages share image meta", () => {
     const donorsTitle = screen.getByText("Lista de doadores");
     expect(screen.getByTestId("donations-donors-card")).toHaveClass(
       "bg-card/80",
-      "shadow-public-card",
+      ...publicStackedSurfaceClassName.split(" "),
     );
     expect(donorsTitle).toHaveClass("flex", "items-center", "gap-3", "text-xl", "font-semibold");
 
@@ -481,10 +482,9 @@ describe("Public pages share image meta", () => {
     const introTitle = screen.getByText("Antes de perguntar");
     expect(introTitle.closest(".group")).toHaveClass(
       "group",
-      "hover:-translate-y-1",
+      ...publicInteractiveStackedSurfaceClassName.split(" "),
       "hover:border-primary/60",
       "hover:bg-card/90",
-      "hover:shadow-public-card",
     );
     expect(introTitle).toHaveClass("transition-colors", "duration-300", "group-hover:text-primary");
     expect(screen.getByText(/Se sua/)).toHaveClass(

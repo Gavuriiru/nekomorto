@@ -706,12 +706,14 @@ const DashboardAuditLog = () => {
                         id="audit-date-from"
                         value={dateFromParts.date}
                         onChange={(nextDate) => handleFilterDateChange("dateFrom", nextDate)}
+                        className="mui-date-time-field--dashboard-filter"
                       />
                       <MuiBrazilTimeField
                         id="audit-date-from-time"
                         value={dateFromTimeValue}
                         onChange={(nextTime) => handleFilterTimeChange("dateFrom", nextTime)}
                         disabled={!form.dateFrom}
+                        className="mui-date-time-field--dashboard-filter"
                       />
                     </div>
                   </MuiDateTimeFieldsProvider>
@@ -724,12 +726,14 @@ const DashboardAuditLog = () => {
                         id="audit-date-to"
                         value={dateToParts.date}
                         onChange={(nextDate) => handleFilterDateChange("dateTo", nextDate)}
+                        className="mui-date-time-field--dashboard-filter"
                       />
                       <MuiBrazilTimeField
                         id="audit-date-to-time"
                         value={dateToTimeValue}
                         onChange={(nextTime) => handleFilterTimeChange("dateTo", nextTime)}
                         disabled={!form.dateTo}
+                        className="mui-date-time-field--dashboard-filter"
                       />
                     </div>
                   </MuiDateTimeFieldsProvider>

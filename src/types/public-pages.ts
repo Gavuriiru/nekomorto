@@ -43,6 +43,7 @@ export type DonationsCryptoService = {
   note: string;
   icon: string;
   iconUrl: string;
+  tintIcon: boolean;
   actionLabel: string;
   actionUrl: string;
 };

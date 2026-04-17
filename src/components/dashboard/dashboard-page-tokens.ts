@@ -5,6 +5,8 @@ export const dashboardSubtleSurfaceHoverClassName =
 export const dashboardStrongFocusScopeClassName = "dashboard-strong-focus-scope";
 export const dashboardStrongFocusTriggerClassName = "dashboard-strong-focus-trigger";
 export const dashboardEditorDialogWidthClassName = "max-w-[min(1760px,calc(100vw-1rem))]";
+export const dashboardStackedSurfaceClassName = "stacked-surface stacked-surface--dashboard";
+export const dashboardInteractiveStackedSurfaceClassName = `${dashboardStackedSurfaceClassName} stacked-surface--interactive`;
 
 export const dashboardPageLayoutTokens = {
   main: "pt-24",
@@ -18,10 +20,10 @@ export const dashboardPageLayoutTokens = {
   headerTitle: "mt-4 text-3xl font-semibold text-foreground lg:text-4xl animate-slide-up",
   surfaceDefault: "rounded-2xl border border-border/60 bg-card/60",
   surfaceMuted: "rounded-2xl border border-border/60 bg-card/40",
-  listCard: "rounded-2xl border border-border/60 bg-card/80 shadow-lg",
+  listCard: `rounded-2xl border border-border/60 bg-card/80 ${dashboardStackedSurfaceClassName}`,
   surfaceSolid: `rounded-2xl border border-border/70 bg-card shadow-dashboard-surface transition-[border-color] duration-200 ${dashboardStrongSurfaceHoverClassName}`,
   surfaceInset: "rounded-2xl border border-border/70 bg-background",
-  listCardSolid: "rounded-2xl border border-border/70 bg-card shadow-dashboard-inset-surface",
+  listCardSolid: `rounded-2xl border border-border/70 bg-card ${dashboardStackedSurfaceClassName}`,
   cardMetaText: "text-foreground/70",
   cardActionSurface: "rounded-xl border border-border/70 bg-background",
   cardChip: "border border-border/70 bg-background text-foreground/70",

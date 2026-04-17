@@ -13,6 +13,7 @@ import {
   dashboardMotionDelays,
 } from "@/components/dashboard/dashboard-motion";
 import {
+  dashboardInteractiveStackedSurfaceClassName,
   dashboardPageLayoutTokens,
   dashboardStrongSurfaceHoverClassName,
 } from "@/components/dashboard/dashboard-page-tokens";
@@ -448,7 +449,7 @@ const DashboardComments = () => {
                 key={comment.id}
                 lift={false}
                 data-testid={`pending-comment-card-${comment.id}`}
-                className={`${dashboardPageLayoutTokens.listCard} ${dashboardStrongSurfaceHoverClassName} border-border bg-card shadow-dashboard-list-card overflow-hidden transition animate-slide-up opacity-0`}
+                className={`${dashboardPageLayoutTokens.listCard} ${dashboardInteractiveStackedSurfaceClassName} ${dashboardStrongSurfaceHoverClassName} border-border bg-card overflow-hidden animate-slide-up opacity-0`}
                 style={dashboardAnimationDelay(dashboardClampedStaggerMs(index))}
               >
                 <CardContent className="p-0">

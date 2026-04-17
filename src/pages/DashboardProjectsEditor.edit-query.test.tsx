@@ -2,7 +2,10 @@ import { fireEvent, render, screen, waitFor, within } from "@testing-library/rea
 import type { ReactNode } from "react";
 import { MemoryRouter, useLocation } from "react-router-dom";
 import { afterEach, describe, expect, it, vi } from "vitest";
-import { dashboardEditorDialogWidthClassName } from "@/components/dashboard/dashboard-page-tokens";
+import {
+  dashboardEditorDialogWidthClassName,
+  dashboardInteractiveStackedSurfaceClassName,
+} from "@/components/dashboard/dashboard-page-tokens";
 import type {
   EditorProjectEpisode,
   ProjectRecord,
@@ -479,6 +482,7 @@ describe("DashboardProjectsEditor edit query", () => {
     expect(relationTargetCard).not.toBeNull();
     expect(relationDraggedCard).not.toBeNull();
     expect(classTokens(relationTargetCard as HTMLElement)).toContain("hover:border-primary/40");
+    expect(classTokens(relationTargetCard as HTMLElement)).toContain("md:items-center");
 
     const dataTransfer = {
       effectAllowed: "move",
@@ -505,6 +509,9 @@ describe("DashboardProjectsEditor edit query", () => {
     expect(staffTargetCard).not.toBeNull();
     expect(staffDraggedCard).not.toBeNull();
     expect(classTokens(staffTargetCard as HTMLElement)).toContain("hover:border-primary/40");
+    const staffTopGrid = (staffTargetCard as HTMLElement).firstElementChild as HTMLElement | null;
+    expect(staffTopGrid).not.toBeNull();
+    expect(classTokens(staffTopGrid as HTMLElement)).toContain("md:items-center");
 
     fireEvent.dragStart(staffDraggedCard as HTMLElement, { dataTransfer });
     fireEvent.dragOver(staffTargetCard as HTMLElement, { dataTransfer });
@@ -615,6 +622,10 @@ describe("DashboardProjectsEditor edit query", () => {
     );
 
     await screen.findByRole("heading", { name: "Gerenciar projetos" });
+    const projectCard = await screen.findByTestId("dashboard-project-card-project-1");
+    expect(classTokens(projectCard)).toEqual(
+      expect.arrayContaining(dashboardInteractiveStackedSurfaceClassName.split(" ")),
+    );
 
     const dedicatedEditorLink = await screen.findByRole("link", {
       name: "Abrir editor dedicado de Projeto Teste",
@@ -638,6 +649,10 @@ describe("DashboardProjectsEditor edit query", () => {
     );
 
     await screen.findByRole("heading", { name: "Gerenciar projetos" });
+    const projectCard = await screen.findByTestId("dashboard-project-card-project-ln-1");
+    expect(classTokens(projectCard)).toEqual(
+      expect.arrayContaining(dashboardInteractiveStackedSurfaceClassName.split(" ")),
+    );
 
     const dedicatedEditorLink = await screen.findByRole("link", {
       name: "Abrir editor dedicado de Projeto Light Novel",
@@ -666,6 +681,10 @@ describe("DashboardProjectsEditor edit query", () => {
     );
 
     await screen.findByRole("heading", { name: "Gerenciar projetos" });
+    const projectCard = await screen.findByTestId("dashboard-project-card-project-1");
+    expect(classTokens(projectCard)).toEqual(
+      expect.arrayContaining(dashboardInteractiveStackedSurfaceClassName.split(" ")),
+    );
 
     const dedicatedEditorLink = await screen.findByRole("link", {
       name: "Abrir editor dedicado de Projeto Teste",
@@ -694,6 +713,10 @@ describe("DashboardProjectsEditor edit query", () => {
     );
 
     await screen.findByRole("heading", { name: "Gerenciar projetos" });
+    const projectCard = await screen.findByTestId("dashboard-project-card-project-ln-1");
+    expect(classTokens(projectCard)).toEqual(
+      expect.arrayContaining(dashboardInteractiveStackedSurfaceClassName.split(" ")),
+    );
 
     const dedicatedEditorLink = await screen.findByRole("link", {
       name: "Abrir editor dedicado de Projeto Light Novel",

@@ -1133,8 +1133,8 @@ describe("DashboardProjectChapterEditor", () => {
       "min-h-0",
       "flex-1",
       "overflow-y-auto",
-      "overscroll-contain",
     );
+    expect(structureScrollRegion).not.toHaveClass("overscroll-contain");
     expect(structureGroup).not.toHaveClass("shadow-editor-nested-card");
     expect(activeChapterCard).not.toHaveClass("shadow-sm");
     expect(epubTrigger).toHaveClass("hover:no-underline", "py-3.5", "md:py-4");
@@ -2004,6 +2004,7 @@ describe("DashboardProjectChapterEditor", () => {
     const workspace = screen.getByTestId("chapter-editor-workspace");
     const lexicalEditor = await screen.findByTestId("mock-lexical");
     const lexicalWrapper = screen.getByTestId("chapter-lexical-wrapper");
+    const lexicalWrapperTokens = classTokens(lexicalWrapper);
     const contentAccordion = screen.getByTestId("chapter-content-accordion");
     const contentBody = screen.getByTestId("chapter-content-body");
     const contentViewport = screen.getByTestId("chapter-content-viewport");
@@ -2057,8 +2058,8 @@ describe("DashboardProjectChapterEditor", () => {
       "min-h-0",
       "flex-1",
       "overflow-y-auto",
-      "overscroll-contain",
     );
+    expect(structureScrollRegion).not.toHaveClass("overscroll-contain");
     expect(structureGroup).not.toHaveClass("shadow-editor-nested-card");
     expect(activeChapterCard).not.toHaveClass("shadow-sm");
     expect(screen.getByTestId("chapter-structure-group-header-2")).toBeInTheDocument();
@@ -2133,6 +2134,28 @@ describe("DashboardProjectChapterEditor", () => {
       ),
     ).toBe(true);
     expect(lexicalWrapper).toHaveClass("min-h-[420px]", "lg:min-h-[620px]");
+    expect(lexicalWrapperTokens).toEqual(
+      expect.arrayContaining([
+        "chapter-editor-lexical-wrapper",
+        "min-w-0",
+        "min-h-[420px]",
+        "lg:min-h-[620px]",
+      ]),
+    );
+    expect(lexicalWrapperTokens).not.toEqual(
+      expect.arrayContaining([
+        "rounded-[22px]",
+        "border",
+        "border-border/50",
+        "bg-background/40",
+        "px-2",
+        "pb-2",
+        "pt-0",
+        "md:px-3",
+        "md:pb-3",
+        "md:pt-0",
+      ]),
+    );
     expect(screen.getByTestId("chapter-standard-compact-fields")).toHaveClass(
       "flex",
       "flex-wrap",

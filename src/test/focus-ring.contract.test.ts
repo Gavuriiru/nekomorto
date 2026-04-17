@@ -109,6 +109,23 @@ const focusContractFiles = [
 ];
 
 const forbiddenFocusTokens = ["ring-offset-background", "ring-offset-2", "ring-offset-1"];
+const floatingSurfaceTokenFiles = [
+  "src/components/ui/context-menu.tsx",
+  "src/components/ui/dropdown-menu.tsx",
+  "src/components/ui/hover-card.tsx",
+  "src/components/ui/menubar.tsx",
+  "src/components/ui/popover.tsx",
+  "src/components/ui/tooltip.tsx",
+  "src/components/ui/chart.tsx",
+];
+const floatingOverlayTokenFiles = [
+  "src/components/ui/alert-dialog.tsx",
+  "src/components/ui/command.tsx",
+  "src/components/ui/dialog.tsx",
+  "src/components/ui/sheet.tsx",
+  "src/components/ui/sonner.tsx",
+  "src/components/ui/toast.tsx",
+];
 
 describe("focus ring contract", () => {
   it("removes light offset rings from shared focus primitives", () => {
@@ -229,11 +246,39 @@ describe("focus ring contract", () => {
     );
 
     expect(muiFieldsSource).toContain('borderColor: "hsl(var(--primary))"');
-    expect(muiFieldsSource).toContain('"& .MuiInputBase-input"');
+    expect(muiFieldsSource).toContain('"& .MuiPickersInputBase-root, & .MuiPickersOutlinedInput-root, & .MuiOutlinedInput-root"');
+    expect(muiFieldsSource).toContain('"& .MuiPickersSectionList-root"');
+    expect(muiFieldsSource).toContain('"& .MuiPickersSectionList-section, & .MuiPickersSectionList-sectionContent, & .MuiPickersInputBase-sectionContent"');
+    expect(muiFieldsSource).toContain('color: "inherit"');
+    expect(muiFieldsSource).toContain('outline: "none"');
+    expect(muiFieldsSource).toContain('"& .MuiPickersSectionList-root::selection, & .MuiPickersSectionList-sectionContent::selection, & .MuiPickersInputBase-sectionContent::selection"');
+    expect(muiFieldsSource).toContain('"& .MuiPickersSectionList-root::-moz-selection, & .MuiPickersSectionList-sectionContent::-moz-selection, & .MuiPickersInputBase-sectionContent::-moz-selection"');
+    expect(muiFieldsSource).toContain('backgroundColor: "transparent"');
+    expect(muiFieldsSource).toContain('"& .MuiInputBase-input, & .MuiPickersInputBase-input"');
+    expect(muiFieldsSource).toContain('size: "small"');
+    expect(muiFieldsSource).toContain(
+      'const muiDateTimeFieldEditorClassName = "mui-date-time-field--editor"',
+    );
+    expect(muiFieldsSource).toContain(
+      'const muiDateTimeFieldDashboardFilterClassName = "mui-date-time-field--dashboard-filter"',
+    );
+    expect(muiFieldsSource).toContain('borderRadius: "calc(var(--radius) - 2px)"');
+    expect(muiFieldsSource).toContain('borderRadius: "0.75rem"');
+    expect(muiFieldsSource).toContain('fontSize: "1rem"');
+    expect(muiFieldsSource).toContain('fontSize: "0.875rem"');
+    expect(muiFieldsSource).toContain('minHeight: "2.5rem"');
+    expect(muiFieldsSource).toContain('minHeight: "2.75rem"');
+    expect(muiFieldsSource).toContain('padding: 0');
+    expect(muiFieldsSource).toContain('backgroundColor: "hsl(var(--background) / 0.6)"');
+    expect(muiFieldsSource).toContain('borderColor: "hsl(var(--border) / 0.6)"');
     expect(muiFieldsSource).toContain('"&.Mui-disabled": {');
     expect(muiFieldsSource).toContain('WebkitTextFillColor: "hsl(var(--muted-foreground) / 0.72)"');
     expect(muiFieldsSource).toContain('backgroundColor: "hsl(var(--background))"');
     expect(muiFieldsSource).toContain('borderColor: "hsl(var(--input))"');
+    expect(muiFieldsSource).not.toContain('"&.Mui-focused": {');
+    expect(muiFieldsSource).not.toContain("outlineOffset:");
+    expect(muiFieldsSource).not.toContain('outline: "2px solid hsl(var(--ring) / 0.45)"');
+    expect(muiFieldsSource).not.toContain('padding: "0.5rem 0"');
     expect(muiFieldsSource).not.toContain("opacity: 0.5,");
     expect(muiFieldsSource).not.toContain("boxShadow:");
     expect(muiFieldsSource).not.toContain('boxShadow: "0 0 0 2px hsl(var(--ring))"');
@@ -321,5 +366,43 @@ describe("focus ring contract", () => {
       "@/components/public-form-controls",
     );
     expect(readFileSync(repoFile("src/pages/Projects.tsx"), "utf8")).toContain("<Combobox");
+  });
+
+  it("keeps floating surface shadows centralized in shared tokens", () => {
+    const floatingSurfaceSource = readFileSync(
+      repoFile("src/components/ui/floating-surface.ts"),
+      "utf8",
+    );
+    const indexCssSource = readFileSync(repoFile("src/index.css"), "utf8");
+
+    expect(floatingSurfaceSource).toContain(
+      'export const floatingSurfaceShadowClassName = "shadow-floating-soft";',
+    );
+    expect(floatingSurfaceSource).toContain(
+      'export const floatingOverlayShadowClassName = "shadow-floating-soft-lg";',
+    );
+    expect(indexCssSource).toContain(".shadow-floating-soft {");
+    expect(indexCssSource).toContain("box-shadow: 0 12px 32px -24px rgba(0, 0, 0, 0.2);");
+    expect(indexCssSource).toContain(".shadow-floating-soft-lg {");
+    expect(indexCssSource).toContain("box-shadow: 0 22px 52px -34px rgba(0, 0, 0, 0.22);");
+
+    floatingSurfaceTokenFiles.forEach((relativePath) => {
+      const source = readFileSync(repoFile(relativePath), "utf8");
+      expect(source, `${relativePath} should use floatingSurfaceShadowClassName`).toContain(
+        "floatingSurfaceShadowClassName",
+      );
+      expect(source, `${relativePath} should not hardcode shadow-md`).not.toContain("shadow-md");
+      expect(source, `${relativePath} should not hardcode shadow-lg`).not.toContain("shadow-lg");
+      expect(source, `${relativePath} should not hardcode shadow-xl`).not.toContain("shadow-xl");
+    });
+
+    floatingOverlayTokenFiles.forEach((relativePath) => {
+      const source = readFileSync(repoFile(relativePath), "utf8");
+      expect(source, `${relativePath} should use floatingOverlayShadowClassName`).toContain(
+        "floatingOverlayShadowClassName",
+      );
+      expect(source, `${relativePath} should not hardcode shadow-lg`).not.toContain("shadow-lg");
+      expect(source, `${relativePath} should not hardcode shadow-xl`).not.toContain("shadow-xl");
+    });
   });
 });

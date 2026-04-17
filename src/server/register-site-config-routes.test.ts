@@ -70,6 +70,16 @@ const createDependencies = ({ app, overrides = {} }) => {
     normalizeSiteSettings: vi.fn((value) => value),
     parseEditRevisionOptions: vi.fn(() => ({})),
     requireAuth,
+    sanitizeIconSource: vi.fn((value) => {
+      const normalized = String(value || "").trim();
+      if (!normalized) {
+        return null;
+      }
+      if (normalized.startsWith("/uploads/") || normalized.startsWith("https://")) {
+        return normalized;
+      }
+      return null;
+    }),
     writePages: vi.fn(),
     writeSiteSettings: vi.fn(),
     writeTagTranslations: vi.fn(),
@@ -103,5 +113,68 @@ describe("registerSiteConfigRoutes", () => {
       genres: { Drama: "Drama" },
       staffRoles: { Writer: "Roteiro" },
     });
+  });
+
+  it("normaliza iconUrl e tintIcon dos serviços de cripto ao salvar páginas", async () => {
+    const { app, routes } = createAppRecorder();
+    const dependencies = createDependencies({ app });
+
+    registerSiteConfigRoutes(dependencies);
+
+    const route = getRoute(routes, "PUT", "/api/pages");
+    expect(route).toBeDefined();
+
+    const req = {
+      session: { user: { id: "user-1" } },
+      body: {
+        pages: {
+          donations: {
+            cryptoServices: [
+              {
+                name: " Bitcoin ",
+                address: " bc1-test ",
+                icon: " Coins ",
+                iconUrl: " javascript:alert(1) ",
+                tintIcon: undefined,
+                actionLabel: " Abrir carteira ",
+              },
+              {
+                name: "Ethereum",
+                address: "0x-test",
+                iconUrl: "/uploads/shared/pages/donations/crypto/eth.svg",
+                tintIcon: false,
+              },
+            ],
+          },
+        },
+      },
+    };
+    const res = createMockRes();
+
+    await route.handlers[route.handlers.length - 1](req, res);
+
+    expect(res.statusCode).toBe(200);
+    expect(dependencies.writePages).toHaveBeenCalledWith({
+      donations: {
+        cryptoServices: [
+          expect.objectContaining({
+            name: "Bitcoin",
+            address: "bc1-test",
+            icon: "Coins",
+            iconUrl: "",
+            tintIcon: true,
+            actionLabel: "Abrir carteira",
+          }),
+          expect.objectContaining({
+            name: "Ethereum",
+            address: "0x-test",
+            iconUrl: "/uploads/shared/pages/donations/crypto/eth.svg",
+            tintIcon: false,
+          }),
+        ],
+      },
+    });
+    expect(res.body.pages.donations.cryptoServices[0].iconUrl).toBe("");
+    expect(res.body.pages.donations.cryptoServices[0].tintIcon).toBe(true);
   });
 });

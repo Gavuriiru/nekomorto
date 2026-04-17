@@ -30,6 +30,7 @@ import {
   dashboardClampedStaggerMs,
 } from "@/components/dashboard/dashboard-motion";
 import {
+  dashboardInteractiveStackedSurfaceClassName,
   dashboardPageLayoutTokens,
   dashboardStrongFocusFieldClassName,
   dashboardStrongSurfaceHoverClassName,
@@ -1211,7 +1212,7 @@ const DashboardProjectsEditor = () => {
                       key={project.id}
                       data-testid={`dashboard-project-card-${project.id}`}
                       lift={false}
-                      className={`${dashboardPageLayoutTokens.listCardSolid} ${dashboardStrongSurfaceHoverClassName} group overflow-hidden transition animate-fade-in opacity-0`}
+                      className={`${dashboardPageLayoutTokens.listCardSolid} ${dashboardInteractiveStackedSurfaceClassName} ${dashboardStrongSurfaceHoverClassName} group overflow-hidden animate-fade-in opacity-0`}
                       style={dashboardAnimationDelay(dashboardClampedStaggerMs(index))}
                     >
                       <CardContent className="relative p-0">

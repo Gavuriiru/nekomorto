@@ -3,6 +3,7 @@ import type { ReactNode } from "react";
 import { MemoryRouter } from "react-router-dom";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
+import { dashboardInteractiveStackedSurfaceClassName } from "@/components/dashboard/dashboard-page-tokens";
 import { dashboardMotionDelays } from "@/components/dashboard/dashboard-motion";
 import { formatDateTime } from "@/lib/date";
 import DashboardComments from "@/pages/DashboardComments";
@@ -338,6 +339,9 @@ describe("DashboardComments notifications", () => {
     const meta = screen.getByTestId("pending-comment-meta-comment-1");
     const targetLabel = screen.getByTitle(longTargetLabel);
 
+    expect(classTokens(pendingCard)).toEqual(
+      expect.arrayContaining(dashboardInteractiveStackedSurfaceClassName.split(" ")),
+    );
     expect(classTokens(pendingCard)).toContain("hover:border-primary/60");
     expect(classTokens(meta)).toContain("flex-wrap");
     expect(targetLabel.className).toContain("truncate");

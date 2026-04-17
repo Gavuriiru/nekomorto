@@ -26,7 +26,12 @@ import {
 } from "lucide-react";
 import { useEffect, useMemo, useRef, useState } from "react";
 import PublicPageHero from "@/components/PublicPageHero";
-import { publicPageLayoutTokens } from "@/components/public-page-tokens";
+import ThemedSvgMaskIcon from "@/components/ThemedSvgMaskIcon";
+import {
+  publicInteractiveStackedSurfaceClassName,
+  publicPageLayoutTokens,
+  publicStackedSurfaceClassName,
+} from "@/components/public-page-tokens";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
@@ -390,7 +395,7 @@ const Donations = () => {
             className={`${publicPageLayoutTokens.sectionBase} max-w-6xl pb-24 pt-10 reveal`}
             data-reveal
           >
-            <Card className="border-border/60 bg-card/80 shadow-public-card">
+            <Card className={`${publicStackedSurfaceClassName} border-border/60 bg-card/80`}>
               <CardContent className="p-6 text-sm text-muted-foreground md:p-8">
                 {hasHydrationError
                   ? "Não foi possível carregar as doações agora."
@@ -411,7 +416,7 @@ const Donations = () => {
                     return (
                       <Card
                         key={item.title}
-                        className="group bg-card/80 shadow-public-card transition-all duration-300 hover:-translate-y-1 hover:border-primary/60 hover:bg-card/90 hover:shadow-public-card"
+                        className={`${publicInteractiveStackedSurfaceClassName} group bg-card/80 hover:border-primary/60 hover:bg-card/90`}
                       >
                         <CardContent className="space-y-3 p-6">
                           <div className="flex items-center gap-3 text-sm font-semibold uppercase tracking-widest text-muted-foreground transition-colors duration-300 group-hover:text-primary">
@@ -435,7 +440,7 @@ const Donations = () => {
                 data-reveal
               >
                 <Card
-                  className={`shadow-public-card ${
+                  className={`${publicStackedSurfaceClassName} ${
                     monthlyGoal.isComplete
                       ? "border-primary/30 bg-primary/5"
                       : "border-border/60 bg-card/90"
@@ -517,7 +522,7 @@ const Donations = () => {
                 className={`${publicPageLayoutTokens.sectionBase} max-w-6xl pb-12 pt-0 reveal`}
                 data-reveal
               >
-                <Card className="border-border/60 bg-card/90 shadow-public-card">
+                <Card className={`${publicStackedSurfaceClassName} border-border/60 bg-card/90`}>
                   <CardContent
                     className={`grid gap-6 p-6 md:p-8 ${
                       (donations.reasonTitle || donations.reasonText) && donations.pixKey
@@ -610,7 +615,7 @@ const Donations = () => {
               >
                 <Card
                   data-testid="donations-crypto-card"
-                  className="border-0 bg-card/90 shadow-public-card"
+                  className={`${publicStackedSurfaceClassName} border-0 bg-card/90`}
                 >
                   <CardContent className="space-y-4 p-5 md:space-y-5 md:p-6">
                     <div
@@ -632,6 +637,7 @@ const Donations = () => {
                               const normalizedService = normalizeDonationsCryptoService(service);
                               const isActive = index === activeCryptoIndex;
                               const tabLogoUrl = normalizeAssetUrl(normalizedService.iconUrl);
+                              const shouldTintCustomIcon = normalizedService.tintIcon !== false;
                               const TabIcon = resolveDonationsIcon(normalizedService.icon, Coins);
 
                               return (
@@ -659,13 +665,30 @@ const Donations = () => {
                                     aria-hidden="true"
                                   />
                                   {tabLogoUrl ? (
-                                    <img
-                                      src={tabLogoUrl}
-                                      alt=""
-                                      aria-hidden="true"
-                                      data-testid={`donations-crypto-tab-logo-${index}`}
-                                      className="h-[1.375rem] w-[1.375rem] rounded-md object-cover"
-                                    />
+                                    shouldTintCustomIcon ? (
+                                      <ThemedSvgMaskIcon
+                                        url={tabLogoUrl}
+                                        label={
+                                          normalizedService.name ||
+                                          `Serviço cripto ${index + 1}`
+                                        }
+                                        decorative
+                                        testId={`donations-crypto-tab-logo-${index}`}
+                                        className={`h-[1.375rem] w-[1.375rem] rounded-md transition-transform duration-300 ${
+                                          isActive
+                                            ? "scale-105 text-primary"
+                                            : "text-muted-foreground group-hover/tab:text-primary"
+                                        }`}
+                                      />
+                                    ) : (
+                                      <img
+                                        src={tabLogoUrl}
+                                        alt=""
+                                        aria-hidden="true"
+                                        data-testid={`donations-crypto-tab-logo-${index}`}
+                                        className="h-[1.375rem] w-[1.375rem] rounded-md object-cover"
+                                      />
+                                    )
                                   ) : (
                                     <TabIcon
                                       aria-hidden="true"
@@ -715,7 +738,10 @@ const Donations = () => {
                 className={`${publicPageLayoutTokens.sectionBase} max-w-6xl pb-24 pt-4 reveal`}
                 data-reveal
               >
-                <Card data-testid="donations-donors-card" className="bg-card/80 shadow-public-card">
+                <Card
+                  data-testid="donations-donors-card"
+                  className={`${publicStackedSurfaceClassName} bg-card/80`}
+                >
                   <CardContent className="p-6 md:p-8">
                     <div className="flex items-center gap-3 text-xl font-semibold text-foreground">
                       {(() => {

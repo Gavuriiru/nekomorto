@@ -3,6 +3,8 @@ export const publicStrongFocusFieldClassName =
 export const publicStrongSurfaceHoverClassName = "hover:border-primary/60";
 export const publicStrongGroupSurfaceHoverClassName = "group-hover:border-primary/60";
 export const publicStrongFocusScopeClassName = "public-strong-focus-scope";
+export const publicStackedSurfaceClassName = "stacked-surface stacked-surface--public";
+export const publicInteractiveStackedSurfaceClassName = `${publicStackedSurfaceClassName} stacked-surface--interactive`;
 
 export const publicPageLayoutTokens = {
   main: "pb-20",

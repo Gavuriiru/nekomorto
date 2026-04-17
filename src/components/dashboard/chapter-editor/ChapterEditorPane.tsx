@@ -1158,7 +1158,7 @@ const ChapterEditorPane = forwardRef<ChapterEditorPaneHandle, ChapterEditorPaneP
                 <>
                   {" "}
                   <LexicalEditorSurface
-                    wrapperClassName={`chapter-editor-lexical-wrapper min-w-0 rounded-[22px] border border-border/50 bg-background/40 p-2 md:p-3 ${chapterEditorLexicalMinHeightClassName}`}
+                    wrapperClassName={`chapter-editor-lexical-wrapper min-w-0 ${chapterEditorLexicalMinHeightClassName}`}
                     wrapperTestId="chapter-lexical-wrapper"
                     fallbackVariant="chapter"
                     fallbackMinHeightClassName={chapterEditorLexicalMinHeightClassName}

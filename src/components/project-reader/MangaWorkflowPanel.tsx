@@ -7,7 +7,6 @@ import {
   type KeyboardEvent,
   type MouseEvent,
   memo,
-  type PointerEvent,
   type SetStateAction,
   useCallback,
   useEffect,
@@ -21,14 +20,11 @@ import ProjectEditorSectionCard from "@/components/project-reader/ProjectEditorS
 import {
   buildPreviewReorderList,
   buildReorderAnnouncement,
-  collectReorderSurfaceRects,
   getReorderLayoutTransition,
   handleAltArrowReorder,
-  hasExceededPointerDragThreshold,
-  type ReorderSurfaceRect,
   reorderList,
   resolvePageDisplayName,
-  resolvePointerReorderIndexFromRects,
+  usePointerReorder,
 } from "@/components/project-reader/page-reorder";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -79,29 +75,6 @@ export type StageChapter = {
   operation: "create" | "update";
   warnings: string[];
   leaveGuardPristine?: boolean;
-};
-
-type StagePagePointerDragState = {
-  chapterId: string;
-  sourceIndex: number;
-  overIndex: number;
-  pointerId: number;
-  startX: number;
-  startY: number;
-  isDragging: boolean;
-};
-
-type StagePagePointerMove = {
-  pointerId: number;
-  clientX: number;
-  clientY: number;
-};
-
-type StagePageReorderGeometry = {
-  rects: ReorderSurfaceRect[];
-  itemCount: number;
-  scrollX: number;
-  scrollY: number;
 };
 
 export type MangaWorkflowPanelHandle = {
@@ -514,13 +487,17 @@ const StagePagesGrid = memo(
     onRemove,
   }: StagePagesGridProps) => {
     const gridRef = useRef<HTMLDivElement | null>(null);
-    const stagePageDragStateRef = useRef<StagePagePointerDragState | null>(null);
-    const reorderGeometryRef = useRef<StagePageReorderGeometry | null>(null);
-    const queuedPointerMoveRef = useRef<StagePagePointerMove | null>(null);
-    const pointerMoveFrameRef = useRef<number | null>(null);
-    const [stagePageDragState, setStagePageDragState] = useState<StagePagePointerDragState | null>(
-      null,
-    );
+    const {
+      cancelPointerReorder,
+      pointerDragState: stagePageDragState,
+      startPointerReorder,
+    } = usePointerReorder({
+      containerRef: gridRef,
+      disabled: isImporting,
+      itemCount: chapter.pages.length,
+      onCommit: (fromIndex, toIndex) => onReorderPages(chapter.id, fromIndex, toIndex),
+      scope: "manga-stage-page",
+    });
 
     const previewPages = useMemo(() => {
       if (!stagePageDragState?.isDragging) {
@@ -539,204 +516,6 @@ const StagePagesGrid = memo(
       stagePageDragState?.sourceIndex !== undefined
         ? chapter.pages[stagePageDragState.sourceIndex] || null
         : null;
-
-    const captureReorderGeometry = useCallback(() => {
-      const rects = collectReorderSurfaceRects({
-        container: gridRef.current,
-        scope: "manga-stage-page",
-      });
-      const nextGeometry = {
-        rects,
-        itemCount: chapter.pages.length,
-        scrollX: window.scrollX,
-        scrollY: window.scrollY,
-      };
-      reorderGeometryRef.current = nextGeometry;
-      return nextGeometry;
-    }, [chapter.pages.length]);
-
-    const getReorderGeometry = useCallback(() => {
-      const current = reorderGeometryRef.current;
-      if (
-        !current ||
-        current.itemCount !== chapter.pages.length ||
-        current.scrollX !== window.scrollX ||
-        current.scrollY !== window.scrollY
-      ) {
-        return captureReorderGeometry();
-      }
-      return current;
-    }, [captureReorderGeometry, chapter.pages.length]);
-
-    const cancelScheduledPointerMove = useCallback(() => {
-      if (
-        pointerMoveFrameRef.current !== null &&
-        typeof window !== "undefined" &&
-        typeof window.cancelAnimationFrame === "function"
-      ) {
-        window.cancelAnimationFrame(pointerMoveFrameRef.current);
-      }
-      pointerMoveFrameRef.current = null;
-      queuedPointerMoveRef.current = null;
-    }, []);
-
-    const clearDragState = useCallback(() => {
-      cancelScheduledPointerMove();
-      stagePageDragStateRef.current = null;
-      reorderGeometryRef.current = null;
-      setStagePageDragState(null);
-    }, [cancelScheduledPointerMove]);
-
-    useEffect(() => clearDragState, [clearDragState]);
-
-    useEffect(() => {
-      const clearGeometry = () => {
-        reorderGeometryRef.current = null;
-      };
-      window.addEventListener("resize", clearGeometry);
-      return () => {
-        window.removeEventListener("resize", clearGeometry);
-      };
-    }, []);
-
-    const handlePointerDown = useCallback(
-      (event: PointerEvent<HTMLDivElement>, index: number) => {
-        if (isImporting) {
-          return;
-        }
-        if (event.pointerType === "mouse" && event.button !== 0) {
-          return;
-        }
-        const nextState = {
-          chapterId: chapter.id,
-          sourceIndex: index,
-          overIndex: index,
-          pointerId: event.pointerId,
-          startX: event.clientX,
-          startY: event.clientY,
-          isDragging: false,
-        };
-        stagePageDragStateRef.current = nextState;
-        reorderGeometryRef.current = null;
-        setStagePageDragState(nextState);
-      },
-      [chapter.id, isImporting],
-    );
-
-    const applyPointerMove = useCallback(
-      ({ pointerId, clientX, clientY }: StagePagePointerMove) => {
-        if (isImporting) {
-          return;
-        }
-        const current = stagePageDragStateRef.current;
-        if (!current || (Number.isFinite(pointerId) && current.pointerId !== pointerId)) {
-          return;
-        }
-
-        const hasDragDistance =
-          current.isDragging ||
-          hasExceededPointerDragThreshold({
-            startX: current.startX,
-            startY: current.startY,
-            clientX,
-            clientY,
-          });
-        if (!hasDragDistance) {
-          return;
-        }
-
-        const geometry = getReorderGeometry();
-        const resolvedIndex = resolvePointerReorderIndexFromRects({
-          clientX,
-          clientY,
-          rects: geometry.rects,
-        });
-        const nextOverIndex = resolvedIndex ?? current.overIndex;
-        if (current.isDragging && current.overIndex === nextOverIndex) {
-          return;
-        }
-
-        const nextState = {
-          ...current,
-          isDragging: true,
-          overIndex: nextOverIndex,
-        };
-        stagePageDragStateRef.current = nextState;
-        setStagePageDragState(nextState);
-      },
-      [getReorderGeometry, isImporting],
-    );
-
-    const handlePointerMove = useCallback(
-      (event: PointerEvent<HTMLDivElement>) => {
-        if (isImporting) {
-          return;
-        }
-        queuedPointerMoveRef.current = {
-          pointerId: event.pointerId,
-          clientX: event.clientX,
-          clientY: event.clientY,
-        };
-
-        if (pointerMoveFrameRef.current !== null) {
-          return;
-        }
-
-        if (typeof window === "undefined" || typeof window.requestAnimationFrame !== "function") {
-          const queuedMove = queuedPointerMoveRef.current;
-          queuedPointerMoveRef.current = null;
-          if (queuedMove) {
-            applyPointerMove(queuedMove);
-          }
-          return;
-        }
-
-        pointerMoveFrameRef.current = window.requestAnimationFrame(() => {
-          pointerMoveFrameRef.current = null;
-          const queuedMove = queuedPointerMoveRef.current;
-          queuedPointerMoveRef.current = null;
-          if (queuedMove) {
-            applyPointerMove(queuedMove);
-          }
-        });
-      },
-      [applyPointerMove, isImporting],
-    );
-
-    const handlePointerUp = useCallback(
-      (event: PointerEvent<HTMLDivElement>) => {
-        cancelScheduledPointerMove();
-        applyPointerMove({
-          pointerId: event.pointerId,
-          clientX: event.clientX,
-          clientY: event.clientY,
-        });
-        const dragState = stagePageDragStateRef.current;
-        clearDragState();
-        if (
-          isImporting ||
-          !dragState ||
-          (Number.isFinite(event.pointerId) && dragState.pointerId !== event.pointerId) ||
-          !dragState.isDragging
-        ) {
-          return;
-        }
-
-        const targetIndex = dragState.overIndex;
-        if (dragState.sourceIndex === targetIndex) {
-          return;
-        }
-        onReorderPages(chapter.id, dragState.sourceIndex, targetIndex);
-      },
-      [
-        applyPointerMove,
-        cancelScheduledPointerMove,
-        chapter.id,
-        clearDragState,
-        isImporting,
-        onReorderPages,
-      ],
-    );
 
     return (
       <LayoutGroup id={`manga-stage-pages-${chapter.id}`}>
@@ -769,11 +548,8 @@ const StagePagesGrid = memo(
                 disabled={isImporting}
                 reorderMotion={shouldReduceMotion ? "reduced" : "spring"}
                 reorderTransition={reorderTransition}
-                onPointerDown={handlePointerDown}
-                onPointerMove={handlePointerMove}
-                onPointerUp={handlePointerUp}
-                onPointerCancel={clearDragState}
-                onLostPointerCapture={clearDragState}
+                onPointerDown={startPointerReorder}
+                onPointerCancel={cancelPointerReorder}
                 onKeyDown={(event, pageIndex) => onKeyDown(event, chapter.id, pageIndex)}
                 onSetCover={
                   isCover

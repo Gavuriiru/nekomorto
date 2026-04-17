@@ -1,7 +1,6 @@
 .rainbow-color-picker-panel {
-  width: 214px;
   box-sizing: border-box;
-  padding: 0;
+  padding: 0.75rem;
 }
 
 .rainbow-color-picker-panel > * {
@@ -10,5 +9,5 @@
 }
 
 .rainbow-color-picker-panel > *:not(:first-child) {
-  margin-top: 12px;
+  margin-top: 0.75rem;
 }

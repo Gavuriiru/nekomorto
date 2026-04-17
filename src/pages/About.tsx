@@ -16,7 +16,10 @@ import {
 } from "lucide-react";
 import { useMemo } from "react";
 import PublicPageHero from "@/components/PublicPageHero";
-import { publicPageLayoutTokens } from "@/components/public-page-tokens";
+import {
+  publicInteractiveStackedSurfaceClassName,
+  publicPageLayoutTokens,
+} from "@/components/public-page-tokens";
 import { Card, CardContent } from "@/components/ui/card";
 import { usePageMeta } from "@/hooks/use-page-meta";
 import { readWindowPublicBootstrap } from "@/lib/public-bootstrap-global";
@@ -195,7 +198,7 @@ const About = () => {
                     return (
                       <div
                         key={item.label}
-                        className="group rounded-2xl border border-border/60 bg-background/60 p-5 transition-all duration-300 hover:-translate-y-1 hover:border-primary/60 hover:bg-background/80 hover:shadow-public-card"
+                        className={`${publicInteractiveStackedSurfaceClassName} group rounded-2xl border border-border/60 bg-background/60 p-5 hover:border-primary/60 hover:bg-background/80`}
                       >
                         <div
                           className={`${publicPageLayoutTokens.sectionLabelBase} ${publicPageLayoutTokens.sectionLabelXs}`}
@@ -212,7 +215,9 @@ const About = () => {
                 </div>
               ) : null}
               {about.manifestoTitle || about.manifestoParagraphs.length > 0 ? (
-                <Card className="group bg-card/80 shadow-public-card transition-all duration-300 hover:-translate-y-1 hover:border-primary/60 hover:bg-card/90 hover:shadow-public-card">
+                <Card
+                  className={`${publicInteractiveStackedSurfaceClassName} group bg-card/80 hover:border-primary/60 hover:bg-card/90`}
+                >
                   <CardContent className="space-y-5 p-6 md:p-8">
                     {about.manifestoTitle ? (
                       <div
@@ -253,7 +258,7 @@ const About = () => {
                 return (
                   <Card
                     key={pillar.title}
-                    className="group bg-card/80 shadow-public-card transition-all duration-300 hover:-translate-y-1 hover:border-primary/60 hover:bg-card/90 hover:shadow-public-card"
+                    className={`${publicInteractiveStackedSurfaceClassName} group bg-card/80 hover:border-primary/60 hover:bg-card/90`}
                   >
                     <CardContent className="space-y-3 p-6">
                       <div
@@ -284,7 +289,7 @@ const About = () => {
                 return (
                   <Card
                     key={value.title}
-                    className="group bg-card/80 shadow-public-card transition-all duration-300 hover:-translate-y-1 hover:border-primary/60 hover:bg-card/90 hover:shadow-public-card"
+                    className={`${publicInteractiveStackedSurfaceClassName} group bg-card/80 hover:border-primary/60 hover:bg-card/90`}
                   >
                     <CardContent className="space-y-3 p-6">
                       <div

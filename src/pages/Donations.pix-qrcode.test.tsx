@@ -21,6 +21,25 @@ vi.mock("@/hooks/use-page-meta", () => ({
   usePageMeta: () => undefined,
 }));
 
+vi.mock("@/components/ThemedSvgMaskIcon", () => ({
+  default: ({
+    testId,
+    label,
+    className,
+  }: {
+    testId?: string;
+    label: string;
+    className?: string;
+  }) => (
+    <span
+      role="img"
+      aria-label={label}
+      data-testid={testId}
+      className={className}
+    />
+  ),
+}));
+
 vi.mock("qrcode", () => ({
   default: {
     toDataURL: (...args: unknown[]) => qrCodeToDataUrlMock(...args),
@@ -402,6 +421,7 @@ describe("Donations Pix and crypto QR code", () => {
           note: "Use a rede principal.",
           icon: "Coins",
           iconUrl: "https://cdn.example.com/btc.png",
+          tintIcon: true,
           actionLabel: "Abrir carteira",
           actionUrl: "https://wallet.example.com/btc",
         },
@@ -439,10 +459,7 @@ describe("Donations Pix and crypto QR code", () => {
       "aria-label",
       "Ethereum (ETH / ERC-20)",
     );
-    expect(screen.getByTestId("donations-crypto-tab-logo-0")).toHaveAttribute(
-      "src",
-      "https://cdn.example.com/btc.png",
-    );
+    expect(screen.getByTestId("donations-crypto-tab-logo-0")).toBeInTheDocument();
     expect(screen.getByTestId("donations-crypto-tab-icon-1")).toBeInTheDocument();
     const activePanel = screen.getByTestId("donations-crypto-panel");
     const activeDetails = within(activePanel).getByTestId("donations-crypto-details");
@@ -611,6 +628,52 @@ describe("Donations Pix and crypto QR code", () => {
     expect(screen.queryByText("Abrir carteira")).not.toBeInTheDocument();
     expect(qrCodeToDataUrlMock.mock.calls.some(([payload]) => payload === "0x-endereco")).toBe(
       true,
+    );
+  });
+
+  it("mantem img normal quando o SVG customizado nao deve seguir as cores do site", async () => {
+    setBootstrapDonationsPage({
+      pixKey: "",
+      cryptoServices: [
+        {
+          name: "Bitcoin",
+          ticker: "BTC",
+          network: "Bitcoin",
+          address: "bc1-endereco",
+          qrValue: "",
+          note: "",
+          icon: "Coins",
+          iconUrl: "/uploads/shared/pages/donations/crypto/btc.svg",
+          tintIcon: false,
+          actionLabel: "",
+          actionUrl: "",
+        },
+        {
+          name: "Ethereum",
+          ticker: "ETH",
+          network: "ERC-20",
+          address: "0x-endereco",
+          qrValue: "",
+          note: "",
+          icon: "Wallet",
+          iconUrl: "",
+          actionLabel: "",
+          actionUrl: "",
+        },
+      ],
+    });
+
+    render(<Donations />);
+
+    await act(async () => {
+      await flushMicrotasks();
+    });
+
+    const logo = screen.getByTestId("donations-crypto-tab-logo-0");
+    expect(logo.tagName).toBe("IMG");
+    expect(logo).toHaveAttribute(
+      "src",
+      "http://localhost:3000/uploads/shared/pages/donations/crypto/btc.svg",
     );
   });
 });

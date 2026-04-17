@@ -18,43 +18,105 @@ const normalizeDate = (value: Date | null): Date | null => {
   return Number.isNaN(value.getTime()) ? null : value;
 };
 
+const muiDateTimeFieldEditorClassName = "mui-date-time-field--editor";
+const muiDateTimeFieldDashboardFilterClassName = "mui-date-time-field--dashboard-filter";
+const muiFieldRootSelector =
+  "& .MuiPickersInputBase-root, & .MuiPickersOutlinedInput-root, & .MuiOutlinedInput-root";
+const muiFieldOutlineSelector =
+  "& .MuiPickersOutlinedInput-notchedOutline, & .MuiOutlinedInput-notchedOutline";
+
 const muiTextFieldSx = {
-  "& .MuiOutlinedInput-root": {
-    height: "2.5rem",
-    borderRadius: "var(--radius)",
+  minWidth: 0,
+  [muiFieldRootSelector]: {
+    minWidth: 0,
+    minHeight: "2.5rem",
+    borderRadius: "calc(var(--radius) - 2px)",
     overflow: "hidden",
     backgroundColor: "hsl(var(--background))",
     color: "hsl(var(--foreground))",
-    fontSize: "0.875rem",
-    transition: "box-shadow 0.2s ease",
-    "& .MuiOutlinedInput-notchedOutline": {
+    fontFamily: "inherit",
+    fontSize: "1rem",
+    lineHeight: "1.5rem",
+    transition: "border-color 0.2s ease, background-color 0.2s ease, color 0.2s ease",
+    "@media (min-width:768px)": {
+      fontSize: "0.875rem",
+    },
+    [muiFieldOutlineSelector]: {
       borderColor: "hsl(var(--input))",
-      borderRadius: "var(--radius)",
+      borderRadius: "calc(var(--radius) - 2px)",
     },
-    "& fieldset": {
-      borderRadius: "var(--radius)",
+    "& fieldset, & legend": {
+      borderRadius: "calc(var(--radius) - 2px)",
     },
-    "&:hover .MuiOutlinedInput-notchedOutline": {
+    "&:hover .MuiPickersOutlinedInput-notchedOutline, &:hover .MuiOutlinedInput-notchedOutline": {
       borderColor: "hsl(var(--input))",
     },
-    "&.Mui-focused .MuiOutlinedInput-notchedOutline": {
+    "&.Mui-focused .MuiPickersOutlinedInput-notchedOutline, &.Mui-focused .MuiOutlinedInput-notchedOutline": {
       borderColor: "hsl(var(--primary))",
       borderWidth: "1px",
     },
     "&.Mui-disabled": {
       backgroundColor: "hsl(var(--background))",
-      color: "hsl(var(--muted-foreground))",
+      color: "hsl(var(--muted-foreground) / 0.72)",
       cursor: "not-allowed",
     },
-    "&.Mui-disabled .MuiOutlinedInput-notchedOutline": {
+    "&.Mui-disabled .MuiPickersOutlinedInput-notchedOutline, &.Mui-disabled .MuiOutlinedInput-notchedOutline": {
       borderColor: "hsl(var(--input))",
     },
   },
-  "& .MuiInputBase-input": {
+  "& .MuiPickersSectionList-root": {
+    minWidth: 0,
+    width: "100%",
+    minHeight: "calc(2.5rem - 2px)",
+    alignItems: "center",
+    color: "inherit",
+    fontFamily: "inherit",
+    fontSize: "inherit",
+    lineHeight: "inherit",
+    padding: 0,
+  },
+  [`&.${muiDateTimeFieldDashboardFilterClassName} ${muiFieldRootSelector.replaceAll("& ", "")}`]: {
+    minHeight: "2.75rem",
+    borderRadius: "0.75rem",
+    backgroundColor: "hsl(var(--background) / 0.6)",
+    [muiFieldOutlineSelector]: {
+      borderColor: "hsl(var(--border) / 0.6)",
+      borderRadius: "0.75rem",
+    },
+    "& fieldset, & legend": {
+      borderRadius: "0.75rem",
+    },
+  },
+  [`&.${muiDateTimeFieldDashboardFilterClassName} .MuiPickersSectionList-root`]: {
+    minHeight: "calc(2.75rem - 2px)",
+  },
+  [`&.${muiDateTimeFieldEditorClassName} ${muiFieldRootSelector.replaceAll("& ", "")}`]: {
+    minHeight: "2.5rem",
+  },
+  [`&.${muiDateTimeFieldEditorClassName} .MuiPickersSectionList-root`]: {
+    minHeight: "calc(2.5rem - 2px)",
+  },
+  "& .MuiPickersSectionList-section, & .MuiPickersSectionList-sectionContent, & .MuiPickersInputBase-sectionContent": {
+    color: "inherit",
+    fontFamily: "inherit",
+    fontSize: "inherit",
+    lineHeight: "inherit",
+    letterSpacing: "inherit",
+    outline: "none",
+  },
+  "& .MuiPickersSectionList-root::selection, & .MuiPickersSectionList-sectionContent::selection, & .MuiPickersInputBase-sectionContent::selection": {
+    backgroundColor: "transparent",
+    color: "inherit",
+  },
+  "& .MuiPickersSectionList-root::-moz-selection, & .MuiPickersSectionList-sectionContent::-moz-selection, & .MuiPickersInputBase-sectionContent::-moz-selection": {
+    backgroundColor: "transparent",
+    color: "inherit",
+  },
+  "& .MuiInputBase-input, & .MuiPickersInputBase-input": {
     color: "hsl(var(--foreground))",
-    padding: "0.5rem 0.75rem",
-    fontSize: "0.875rem",
-    lineHeight: "1.25rem",
+    fontFamily: "inherit",
+    fontSize: "inherit",
+    lineHeight: "inherit",
     "&::placeholder": {
       color: "hsl(var(--muted-foreground))",
       opacity: 1,
@@ -68,13 +130,13 @@ const muiTextFieldSx = {
   "& .MuiSvgIcon-root": {
     color: "hsl(var(--muted-foreground))",
   },
-  "& .MuiInputAdornment-root .MuiIconButton-root": {
+  "& .MuiInputAdornment-root .MuiIconButton-root, & .MuiPickersInputAdornment-root .MuiIconButton-root": {
     color: "hsl(var(--muted-foreground))",
   },
-  "& .MuiOutlinedInput-root.Mui-disabled .MuiSvgIcon-root": {
+  "& .MuiPickersInputBase-root.Mui-disabled .MuiSvgIcon-root, & .MuiOutlinedInput-root.Mui-disabled .MuiSvgIcon-root": {
     color: "hsl(var(--muted-foreground))",
   },
-  "& .MuiOutlinedInput-root.Mui-disabled .MuiInputAdornment-root .MuiIconButton-root": {
+  "& .MuiPickersInputBase-root.Mui-disabled .MuiInputAdornment-root .MuiIconButton-root, & .MuiOutlinedInput-root.Mui-disabled .MuiInputAdornment-root .MuiIconButton-root, & .MuiPickersInputBase-root.Mui-disabled .MuiPickersInputAdornment-root .MuiIconButton-root": {
     color: "hsl(var(--muted-foreground))",
   },
 } as const;
@@ -101,6 +163,7 @@ export const MuiBrazilDateField = ({
     slotProps={{
       textField: {
         fullWidth: true,
+        size: "small",
         variant: "outlined",
         className,
         sx: muiTextFieldSx,
@@ -126,6 +189,7 @@ export const MuiBrazilTimeField = ({
     slotProps={{
       textField: {
         fullWidth: true,
+        size: "small",
         variant: "outlined",
         className,
         sx: muiTextFieldSx,

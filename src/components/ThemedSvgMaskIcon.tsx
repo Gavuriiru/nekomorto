@@ -6,6 +6,8 @@ type ThemedSvgMaskIconProps = {
   label: string;
   className?: string;
   color?: string;
+  decorative?: boolean;
+  testId?: string;
 };
 
 const isSvgUrl = (value: string) => {
@@ -24,7 +26,14 @@ const hasMaskSupport = () => {
   );
 };
 
-const ThemedSvgMaskIcon = ({ url, label, className, color }: ThemedSvgMaskIconProps) => {
+const ThemedSvgMaskIcon = ({
+  url,
+  label,
+  className,
+  color,
+  decorative = false,
+  testId,
+}: ThemedSvgMaskIconProps) => {
   const safeUrl = useMemo(() => {
     const sanitized = sanitizeIconSource(url);
     if (!sanitized || !isIconUrlSource(sanitized)) {
@@ -78,8 +87,10 @@ const ThemedSvgMaskIcon = ({ url, label, className, color }: ThemedSvgMaskIconPr
     const maskUrl = `url("${safeUrl}")`;
     return (
       <span
-        role="img"
-        aria-label={label}
+        role={decorative ? undefined : "img"}
+        aria-label={decorative ? undefined : label}
+        aria-hidden={decorative ? true : undefined}
+        data-testid={testId}
         className={className ? `inline-block ${className}` : "inline-block"}
         style={{
           backgroundColor: color || "currentColor",
@@ -99,7 +110,9 @@ const ThemedSvgMaskIcon = ({ url, label, className, color }: ThemedSvgMaskIconPr
   return (
     <img
       src={safeUrl}
-      alt={label}
+      alt={decorative ? "" : label}
+      aria-hidden={decorative ? true : undefined}
+      data-testid={testId}
       className={className}
       style={color ? { color } : undefined}
       loading="lazy"

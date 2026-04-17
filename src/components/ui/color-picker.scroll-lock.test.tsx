@@ -3,6 +3,22 @@ import userEvent from "@testing-library/user-event";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { ColorPicker } from "@/components/ui/color-picker";
 
+const classTokens = (element: HTMLElement) => String(element.className).split(/\s+/).filter(Boolean);
+
+const findAncestor = (
+  element: HTMLElement,
+  predicate: (candidate: HTMLElement) => boolean,
+): HTMLElement | null => {
+  let current = element.parentElement;
+  while (current) {
+    if (predicate(current)) {
+      return current;
+    }
+    current = current.parentElement;
+  }
+  return null;
+};
+
 const removeClassName = (className: string) => {
   document.body.className = document.body.className
     .split(/\s+/)
@@ -31,7 +47,25 @@ describe("ColorPicker scroll lock", () => {
 
     await user.click(screen.getByRole("button", { name: /Abrir picker/i }));
 
-    expect(await screen.findByLabelText("Hex")).toBeInTheDocument();
+    const hexInput = await screen.findByLabelText("Hex");
+    expect(hexInput).toBeInTheDocument();
+
+    const panel = hexInput.closest(".rainbow-color-picker-panel");
+    expect(panel).not.toBeNull();
+    expect(classTokens(panel as HTMLElement)).toContain("w-full");
+
+    const popover = findAncestor(panel as HTMLElement, (candidate) => {
+      const tokens = classTokens(candidate);
+      return tokens.includes("shadow-floating-soft") && tokens.includes("overflow-hidden");
+    });
+    expect(popover).not.toBeNull();
+    expect(classTokens(popover as HTMLElement)).toEqual(
+      expect.arrayContaining([
+        "w-[min(18rem,calc(100vw-1rem))]",
+        "min-w-[min(16rem,calc(100vw-1rem))]",
+        "max-w-[calc(100vw-1rem)]",
+      ]),
+    );
 
     await waitFor(() => {
       expect(document.body.getAttribute("data-scroll-locked")).toBeNull();
@@ -41,5 +75,21 @@ describe("ColorPicker scroll lock", () => {
       expect(document.documentElement.style.paddingRight).toBe("");
       expect(document.documentElement.style.scrollbarGutter).toBe("");
     });
+  });
+
+  it("mantem a mesma largura responsiva no modo inline", async () => {
+    render(<ColorPicker inline label="Cor inline" value="#112233" onChange={vi.fn()} />);
+
+    const hexInput = await screen.findByLabelText("Hex");
+    const panel = hexInput.closest(".rainbow-color-picker-panel");
+
+    expect(panel).not.toBeNull();
+    expect(classTokens(panel as HTMLElement)).toEqual(
+      expect.arrayContaining([
+        "w-[min(18rem,calc(100vw-1rem))]",
+        "min-w-[min(16rem,calc(100vw-1rem))]",
+        "max-w-[calc(100vw-1rem)]",
+      ]),
+    );
   });
 });

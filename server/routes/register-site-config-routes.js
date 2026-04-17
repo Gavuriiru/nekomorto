@@ -17,10 +17,49 @@ export const registerSiteConfigRoutes = ({
   normalizeSiteSettings,
   parseEditRevisionOptions,
   requireAuth,
+  sanitizeIconSource,
   writePages,
   writeSiteSettings,
   writeTagTranslations,
 } = {}) => {
+  const trimText = (value) => String(value || "").trim();
+  const normalizeDonationsCryptoService = (service) => ({
+    name: trimText(service?.name),
+    ticker: trimText(service?.ticker),
+    network: trimText(service?.network),
+    address: trimText(service?.address),
+    qrValue: trimText(service?.qrValue),
+    note: trimText(service?.note),
+    icon: trimText(service?.icon),
+    iconUrl: sanitizeIconSource
+      ? sanitizeIconSource(service?.iconUrl) || ""
+      : trimText(service?.iconUrl),
+    tintIcon: service?.tintIcon !== false,
+    actionLabel: trimText(service?.actionLabel),
+    actionUrl: trimText(service?.actionUrl),
+  });
+  const normalizePagesPayload = (pages) => {
+    if (!pages || typeof pages !== "object" || Array.isArray(pages)) {
+      return {};
+    }
+    const donations =
+      pages.donations && typeof pages.donations === "object" && !Array.isArray(pages.donations)
+        ? pages.donations
+        : null;
+    if (!donations) {
+      return pages;
+    }
+    return {
+      ...pages,
+      donations: {
+        ...donations,
+        cryptoServices: Array.isArray(donations.cryptoServices)
+          ? donations.cryptoServices.map((service) => normalizeDonationsCryptoService(service))
+          : [],
+      },
+    };
+  };
+
   app.get("/api/public/settings", (_req, res) => {
     const settings = loadSiteSettings();
     return res.json({ settings, revision: createRevisionToken(settings) });
@@ -186,9 +225,10 @@ export const registerSiteConfigRoutes = ({
     if (!pages || typeof pages !== "object") {
       return res.status(400).json({ error: "Payload inválido." });
     }
-    writePages(pages);
+    const normalizedPages = normalizePagesPayload(pages);
+    writePages(normalizedPages);
     appendAuditLog(req, "pages.update", "pages", {});
-    return res.json({ pages, revision: createRevisionToken(pages) });
+    return res.json({ pages: normalizedPages, revision: createRevisionToken(normalizedPages) });
   });
 
   app.post("/api/tag-translations/sync", requireAuth, (req, res) => {

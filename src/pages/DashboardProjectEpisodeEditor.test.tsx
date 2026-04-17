@@ -504,8 +504,8 @@ describe("DashboardProjectEpisodeEditor", () => {
       "min-h-0",
       "flex-1",
       "overflow-y-auto",
-      "overscroll-contain",
     );
+    expect(scrollRegion).not.toHaveClass("overscroll-contain");
   });
 
   it("adiciona o próximo episódio, persiste o snapshot e navega para a nova rota", async () => {

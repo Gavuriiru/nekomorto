@@ -1,5 +1,13 @@
 import type { Transition } from "framer-motion";
-import type { KeyboardEvent } from "react";
+import {
+  useCallback,
+  useEffect,
+  useRef,
+  useState,
+  type KeyboardEvent,
+  type PointerEvent as ReactPointerEvent,
+  type RefObject,
+} from "react";
 
 type AltArrowReorderOptions = {
   event: KeyboardEvent<HTMLElement>;
@@ -48,6 +56,312 @@ export type ReorderSurfaceRect = {
   bottom: number;
   centerX: number;
   centerY: number;
+};
+
+export type PointerReorderState = {
+  sourceIndex: number;
+  overIndex: number;
+  pointerId: number;
+  startX: number;
+  startY: number;
+  isDragging: boolean;
+};
+
+type PointerReorderMove = {
+  pointerId: number;
+  clientX: number;
+  clientY: number;
+};
+
+type PointerReorderGeometry = {
+  rects: ReorderSurfaceRect[];
+  itemCount: number;
+  scrollX: number;
+  scrollY: number;
+};
+
+type UsePointerReorderOptions<TElement extends HTMLElement> = {
+  containerRef: RefObject<TElement | null>;
+  disabled?: boolean;
+  itemCount: number;
+  onCommit: (fromIndex: number, toIndex: number) => void;
+  scope: string;
+};
+
+export const usePointerReorder = <TElement extends HTMLElement>({
+  containerRef,
+  disabled = false,
+  itemCount,
+  onCommit,
+  scope,
+}: UsePointerReorderOptions<TElement>) => {
+  const pointerDragStateRef = useRef<PointerReorderState | null>(null);
+  const reorderGeometryRef = useRef<PointerReorderGeometry | null>(null);
+  const queuedPointerMoveRef = useRef<PointerReorderMove | null>(null);
+  const pointerMoveFrameRef = useRef<number | null>(null);
+  const disabledRef = useRef(disabled);
+  const onCommitRef = useRef(onCommit);
+  const [pointerDragState, setPointerDragState] = useState<PointerReorderState | null>(null);
+
+  useEffect(() => {
+    disabledRef.current = disabled;
+    onCommitRef.current = onCommit;
+  }, [disabled, onCommit]);
+
+  const captureReorderGeometry = useCallback(() => {
+    const rects = collectReorderSurfaceRects({
+      container: containerRef.current,
+      scope,
+    });
+    const nextGeometry = {
+      rects,
+      itemCount,
+      scrollX: window.scrollX,
+      scrollY: window.scrollY,
+    };
+    reorderGeometryRef.current = nextGeometry;
+    return nextGeometry;
+  }, [containerRef, itemCount, scope]);
+
+  const getReorderGeometry = useCallback(() => {
+    const current = reorderGeometryRef.current;
+    if (
+      !current ||
+      current.itemCount !== itemCount ||
+      current.scrollX !== window.scrollX ||
+      current.scrollY !== window.scrollY
+    ) {
+      return captureReorderGeometry();
+    }
+    return current;
+  }, [captureReorderGeometry, itemCount]);
+
+  const cancelScheduledPointerMove = useCallback(() => {
+    if (
+      pointerMoveFrameRef.current !== null &&
+      typeof window !== "undefined" &&
+      typeof window.cancelAnimationFrame === "function"
+    ) {
+      window.cancelAnimationFrame(pointerMoveFrameRef.current);
+    }
+    pointerMoveFrameRef.current = null;
+    queuedPointerMoveRef.current = null;
+  }, []);
+
+  const clearDragState = useCallback(() => {
+    cancelScheduledPointerMove();
+    pointerDragStateRef.current = null;
+    reorderGeometryRef.current = null;
+    setPointerDragState(null);
+  }, [cancelScheduledPointerMove]);
+
+  useEffect(() => clearDragState, [clearDragState]);
+
+  useEffect(() => {
+    const clearGeometry = () => {
+      reorderGeometryRef.current = null;
+    };
+    window.addEventListener("resize", clearGeometry);
+    return () => {
+      window.removeEventListener("resize", clearGeometry);
+    };
+  }, []);
+
+  const applyPointerMove = useCallback(
+    ({ pointerId, clientX, clientY }: PointerReorderMove) => {
+      if (disabledRef.current) {
+        return;
+      }
+
+      const current = pointerDragStateRef.current;
+      if (!current || (Number.isFinite(pointerId) && current.pointerId !== pointerId)) {
+        return;
+      }
+
+      const hasDragDistance =
+        current.isDragging ||
+        hasExceededPointerDragThreshold({
+          startX: current.startX,
+          startY: current.startY,
+          clientX,
+          clientY,
+        });
+      if (!hasDragDistance) {
+        return;
+      }
+
+      const geometry = getReorderGeometry();
+      const resolvedIndex = resolvePointerReorderIndexFromRects({
+        clientX,
+        clientY,
+        rects: geometry.rects,
+      });
+      const nextOverIndex = resolvedIndex ?? current.overIndex;
+
+      if (current.isDragging && current.overIndex === nextOverIndex) {
+        return;
+      }
+
+      const nextState = {
+        ...current,
+        isDragging: true,
+        overIndex: nextOverIndex,
+      };
+      pointerDragStateRef.current = nextState;
+      setPointerDragState(nextState);
+    },
+    [getReorderGeometry],
+  );
+
+  const schedulePointerMove = useCallback(
+    (move: PointerReorderMove) => {
+      queuedPointerMoveRef.current = move;
+
+      if (pointerMoveFrameRef.current !== null) {
+        return;
+      }
+
+      if (typeof window === "undefined" || typeof window.requestAnimationFrame !== "function") {
+        const queuedMove = queuedPointerMoveRef.current;
+        queuedPointerMoveRef.current = null;
+        if (queuedMove) {
+          applyPointerMove(queuedMove);
+        }
+        return;
+      }
+
+      pointerMoveFrameRef.current = window.requestAnimationFrame(() => {
+        pointerMoveFrameRef.current = null;
+        const queuedMove = queuedPointerMoveRef.current;
+        queuedPointerMoveRef.current = null;
+        if (queuedMove) {
+          applyPointerMove(queuedMove);
+        }
+      });
+    },
+    [applyPointerMove],
+  );
+
+  const finishPointerReorder = useCallback(
+    (move: PointerReorderMove) => {
+      cancelScheduledPointerMove();
+      applyPointerMove(move);
+
+      const currentState = pointerDragStateRef.current;
+      const geometry = reorderGeometryRef.current;
+      clearDragState();
+      if (
+        disabledRef.current ||
+        !currentState ||
+        (Number.isFinite(move.pointerId) && currentState.pointerId !== move.pointerId) ||
+        !currentState.isDragging
+      ) {
+        return;
+      }
+
+      const resolvedIndex = geometry
+        ? resolvePointerReorderIndexFromRects({
+            clientX: move.clientX,
+            clientY: move.clientY,
+            rects: geometry.rects,
+          })
+        : null;
+      const targetIndex = resolvedIndex ?? currentState.overIndex;
+      if (currentState.sourceIndex === targetIndex) {
+        return;
+      }
+
+      onCommitRef.current(currentState.sourceIndex, targetIndex);
+    },
+    [applyPointerMove, cancelScheduledPointerMove, clearDragState],
+  );
+
+  const startPointerReorder = useCallback(
+    (event: ReactPointerEvent<HTMLElement>, index: number) => {
+      if (disabledRef.current) {
+        return;
+      }
+      if (event.pointerType === "mouse" && event.button !== 0) {
+        return;
+      }
+
+      const nextState = {
+        sourceIndex: index,
+        overIndex: index,
+        pointerId: event.pointerId,
+        startX: event.clientX,
+        startY: event.clientY,
+        isDragging: false,
+      };
+      pointerDragStateRef.current = nextState;
+      captureReorderGeometry();
+      setPointerDragState(nextState);
+    },
+    [captureReorderGeometry],
+  );
+
+  const cancelPointerReorder = useCallback(
+    (event?: ReactPointerEvent<HTMLElement> | globalThis.PointerEvent) => {
+      const current = pointerDragStateRef.current;
+      if (
+        event &&
+        current &&
+        Number.isFinite(event.pointerId) &&
+        current.pointerId !== event.pointerId
+      ) {
+        return;
+      }
+      clearDragState();
+    },
+    [clearDragState],
+  );
+
+  useEffect(() => {
+    const pointerId = pointerDragState?.pointerId;
+    if (!Number.isFinite(pointerId)) {
+      return undefined;
+    }
+
+    const handleWindowPointerMove = (event: globalThis.PointerEvent) => {
+      schedulePointerMove({
+        pointerId: event.pointerId,
+        clientX: event.clientX,
+        clientY: event.clientY,
+      });
+    };
+
+    const handleWindowPointerUp = (event: globalThis.PointerEvent) => {
+      finishPointerReorder({
+        pointerId: event.pointerId,
+        clientX: event.clientX,
+        clientY: event.clientY,
+      });
+    };
+
+    const handleWindowPointerCancel = (event: globalThis.PointerEvent) => {
+      cancelPointerReorder(event);
+    };
+
+    window.addEventListener("pointermove", handleWindowPointerMove);
+    window.addEventListener("pointerup", handleWindowPointerUp);
+    window.addEventListener("pointercancel", handleWindowPointerCancel);
+    return () => {
+      window.removeEventListener("pointermove", handleWindowPointerMove);
+      window.removeEventListener("pointerup", handleWindowPointerUp);
+      window.removeEventListener("pointercancel", handleWindowPointerCancel);
+    };
+  }, [
+    cancelPointerReorder,
+    finishPointerReorder,
+    pointerDragState?.pointerId,
+    schedulePointerMove,
+  ]);
+
+  return {
+    cancelPointerReorder,
+    pointerDragState,
+    startPointerReorder,
+  };
 };
 
 export const hasExceededPointerDragThreshold = ({

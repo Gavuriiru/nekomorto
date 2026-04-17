@@ -1,7 +1,11 @@
 import { HelpCircle, Info, Rocket, Shield, Sparkles, Users } from "lucide-react";
 import { useMemo } from "react";
 import PublicPageHero from "@/components/PublicPageHero";
-import { publicPageLayoutTokens } from "@/components/public-page-tokens";
+import {
+  publicInteractiveStackedSurfaceClassName,
+  publicPageLayoutTokens,
+  publicStackedSurfaceClassName,
+} from "@/components/public-page-tokens";
 import { Card, CardContent } from "@/components/ui/card";
 import { Separator } from "@/components/ui/separator";
 import { usePageMeta } from "@/hooks/use-page-meta";
@@ -142,7 +146,7 @@ const FAQ = () => {
                 return (
                   <Card
                     key={card.title}
-                    className="group bg-card/80 shadow-public-card transition-all duration-300 hover:-translate-y-1 hover:border-primary/60 hover:bg-card/90 hover:shadow-public-card"
+                    className={`${publicInteractiveStackedSurfaceClassName} group bg-card/80 hover:border-primary/60 hover:bg-card/90`}
                   >
                     <CardContent className="space-y-4 p-6">
                       <div className="flex items-center gap-3 text-sm font-semibold uppercase tracking-widest text-muted-foreground transition-colors duration-300 group-hover:text-primary">
@@ -175,7 +179,7 @@ const FAQ = () => {
                 return (
                   <Card
                     key={group.title}
-                    className="border-border/60 bg-card/80 shadow-public-card"
+                    className={`${publicStackedSurfaceClassName} border-border/60 bg-card/80`}
                   >
                     <CardContent className="space-y-5 p-6">
                       <div className="flex items-center gap-3 text-sm font-semibold uppercase tracking-widest text-muted-foreground">

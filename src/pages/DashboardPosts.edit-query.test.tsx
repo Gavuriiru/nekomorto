@@ -702,6 +702,17 @@ describe("DashboardPosts edit query", () => {
 
     const resizeObserverInstance = resizeObserverInstances.at(-1);
     expect(resizeObserverInstance).toBeDefined();
+    expect(
+      lexicalEditorPropsSpy.mock.calls.some(([props]) =>
+        String(
+          (
+            props as {
+              className?: string;
+            }
+          ).className || "",
+        ).includes("lexical-playground--post-editor-top-flush"),
+      ),
+    ).toBe(true);
 
     const getBoundingClientRectSpy = vi.spyOn(editorTop, "getBoundingClientRect");
     getBoundingClientRectSpy.mockReturnValue(createDomRect(96));

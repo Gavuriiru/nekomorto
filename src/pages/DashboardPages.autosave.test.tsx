@@ -15,6 +15,7 @@ const imageLibraryPropsSpy = vi.hoisted(() => vi.fn());
 const qrCodeToDataUrlMock = vi.hoisted(() =>
   vi.fn().mockResolvedValue("data:image/png;base64,mock-qr"),
 );
+const uploadDashboardImageAssetMock = vi.hoisted(() => vi.fn());
 
 vi.mock("@/components/DashboardShell", () => ({
   default: ({ children }: { children: ReactNode }) => <div>{children}</div>,
@@ -55,6 +56,10 @@ vi.mock("@/lib/api-base", () => ({
 
 vi.mock("@/lib/api-client", () => ({
   apiFetch: (...args: unknown[]) => apiFetchMock(...args),
+}));
+
+vi.mock("@/lib/dashboard-upload-assets", () => ({
+  uploadDashboardImageAsset: (...args: unknown[]) => uploadDashboardImageAssetMock(...args),
 }));
 
 vi.mock("@/components/ui/use-toast", () => ({
@@ -124,6 +129,7 @@ describe("DashboardPages autosave", () => {
     navigateMock.mockReset();
     toastMock.mockReset();
     imageLibraryPropsSpy.mockReset();
+    uploadDashboardImageAssetMock.mockReset();
     apiFetchMock.mockImplementation(async (_base, path, options) => {
       const method = String((options as RequestInit | undefined)?.method || "GET").toUpperCase();
       if (path === "/api/me") {
@@ -757,6 +763,9 @@ describe("DashboardPages autosave", () => {
 
     const cryptoEditor = screen.getByTestId("donations-crypto-editor");
     apiFetchMock.mockClear();
+    uploadDashboardImageAssetMock.mockResolvedValueOnce(
+      "/uploads/shared/pages/donations/crypto/btc.svg",
+    );
 
     fireEvent.click(within(cryptoEditor).getByRole("button", { name: /Adicionar/i }));
     fireEvent.click(within(cryptoEditor).getByRole("button", { name: /Adicionar/i }));
@@ -776,15 +785,14 @@ describe("DashboardPages autosave", () => {
     fireEvent.change(within(getCryptoItem(0)).getByLabelText(/Endereço para cópia/i), {
       target: { value: "bc1-bitcoin" },
     });
-    fireEvent.change(within(getCryptoItem(0)).getByLabelText(/Logo customizada/i), {
-      target: { value: "https://cdn.example.com/btc.png" },
+    fireEvent.change(within(getCryptoItem(0)).getByLabelText(/Enviar SVG/i), {
+      target: {
+        files: [new File(["<svg/>"], "btc.svg", { type: "image/svg+xml" })],
+      },
     });
 
     await waitFor(() => {
-      expect(within(getCryptoItem(0)).getByAltText("Logo Bitcoin")).toHaveAttribute(
-        "src",
-        "https://cdn.example.com/btc.png",
-      );
+      expect(uploadDashboardImageAssetMock).toHaveBeenCalledTimes(1);
     });
 
     fireEvent.change(within(getCryptoItem(1)).getByLabelText(/Nome do serviço/i), {
@@ -835,7 +843,7 @@ describe("DashboardPages autosave", () => {
         ticker: "BTC",
         network: "Bitcoin",
         address: "bc1-bitcoin",
-        iconUrl: "https://cdn.example.com/btc.png",
+        iconUrl: "/uploads/shared/pages/donations/crypto/btc.svg",
       }),
     ]);
     payload.pages?.donations?.cryptoServices?.forEach((service: Record<string, unknown>) => {
@@ -911,6 +919,107 @@ describe("DashboardPages autosave", () => {
     expect(payload.pages?.donations?.costs?.[0]).not.toHaveProperty("_editorKey");
     expect(payload.pages?.donations?.cryptoServices?.[0]).not.toHaveProperty("_editorKey");
     expect(payload.pages?.donations?.donors?.[0]).not.toHaveProperty("_editorKey");
+  });
+
+  it("envia o SVG customizado da cripto e persiste tintIcon no payload", async () => {
+    apiFetchMock.mockImplementation(async (_base, path, options) => {
+      const method = String((options as RequestInit | undefined)?.method || "GET").toUpperCase();
+      if (path === "/api/me") {
+        return mockJsonResponse(true, { id: "1", name: "Admin", username: "admin" });
+      }
+      if (path === "/api/pages" && method === "GET") {
+        return mockJsonResponse(true, {
+          pages: {
+            donations: {
+              heroTitle: "",
+              heroSubtitle: "",
+              costs: [],
+              reasonTitle: "",
+              reasonIcon: "HeartHandshake",
+              reasonText: "",
+              reasonNote: "",
+              monthlyGoalRaised: "",
+              monthlyGoalTarget: "",
+              monthlyGoalSupporters: "",
+              monthlyGoalNote: "",
+              cryptoTitle: "Criptomoedas",
+              cryptoSubtitle: "",
+              cryptoServices: [],
+              pixKey: "PIX-INIT",
+              pixNote: "",
+              qrCustomUrl: "",
+              pixIcon: "QrCode",
+              donorsIcon: "PiggyBank",
+              donors: [],
+            },
+          },
+        });
+      }
+      if (path === "/api/pages" && method === "PUT") {
+        const body = JSON.parse(String((options as RequestInit).body || "{}"));
+        return mockJsonResponse(true, { pages: body.pages || {} });
+      }
+      return mockJsonResponse(false, { error: "not_found" }, 404);
+    });
+
+    renderDashboardPages();
+    await screen.findByRole("heading", { name: /Gerenciar/i });
+    const donationsTab = screen.getByRole("tab", { name: /Doa/i });
+    fireEvent.mouseDown(donationsTab);
+    await waitFor(() => {
+      expect(donationsTab).toHaveAttribute("aria-selected", "true");
+    });
+
+    const cryptoEditor = screen.getByTestId("donations-crypto-editor");
+    uploadDashboardImageAssetMock.mockResolvedValueOnce(
+      "/uploads/shared/pages/donations/crypto/btc.svg",
+    );
+    fireEvent.click(within(cryptoEditor).getByRole("button", { name: /Adicionar/i }));
+
+    const cryptoItem = within(cryptoEditor).getByTestId("donations-crypto-item-0");
+    fireEvent.change(within(cryptoItem).getByLabelText(/Nome do servi/i), {
+      target: { value: "Bitcoin" },
+    });
+    fireEvent.change(within(cryptoItem).getByLabelText(/Endere/i), {
+      target: { value: "bc1-upload" },
+    });
+    fireEvent.click(
+      within(cryptoItem).getByRole("switch", {
+        name: /Aplicar as cores do site ao servi/i,
+      }),
+    );
+
+    await act(async () => {
+      fireEvent.change(within(cryptoItem).getByLabelText(/Enviar SVG/i), {
+        target: {
+          files: [new File(["<svg/>"], "btc.svg", { type: "image/svg+xml" })],
+        },
+      });
+      await flushMicrotasks();
+    });
+
+    await waitFor(() => {
+      expect(uploadDashboardImageAssetMock).toHaveBeenCalledTimes(1);
+    });
+
+    await act(async () => {
+      await waitMs(1300);
+      await flushMicrotasks();
+    });
+
+    const putCalls = getPutPageCalls();
+    expect(putCalls.length).toBeGreaterThan(0);
+    const lastPutCall = putCalls[putCalls.length - 1];
+    const payload = JSON.parse(String(((lastPutCall?.[2] || {}) as RequestInit).body || "{}"));
+
+    expect(payload.pages?.donations?.cryptoServices?.[0]).toEqual(
+      expect.objectContaining({
+        name: "Bitcoin",
+        address: "bc1-upload",
+        iconUrl: "/uploads/shared/pages/donations/crypto/btc.svg",
+        tintIcon: false,
+      }),
+    );
   });
 
   it("remove servicos de cripto do payload sem afetar Pix ou meta mensal", async () => {

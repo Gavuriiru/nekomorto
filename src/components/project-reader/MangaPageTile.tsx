@@ -197,7 +197,6 @@ const MangaPageTile = ({
 
   const handleSurfacePointerDown = (event: PointerEvent<HTMLDivElement>) => {
     clearKeyboardFocusState();
-    event.currentTarget.setPointerCapture?.(event.pointerId);
     onPointerDown?.(event, index);
   };
 
@@ -211,9 +210,6 @@ const MangaPageTile = ({
 
   const handleSurfacePointerUp = (event: PointerEvent<HTMLDivElement>) => {
     onPointerUp?.(event);
-    if (event.currentTarget.hasPointerCapture?.(event.pointerId)) {
-      event.currentTarget.releasePointerCapture?.(event.pointerId);
-    }
   };
 
   const handleSurfaceMouseUp = (event: MouseEvent<HTMLDivElement>) => {
@@ -222,9 +218,6 @@ const MangaPageTile = ({
 
   const handleSurfacePointerCancel = (event: PointerEvent<HTMLDivElement>) => {
     onPointerCancel?.(event);
-    if (event.currentTarget.hasPointerCapture?.(event.pointerId)) {
-      event.currentTarget.releasePointerCapture?.(event.pointerId);
-    }
   };
 
   const handleSurfaceLostPointerCapture = (event: PointerEvent<HTMLDivElement>) => {

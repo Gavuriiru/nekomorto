@@ -65,7 +65,7 @@ const ProjectEditorRelationsSectionComponent = ({
           {relations.map((relation, index) => (
             <div
               key={`${relation.title}-${index}`}
-              className={`grid gap-2 rounded-2xl p-3 md:grid-cols-[1.35fr_1fr_1fr_auto_auto] ${cardClassName} ${
+              className={`grid gap-2 rounded-2xl p-3 md:grid-cols-[1.35fr_1fr_1fr_auto_auto] md:items-center ${cardClassName} ${
                 dragOverIndex === index ? "border-primary/40 bg-primary/5" : ""
               }`}
               draggable

@@ -112,6 +112,8 @@ describe("DashboardPosts schedule date/time", () => {
 
     fireEvent.change(screen.getByLabelText("Título"), { target: { value: "Post agendado MUI" } });
 
+    expect(document.querySelectorAll(".mui-date-time-field--editor")).toHaveLength(2);
+
     const dateInput = document.getElementById("post-date") as HTMLInputElement;
     const timeInput = document.getElementById("post-time") as HTMLInputElement;
     expect(dateInput).toBeTruthy();

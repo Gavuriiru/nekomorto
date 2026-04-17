@@ -1,5 +1,6 @@
 import { render, screen } from "@testing-library/react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
+import { publicInteractiveStackedSurfaceClassName } from "@/components/public-page-tokens";
 import { defaultSettings, mergeSettings } from "@/hooks/site-settings-context";
 import Recruitment from "@/pages/Recruitment";
 import type { SiteSettings } from "@/types/site-settings";
@@ -80,11 +81,17 @@ describe("Recruitment role icon shell", () => {
     expect(iconShell).not.toBeNull();
 
     const iconShellTokens = classTokens(iconShell as HTMLElement);
+    const roleCard = roleHeading.closest("div.rounded-lg") as HTMLElement | null;
 
     expect(iconShellTokens).toContain("bg-secondary/80");
     expect(iconShellTokens).toContain("group-hover:bg-primary/15");
     expect(iconShellTokens).not.toContain("border");
     expect(iconShellTokens).not.toContain("border-border/60");
     expect(iconShellTokens).not.toContain("group-hover:border-primary/40");
+    expect(roleCard).not.toBeNull();
+    expect(classTokens(roleCard as HTMLElement)).toEqual(
+      expect.arrayContaining(publicInteractiveStackedSurfaceClassName.split(" ")),
+    );
+    expect(classTokens(roleCard as HTMLElement)).not.toContain("interactive-lift-md");
   });
 });

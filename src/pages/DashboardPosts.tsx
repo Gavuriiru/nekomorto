@@ -1792,7 +1792,7 @@ const DashboardPosts = () => {
                                     }))
                                   }
                                   placeholder="Escreva o conteúdo do post..."
-                                  className="lexical-playground--modal lexical-playground--stretch lexical-playground--post-editor min-w-0 w-full"
+                                  className="lexical-playground--modal lexical-playground--stretch lexical-playground--post-editor lexical-playground--post-editor-top-flush min-w-0 w-full"
                                   imageLibraryOptions={postImageLibraryOptions}
                                   autoFocus={false}
                                   followCaretScroll
@@ -1880,23 +1880,24 @@ const DashboardPosts = () => {
                                 <DashboardFieldStack>
                                   <Label htmlFor="post-date">Publicação</Label>
                                   <MuiDateTimeFieldsProvider>
-                                    <div className="grid gap-3 md:grid-cols-[1.2fr_0.8fr]">
+                                    <div className="grid gap-3 md:grid-cols-[minmax(0,1.2fr)_minmax(0,0.8fr)]">
                                       <MuiBrazilDateField
                                         id="post-date"
                                         value={publishDateValue}
                                         onChange={handlePublishDateChange}
+                                        className="mui-date-time-field--editor"
                                       />
-                                      <div className="flex items-center gap-2">
+                                      <div className="flex min-w-0 items-stretch gap-2">
                                         <MuiBrazilTimeField
                                           id="post-time"
                                           value={publishTimeValue}
                                           onChange={handlePublishTimeChange}
-                                          className="flex-1"
+                                          className="mui-date-time-field--editor flex-1"
                                         />
                                         <DashboardActionButton
                                           type="button"
-                                          size="compact"
-                                          className="h-8 px-2 text-xs"
+                                          size="sm"
+                                          className="h-10 shrink-0 rounded-md px-3 text-[13px] md:text-sm"
                                           onClick={handleSetNow}
                                         >
                                           Agora

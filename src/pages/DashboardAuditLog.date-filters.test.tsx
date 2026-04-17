@@ -58,13 +58,14 @@ describe("DashboardAuditLog date/time filters", () => {
   });
 
   it("converte filtros DateField/TimeField para dateFrom/dateTo ISO sem mudar semantica", async () => {
-    render(
+    const { container } = render(
       <MemoryRouter initialEntries={["/dashboard/audit-log"]}>
         <DashboardAuditLog />
       </MemoryRouter>,
     );
 
     await screen.findByRole("heading", { name: "Registro de Auditoria" });
+    expect(container.querySelectorAll(".mui-date-time-field--dashboard-filter")).toHaveLength(4);
 
     const dateFromInput = document.getElementById("audit-date-from") as HTMLInputElement;
     const timeFromInput = document.getElementById("audit-date-from-time") as HTMLInputElement;
