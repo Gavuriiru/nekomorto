@@ -213,7 +213,7 @@ describe("Header mobile search layout", () => {
     expect(getScheduleOnBrowserLoadIdleCallsByDelay(2500)).toHaveLength(0);
   });
 
-  it("agenda preload de menus em idle no desktop", async () => {
+  it("schedules menu preload on idle on desktop", async () => {
     useIsMobileMock.mockReturnValue(false);
 
     render(
@@ -228,7 +228,7 @@ describe("Header mobile search layout", () => {
     expect(getScheduleOnBrowserLoadIdleCallsByDelay(1200).length).toBeGreaterThan(0);
   });
 
-  it("desliga preload idle dos menus em rotas de leitura e postagem", async () => {
+  it("disables idle menu preload on reading and posting routes", async () => {
     useIsMobileMock.mockReturnValue(false);
 
     render(
