@@ -235,7 +235,7 @@ is_placeholder_value() {
 require_command() {
   local name="$1"
   local fix="$2"
-  command -v "${name}" >/dev/null 2>&1 || fail "${name} nao esta instalado ou nao esta no PATH." "${fix}"
+  command -v "${name}" >/dev/null 2>&1 || fail "${name} não está instalado ou não está no PATH." "${fix}"
 }
 
 require_non_empty() {
