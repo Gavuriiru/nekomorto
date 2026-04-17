@@ -287,7 +287,7 @@ describe("Header mobile search layout", () => {
     });
   });
 
-  it("nao aplica gradiente no variant static, mesmo com scroll", async () => {
+  it("não aplica gradiente no variant static, mesmo com scroll", async () => {
     render(
       <MemoryRouter initialEntries={["/"]}>
         <Header variant="static" />
