@@ -65,7 +65,7 @@ vi.mock("connect-pg-simple", () => {
 
 vi.mock("pg", () => ({
   Pool: class FakePool {
-    constructor(_options: unknown) {}
+    constructor() {}
     end() {}
     on() {}
   },
