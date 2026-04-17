@@ -1,5 +1,5 @@
-import * as React from "react";
 import { fireEvent, render, screen, waitFor, within } from "@testing-library/react";
+import * as React from "react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import DownloadSourceSelect from "@/components/project-reader/DownloadSourceSelect";

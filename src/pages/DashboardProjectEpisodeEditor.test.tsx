@@ -1,5 +1,5 @@
-import type { ReactNode } from "react";
 import { fireEvent, render, screen, waitFor, within } from "@testing-library/react";
+import type { ReactNode } from "react";
 import { MemoryRouter, Route, Routes, useLocation } from "react-router-dom";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
@@ -712,11 +712,7 @@ describe("DashboardProjectEpisodeEditor", () => {
       .getAllByText("Atual")
       .find((element) => String((element as HTMLElement).className || "").includes("rounded-full"));
     expect(within(stageList).getAllByText("Atual")).toHaveLength(1);
-    expect(currentStageBadge).toHaveClass(
-      "border-accent/60",
-      "bg-accent/10",
-      "text-accent",
-    );
+    expect(currentStageBadge).toHaveClass("border-accent/60", "bg-accent/10", "text-accent");
   });
 
   it("persiste a origem selecionada ao salvar o episódio", async () => {

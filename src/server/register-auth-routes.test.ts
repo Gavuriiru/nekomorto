@@ -17,7 +17,8 @@ const createAppCapture = () => {
 const getRouteLayer = (router: any, method: string, path: string) =>
   router?.stack?.find(
     (layer: any) =>
-      layer?.route?.path === path && Boolean(layer.route.methods?.[String(method || "").toLowerCase()]),
+      layer?.route?.path === path &&
+      Boolean(layer.route.methods?.[String(method || "").toLowerCase()]),
   ) || null;
 
 const createResponse = () => ({
@@ -50,7 +51,10 @@ const createResponse = () => ({
   },
 });
 
-const invokeHandlers = async (handlers: Array<(...args: any[]) => unknown>, req: Record<string, unknown>) => {
+const invokeHandlers = async (
+  handlers: Array<(...args: any[]) => unknown>,
+  req: Record<string, unknown>,
+) => {
   const res = createResponse();
   let index = 0;
   const runHandler = async (arg?: unknown) => {

@@ -1,14 +1,14 @@
-import { Suspense, lazy, useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { Link, useLocation, useNavigate } from "react-router-dom";
 import { LogOut, Menu } from "lucide-react";
+import { lazy, Suspense, useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { Link, useLocation, useNavigate } from "react-router-dom";
+import DashboardNotificationsPopover from "@/components/dashboard/DashboardNotificationsPopover";
+import {
+  type DashboardMenuItem,
+  dashboardMenuItems as defaultMenuItems,
+  isDashboardMenuItemActive,
+} from "@/components/dashboard-menu";
 import ThemedSvgLogo from "@/components/ThemedSvgLogo";
 import ThemeModeSwitcher from "@/components/ThemeModeSwitcher";
-import {
-  isDashboardMenuItemActive,
-  dashboardMenuItems as defaultMenuItems,
-  type DashboardMenuItem,
-} from "@/components/dashboard-menu";
-import DashboardNotificationsPopover from "@/components/dashboard/DashboardNotificationsPopover";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -19,21 +19,21 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
-import { toast } from "@/components/ui/use-toast";
 import { SidebarTrigger } from "@/components/ui/sidebar";
+import { toast } from "@/components/ui/use-toast";
+import { useGlobalShortcuts } from "@/hooks/use-global-shortcuts";
 import { useSiteSettings } from "@/hooks/use-site-settings";
 import { getApiBase } from "@/lib/api-base";
 import { apiFetch } from "@/lib/api-client";
-import { cn } from "@/lib/utils";
-import { getNavbarIcon } from "@/lib/navbar-icons";
-import { resolveBranding } from "@/lib/branding";
-import { useGlobalShortcuts } from "@/hooks/use-global-shortcuts";
-import { isEditableShortcutTarget } from "@/lib/keyboard-shortcuts";
-import { sanitizePublicHref } from "@/lib/url-safety";
 import { buildAvatarRenderUrl } from "@/lib/avatar-render-url";
+import { resolveBranding } from "@/lib/branding";
+import { isEditableShortcutTarget } from "@/lib/keyboard-shortcuts";
+import { getNavbarIcon } from "@/lib/navbar-icons";
 import { uiCopy } from "@/lib/ui-copy";
-import type { SearchSuggestion } from "@/types/search-suggestion";
 import type { UploadMediaVariantsMap } from "@/lib/upload-variants";
+import { sanitizePublicHref } from "@/lib/url-safety";
+import { cn } from "@/lib/utils";
+import type { SearchSuggestion } from "@/types/search-suggestion";
 
 type DashboardHeaderUser = {
   name?: string;

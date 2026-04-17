@@ -1,7 +1,7 @@
 import { fireEvent, render, screen } from "@testing-library/react";
+import { useState } from "react";
 import { MemoryRouter, useLocation } from "react-router-dom";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import { useState } from "react";
 import { GlobalShortcutsProvider } from "@/hooks/global-shortcuts-provider";
 import { useGlobalShortcuts } from "@/hooks/use-global-shortcuts";
 

@@ -1,7 +1,7 @@
 import { normalizeUploadUrl } from "../lib/uploads-reorganizer.js";
-import { registerUploadMetadataRoutes } from "./upload/register-upload-metadata-routes.js";
 import { registerUploadListingRoutes } from "./upload/register-upload-list-routes.js";
 import { registerUploadManagementRoutes } from "./upload/register-upload-management-routes.js";
+import { registerUploadMetadataRoutes } from "./upload/register-upload-metadata-routes.js";
 import { registerUploadProjectImageRoutes } from "./upload/register-upload-project-image-routes.js";
 import { registerUploadStorageRoutes } from "./upload/register-upload-storage-routes.js";
 

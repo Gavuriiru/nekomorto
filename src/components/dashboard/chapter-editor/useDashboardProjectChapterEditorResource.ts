@@ -1,11 +1,11 @@
 import {
+  type Dispatch,
+  type MutableRefObject,
+  type SetStateAction,
   useCallback,
   useEffect,
   useRef,
   useState,
-  type Dispatch,
-  type MutableRefObject,
-  type SetStateAction,
 } from "react";
 
 import { toast } from "@/components/ui/use-toast";
@@ -16,11 +16,7 @@ import {
   IMAGE_PUBLICATION_PAGES_REQUIRED_MESSAGE,
   normalizeProjectSnapshotChapterOrderForPersist,
 } from "@/lib/dashboard-project-chapter";
-import {
-  DOWNLOAD_SOURCES_REQUIRED_FOR_PUBLICATION_MESSAGE,
-  READER_CONTENT_OR_DOWNLOAD_REQUIRED_FOR_PUBLICATION_MESSAGE,
-} from "@/lib/project-publication";
-import { normalizeProjectVolumeEntries } from "@/lib/project-volume-entries";
+import type { EpubRouteStatus } from "@/lib/project-epub";
 import {
   DEFAULT_API_CAPABILITIES,
   EPUB_IMPORT_DUPLICATE_EPISODE_MESSAGE,
@@ -28,8 +24,12 @@ import {
   normalizeApiContractBuildMetadata,
   normalizeApiContractCapabilities,
 } from "@/lib/project-epub";
+import {
+  DOWNLOAD_SOURCES_REQUIRED_FOR_PUBLICATION_MESSAGE,
+  READER_CONTENT_OR_DOWNLOAD_REQUIRED_FOR_PUBLICATION_MESSAGE,
+} from "@/lib/project-publication";
+import { normalizeProjectVolumeEntries } from "@/lib/project-volume-entries";
 import type { ApiContractBuildMetadata, ApiContractCapabilities } from "@/types/api-contract";
-import type { EpubRouteStatus } from "@/lib/project-epub";
 
 import type { ProjectRecord } from "./chapter-editor-types";
 

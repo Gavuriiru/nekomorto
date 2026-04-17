@@ -1,142 +1,11 @@
-import DashboardShell from "@/components/DashboardShell";
-import DashboardActionButton from "@/components/dashboard/DashboardActionButton";
-import ChapterEditorIdentitySection from "@/components/dashboard/chapter-editor/ChapterEditorIdentitySection";
-import type {
-  ChapterEditorPaneHandle,
-  ChapterStructureGroup,
-  ProjectRecord,
-  VolumeSelectionOptions,
-} from "@/components/dashboard/chapter-editor/chapter-editor-types";
-import { useChapterEditorPersistence } from "@/components/dashboard/chapter-editor/useChapterEditorPersistence";
-import { useChapterEditorStructureOrchestration } from "@/components/dashboard/chapter-editor/useChapterEditorStructureOrchestration";
-import { useChapterEditorImageLibrary } from "@/components/dashboard/chapter-editor/useChapterEditorImageLibrary";
-import { Combobox, Input, Textarea } from "@/components/dashboard/dashboard-form-controls";
-import DashboardDedicatedEditorHeader from "@/components/dashboard/DashboardDedicatedEditorHeader";
 import {
-  dedicatedEditorSidebarStickyClassName,
-  type DedicatedEditorSidebarHeightStyle,
-  useDedicatedEditorSidebarHeight,
-} from "@/components/dashboard/dedicated-editor-sidebar";
-import DashboardFieldStack from "@/components/dashboard/DashboardFieldStack";
-import DashboardPageContainer from "@/components/dashboard/DashboardPageContainer";
-import { useChapterEditorLeaveGuard } from "@/components/dashboard/chapter-editor/useChapterEditorLeaveGuard";
-import ChapterEditorDialogs from "@/components/dashboard/chapter-editor/ChapterEditorDialogs";
-import ChapterEditorEpubToolsSection from "@/components/dashboard/chapter-editor/ChapterEditorEpubToolsSection";
-import ChapterEditorStructureSection from "@/components/dashboard/chapter-editor/ChapterEditorStructureSection";
-import ChapterEditorPublicationSection from "@/components/dashboard/chapter-editor/ChapterEditorPublicationSection";
-import ChapterEditorProgressSection from "@/components/dashboard/chapter-editor/ChapterEditorProgressSection";
-import type { LexicalEditorHandle } from "@/components/lexical/LexicalEditor";
-import LexicalEditorSurface from "@/components/lexical/LexicalEditorSurface";
-import DownloadSourceSelect from "@/components/project-reader/DownloadSourceSelect";
-import MangaChapterPagesEditor from "@/components/project-reader/MangaChapterPagesEditor";
-import ProjectEditorSectionCard from "@/components/project-reader/ProjectEditorSectionCard";
-import MangaWorkflowPanel, {
-  buildStageChapterLabel,
-  type MangaWorkflowPanelHandle,
-  reconcileStageChapters,
-  revokeStagePages,
-  type StageChapter,
-} from "@/components/project-reader/MangaWorkflowPanel";
-import AsyncState from "@/components/ui/async-state";
-import { Badge } from "@/components/ui/badge";
-import { Label } from "@/components/ui/label";
-import { toast } from "@/components/ui/use-toast";
-import type { ProjectEpisode, ProjectVolumeEntry } from "@/data/projects";
-import { usePageMeta } from "@/hooks/use-page-meta";
-import { getApiBase } from "@/lib/api-base";
-import { logOriginApiBaseMismatchOnce } from "@/lib/dev-diagnostics";
-import {
-  EMPTY_CHAPTER_DRAFT,
-  VOLUME_REQUIRED_SAVE_DIALOG_DESCRIPTION,
-  buildNewChapterDraft,
-  buildChapterVolumeLabel,
-  buildEditableVolumeOptions,
-  buildChapterSnapshot,
-  buildProjectSnapshotWithVolumeEntries,
-  buildVolumeCoverAltFallback,
-  chapterHasContent,
-  chapterStatusLabel,
-  findProjectVolumeEntryByVolume,
-  groupChaptersByStructureKey,
-  groupStageChaptersByStructureKey,
-  matchesChapterSearch,
-  matchesFilter,
-  matchesStageChapterFilter,
-  matchesStageChapterSearch,
-  normalizeEpubImportPreviewPayload,
-  normalizeProjectSnapshotChapterOrderForPersist,
-  normalizeChapterForEditor,
-  normalizeOriginLabel,
-  normalizePositiveInteger,
-  normalizeNonNegativeInteger,
-  resolveChapterEntrySubtype,
-  resolveImportedChapterCount,
-  buildVolumeEntriesSnapshot,
-  normalizeVolumeEntriesForSave,
-  sortChapters,
-  supportsStructureChapterReordering,
-  type ChapterFilterMode,
-  type EditableVolumeOption,
-} from "@/lib/dashboard-project-chapter";
-import { formatBuildMetadataLabel, getFrontendBuildMetadata } from "@/lib/frontend-build";
-import { DEFAULT_PROJECT_COVER_ALT } from "@/lib/image-alt";
-import { createSlug } from "@/lib/post-content";
-import { cn } from "@/lib/utils";
-import {
-  DEFAULT_API_CAPABILITIES,
-  EPUB_CAPABILITY_UNKNOWN_MESSAGE,
-  EPUB_CAPABILITY_UNAVAILABLE_MESSAGE,
-  EPUB_EXPORT_GENERIC_MESSAGE,
-  EPUB_EXPORT_ROUTE_MISSING_MESSAGE,
-  EPUB_IMPORT_DUPLICATE_EPISODE_MESSAGE,
-  EPUB_IMPORT_INVALID_SNAPSHOT_MESSAGE,
-  EPUB_IMPORT_LEGACY_PROJECT_MISSING_MESSAGE,
-  EPUB_IMPORT_PROCESSING_MESSAGE,
-  EPUB_IMPORT_ROUTE_MISSING_MESSAGE,
-  EPUB_IMPORT_SNAPSHOT_TOO_LARGE_MESSAGE,
-  EPUB_NETWORK_ERROR_MESSAGE,
-  type EpubImportJob,
-  type EpubRouteStatus,
-  buildEpubImportProjectSnapshot,
-  buildProjectSnapshotForEpubExport,
-  downloadBinaryResponse,
-  extractEpubTempImportIdsFromPayload,
-  isEpubCssEngineFailureDetail,
-  isLegacyMultipartSnapshotTooLargeError,
-  mergeImportedChaptersIntoProject,
-  mergeImportedVolumeCoversIntoProject,
-  normalizeEpubImportJob,
-  normalizeApiContractBuildMetadata,
-  normalizeApiContractCapabilities,
-  overlayDraftOnProject,
-} from "@/lib/project-epub";
-import {
-  buildDashboardProjectChapterEditorHref,
-  buildDashboardProjectChaptersEditorHref,
-  buildDashboardProjectEditorHref,
-  buildProjectPublicReadingHref,
-} from "@/lib/project-editor-routes";
-import {
-  getProjectProgressState,
-  syncProjectProgress,
-  type ProjectProgressKind,
-} from "@/lib/project-progress";
-import { buildEpisodeKey, resolveCanonicalEpisodeRouteTarget } from "@/lib/project-episode-key";
-import { isChapterBasedType, isLightNovelType, isMangaType } from "@/lib/project-utils";
-import { findDuplicateVolumeCover } from "@/lib/project-volume-cover-key";
-import type {
-  ApiContractBuildMetadata,
-  ApiContractCapabilities,
-  ApiContractV1,
-} from "@/types/api-contract";
-import {
-  ArrowLeft,
   ArrowDown,
+  ArrowLeft,
   ArrowUp,
   ChevronLeft,
   ChevronRight,
-  FileArchive,
   ExternalLink,
+  FileArchive,
   ImagePlus,
   Loader2,
   Plus,
@@ -161,10 +30,142 @@ import {
   useState,
 } from "react";
 import { Link } from "react-router-dom";
+import DashboardShell from "@/components/DashboardShell";
+import ChapterEditorDialogs from "@/components/dashboard/chapter-editor/ChapterEditorDialogs";
+import ChapterEditorEpubToolsSection from "@/components/dashboard/chapter-editor/ChapterEditorEpubToolsSection";
+import ChapterEditorIdentitySection from "@/components/dashboard/chapter-editor/ChapterEditorIdentitySection";
+import ChapterEditorProgressSection from "@/components/dashboard/chapter-editor/ChapterEditorProgressSection";
+import ChapterEditorPublicationSection from "@/components/dashboard/chapter-editor/ChapterEditorPublicationSection";
+import ChapterEditorStructureSection from "@/components/dashboard/chapter-editor/ChapterEditorStructureSection";
+import type {
+  ChapterEditorPaneHandle,
+  ChapterStructureGroup,
+  ProjectRecord,
+  VolumeSelectionOptions,
+} from "@/components/dashboard/chapter-editor/chapter-editor-types";
+import { useChapterEditorImageLibrary } from "@/components/dashboard/chapter-editor/useChapterEditorImageLibrary";
+import { useChapterEditorLeaveGuard } from "@/components/dashboard/chapter-editor/useChapterEditorLeaveGuard";
+import { useChapterEditorPersistence } from "@/components/dashboard/chapter-editor/useChapterEditorPersistence";
+import { useChapterEditorStructureOrchestration } from "@/components/dashboard/chapter-editor/useChapterEditorStructureOrchestration";
+import DashboardActionButton from "@/components/dashboard/DashboardActionButton";
+import DashboardDedicatedEditorHeader from "@/components/dashboard/DashboardDedicatedEditorHeader";
+import DashboardFieldStack from "@/components/dashboard/DashboardFieldStack";
+import DashboardPageContainer from "@/components/dashboard/DashboardPageContainer";
+import { Combobox, Input, Textarea } from "@/components/dashboard/dashboard-form-controls";
+import {
+  type DedicatedEditorSidebarHeightStyle,
+  dedicatedEditorSidebarStickyClassName,
+  useDedicatedEditorSidebarHeight,
+} from "@/components/dashboard/dedicated-editor-sidebar";
+import type { LexicalEditorHandle } from "@/components/lexical/LexicalEditor";
+import LexicalEditorSurface from "@/components/lexical/LexicalEditorSurface";
+import DownloadSourceSelect from "@/components/project-reader/DownloadSourceSelect";
+import MangaChapterPagesEditor from "@/components/project-reader/MangaChapterPagesEditor";
+import MangaWorkflowPanel, {
+  buildStageChapterLabel,
+  type MangaWorkflowPanelHandle,
+  reconcileStageChapters,
+  revokeStagePages,
+  type StageChapter,
+} from "@/components/project-reader/MangaWorkflowPanel";
+import ProjectEditorSectionCard from "@/components/project-reader/ProjectEditorSectionCard";
+import AsyncState from "@/components/ui/async-state";
+import { Badge } from "@/components/ui/badge";
+import { Label } from "@/components/ui/label";
+import { toast } from "@/components/ui/use-toast";
+import type { ProjectEpisode, ProjectVolumeEntry } from "@/data/projects";
+import { usePageMeta } from "@/hooks/use-page-meta";
+import { getApiBase } from "@/lib/api-base";
+import {
+  buildChapterSnapshot,
+  buildChapterVolumeLabel,
+  buildEditableVolumeOptions,
+  buildNewChapterDraft,
+  buildProjectSnapshotWithVolumeEntries,
+  buildVolumeCoverAltFallback,
+  buildVolumeEntriesSnapshot,
+  type ChapterFilterMode,
+  chapterHasContent,
+  chapterStatusLabel,
+  type EditableVolumeOption,
+  EMPTY_CHAPTER_DRAFT,
+  findProjectVolumeEntryByVolume,
+  groupChaptersByStructureKey,
+  groupStageChaptersByStructureKey,
+  matchesChapterSearch,
+  matchesFilter,
+  matchesStageChapterFilter,
+  matchesStageChapterSearch,
+  normalizeChapterForEditor,
+  normalizeEpubImportPreviewPayload,
+  normalizeNonNegativeInteger,
+  normalizeOriginLabel,
+  normalizePositiveInteger,
+  normalizeProjectSnapshotChapterOrderForPersist,
+  normalizeVolumeEntriesForSave,
+  resolveChapterEntrySubtype,
+  resolveImportedChapterCount,
+  sortChapters,
+  supportsStructureChapterReordering,
+  VOLUME_REQUIRED_SAVE_DIALOG_DESCRIPTION,
+} from "@/lib/dashboard-project-chapter";
+import { logOriginApiBaseMismatchOnce } from "@/lib/dev-diagnostics";
+import { formatBuildMetadataLabel, getFrontendBuildMetadata } from "@/lib/frontend-build";
+import { DEFAULT_PROJECT_COVER_ALT } from "@/lib/image-alt";
+import { createSlug } from "@/lib/post-content";
+import {
+  buildDashboardProjectChapterEditorHref,
+  buildDashboardProjectChaptersEditorHref,
+  buildDashboardProjectEditorHref,
+  buildProjectPublicReadingHref,
+} from "@/lib/project-editor-routes";
+import { buildEpisodeKey, resolveCanonicalEpisodeRouteTarget } from "@/lib/project-episode-key";
+import {
+  buildEpubImportProjectSnapshot,
+  buildProjectSnapshotForEpubExport,
+  DEFAULT_API_CAPABILITIES,
+  downloadBinaryResponse,
+  EPUB_CAPABILITY_UNAVAILABLE_MESSAGE,
+  EPUB_CAPABILITY_UNKNOWN_MESSAGE,
+  EPUB_EXPORT_GENERIC_MESSAGE,
+  EPUB_EXPORT_ROUTE_MISSING_MESSAGE,
+  EPUB_IMPORT_DUPLICATE_EPISODE_MESSAGE,
+  EPUB_IMPORT_INVALID_SNAPSHOT_MESSAGE,
+  EPUB_IMPORT_LEGACY_PROJECT_MISSING_MESSAGE,
+  EPUB_IMPORT_PROCESSING_MESSAGE,
+  EPUB_IMPORT_ROUTE_MISSING_MESSAGE,
+  EPUB_IMPORT_SNAPSHOT_TOO_LARGE_MESSAGE,
+  EPUB_NETWORK_ERROR_MESSAGE,
+  type EpubImportJob,
+  type EpubRouteStatus,
+  extractEpubTempImportIdsFromPayload,
+  isEpubCssEngineFailureDetail,
+  isLegacyMultipartSnapshotTooLargeError,
+  mergeImportedChaptersIntoProject,
+  mergeImportedVolumeCoversIntoProject,
+  normalizeApiContractBuildMetadata,
+  normalizeApiContractCapabilities,
+  normalizeEpubImportJob,
+  overlayDraftOnProject,
+} from "@/lib/project-epub";
+import {
+  getProjectProgressState,
+  type ProjectProgressKind,
+  syncProjectProgress,
+} from "@/lib/project-progress";
+import { isChapterBasedType, isLightNovelType, isMangaType } from "@/lib/project-utils";
+import { findDuplicateVolumeCover } from "@/lib/project-volume-cover-key";
+import { cn } from "@/lib/utils";
+import type {
+  ApiContractBuildMetadata,
+  ApiContractCapabilities,
+  ApiContractV1,
+} from "@/types/api-contract";
 import {
   normalizeProjectEpisodeContentFormat,
   normalizeProjectEpisodePages,
 } from "../../../../shared/project-reader.js";
+
 const chapterEditorLexicalMinHeightClassName = "min-h-[420px] lg:min-h-[620px]";
 type EpubCapabilityState = {
   message: string;

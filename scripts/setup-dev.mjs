@@ -1,8 +1,8 @@
+import { spawn, spawnSync } from "child_process";
 import crypto from "crypto";
 import fs from "fs";
 import path from "path";
 import readline from "readline";
-import { spawn, spawnSync } from "child_process";
 import { fileURLToPath } from "url";
 import { resolveNpmInvocation } from "./lib/npm-invocation.mjs";
 

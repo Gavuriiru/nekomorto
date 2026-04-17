@@ -1,6 +1,8 @@
 import type { Dispatch, SetStateAction } from "react";
 
 import { ImageLibraryDialogLoadingGrid } from "@/components/ImageLibraryDialogLoading";
+import ImageLibraryBrowserCardGrid from "@/components/image-library/ImageLibraryBrowserCardGrid";
+import type { LibraryImageItem, UploadFolderGroup } from "@/components/image-library/types";
 import {
   Accordion,
   AccordionContent,
@@ -8,8 +10,6 @@ import {
   AccordionTrigger,
 } from "@/components/ui/accordion";
 import { Combobox } from "@/components/ui/combobox";
-import type { LibraryImageItem, UploadFolderGroup } from "@/components/image-library/types";
-import ImageLibraryBrowserCardGrid from "@/components/image-library/ImageLibraryBrowserCardGrid";
 
 const uploadSortModeOptions = [
   { value: "recent", label: "Mais recentes" },

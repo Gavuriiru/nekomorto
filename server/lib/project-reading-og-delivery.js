@@ -1,19 +1,19 @@
 import {
-  buildProjectReadingOgCardModel,
-  buildProjectReadingOgImagePath,
-  buildProjectReadingOgImageResponse,
-} from "./project-reading-og.js";
-import {
   buildProjectReadingOgRevision,
   PROJECT_READING_OG_SCENE_VERSION,
 } from "../../shared/project-reading-og-seo.js";
 import {
-  createProjectStyleOgCachedRenderResolver,
-  createProjectStyleBaseModelBuilder,
   buildProjectStyleOgDeliveryHeaders,
-  resolveProjectStyleTranslationArgs,
+  createProjectStyleBaseModelBuilder,
+  createProjectStyleOgCachedRenderResolver,
   normalizeOgRevision,
+  resolveProjectStyleTranslationArgs,
 } from "./og-delivery-shared.js";
+import {
+  buildProjectReadingOgCardModel,
+  buildProjectReadingOgImagePath,
+  buildProjectReadingOgImageResponse,
+} from "./project-reading-og.js";
 
 const buildProjectReadingOgBaseModel = createProjectStyleBaseModelBuilder(
   buildProjectReadingOgCardModel,

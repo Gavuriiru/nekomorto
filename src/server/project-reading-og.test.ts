@@ -1,13 +1,12 @@
 import sharp from "sharp";
 import { describe, expect, it } from "vitest";
-
+import { getDiagonalXAtY } from "../../server/lib/project-og.js";
 import {
   buildProjectReadingOgCardModel,
   buildProjectReadingOgImagePath,
   buildProjectReadingOgImageResponse,
   buildProjectReadingOgScene,
 } from "../../server/lib/project-reading-og.js";
-import { getDiagonalXAtY } from "../../server/lib/project-og.js";
 
 const baseSettings = {
   theme: {

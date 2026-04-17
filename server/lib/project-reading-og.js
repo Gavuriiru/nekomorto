@@ -1,16 +1,16 @@
 import {
+  buildProjectReadingOgImagePath,
+  PROJECT_READING_OG_SCENE_VERSION,
+  resolveProjectReadingOgSnapshot,
+} from "../../shared/project-reading-og-seo.js";
+import { finalizeVariantUrl, normalizeText } from "./og-shared.js";
+import {
   buildProjectOgCardModel,
   buildProjectOgImageResponse,
   buildProjectOgScene,
   getDiagonalXAtY,
   measureTextWidth,
 } from "./project-og.js";
-import {
-  PROJECT_READING_OG_SCENE_VERSION,
-  buildProjectReadingOgImagePath,
-  resolveProjectReadingOgSnapshot,
-} from "../../shared/project-reading-og-seo.js";
-import { finalizeVariantUrl, normalizeText } from "./og-shared.js";
 
 const READING_SUBTITLE_FONT_WEIGHT = 500;
 const READING_SUBTITLE_DIAGONAL_INSET = 48;
@@ -338,7 +338,7 @@ export const buildProjectReadingOgScene = (model) => buildProjectOgScene(model);
 export const buildProjectReadingOgImageResponse = (model) => buildProjectOgImageResponse(model);
 
 export {
-  PROJECT_READING_OG_SCENE_VERSION,
   buildProjectReadingOgImagePath,
+  PROJECT_READING_OG_SCENE_VERSION,
   resolveProjectReadingOgSnapshot,
 };

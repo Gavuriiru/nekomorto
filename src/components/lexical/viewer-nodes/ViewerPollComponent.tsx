@@ -1,5 +1,5 @@
-import { ViewerPollNode } from "./ViewerPollNode";
 import type { ViewerPollOption, ViewerPollOptions } from "./ViewerPollNode";
+import { ViewerPollNode } from "./ViewerPollNode";
 
 import "./ViewerPoll.css";
 

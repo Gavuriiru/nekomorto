@@ -1,52 +1,4 @@
 import {
-  useCallback,
-  useEffect,
-  useLayoutEffect,
-  useMemo,
-  useRef,
-  useState,
-  type CSSProperties,
-  type KeyboardEvent as ReactKeyboardEvent,
-} from "react";
-import { Link, Navigate, useLocation, useNavigate, useSearchParams } from "react-router-dom";
-import DashboardShell from "@/components/DashboardShell";
-import DashboardActionButton, {
-  default as Button,
-} from "@/components/dashboard/DashboardActionButton";
-import DashboardSegmentedActionButton from "@/components/dashboard/DashboardSegmentedActionButton";
-import DashboardFieldStack from "@/components/dashboard/DashboardFieldStack";
-import DashboardEditorBackdrop from "@/components/dashboard/DashboardEditorBackdrop";
-import { Combobox, Input } from "@/components/dashboard/dashboard-form-controls";
-import DashboardPageContainer from "@/components/dashboard/DashboardPageContainer";
-import DashboardPageHeader from "@/components/dashboard/DashboardPageHeader";
-import {
-  dashboardAnimationDelay,
-  dashboardClampedStaggerMs,
-} from "@/components/dashboard/dashboard-motion";
-import UploadPicture from "@/components/UploadPicture";
-import LexicalEditorSurface from "@/components/lexical/LexicalEditorSurface";
-import LazyImageLibraryDialog from "@/components/lazy/LazyImageLibraryDialog";
-import {
-  dashboardEditorDialogWidthClassName,
-  dashboardPageLayoutTokens,
-  dashboardSubtleSurfaceHoverClassName,
-  dashboardStrongSurfaceHoverClassName,
-} from "@/components/dashboard/dashboard-page-tokens";
-import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
-import AsyncState from "@/components/ui/async-state";
-import { Badge } from "@/components/ui/badge";
-import { Card, CardContent } from "@/components/ui/card";
-import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogHeader,
-  DialogTitle,
-} from "@/components/ui/dialog";
-import { Label } from "@/components/ui/label";
-import { Skeleton } from "@/components/ui/skeleton";
-import { toast } from "@/components/ui/use-toast";
-import {
   CalendarDays,
   Copy,
   Eye,
@@ -58,38 +10,37 @@ import {
   Trash2,
   UserRound,
 } from "lucide-react";
-import { createSlug, getLexicalText } from "@/lib/post-content";
-import { getImageFileNameFromUrl, resolvePostCoverPreview } from "@/lib/post-cover";
-import type { LexicalEditorHandle } from "@/components/lexical/LexicalEditor";
-import type { Project } from "@/data/projects";
-import ProjectEmbedCard from "@/components/ProjectEmbedCard";
-import { getApiBase } from "@/lib/api-base";
-import { apiFetch } from "@/lib/api-client";
-import { canManagePostsAccess } from "@/lib/access-control";
 import {
-  createPostVersion,
-  fetchEditorialCalendar,
-  fetchPostVersions,
-  rollbackPostVersion,
-} from "@/lib/editorial-admin";
-import { filterImageLibraryFoldersByAccess } from "@/lib/image-library-scope";
-import { DEFAULT_POST_COVER_ALT, resolveAssetAltText } from "@/lib/image-alt";
-import { applyBeforeUnloadCompatibility } from "@/lib/before-unload";
-import { formatDateTimeShort } from "@/lib/date";
-import { buildTranslationMap, sortByTranslatedLabel, translateTag } from "@/lib/project-taxonomy";
-import { useAccessibilityAnnouncer } from "@/hooks/accessibility-announcer";
-import { useDashboardCurrentUser } from "@/hooks/use-dashboard-current-user";
-import { useDashboardRefreshToast } from "@/hooks/use-dashboard-refresh-toast";
-import { usePageMeta } from "@/hooks/use-page-meta";
-import { useEditorScrollLock } from "@/hooks/use-editor-scroll-lock";
-import { normalizeUploadVariantUrlKey, type UploadMediaVariantsMap } from "@/lib/upload-variants";
-import type { ContentVersion, EditorialCalendarItem } from "@/types/editorial";
+  type CSSProperties,
+  type KeyboardEvent as ReactKeyboardEvent,
+  useCallback,
+  useEffect,
+  useLayoutEffect,
+  useMemo,
+  useRef,
+  useState,
+} from "react";
+import { Link, Navigate, useLocation, useNavigate, useSearchParams } from "react-router-dom";
+import DashboardShell from "@/components/DashboardShell";
+import DashboardActionButton, {
+  default as Button,
+} from "@/components/dashboard/DashboardActionButton";
+import DashboardEditorBackdrop from "@/components/dashboard/DashboardEditorBackdrop";
+import DashboardFieldStack from "@/components/dashboard/DashboardFieldStack";
+import DashboardPageContainer from "@/components/dashboard/DashboardPageContainer";
+import DashboardPageHeader from "@/components/dashboard/DashboardPageHeader";
+import DashboardSegmentedActionButton from "@/components/dashboard/DashboardSegmentedActionButton";
+import { Combobox, Input } from "@/components/dashboard/dashboard-form-controls";
 import {
-  MuiBrazilDateField,
-  MuiBrazilTimeField,
-  MuiDateTimeFieldsProvider,
-} from "@/components/ui/mui-date-time-fields";
-import CompactPagination from "@/components/ui/compact-pagination";
+  dashboardAnimationDelay,
+  dashboardClampedStaggerMs,
+} from "@/components/dashboard/dashboard-motion";
+import {
+  dashboardEditorDialogWidthClassName,
+  dashboardPageLayoutTokens,
+  dashboardStrongSurfaceHoverClassName,
+  dashboardSubtleSurfaceHoverClassName,
+} from "@/components/dashboard/dashboard-page-tokens";
 import {
   emptyPostForm as emptyForm,
   getPostStatusLabel,
@@ -103,12 +54,41 @@ import {
   type DashboardPostsSortMode,
   useDashboardPostsResource,
 } from "@/components/dashboard/post-editor/useDashboardPostsResource";
+import LazyImageLibraryDialog from "@/components/lazy/LazyImageLibraryDialog";
+import type { LexicalEditorHandle } from "@/components/lexical/LexicalEditor";
+import LexicalEditorSurface from "@/components/lexical/LexicalEditorSurface";
+import ProjectEmbedCard from "@/components/ProjectEmbedCard";
+import UploadPicture from "@/components/UploadPicture";
+import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
+import AsyncState from "@/components/ui/async-state";
+import { Badge } from "@/components/ui/badge";
+import { Card, CardContent } from "@/components/ui/card";
+import CompactPagination from "@/components/ui/compact-pagination";
 import {
-  areDashboardPostCoverUrlsEquivalent as areCoverUrlsEquivalent,
-  buildDashboardPostEditorSnapshot as buildPostEditorSnapshot,
-  extractLexicalImageUploadUrls,
-  normalizeComparableDashboardPostCoverUrl as normalizeComparableCoverUrl,
-} from "@/lib/dashboard-post-editor";
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
+import { Label } from "@/components/ui/label";
+import {
+  MuiBrazilDateField,
+  MuiBrazilTimeField,
+  MuiDateTimeFieldsProvider,
+} from "@/components/ui/mui-date-time-fields";
+import { Skeleton } from "@/components/ui/skeleton";
+import { toast } from "@/components/ui/use-toast";
+import type { Project } from "@/data/projects";
+import { useAccessibilityAnnouncer } from "@/hooks/accessibility-announcer";
+import { useDashboardCurrentUser } from "@/hooks/use-dashboard-current-user";
+import { useDashboardRefreshToast } from "@/hooks/use-dashboard-refresh-toast";
+import { useEditorScrollLock } from "@/hooks/use-editor-scroll-lock";
+import { usePageMeta } from "@/hooks/use-page-meta";
+import { canManagePostsAccess } from "@/lib/access-control";
+import { getApiBase } from "@/lib/api-base";
+import { apiFetch } from "@/lib/api-client";
+import { applyBeforeUnloadCompatibility } from "@/lib/before-unload";
 import {
   parseLocalDateTimeValue,
   toLocalDateTimeFromIso,
@@ -116,12 +96,32 @@ import {
   toTimeFieldValue,
 } from "@/lib/dashboard-date-time";
 import {
+  areDashboardPostCoverUrlsEquivalent as areCoverUrlsEquivalent,
+  buildDashboardPostEditorSnapshot as buildPostEditorSnapshot,
+  extractLexicalImageUploadUrls,
+  normalizeComparableDashboardPostCoverUrl as normalizeComparableCoverUrl,
+} from "@/lib/dashboard-post-editor";
+import {
   areDashboardSearchParamsEqual,
   buildDashboardSearchParams,
   parseDashboardEnumParam,
   parseDashboardPageParam,
   removeDashboardSearchParamKeys,
 } from "@/lib/dashboard-query-state";
+import { formatDateTimeShort } from "@/lib/date";
+import {
+  createPostVersion,
+  fetchEditorialCalendar,
+  fetchPostVersions,
+  rollbackPostVersion,
+} from "@/lib/editorial-admin";
+import { DEFAULT_POST_COVER_ALT, resolveAssetAltText } from "@/lib/image-alt";
+import { filterImageLibraryFoldersByAccess } from "@/lib/image-library-scope";
+import { createSlug, getLexicalText } from "@/lib/post-content";
+import { getImageFileNameFromUrl, resolvePostCoverPreview } from "@/lib/post-cover";
+import { buildTranslationMap, sortByTranslatedLabel, translateTag } from "@/lib/project-taxonomy";
+import { normalizeUploadVariantUrlKey, type UploadMediaVariantsMap } from "@/lib/upload-variants";
+import type { ContentVersion, EditorialCalendarItem } from "@/types/editorial";
 
 const POST_EDITOR_TOOLBAR_STICKY_OFFSET_PX = 5;
 

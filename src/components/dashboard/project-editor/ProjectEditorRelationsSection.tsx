@@ -1,8 +1,7 @@
-import { memo, type Dispatch, type SetStateAction } from "react";
-
-import ReorderControls from "@/components/ReorderControls";
+import { type Dispatch, memo, type SetStateAction } from "react";
 import DashboardActionButton from "@/components/dashboard/DashboardActionButton";
 import { Input } from "@/components/dashboard/dashboard-form-controls";
+import ReorderControls from "@/components/ReorderControls";
 import { AccordionContent, AccordionItem, AccordionTrigger } from "@/components/ui/accordion";
 
 import type { ProjectForm, ProjectRelation } from "./dashboard-projects-editor-types";

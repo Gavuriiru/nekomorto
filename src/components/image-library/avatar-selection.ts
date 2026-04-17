@@ -1,3 +1,4 @@
+import { toComparableSelectionKey } from "@/components/image-library/selection";
 import type { LibraryImageItem } from "@/components/image-library/types";
 import {
   escapeRegexPattern,
@@ -7,7 +8,6 @@ import {
   sanitizeUploadFolderForComparison,
   sanitizeUploadSlotForComparison,
 } from "@/components/image-library/utils";
-import { toComparableSelectionKey } from "@/components/image-library/selection";
 
 const AVATAR_UPLOAD_FILENAME_PATTERN = /^avatar-[a-z0-9-]+\.(png|jpe?g|gif|webp|svg)$/i;
 const UPLOADER_TIMESTAMP_SUFFIX_PATTERN = /-\d{13}$/;

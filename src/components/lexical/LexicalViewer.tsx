@@ -1,9 +1,9 @@
-import * as React from "react";
 import { LexicalComposer } from "@lexical/react/LexicalComposer";
-import { LexicalErrorBoundary } from "@lexical/react/LexicalErrorBoundary";
-import { ContentEditable } from "@lexical/react/LexicalContentEditable";
 import { useLexicalComposerContext } from "@lexical/react/LexicalComposerContext";
+import { ContentEditable } from "@lexical/react/LexicalContentEditable";
+import { LexicalErrorBoundary } from "@lexical/react/LexicalErrorBoundary";
 import { RichTextPlugin } from "@lexical/react/LexicalRichTextPlugin";
+import * as React from "react";
 
 import { getApiBase } from "@/lib/api-base";
 import { apiFetch } from "@/lib/api-client";
@@ -13,7 +13,7 @@ import { prepareLexicalViewerState, readPreparedLexicalViewerState } from "@/lib
 import { createRandomId } from "@/lib/random-id";
 import LexicalViewerNodes from "./LexicalViewerNodes";
 import LexicalViewerTheme from "./LexicalViewerTheme";
-import { ViewerPollProvider, type PollTarget } from "./viewer-nodes/ViewerPollContext";
+import { type PollTarget, ViewerPollProvider } from "./viewer-nodes/ViewerPollContext";
 
 import "./lexical-viewer.css";
 import "@/styles/rich-content.css";

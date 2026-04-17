@@ -1,11 +1,12 @@
+import { CheckCircle2, ExternalLink, Loader2, Trash2 } from "lucide-react";
 import { useCallback, useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
-import { CheckCircle2, ExternalLink, Loader2, Trash2 } from "lucide-react";
 
 import DashboardShell from "@/components/DashboardShell";
-import { Input } from "@/components/dashboard/dashboard-form-controls";
+import Button from "@/components/dashboard/DashboardActionButton";
 import DashboardPageContainer from "@/components/dashboard/DashboardPageContainer";
 import DashboardPageHeader from "@/components/dashboard/DashboardPageHeader";
+import { Input } from "@/components/dashboard/dashboard-form-controls";
 import {
   dashboardAnimationDelay,
   dashboardClampedStaggerMs,
@@ -25,18 +26,17 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
+import AsyncState from "@/components/ui/async-state";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Badge } from "@/components/ui/badge";
-import Button from "@/components/dashboard/DashboardActionButton";
 import { Card, CardContent } from "@/components/ui/card";
-import AsyncState from "@/components/ui/async-state";
 import { toast } from "@/components/ui/use-toast";
 import { useDashboardCurrentUser } from "@/hooks/use-dashboard-current-user";
+import { usePageMeta } from "@/hooks/use-page-meta";
 import { getApiBase } from "@/lib/api-base";
 import { apiFetch } from "@/lib/api-client";
 import { formatDateTime } from "@/lib/date";
 import { cn } from "@/lib/utils";
-import { usePageMeta } from "@/hooks/use-page-meta";
 
 type PendingComment = {
   id: string;

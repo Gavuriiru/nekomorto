@@ -1,6 +1,6 @@
-import * as React from "react";
 import { fireEvent, render, screen, waitFor, within } from "@testing-library/react";
 import { Heart, Sparkles, Users } from "lucide-react";
+import * as React from "react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import { Combobox, type ComboboxOption } from "@/components/ui/combobox";

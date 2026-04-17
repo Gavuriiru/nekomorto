@@ -4,8 +4,8 @@ import { describe, expect, it, vi } from "vitest";
 import {
   createViteDevServer,
   isViteMiddlewareEnabled,
-  resolveViteAllowedHostsFromOrigins,
   resolveClientIndexPath,
+  resolveViteAllowedHostsFromOrigins,
 } from "../../server/lib/frontend-runtime.js";
 
 describe("frontend-runtime", () => {

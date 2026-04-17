@@ -1,13 +1,13 @@
 import {
-  hasProjectEpisodePages,
-  hasProjectEpisodeReadableContent,
-  normalizeProjectEpisodeContentFormat,
-} from "../../shared/project-reader.js";
-import {
   getProjectEpisodeCompleteDownloadSources,
   isProjectEpisodePublic,
   resolveProjectEpisodePublicationState,
 } from "../../shared/project-publication.js";
+import {
+  hasProjectEpisodePages,
+  hasProjectEpisodeReadableContent,
+  normalizeProjectEpisodeContentFormat,
+} from "../../shared/project-reader.js";
 
 export const getEpisodeNumberValue = (value) => {
   const parsed = Number(value);

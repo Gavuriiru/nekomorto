@@ -1,22 +1,22 @@
+import {
+  Languages,
+  Layers,
+  Paintbrush,
+  PenTool,
+  ScanText,
+  ShieldCheck,
+  Sparkles,
+  Timer,
+  Video,
+} from "lucide-react";
 import { useMemo } from "react";
+import PublicPageHero from "@/components/PublicPageHero";
+import { publicPageLayoutTokens } from "@/components/public-page-tokens";
+import { Button } from "@/components/ui/button";
+import { Card, CardContent } from "@/components/ui/card";
 import { usePageMeta } from "@/hooks/use-page-meta";
 import { usePublicBootstrap } from "@/hooks/use-public-bootstrap";
 import { useSiteSettings } from "@/hooks/use-site-settings";
-import PublicPageHero from "@/components/PublicPageHero";
-import { Button } from "@/components/ui/button";
-import { Card, CardContent } from "@/components/ui/card";
-import { publicPageLayoutTokens } from "@/components/public-page-tokens";
-import {
-  Languages,
-  ScanText,
-  PenTool,
-  Sparkles,
-  Video,
-  Paintbrush,
-  Layers,
-  Timer,
-  ShieldCheck,
-} from "lucide-react";
 import { readWindowPublicBootstrap } from "@/lib/public-bootstrap-global";
 import {
   buildInstitutionalOgImageAlt,
@@ -195,7 +195,10 @@ const Recruitment = () => {
             className={`${publicPageLayoutTokens.sectionBase} mt-12 max-w-6xl reveal`}
             data-reveal
           >
-            <Card className="bg-card/70 animate-fade-in opacity-0" style={{ animationDelay: "0.4s" }}>
+            <Card
+              className="bg-card/70 animate-fade-in opacity-0"
+              style={{ animationDelay: "0.4s" }}
+            >
               <CardContent className="flex flex-col items-stretch justify-between gap-4 p-6 md:flex-row md:items-center">
                 <div className="space-y-1">
                   <h2 className="text-lg font-semibold text-foreground">{recruitment.ctaTitle}</h2>

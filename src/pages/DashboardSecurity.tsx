@@ -1,20 +1,19 @@
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { LogOut } from "lucide-react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 
 import DashboardShell from "@/components/DashboardShell";
 import DashboardActionButton from "@/components/dashboard/DashboardActionButton";
 import DashboardPageBadge from "@/components/dashboard/DashboardPageBadge";
 import {
-  dashboardPageLayoutTokens,
-  dashboardSubtleSurfaceHoverClassName,
-} from "@/components/dashboard/dashboard-page-tokens";
-import {
   dashboardAnimationDelay,
   dashboardClampedStaggerMs,
   dashboardMotionDelays,
 } from "@/components/dashboard/dashboard-motion";
+import {
+  dashboardPageLayoutTokens,
+  dashboardSubtleSurfaceHoverClassName,
+} from "@/components/dashboard/dashboard-page-tokens";
 import { Alert, AlertDescription } from "@/components/ui/alert";
-import { Badge } from "@/components/ui/badge";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -25,12 +24,13 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
+import { Badge } from "@/components/ui/badge";
 import CompactPagination from "@/components/ui/compact-pagination";
 import { Skeleton } from "@/components/ui/skeleton";
 import { toast } from "@/components/ui/use-toast";
-import { usePageMeta } from "@/hooks/use-page-meta";
 import { useDashboardCurrentUser } from "@/hooks/use-dashboard-current-user";
 import { useDashboardRefreshToast } from "@/hooks/use-dashboard-refresh-toast";
+import { usePageMeta } from "@/hooks/use-page-meta";
 import { getApiBase } from "@/lib/api-base";
 import { apiFetch } from "@/lib/api-client";
 

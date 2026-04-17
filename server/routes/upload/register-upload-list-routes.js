@@ -1,11 +1,11 @@
 import fs from "fs";
 import path from "path";
+import { normalizeUploadUrl } from "../../lib/uploads-reorganizer.js";
 import {
   getUsedUploadUrls,
   resolveProjectLibraryFolders,
   resolveProjectRootFolder,
 } from "./upload-route-utils.js";
-import { normalizeUploadUrl } from "../../lib/uploads-reorganizer.js";
 
 export const registerUploadListingRoutes = (deps) => {
   const {

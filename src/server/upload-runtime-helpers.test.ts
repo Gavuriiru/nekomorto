@@ -74,7 +74,7 @@ describe("upload-runtime-helpers", () => {
       [
         '<svg onload="evil()">',
         "<script>alert(1)</script>",
-        "<foreignObject><iframe src=\"https://evil.test\"></iframe></foreignObject>",
+        '<foreignObject><iframe src="https://evil.test"></iframe></foreignObject>',
         '<a href="jav&#x61;script:evil()"></a>',
         '<use href="#ok" />',
         '<use xlink:href="#shape" />',

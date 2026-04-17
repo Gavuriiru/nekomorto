@@ -2,41 +2,40 @@ import { unzipSync } from "fflate";
 import { LayoutGroup, useReducedMotion } from "framer-motion";
 import { FileArchive, FolderOpen, ImagePlus, Loader2, Plus } from "lucide-react";
 import {
+  type KeyboardEvent,
+  type MouseEvent,
   memo,
+  type PointerEvent,
   useCallback,
   useEffect,
   useMemo,
   useRef,
   useState,
-  type KeyboardEvent,
-  type MouseEvent,
-  type PointerEvent,
 } from "react";
-
+import DownloadSourceSelect from "@/components/project-reader/DownloadSourceSelect";
+import MangaPageTile from "@/components/project-reader/MangaPageTile";
+import { exportMangaChapter } from "@/components/project-reader/manga-chapter-export";
+import {
+  buildPreviewReorderList,
+  buildReorderAnnouncement,
+  collectReorderSurfaceRects,
+  getReorderLayoutTransition,
+  handleAltArrowReorder,
+  hasExceededPointerDragThreshold,
+  type ReorderSurfaceRect,
+  reorderList,
+  resolvePageDisplayName,
+  resolvePointerReorderIndexFromRects,
+} from "@/components/project-reader/page-reorder";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { toast } from "@/components/ui/use-toast";
-import DownloadSourceSelect from "@/components/project-reader/DownloadSourceSelect";
-import { useAccessibilityAnnouncer } from "@/hooks/accessibility-announcer";
 import type { Project, ProjectEpisode, ProjectEpisodePage } from "@/data/projects";
+import { useAccessibilityAnnouncer } from "@/hooks/accessibility-announcer";
 import { apiFetch } from "@/lib/api-client";
 import { fileToDataUrl } from "@/lib/file-data-url";
-import {
-  buildReorderAnnouncement,
-  getReorderLayoutTransition,
-  buildPreviewReorderList,
-  collectReorderSurfaceRects,
-  handleAltArrowReorder,
-  hasExceededPointerDragThreshold,
-  reorderList,
-  resolvePointerReorderIndexFromRects,
-  resolvePageDisplayName,
-  type ReorderSurfaceRect,
-} from "@/components/project-reader/page-reorder";
-import { exportMangaChapter } from "@/components/project-reader/manga-chapter-export";
-import MangaPageTile from "@/components/project-reader/MangaPageTile";
 import { normalizeProjectEpisodePages } from "../../../shared/project-reader.js";
 
 type MangaChapterPagesEditorProps = {
@@ -348,10 +347,7 @@ const MangaChapterPagesGrid = memo(
           return;
         }
 
-        if (
-          typeof window === "undefined" ||
-          typeof window.requestAnimationFrame !== "function"
-        ) {
+        if (typeof window === "undefined" || typeof window.requestAnimationFrame !== "function") {
           const queuedMove = queuedPointerMoveRef.current;
           queuedPointerMoveRef.current = null;
           if (queuedMove) {

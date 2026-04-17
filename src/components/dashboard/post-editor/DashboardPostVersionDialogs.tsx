@@ -1,7 +1,10 @@
-import type { Project } from "@/data/projects";
-import type { ContentVersion } from "@/types/editorial";
-
+import { RotateCcw } from "lucide-react";
 import DashboardActionButton from "@/components/dashboard/DashboardActionButton";
+import {
+  getPostStatusLabel,
+  isVersionRestorableAgainstPost,
+  type PostRecord,
+} from "@/components/dashboard/post-editor/dashboard-posts-types";
 import AsyncState from "@/components/ui/async-state";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent } from "@/components/ui/card";
@@ -12,14 +15,9 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
+import type { Project } from "@/data/projects";
 import { formatDateTimeShort } from "@/lib/date";
-import { RotateCcw } from "lucide-react";
-
-import {
-  getPostStatusLabel,
-  isVersionRestorableAgainstPost,
-  type PostRecord,
-} from "@/components/dashboard/post-editor/dashboard-posts-types";
+import type { ContentVersion } from "@/types/editorial";
 
 type DashboardPostVersionDialogsProps = {
   editingPost: PostRecord | null;

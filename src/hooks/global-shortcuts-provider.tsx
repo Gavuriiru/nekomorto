@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useRef, type ReactNode } from "react";
+import { type ReactNode, useCallback, useEffect, useMemo, useRef } from "react";
 import { useNavigate } from "react-router-dom";
 import { GlobalShortcutsContext } from "@/hooks/global-shortcuts-context";
 import { isEditableShortcutTarget, isSearchShortcutBlockedTarget } from "@/lib/keyboard-shortcuts";

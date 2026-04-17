@@ -1,17 +1,17 @@
+import type { StageChapter } from "@/components/project-reader/MangaWorkflowPanel";
 import type { ProjectEpisode, ProjectVolumeCover, ProjectVolumeEntry } from "@/data/projects";
+import { buildEpisodeKey, resolveNextMainEpisodeNumber } from "@/lib/project-episode-key";
+import type { EpubImportPreviewPayload } from "@/lib/project-epub";
 import type { ProjectProgressKind } from "@/lib/project-progress";
 import { syncProjectProgress } from "@/lib/project-progress";
-import { buildEpisodeKey, resolveNextMainEpisodeNumber } from "@/lib/project-episode-key";
+import { isLightNovelType, isMangaType } from "@/lib/project-utils";
 import { buildVolumeCoverKey } from "@/lib/project-volume-cover-key";
 import { normalizeProjectVolumeEntries } from "@/lib/project-volume-entries";
-import { isLightNovelType, isMangaType } from "@/lib/project-utils";
-import type { EpubImportPreviewPayload } from "@/lib/project-epub";
 import {
+  hasProjectEpisodeReadableContent,
   normalizeProjectEpisodeContentFormat,
   normalizeProjectEpisodePages,
 } from "../../shared/project-reader.js";
-import { hasProjectEpisodeReadableContent } from "../../shared/project-reader.js";
-import type { StageChapter } from "@/components/project-reader/MangaWorkflowPanel";
 
 export type ChapterFilterMode = "all" | "draft" | "published" | "with-content" | "without-content";
 

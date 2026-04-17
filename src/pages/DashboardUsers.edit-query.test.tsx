@@ -1,10 +1,9 @@
-import type { ReactNode } from "react";
 import { fireEvent, render, screen, waitFor } from "@testing-library/react";
+import type { ReactNode } from "react";
 import { MemoryRouter, useLocation } from "react-router-dom";
 import { describe, expect, it, vi } from "vitest";
-
-import DashboardUsers from "@/pages/DashboardUsers";
 import { dashboardEditorDialogWidthClassName } from "@/components/dashboard/dashboard-page-tokens";
+import DashboardUsers from "@/pages/DashboardUsers";
 
 const apiFetchMock = vi.hoisted(() => vi.fn());
 
@@ -208,11 +207,7 @@ describe("DashboardUsers edit query", () => {
     expect(favoriteWorksCategoryCard).not.toBeNull();
     expect(String(favoriteWorksCategoryCard?.className || "")).toContain("hover:border-primary/40");
     const currentSessionBadge = await screen.findByText("Atual");
-    expect(currentSessionBadge).toHaveClass(
-      "border-accent/60",
-      "bg-accent/10",
-      "text-accent",
-    );
+    expect(currentSessionBadge).toHaveClass("border-accent/60", "bg-accent/10", "text-accent");
 
     unmount();
 

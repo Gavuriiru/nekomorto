@@ -1,10 +1,10 @@
-import type { ProjectEpisode } from "@/data/projects";
+import DashboardFieldStack from "@/components/dashboard/DashboardFieldStack";
 
 import { Input } from "@/components/dashboard/dashboard-form-controls";
-import DashboardFieldStack from "@/components/dashboard/DashboardFieldStack";
+import ProjectEditorSectionCard from "@/components/project-reader/ProjectEditorSectionCard";
 import { Badge } from "@/components/ui/badge";
 import { Label } from "@/components/ui/label";
-import ProjectEditorSectionCard from "@/components/project-reader/ProjectEditorSectionCard";
+import type { ProjectEpisode } from "@/data/projects";
 import { chapterStatusLabel } from "@/lib/dashboard-project-chapter";
 
 type ChapterEditorPublicationSectionProps = {

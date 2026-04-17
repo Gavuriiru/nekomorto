@@ -1,12 +1,12 @@
 import crypto from "crypto";
 import fs from "fs";
 import path from "path";
-import { importRemoteImageFile } from "../server/lib/remote-image-import.js";
 import {
   buildRelationImageFileBase,
   localizeProjectImageFields,
   resolveProjectImageFolders,
 } from "../server/lib/project-image-localizer.js";
+import { importRemoteImageFile } from "../server/lib/remote-image-import.js";
 import { loadDbDatasets, persistDbDatasets, prisma } from "./lib/db-datasets.mjs";
 
 const APPLY_FLAG = "--apply";

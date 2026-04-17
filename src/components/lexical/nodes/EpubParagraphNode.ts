@@ -1,11 +1,11 @@
 import {
   $applyNodeReplacement,
   $createParagraphNode,
-  type ElementFormatType,
-  ParagraphNode,
   type EditorConfig,
+  type ElementFormatType,
   type LexicalNode,
   type NodeKey,
+  ParagraphNode,
   type RangeSelection,
   type SerializedParagraphNode,
   type Spread,

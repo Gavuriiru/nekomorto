@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useRef, type Dispatch, type SetStateAction } from "react";
+import { type Dispatch, type SetStateAction, useCallback, useEffect, useMemo, useRef } from "react";
 
 import {
   areSelectionsSemanticallyEqual,

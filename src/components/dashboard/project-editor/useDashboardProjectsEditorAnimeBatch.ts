@@ -1,6 +1,15 @@
+import type { Dispatch, MutableRefObject, SetStateAction } from "react";
 import { useCallback, useEffect, useMemo, useState } from "react";
-
+import type {
+  EditorProjectEpisode,
+  ProjectForm,
+  SortedEpisodeItem,
+} from "@/components/dashboard/project-editor/dashboard-projects-editor-types";
+import { toast } from "@/components/ui/use-toast";
+import { displayTimeToCanonical } from "@/lib/dashboard-date-time";
+import { shiftIndexedRecordAfterRemoval } from "@/lib/dashboard-indexed-drafts";
 import {
+  type AnimeEpisodeQuickFilter,
   buildDuplicatedAnimeEpisode,
   cloneEpisodeSources,
   generateEpisodeEditorLocalId,
@@ -8,18 +17,7 @@ import {
   getAnimeEpisodeCompletionLabel,
   matchesAnimeEpisodeQuickFilter,
   shiftIsoDateByDays,
-  type AnimeEpisodeQuickFilter,
 } from "@/lib/project-anime-episodes";
-import { displayTimeToCanonical } from "@/lib/dashboard-date-time";
-import { shiftIndexedRecordAfterRemoval } from "@/lib/dashboard-indexed-drafts";
-import { toast } from "@/components/ui/use-toast";
-
-import type {
-  EditorProjectEpisode,
-  ProjectForm,
-  SortedEpisodeItem,
-} from "@/components/dashboard/project-editor/dashboard-projects-editor-types";
-import type { Dispatch, MutableRefObject, SetStateAction } from "react";
 
 export const getEpisodeAccordionValue = (index: number) => `episode-${index}`;
 

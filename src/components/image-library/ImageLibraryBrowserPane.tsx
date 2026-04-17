@@ -1,12 +1,11 @@
 import type { Dispatch, SetStateAction } from "react";
-
+import ImageLibraryProjectSection from "@/components/image-library/ImageLibraryProjectSection";
+import ImageLibraryUploadSection from "@/components/image-library/ImageLibraryUploadSection";
 import type {
   LibraryImageItem,
   ProjectImageGroup,
   UploadFolderGroup,
 } from "@/components/image-library/types";
-import ImageLibraryProjectSection from "@/components/image-library/ImageLibraryProjectSection";
-import ImageLibraryUploadSection from "@/components/image-library/ImageLibraryUploadSection";
 
 export type ImageLibraryBrowserPaneProps = {
   allowUploadManagementActions: boolean;

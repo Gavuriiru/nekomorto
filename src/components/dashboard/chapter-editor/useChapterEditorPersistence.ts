@@ -1,23 +1,22 @@
 import { useCallback, useState } from "react";
 
 import { toast } from "@/components/ui/use-toast";
+import type { ProjectEpisode } from "@/data/projects";
 import { refetchPublicBootstrapCache } from "@/hooks/use-public-bootstrap";
 import { apiFetch } from "@/lib/api-client";
 import {
   IMAGE_PUBLICATION_PAGES_REQUIRED_MESSAGE,
-  VOLUME_REQUIRED_IDENTITY_MESSAGE,
   normalizeChapterForSave,
+  VOLUME_REQUIRED_IDENTITY_MESSAGE,
 } from "@/lib/dashboard-project-chapter";
 import { getEpisodeCoverAltFallback, resolveAssetAltText } from "@/lib/image-alt";
+import { findIncompleteDownloadSourceIndex } from "@/lib/project-download-sources";
 import { resolveEpisodeLookup } from "@/lib/project-episode-key";
+import { overlayDraftOnProject } from "@/lib/project-epub";
 import {
   resolveProjectEpisodePublicationErrorState,
   resolveProjectEpisodePublicationState,
 } from "@/lib/project-publication";
-import { overlayDraftOnProject } from "@/lib/project-epub";
-import { findIncompleteDownloadSourceIndex } from "@/lib/project-download-sources";
-
-import type { ProjectEpisode } from "@/data/projects";
 import type { ProjectRecord } from "./chapter-editor-types";
 
 type UseChapterEditorPersistenceOptions = {

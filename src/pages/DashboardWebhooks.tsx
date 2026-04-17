@@ -1,18 +1,16 @@
+import { Loader2, Plus, RotateCcw, Save, Send, Trash2 } from "lucide-react";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useNavigate } from "react-router-dom";
-
-import {
-  Accordion,
-  AccordionContent,
-  AccordionItem,
-  AccordionTrigger,
-} from "@/components/ui/accordion";
 import DashboardShell from "@/components/DashboardShell";
 import DashboardActionButton from "@/components/dashboard/DashboardActionButton";
 import DashboardFieldStack from "@/components/dashboard/DashboardFieldStack";
-import { Combobox, Input, Textarea } from "@/components/dashboard/dashboard-form-controls";
 import DashboardPageContainer from "@/components/dashboard/DashboardPageContainer";
 import DashboardPageHeader from "@/components/dashboard/DashboardPageHeader";
+import { Combobox, Input, Textarea } from "@/components/dashboard/dashboard-form-controls";
+import {
+  dashboardAnimationDelay,
+  dashboardMotionDelays,
+} from "@/components/dashboard/dashboard-motion";
 import {
   dashboardPageLayoutTokens,
   dashboardStrongFocusFieldClassName,
@@ -21,9 +19,11 @@ import {
   dashboardStrongSurfaceHoverClassName,
 } from "@/components/dashboard/dashboard-page-tokens";
 import {
-  dashboardAnimationDelay,
-  dashboardMotionDelays,
-} from "@/components/dashboard/dashboard-motion";
+  Accordion,
+  AccordionContent,
+  AccordionItem,
+  AccordionTrigger,
+} from "@/components/ui/accordion";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import AsyncState from "@/components/ui/async-state";
 import { Badge } from "@/components/ui/badge";
@@ -38,7 +38,6 @@ import { useDashboardRefreshToast } from "@/hooks/use-dashboard-refresh-toast";
 import { usePageMeta } from "@/hooks/use-page-meta";
 import { getApiBase } from "@/lib/api-base";
 import { apiFetch } from "@/lib/api-client";
-import { Loader2, Plus, RotateCcw, Save, Send, Trash2 } from "lucide-react";
 
 type ChannelKey = "posts" | "projects";
 type EventKey = "post_create" | "post_update" | "project_release" | "project_adjust";

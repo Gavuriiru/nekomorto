@@ -13,8 +13,8 @@ import {
   FOCAL_CROP_HANDLE_KEYS,
   getFocalCropHandleStyle,
 } from "./focal-point-workspace";
-import { toEffectiveName } from "./utils";
 import useFocalPointWorkspace from "./useFocalPointWorkspace";
+import { toEffectiveName } from "./utils";
 
 export type FocalPointWorkspaceProps = {
   activePresetButtonRef?: Ref<HTMLButtonElement>;

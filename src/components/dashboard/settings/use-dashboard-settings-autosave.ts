@@ -6,20 +6,20 @@ import {
   readAutosavePreference,
   writeAutosavePreference,
 } from "@/config/autosave";
-import { useAutosave, type AutosaveStatus } from "@/hooks/use-autosave";
 import { defaultSettings, mergeSettings } from "@/hooks/site-settings-context";
-import { applyBeforeUnloadCompatibility } from "@/lib/before-unload";
+import { type AutosaveStatus, useAutosave } from "@/hooks/use-autosave";
 import { apiFetch } from "@/lib/api-client";
+import { applyBeforeUnloadCompatibility } from "@/lib/before-unload";
 import { writeDashboardSettingsCache } from "@/lib/dashboard-settings-cache";
+import type { SiteSettings } from "@/types/site-settings";
 import {
+  type LinkTypeItem,
   normalizeDefaultShareImageSettings,
   normalizeLinkTypeId,
-  sanitizeReaderProjectTypesForDashboardSave,
-  type LinkTypeItem,
   type SettingsTabKey,
+  sanitizeReaderProjectTypesForDashboardSave,
   type TranslationsPayload,
 } from "./shared";
-import type { SiteSettings } from "@/types/site-settings";
 
 type UseDashboardSettingsAutosaveOptions = {
   apiBase: string;

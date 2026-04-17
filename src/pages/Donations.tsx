@@ -1,42 +1,43 @@
+import {
+  BadgeDollarSign,
+  Banknote,
+  Bitcoin,
+  Check,
+  CircleDollarSign,
+  Coins,
+  Copy,
+  ExternalLink,
+  Flame,
+  Heart,
+  HeartHandshake,
+  HelpCircle,
+  Info,
+  Landmark,
+  PiggyBank,
+  QrCode,
+  Rocket,
+  Server,
+  Shield,
+  Sparkles,
+  Users,
+  Wallet,
+  Wand2,
+  Zap,
+} from "lucide-react";
 import { useEffect, useMemo, useRef, useState } from "react";
 import PublicPageHero from "@/components/PublicPageHero";
+import { publicPageLayoutTokens } from "@/components/public-page-tokens";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Progress } from "@/components/ui/progress";
 import { Separator } from "@/components/ui/separator";
-import {
-  Check,
-  Copy,
-  ExternalLink,
-  Coins,
-  Wallet,
-  BadgeDollarSign,
-  Landmark,
-  Banknote,
-  CircleDollarSign,
-  Bitcoin,
-  HeartHandshake,
-  PiggyBank,
-  QrCode,
-  Server,
-  Sparkles,
-  Heart,
-  Users,
-  Wand2,
-  Flame,
-  Zap,
-  HelpCircle,
-  Info,
-  Rocket,
-  Shield,
-} from "lucide-react";
-import { publicPageLayoutTokens } from "@/components/public-page-tokens";
 import { usePageMeta } from "@/hooks/use-page-meta";
 import { usePixQrCode } from "@/hooks/use-pix-qr-code";
 import { usePublicBootstrap } from "@/hooks/use-public-bootstrap";
-import { useTextQrCode } from "@/hooks/use-text-qr-code";
 import { useSiteSettings } from "@/hooks/use-site-settings";
+import { useTextQrCode } from "@/hooks/use-text-qr-code";
+import { normalizeAssetUrl } from "@/lib/asset-url";
 import {
   DEFAULT_DONATIONS_CRYPTO_SECTION_TITLE,
   getDonationsCryptoActionLabel,
@@ -47,7 +48,6 @@ import {
   normalizeDonationsCryptoServices,
 } from "@/lib/donations-crypto";
 import { buildMonthlyGoalSummary } from "@/lib/donations-monthly-goal";
-import { normalizeAssetUrl } from "@/lib/asset-url";
 import { readWindowPublicBootstrap } from "@/lib/public-bootstrap-global";
 import type { DonationsCryptoService } from "@/types/public-pages";
 import {
@@ -526,7 +526,10 @@ const Donations = () => {
                     }`}
                   >
                     {donations.reasonTitle || donations.reasonText ? (
-                      <div data-testid="donations-reason-panel" className="space-y-4 rounded-2xl p-2">
+                      <div
+                        data-testid="donations-reason-panel"
+                        className="space-y-4 rounded-2xl p-2"
+                      >
                         <div className="flex items-center gap-3 text-sm font-semibold uppercase tracking-widest text-muted-foreground">
                           {(() => {
                             const ReasonIcon = resolveDonationsIcon(
@@ -547,7 +550,7 @@ const Donations = () => {
                         ) : null}
                       </div>
                     ) : null}
-                    
+
                     {donations.pixKey ? (
                       <div
                         id="pix-doacoes"
@@ -605,7 +608,10 @@ const Donations = () => {
                 data-reveal
                 data-testid="donations-crypto-section"
               >
-                <Card data-testid="donations-crypto-card" className="border-0 bg-card/90 shadow-public-card">
+                <Card
+                  data-testid="donations-crypto-card"
+                  className="border-0 bg-card/90 shadow-public-card"
+                >
                   <CardContent className="space-y-4 p-5 md:space-y-5 md:p-6">
                     <div
                       className={
@@ -759,4 +765,3 @@ const Donations = () => {
 };
 
 export default Donations;
-

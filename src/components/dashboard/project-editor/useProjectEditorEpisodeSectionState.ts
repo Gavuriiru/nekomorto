@@ -1,32 +1,31 @@
 import {
+  type Dispatch,
+  type MutableRefObject,
+  type MouseEvent as ReactMouseEvent,
+  type SetStateAction,
   useCallback,
   useEffect,
   useMemo,
   useRef,
   useState,
-  type Dispatch,
-  type MutableRefObject,
-  type MouseEvent as ReactMouseEvent,
-  type SetStateAction,
 } from "react";
 
 import type { ProjectVolumeEntry } from "@/data/projects";
 import { generateEpisodeEditorLocalId } from "@/lib/project-anime-episodes";
 import { resolveNextMainEpisodeNumber } from "@/lib/project-episode-key";
 import { buildVolumeCoverKey } from "@/lib/project-volume-cover-key";
-
-import {
-  buildProjectEpisodeGroupsForRender,
-  buildProjectEpisodeVolumeGroups,
-  resolveProjectVolumeEntryIndexByVolume,
-} from "./project-editor-form";
-import { getEpisodeAccordionValue } from "./useDashboardProjectsEditorAnimeBatch";
 import type {
   EditorProjectEpisode,
   EpisodeVolumeGroup,
   ProjectForm,
   SortedEpisodeItem,
 } from "./dashboard-projects-editor-types";
+import {
+  buildProjectEpisodeGroupsForRender,
+  buildProjectEpisodeVolumeGroups,
+  resolveProjectVolumeEntryIndexByVolume,
+} from "./project-editor-form";
+import { getEpisodeAccordionValue } from "./useDashboardProjectsEditorAnimeBatch";
 
 type UseProjectEditorEpisodeSectionStateOptions = {
   editorAccordionValue: string[];

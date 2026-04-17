@@ -1,10 +1,9 @@
 import { describe, expect, it, vi } from "vitest";
-
+import { registerPublicRoutes } from "../../server/routes/register-public-routes.js";
 import {
   LEGACY_PUBLIC_ANALYTICS_INGEST_PATH,
   PUBLIC_ANALYTICS_INGEST_PATH,
 } from "../../shared/public-analytics.js";
-import { registerPublicRoutes } from "../../server/routes/register-public-routes.js";
 
 const createAppRecorder = () => {
   const routes: Array<{

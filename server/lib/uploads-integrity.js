@@ -1,13 +1,13 @@
 import fs from "fs";
 import path from "path";
+import { normalizePublicUploadUrl } from "./public-media-variants.js";
+import { buildUploadFilterScope, getUploadRelativePath } from "./upload-filter-scope.js";
+import { readUploadStorageProvider } from "./upload-storage.js";
 import {
   extractUploadUrlsFromText,
   normalizeUploadUrl,
   runUploadsReorganization,
 } from "./uploads-reorganizer.js";
-import { buildUploadFilterScope, getUploadRelativePath } from "./upload-filter-scope.js";
-import { readUploadStorageProvider } from "./upload-storage.js";
-import { normalizePublicUploadUrl } from "./public-media-variants.js";
 
 const CRITICAL_ISSUE_TYPES = new Set([
   "missing_source_file",

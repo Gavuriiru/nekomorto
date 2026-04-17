@@ -1,7 +1,6 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-
-import { buildProjectEditorSnapshot } from "./project-editor-snapshot";
 import type { ProjectForm } from "./dashboard-projects-editor-types";
+import { buildProjectEditorSnapshot } from "./project-editor-snapshot";
 
 export type ProjectEditorPendingEpisodeFocus = {
   number: number;

@@ -1,9 +1,9 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import {
+  armHomeHeroShellCleanup,
   HOME_HERO_READY_EVENT,
   PUBLIC_HOME_HERO_SHELL_EXIT_CLASS,
-  armHomeHeroShellCleanup,
 } from "@/lib/home-hero";
 
 describe("home-hero shell cleanup", () => {

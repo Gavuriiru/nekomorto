@@ -1,5 +1,5 @@
-import { useEffect, useState } from "react";
 import QRCode from "qrcode";
+import { useEffect, useState } from "react";
 
 export const QR_PLACEHOLDER_URL = "/placeholder.svg";
 

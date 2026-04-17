@@ -1,17 +1,18 @@
-import { Link, useNavigate } from "react-router-dom";
+import { ArrowDown, ArrowUp, SlidersHorizontal } from "lucide-react";
 import { useCallback, useEffect, useMemo, useState } from "react";
+import { Link, useNavigate } from "react-router-dom";
 import DashboardShell from "@/components/DashboardShell";
-import DashboardPageContainer from "@/components/dashboard/DashboardPageContainer";
-import DashboardPageBadge from "@/components/dashboard/DashboardPageBadge";
 import DashboardActionButton from "@/components/dashboard/DashboardActionButton";
-import {
-  dashboardPageLayoutTokens,
-  dashboardStrongSurfaceHoverClassName,
-} from "@/components/dashboard/dashboard-page-tokens";
+import DashboardPageBadge from "@/components/dashboard/DashboardPageBadge";
+import DashboardPageContainer from "@/components/dashboard/DashboardPageContainer";
 import {
   dashboardAnimationDelay,
   dashboardMotionDelays,
 } from "@/components/dashboard/dashboard-motion";
+import {
+  dashboardPageLayoutTokens,
+  dashboardStrongSurfaceHoverClassName,
+} from "@/components/dashboard/dashboard-page-tokens";
 import AsyncState from "@/components/ui/async-state";
 import { Badge } from "@/components/ui/badge";
 import {
@@ -23,15 +24,14 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import { Skeleton } from "@/components/ui/skeleton";
-import { getApiBase } from "@/lib/api-base";
-import { apiFetch } from "@/lib/api-client";
-import { formatDateTime } from "@/lib/date";
+import { toast } from "@/components/ui/use-toast";
 import { useDashboardCurrentUser } from "@/hooks/use-dashboard-current-user";
 import { useDashboardPreferences } from "@/hooks/use-dashboard-preferences";
 import { usePageMeta } from "@/hooks/use-page-meta";
+import { getApiBase } from "@/lib/api-base";
+import { apiFetch } from "@/lib/api-client";
+import { formatDateTime } from "@/lib/date";
 import type { OperationalAlertsResponse } from "@/types/operational-alerts";
-import { ArrowDown, ArrowUp, SlidersHorizontal } from "lucide-react";
-import { toast } from "@/components/ui/use-toast";
 
 type DashboardPost = {
   id: string;

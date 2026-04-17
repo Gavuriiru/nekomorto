@@ -14,9 +14,9 @@ import {
 } from "./upload-media.js";
 import {
   ALLOWED_UPLOAD_IMAGE_MIMES,
+  getUploadExtFromMime,
   MAX_SVG_SIZE_BYTES,
   MAX_UPLOAD_SIZE_BYTES,
-  getUploadExtFromMime,
   normalizeUploadMime,
   sanitizeSvg,
   sanitizeUploadBaseName,

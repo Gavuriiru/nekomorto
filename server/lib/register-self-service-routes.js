@@ -61,8 +61,7 @@ export const registerSelfServiceRoutes = ({
     return next();
   };
   const enforceTotpEnrollStartRateLimit = createManageMfaRateLimitMiddleware("enroll_start");
-  const enforceTotpEnrollConfirmRateLimit =
-    createManageMfaRateLimitMiddleware("enroll_confirm");
+  const enforceTotpEnrollConfirmRateLimit = createManageMfaRateLimitMiddleware("enroll_confirm");
   const enforceTotpDisableRateLimit = createManageMfaRateLimitMiddleware("disable");
   const codeQlVisibleMfaRateLimit = rateLimit({
     windowMs: 60 * 1000,

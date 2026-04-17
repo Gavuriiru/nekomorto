@@ -1,52 +1,52 @@
-import { useCallback, useMemo, type FocusEvent } from "react";
+import { type FocusEvent, useCallback, useMemo } from "react";
 import { useLocation, useNavigate, useSearchParams } from "react-router-dom";
 import DashboardAutosaveStatus from "@/components/DashboardAutosaveStatus";
-import DashboardPageBadge from "@/components/dashboard/DashboardPageBadge";
+import DashboardShell from "@/components/DashboardShell";
 import DashboardActionButton, {
   default as Button,
 } from "@/components/dashboard/DashboardActionButton";
+import DashboardPageBadge from "@/components/dashboard/DashboardPageBadge";
 import { Input, Textarea } from "@/components/dashboard/dashboard-form-controls";
+import {
+  dashboardAnimationDelay,
+  dashboardMotionDelays,
+} from "@/components/dashboard/dashboard-motion";
 import {
   dashboardStrongFocusFieldClassName,
   dashboardStrongFocusScopeClassName,
   dashboardStrongFocusTriggerClassName,
   dashboardStrongSurfaceHoverClassName,
 } from "@/components/dashboard/dashboard-page-tokens";
-import DashboardShell from "@/components/DashboardShell";
+import { DashboardSettingsDownloadsTab } from "@/components/dashboard/settings/DashboardSettingsDownloadsTab";
+import { DashboardSettingsGeneralTab } from "@/components/dashboard/settings/DashboardSettingsGeneralTab";
+import { DashboardSettingsLayoutTab } from "@/components/dashboard/settings/DashboardSettingsLayoutTab";
+import { DashboardSettingsReaderTab } from "@/components/dashboard/settings/DashboardSettingsReaderTab";
+import { DashboardSettingsSeoTab } from "@/components/dashboard/settings/DashboardSettingsSeoTab";
+import { DashboardSettingsSocialLinksTab } from "@/components/dashboard/settings/DashboardSettingsSocialLinksTab";
+import { DashboardSettingsTeamTab } from "@/components/dashboard/settings/DashboardSettingsTeamTab";
+import { DashboardSettingsTranslationsTab } from "@/components/dashboard/settings/DashboardSettingsTranslationsTab";
+import { DashboardSettingsProvider } from "@/components/dashboard/settings/dashboard-settings-context";
+import type { DashboardSettingsContextValue } from "@/components/dashboard/settings/dashboard-settings-types";
 import {
-  dashboardAnimationDelay,
-  dashboardMotionDelays,
-} from "@/components/dashboard/dashboard-motion";
+  type LogoEditorField,
+  readLogoField,
+  type SettingsTabKey,
+} from "@/components/dashboard/settings/shared";
+import { useDashboardSettingsMedia } from "@/components/dashboard/settings/use-dashboard-settings-media";
+import { useDashboardSettingsResource } from "@/components/dashboard/settings/use-dashboard-settings-resource";
+import LazyImageLibraryDialog from "@/components/lazy/LazyImageLibraryDialog";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import AsyncState from "@/components/ui/async-state";
 import { Card, CardContent } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { autosaveRuntimeConfig } from "@/config/autosave";
-import { getApiBase } from "@/lib/api-base";
-import { clearDashboardSettingsCache } from "@/lib/dashboard-settings-cache";
-import { resolveBranding } from "@/lib/branding";
-import { useSiteSettings } from "@/hooks/use-site-settings";
 import { useDashboardCurrentUser } from "@/hooks/use-dashboard-current-user";
 import { usePageMeta } from "@/hooks/use-page-meta";
-import { DashboardSettingsProvider } from "@/components/dashboard/settings/dashboard-settings-context";
-import type { DashboardSettingsContextValue } from "@/components/dashboard/settings/dashboard-settings-types";
-import { DashboardSettingsGeneralTab } from "@/components/dashboard/settings/DashboardSettingsGeneralTab";
-import { DashboardSettingsReaderTab } from "@/components/dashboard/settings/DashboardSettingsReaderTab";
-import { DashboardSettingsSeoTab } from "@/components/dashboard/settings/DashboardSettingsSeoTab";
-import { DashboardSettingsDownloadsTab } from "@/components/dashboard/settings/DashboardSettingsDownloadsTab";
-import { DashboardSettingsTeamTab } from "@/components/dashboard/settings/DashboardSettingsTeamTab";
-import { DashboardSettingsLayoutTab } from "@/components/dashboard/settings/DashboardSettingsLayoutTab";
-import { DashboardSettingsSocialLinksTab } from "@/components/dashboard/settings/DashboardSettingsSocialLinksTab";
-import { DashboardSettingsTranslationsTab } from "@/components/dashboard/settings/DashboardSettingsTranslationsTab";
-import { useDashboardSettingsResource } from "@/components/dashboard/settings/use-dashboard-settings-resource";
-import { useDashboardSettingsMedia } from "@/components/dashboard/settings/use-dashboard-settings-media";
-import LazyImageLibraryDialog from "@/components/lazy/LazyImageLibraryDialog";
-import {
-  type LogoEditorField,
-  readLogoField,
-  type SettingsTabKey,
-} from "@/components/dashboard/settings/shared";
+import { useSiteSettings } from "@/hooks/use-site-settings";
+import { getApiBase } from "@/lib/api-base";
+import { resolveBranding } from "@/lib/branding";
+import { clearDashboardSettingsCache } from "@/lib/dashboard-settings-cache";
 
 const dashboardSettingsTabComponents = [
   { key: "geral", Component: DashboardSettingsGeneralTab },

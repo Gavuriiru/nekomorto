@@ -1,5 +1,3 @@
-import type { Klass, LexicalNode } from "lexical";
-
 import { CodeHighlightNode, CodeNode } from "@lexical/code";
 import { HashtagNode } from "@lexical/hashtag";
 import { AutoLinkNode, LinkNode } from "@lexical/link";
@@ -9,6 +7,7 @@ import { OverflowNode } from "@lexical/overflow";
 import { HorizontalRuleNode } from "@lexical/react/LexicalHorizontalRuleNode";
 import { HeadingNode, QuoteNode } from "@lexical/rich-text";
 import { TableCellNode, TableNode, TableRowNode } from "@lexical/table";
+import type { Klass, LexicalNode } from "lexical";
 
 import { EpubAnchorNode } from "@/components/lexical/nodes/EpubAnchorNode";
 import { EpubHeadingNode } from "@/components/lexical/nodes/EpubHeadingNode";
@@ -21,17 +20,17 @@ import { ViewerImageNode } from "@/components/lexical/viewer-nodes/ViewerImageNo
 import { ViewerPageBreakNode } from "@/components/lexical/viewer-nodes/ViewerPageBreakNode";
 import { ViewerPollNode } from "@/components/lexical/viewer-nodes/ViewerPollNode";
 import { ViewerStickyNode } from "@/components/lexical/viewer-nodes/ViewerStickyNode";
-import { TweetNode } from "@/lexical-playground/nodes/TweetNode";
-import { YouTubeNode } from "@/lexical-playground/nodes/YouTubeNode";
-import { CollapsibleContainerNode } from "@/lexical-playground/plugins/CollapsiblePlugin/CollapsibleContainerNode";
-import { CollapsibleContentNode } from "@/lexical-playground/plugins/CollapsiblePlugin/CollapsibleContentNode";
-import { CollapsibleTitleNode } from "@/lexical-playground/plugins/CollapsiblePlugin/CollapsibleTitleNode";
 import { EmojiNode } from "@/lexical-playground/nodes/EmojiNode";
 import { KeywordNode } from "@/lexical-playground/nodes/KeywordNode";
 import { LayoutContainerNode } from "@/lexical-playground/nodes/LayoutContainerNode";
 import { LayoutItemNode } from "@/lexical-playground/nodes/LayoutItemNode";
 import { MentionNode } from "@/lexical-playground/nodes/MentionNode";
 import { SpecialTextNode } from "@/lexical-playground/nodes/SpecialTextNode";
+import { TweetNode } from "@/lexical-playground/nodes/TweetNode";
+import { YouTubeNode } from "@/lexical-playground/nodes/YouTubeNode";
+import { CollapsibleContainerNode } from "@/lexical-playground/plugins/CollapsiblePlugin/CollapsibleContainerNode";
+import { CollapsibleContentNode } from "@/lexical-playground/plugins/CollapsiblePlugin/CollapsibleContentNode";
+import { CollapsibleTitleNode } from "@/lexical-playground/plugins/CollapsiblePlugin/CollapsibleTitleNode";
 
 const LexicalViewerNodes: Array<Klass<LexicalNode>> = [
   HeadingNode,

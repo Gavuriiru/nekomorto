@@ -1,13 +1,13 @@
+import { spawn } from "node:child_process";
 import fs from "node:fs";
 import net from "node:net";
 import path from "node:path";
-import { spawn } from "node:child_process";
 import { fileURLToPath } from "node:url";
 
 import {
+  collectAuditNumericValues,
   PUBLIC_SURFACE_CATEGORY_IDS,
   PUBLIC_SURFACE_METRIC_AUDIT_IDS,
-  collectAuditNumericValues,
 } from "./public-surface-performance-lib.mjs";
 
 const __filename = fileURLToPath(import.meta.url);

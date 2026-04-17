@@ -1,34 +1,3 @@
-import { Combobox, Input } from "@/components/dashboard/dashboard-form-controls";
-import type { ComboboxOption } from "@/components/ui/combobox";
-import DashboardActionButton from "@/components/dashboard/DashboardActionButton";
-import {
-  dedicatedEditorSidebarBodyClassName,
-  dedicatedEditorSidebarPanelClassName,
-  dedicatedEditorSidebarScrollRegionClassName,
-} from "@/components/dashboard/dedicated-editor-sidebar";
-import { Badge } from "@/components/ui/badge";
-import {
-  Accordion,
-  AccordionContent,
-  AccordionItem,
-  AccordionTrigger,
-} from "@/components/ui/accordion";
-import {
-  chapterHasContent,
-  chapterStatusLabel,
-  type ChapterFilterMode,
-  type ChapterStructureGroup,
-} from "@/lib/dashboard-project-chapter";
-import {
-  buildDashboardProjectChapterEditorHref,
-  buildProjectPublicReadingHref,
-} from "@/lib/project-editor-routes";
-import { buildEpisodeKey } from "@/lib/project-episode-key";
-import { buildStageChapterLabel } from "@/components/project-reader/MangaWorkflowPanel";
-import {
-  normalizeProjectEpisodeContentFormat,
-  normalizeProjectEpisodePages,
-} from "../../../../shared/project-reader.js";
 import {
   ArrowDown,
   ArrowUp,
@@ -40,6 +9,37 @@ import {
   Search,
 } from "lucide-react";
 import { memo, type KeyboardEvent as ReactKeyboardEvent } from "react";
+import DashboardActionButton from "@/components/dashboard/DashboardActionButton";
+import { Combobox, Input } from "@/components/dashboard/dashboard-form-controls";
+import {
+  dedicatedEditorSidebarBodyClassName,
+  dedicatedEditorSidebarPanelClassName,
+  dedicatedEditorSidebarScrollRegionClassName,
+} from "@/components/dashboard/dedicated-editor-sidebar";
+import { buildStageChapterLabel } from "@/components/project-reader/MangaWorkflowPanel";
+import {
+  Accordion,
+  AccordionContent,
+  AccordionItem,
+  AccordionTrigger,
+} from "@/components/ui/accordion";
+import { Badge } from "@/components/ui/badge";
+import type { ComboboxOption } from "@/components/ui/combobox";
+import {
+  type ChapterFilterMode,
+  type ChapterStructureGroup,
+  chapterHasContent,
+  chapterStatusLabel,
+} from "@/lib/dashboard-project-chapter";
+import {
+  buildDashboardProjectChapterEditorHref,
+  buildProjectPublicReadingHref,
+} from "@/lib/project-editor-routes";
+import { buildEpisodeKey } from "@/lib/project-episode-key";
+import {
+  normalizeProjectEpisodeContentFormat,
+  normalizeProjectEpisodePages,
+} from "../../../../shared/project-reader.js";
 
 import ChapterEditorAccordionHeader from "./ChapterEditorAccordionHeader";
 
@@ -77,8 +77,7 @@ type ChapterEditorStructureSectionProps = {
 const structureSectionClassName = `project-editor-section ${dedicatedEditorSidebarPanelClassName}`;
 const structureTriggerClassName =
   "project-editor-section-trigger flex w-full items-start gap-4 px-5 py-3.5 text-left hover:no-underline md:py-4 xl:shrink-0";
-const structureContentClassName =
-  `project-editor-section-content px-5 pb-5 ${dedicatedEditorSidebarBodyClassName}`;
+const structureContentClassName = `project-editor-section-content px-5 pb-5 ${dedicatedEditorSidebarBodyClassName}`;
 const filterOptions: ComboboxOption[] = [
   { value: "all", label: "Todos" },
   { value: "draft", label: "Rascunhos" },

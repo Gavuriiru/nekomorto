@@ -441,7 +441,10 @@ describe("Public pages share image meta", () => {
     );
 
     const donorsTitle = screen.getByText("Lista de doadores");
-    expect(screen.getByTestId("donations-donors-card")).toHaveClass("bg-card/80", "shadow-public-card");
+    expect(screen.getByTestId("donations-donors-card")).toHaveClass(
+      "bg-card/80",
+      "shadow-public-card",
+    );
     expect(donorsTitle).toHaveClass("flex", "items-center", "gap-3", "text-xl", "font-semibold");
 
     expect(screen.getByText(/^Pix$/).closest("#pix-doacoes")).not.toHaveClass(
@@ -549,4 +552,3 @@ describe("Public pages share image meta", () => {
     });
   });
 });
-

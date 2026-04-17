@@ -1,6 +1,5 @@
 import type { ImageLibraryOptions } from "@/components/ImageLibraryDialog";
 import type { ProjectEpisode } from "@/data/projects";
-import { filterImageLibraryFoldersByAccess } from "@/lib/image-library-scope";
 import {
   DEFAULT_PROJECT_BANNER_ALT,
   DEFAULT_PROJECT_COVER_ALT,
@@ -8,6 +7,7 @@ import {
   getEpisodeCoverAltFallback,
   resolveAssetAltText,
 } from "@/lib/image-alt";
+import { filterImageLibraryFoldersByAccess } from "@/lib/image-library-scope";
 import { buildChapterFolder, resolveProjectImageFolders } from "@/lib/project-image-folders";
 
 type ProjectImageFolders = ReturnType<typeof resolveProjectImageFolders>;

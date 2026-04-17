@@ -1,3 +1,9 @@
+import { CodeHighlightNode, CodeNode } from "@lexical/code";
+import { $generateHtmlFromNodes, $generateNodesFromDOM } from "@lexical/html";
+import { $createLinkNode, AutoLinkNode, LinkNode } from "@lexical/link";
+import { ListItemNode, ListNode } from "@lexical/list";
+import { HeadingNode, QuoteNode } from "@lexical/rich-text";
+import { TableCellNode, TableNode, TableRowNode } from "@lexical/table";
 import { JSDOM } from "jsdom";
 import {
   $applyNodeReplacement,
@@ -10,12 +16,6 @@ import {
   ParagraphNode,
   TextNode,
 } from "lexical";
-import { $generateHtmlFromNodes, $generateNodesFromDOM } from "@lexical/html";
-import { HeadingNode, QuoteNode } from "@lexical/rich-text";
-import { ListItemNode, ListNode } from "@lexical/list";
-import { $createLinkNode, LinkNode, AutoLinkNode } from "@lexical/link";
-import { CodeNode, CodeHighlightNode } from "@lexical/code";
-import { TableCellNode, TableNode, TableRowNode } from "@lexical/table";
 
 const IMAGE_STYLE_KEYS = [
   "width",

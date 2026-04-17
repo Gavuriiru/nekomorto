@@ -1,10 +1,10 @@
-import type { CSSProperties, MouseEvent, Ref } from "react";
 import { Eye, Hash } from "lucide-react";
+import type { CSSProperties, MouseEvent, Ref } from "react";
 import { Link } from "react-router-dom";
 
 import PublicInteractiveCardShell from "@/components/PublicInteractiveCardShell";
-import UploadPicture from "@/components/UploadPicture";
 import { publicStrongSurfaceHoverClassName } from "@/components/public-page-tokens";
+import UploadPicture from "@/components/UploadPicture";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent } from "@/components/ui/card";
 import { PillButton } from "@/components/ui/pill-button";

@@ -2,21 +2,34 @@ import { unzipSync } from "fflate";
 import { LayoutGroup, useReducedMotion } from "framer-motion";
 import { FileArchive, FolderOpen, ImagePlus, Loader2, Plus, Trash2, Upload } from "lucide-react";
 import {
+  type Dispatch,
   forwardRef,
+  type KeyboardEvent,
+  type MouseEvent,
   memo,
+  type PointerEvent,
+  type SetStateAction,
   useCallback,
   useEffect,
   useImperativeHandle,
   useMemo,
   useRef,
   useState,
-  type Dispatch,
-  type KeyboardEvent,
-  type MouseEvent,
-  type PointerEvent,
-  type SetStateAction,
 } from "react";
-
+import MangaPageTile from "@/components/project-reader/MangaPageTile";
+import ProjectEditorSectionCard from "@/components/project-reader/ProjectEditorSectionCard";
+import {
+  buildPreviewReorderList,
+  buildReorderAnnouncement,
+  collectReorderSurfaceRects,
+  getReorderLayoutTransition,
+  handleAltArrowReorder,
+  hasExceededPointerDragThreshold,
+  type ReorderSurfaceRect,
+  reorderList,
+  resolvePageDisplayName,
+  resolvePointerReorderIndexFromRects,
+} from "@/components/project-reader/page-reorder";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
@@ -26,29 +39,15 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { toast } from "@/components/ui/use-toast";
-import { useAccessibilityAnnouncer } from "@/hooks/accessibility-announcer";
 import type { Project, ProjectEpisode } from "@/data/projects";
+import { useAccessibilityAnnouncer } from "@/hooks/accessibility-announcer";
 import { apiFetch } from "@/lib/api-client";
 import { fileToDataUrl } from "@/lib/file-data-url";
 import { buildEpisodeKey } from "@/lib/project-episode-key";
 import { buildChapterFolder, resolveProjectImageFolders } from "@/lib/project-image-folders";
-import { cn } from "@/lib/utils";
-import ProjectEditorSectionCard from "@/components/project-reader/ProjectEditorSectionCard";
-import {
-  buildReorderAnnouncement,
-  buildPreviewReorderList,
-  collectReorderSurfaceRects,
-  getReorderLayoutTransition,
-  handleAltArrowReorder,
-  hasExceededPointerDragThreshold,
-  reorderList,
-  resolvePointerReorderIndexFromRects,
-  resolvePageDisplayName,
-  type ReorderSurfaceRect,
-} from "@/components/project-reader/page-reorder";
-import MangaPageTile from "@/components/project-reader/MangaPageTile";
 import { mergeImportedImageChaptersIntoProject } from "@/lib/project-manga";
 import { getProjectProgressState, syncProjectProgress } from "@/lib/project-progress";
+import { cn } from "@/lib/utils";
 
 type ProjectRecord = Project & { revision?: string };
 type ChapterFilterMode = "all" | "draft" | "published" | "with-content" | "without-content";
@@ -519,8 +518,9 @@ const StagePagesGrid = memo(
     const reorderGeometryRef = useRef<StagePageReorderGeometry | null>(null);
     const queuedPointerMoveRef = useRef<StagePagePointerMove | null>(null);
     const pointerMoveFrameRef = useRef<number | null>(null);
-    const [stagePageDragState, setStagePageDragState] =
-      useState<StagePagePointerDragState | null>(null);
+    const [stagePageDragState, setStagePageDragState] = useState<StagePagePointerDragState | null>(
+      null,
+    );
 
     const previewPages = useMemo(() => {
       if (!stagePageDragState?.isDragging) {
@@ -532,8 +532,9 @@ const StagePagesGrid = memo(
         stagePageDragState.overIndex,
       );
     }, [chapter.pages, stagePageDragState]);
-    const draggedStagePage =
-      stagePageDragState?.isDragging ? chapter.pages[stagePageDragState.sourceIndex] || null : null;
+    const draggedStagePage = stagePageDragState?.isDragging
+      ? chapter.pages[stagePageDragState.sourceIndex] || null
+      : null;
     const pressedStagePage =
       stagePageDragState?.sourceIndex !== undefined
         ? chapter.pages[stagePageDragState.sourceIndex] || null
@@ -681,10 +682,7 @@ const StagePagesGrid = memo(
           return;
         }
 
-        if (
-          typeof window === "undefined" ||
-          typeof window.requestAnimationFrame !== "function"
-        ) {
+        if (typeof window === "undefined" || typeof window.requestAnimationFrame !== "function") {
           const queuedMove = queuedPointerMoveRef.current;
           queuedPointerMoveRef.current = null;
           if (queuedMove) {
@@ -777,7 +775,11 @@ const StagePagesGrid = memo(
                 onPointerCancel={clearDragState}
                 onLostPointerCapture={clearDragState}
                 onKeyDown={(event, pageIndex) => onKeyDown(event, chapter.id, pageIndex)}
-                onSetCover={isCover ? undefined : (event, _index, pageId) => onSetCover(event, chapter.id, pageId)}
+                onSetCover={
+                  isCover
+                    ? undefined
+                    : (event, _index, pageId) => onSetCover(event, chapter.id, pageId)
+                }
                 onRemove={(event, _index, pageId) => onRemove(event, chapter.id, pageId)}
               />
             );

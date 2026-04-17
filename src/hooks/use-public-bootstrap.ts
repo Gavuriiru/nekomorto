@@ -1,16 +1,16 @@
 import { useCallback, useEffect, useState } from "react";
 import { getApiBase } from "@/lib/api-base";
 import { apiFetch } from "@/lib/api-client";
+import { asPublicBootstrapPayload } from "@/lib/public-bootstrap-global";
+import { normalizePublicPagesConfig } from "@/lib/public-pages";
+import type { UploadMediaVariantsMap } from "@/lib/upload-variants";
 import {
   emptyPublicBootstrapPayload,
   type PublicBootstrapHomeHero,
-  type PublicBootstrapPayload,
   type PublicBootstrapHomeHeroSlide,
+  type PublicBootstrapPayload,
 } from "@/types/public-bootstrap";
-import { normalizePublicPagesConfig } from "@/lib/public-pages";
-import type { UploadMediaVariantsMap } from "@/lib/upload-variants";
 import type { PublicTeamLinkType, PublicTeamMember } from "@/types/public-team";
-import { asPublicBootstrapPayload } from "@/lib/public-bootstrap-global";
 
 const PUBLIC_BOOTSTRAP_STALE_TIME_MS = 60_000;
 

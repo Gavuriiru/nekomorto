@@ -1,9 +1,9 @@
-import { resolveEpisodeLookup } from "./project-episodes.js";
 import {
   getProjectEpisodePageCount,
   normalizeProjectEpisodeContentFormat,
   normalizeProjectEpisodePages,
 } from "../../shared/project-reader.js";
+import { resolveEpisodeLookup } from "./project-episodes.js";
 
 const hasOwn = (value, key) =>
   Boolean(value && typeof value === "object" && Object.prototype.hasOwnProperty.call(value, key));

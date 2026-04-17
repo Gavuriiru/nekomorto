@@ -1,5 +1,13 @@
-import * as React from "react";
+import { $createCodeNode, $isCodeNode } from "@lexical/code";
+import { INSERT_ORDERED_LIST_COMMAND, INSERT_UNORDERED_LIST_COMMAND } from "@lexical/list";
 import { useLexicalComposerContext } from "@lexical/react/LexicalComposerContext";
+import {
+  $createHeadingNode,
+  $createQuoteNode,
+  $isHeadingNode,
+  $isQuoteNode,
+} from "@lexical/rich-text";
+import { $setBlocksType } from "@lexical/selection";
 import {
   $createParagraphNode,
   $getRoot,
@@ -12,18 +20,6 @@ import {
   SELECTION_CHANGE_COMMAND,
   UNDO_COMMAND,
 } from "lexical";
-import { $setBlocksType } from "@lexical/selection";
-import { INSERT_ORDERED_LIST_COMMAND, INSERT_UNORDERED_LIST_COMMAND } from "@lexical/list";
-import {
-  $createHeadingNode,
-  $createQuoteNode,
-  $isHeadingNode,
-  $isQuoteNode,
-} from "@lexical/rich-text";
-import { $createCodeNode, $isCodeNode } from "@lexical/code";
-import { Button } from "@/components/ui/button";
-import { Combobox } from "@/components/ui/combobox";
-import { toast } from "@/components/ui/use-toast";
 import {
   AlignCenter,
   AlignLeft,
@@ -33,6 +29,7 @@ import {
   Heading1,
   Heading2,
   Heading3,
+  Image as ImageIcon,
   Italic,
   Link2,
   List,
@@ -43,9 +40,12 @@ import {
   Table,
   Underline,
   Undo2,
-  Image as ImageIcon,
   Video,
 } from "lucide-react";
+import * as React from "react";
+import { Button } from "@/components/ui/button";
+import { Combobox } from "@/components/ui/combobox";
+import { toast } from "@/components/ui/use-toast";
 
 type BlockType = "paragraph" | "h1" | "h2" | "h3" | "quote" | "code";
 

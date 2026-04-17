@@ -1,8 +1,8 @@
 import type { ProjectEpisode, ProjectEpisodePage } from "@/data/projects";
-import type { SiteSettings } from "@/types/site-settings";
 import type { UploadMediaVariantsMap } from "@/lib/upload-variants";
 import { emptyPublicPagesConfig, type PublicPagesConfig } from "@/types/public-pages";
 import type { PublicTeamLinkType, PublicTeamMember } from "@/types/public-team";
+import type { SiteSettings } from "@/types/site-settings";
 
 export type PublicBootstrapEpisode = {
   number: number;

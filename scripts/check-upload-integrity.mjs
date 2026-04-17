@@ -1,6 +1,6 @@
 import path from "path";
-import { runUploadsIntegrityCheck } from "../server/lib/uploads-integrity.js";
 import { createUploadStorageService } from "../server/lib/upload-storage.js";
+import { runUploadsIntegrityCheck } from "../server/lib/uploads-integrity.js";
 import { loadDbDatasets, prisma } from "./lib/db-datasets.mjs";
 
 const HELP_FLAG = "--help";

@@ -2,8 +2,6 @@ import sharp from "sharp";
 import { describe, expect, it } from "vitest";
 
 import {
-  OG_PROJECT_HEIGHT,
-  OG_PROJECT_WIDTH,
   buildLegacyProjectOgImageResponse,
   buildLegacyProjectOgScene,
   buildProjectOgCardModel,
@@ -15,6 +13,8 @@ import {
   loadProjectOgFontBuffers,
   loadProjectOgProcessedBackdropDataUrl,
   loadProjectOgStaticAssetDataUrl,
+  OG_PROJECT_HEIGHT,
+  OG_PROJECT_WIDTH,
   resolveProjectOgPalette,
 } from "../../server/lib/project-og.js";
 

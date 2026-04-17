@@ -33,7 +33,8 @@ export const useDedicatedEditorSidebarHeight = <ElementType extends HTMLElement>
 
     let frameId = 0;
     const requestFrame =
-      window.requestAnimationFrame ?? ((callback: FrameRequestCallback) => window.setTimeout(callback, 0));
+      window.requestAnimationFrame ??
+      ((callback: FrameRequestCallback) => window.setTimeout(callback, 0));
     const cancelFrame = window.cancelAnimationFrame ?? window.clearTimeout;
     const updateMeasuredHeight = () => {
       frameId = 0;

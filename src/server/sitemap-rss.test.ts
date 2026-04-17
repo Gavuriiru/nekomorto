@@ -1,7 +1,6 @@
 import { describe, expect, it } from "vitest";
-
-import { buildSitemapXml } from "../../server/lib/sitemap-xml.js";
 import { buildRssXml } from "../../server/lib/rss-xml.js";
+import { buildSitemapXml } from "../../server/lib/sitemap-xml.js";
 
 describe("sitemap xml", () => {
   it("gera sitemap com entradas e escape de xml", () => {

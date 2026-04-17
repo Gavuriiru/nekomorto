@@ -1,22 +1,32 @@
 import {
+  type ChangeEvent,
+  type Dispatch,
+  type RefObject,
+  type SetStateAction,
   useCallback,
   useEffect,
   useMemo,
   useRef,
   useState,
-  type ChangeEvent,
-  type Dispatch,
-  type RefObject,
-  type SetStateAction,
 } from "react";
-
-import type { Project, ProjectEpisode, ProjectVolumeCover } from "@/data/projects";
 import { toast } from "@/components/ui/use-toast";
+import type { Project, ProjectEpisode, ProjectVolumeCover } from "@/data/projects";
+import { apiFetch } from "@/lib/api-client";
+import {
+  normalizeEpubImportPreviewPayload,
+  normalizeOriginLabel,
+  resolveImportedChapterCount,
+} from "@/lib/dashboard-project-chapter";
+import { logOriginApiBaseMismatchOnce } from "@/lib/dev-diagnostics";
+import { formatBuildMetadataLabel, getFrontendBuildMetadata } from "@/lib/frontend-build";
 import { createSlug } from "@/lib/post-content";
 import { buildEpisodeKey } from "@/lib/project-episode-key";
 import {
-  EPUB_CAPABILITY_UNKNOWN_MESSAGE,
+  buildEpubImportProjectSnapshot,
+  buildProjectSnapshotForEpubExport,
+  downloadBinaryResponse,
   EPUB_CAPABILITY_UNAVAILABLE_MESSAGE,
+  EPUB_CAPABILITY_UNKNOWN_MESSAGE,
   EPUB_EXPORT_GENERIC_MESSAGE,
   EPUB_EXPORT_ROUTE_MISSING_MESSAGE,
   EPUB_IMPORT_DUPLICATE_EPISODE_MESSAGE,
@@ -26,24 +36,13 @@ import {
   EPUB_IMPORT_ROUTE_MISSING_MESSAGE,
   EPUB_IMPORT_SNAPSHOT_TOO_LARGE_MESSAGE,
   EPUB_NETWORK_ERROR_MESSAGE,
-  buildEpubImportProjectSnapshot,
-  buildProjectSnapshotForEpubExport,
-  downloadBinaryResponse,
+  type EpubImportJob,
   isEpubCssEngineFailureDetail,
   isLegacyMultipartSnapshotTooLargeError,
   mergeImportedChaptersIntoProject,
   mergeImportedVolumeCoversIntoProject,
   normalizeEpubImportJob,
-  type EpubImportJob,
 } from "@/lib/project-epub";
-import { apiFetch } from "@/lib/api-client";
-import { formatBuildMetadataLabel, getFrontendBuildMetadata } from "@/lib/frontend-build";
-import { logOriginApiBaseMismatchOnce } from "@/lib/dev-diagnostics";
-import {
-  normalizeEpubImportPreviewPayload,
-  normalizeOriginLabel,
-  resolveImportedChapterCount,
-} from "@/lib/dashboard-project-chapter";
 import type { DashboardProjectChapterEditorResourceState } from "./useDashboardProjectChapterEditorResource";
 
 type ProjectRecord = Project & {

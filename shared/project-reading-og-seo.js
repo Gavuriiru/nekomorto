@@ -1,9 +1,9 @@
-import { createStableRevisionToken } from "./stable-revision-token.js";
 import {
   hasProjectEpisodeReadableContent,
   normalizeProjectEpisodeContentFormat,
   normalizeProjectEpisodePages,
 } from "./project-reader.js";
+import { createStableRevisionToken } from "./stable-revision-token.js";
 
 export const PROJECT_READING_OG_SCENE_VERSION = "project-reading-og-v2";
 

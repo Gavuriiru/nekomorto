@@ -1,6 +1,6 @@
-import * as React from "react";
 import {
   $applyNodeReplacement,
+  DecoratorNode,
   type DOMConversionMap,
   type DOMConversionOutput,
   type DOMExportOutput,
@@ -8,8 +8,8 @@ import {
   type NodeKey,
   type SerializedLexicalNode,
   type Spread,
-  DecoratorNode,
 } from "lexical";
+import * as React from "react";
 
 import { extractSerializedLexicalText, toPixelValue } from "./viewer-node-utils";
 

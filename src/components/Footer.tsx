@@ -1,8 +1,8 @@
-import { Camera, MessageCircle, Play, Users, X, Globe } from "lucide-react";
+import { Camera, Globe, MessageCircle, Play, Users, X } from "lucide-react";
 import { Link } from "react-router-dom";
-import { useSiteSettings } from "@/hooks/use-site-settings";
 import ThemedSvgLogo from "@/components/ThemedSvgLogo";
 import ThemedSvgMaskIcon from "@/components/ThemedSvgMaskIcon";
+import { useSiteSettings } from "@/hooks/use-site-settings";
 import { resolveBranding } from "@/lib/branding";
 import { isIconUrlSource, sanitizeIconSource, sanitizePublicHref } from "@/lib/url-safety";
 

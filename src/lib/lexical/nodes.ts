@@ -1,7 +1,7 @@
-import { HeadingNode, QuoteNode } from "@lexical/rich-text";
+import { CodeHighlightNode, CodeNode } from "@lexical/code";
+import { AutoLinkNode, LinkNode } from "@lexical/link";
 import { ListItemNode, ListNode } from "@lexical/list";
-import { LinkNode, AutoLinkNode } from "@lexical/link";
-import { CodeNode, CodeHighlightNode } from "@lexical/code";
+import { HeadingNode, QuoteNode } from "@lexical/rich-text";
 import { TableCellNode, TableNode, TableRowNode } from "@lexical/table";
 import { EpubAnchorNode } from "@/components/lexical/nodes/EpubAnchorNode";
 import { EpubHeadingNode } from "@/components/lexical/nodes/EpubHeadingNode";

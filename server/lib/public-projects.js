@@ -1,13 +1,13 @@
 import {
+  getProjectEpisodeCompleteDownloadSources,
+  isProjectEpisodePublic,
+} from "../../shared/project-publication.js";
+import {
   getEpisodeEntryKind,
   getEpisodePublicationStatus,
   hasEpisodeContent,
   hasEpisodePages,
 } from "./project-episodes.js";
-import {
-  getProjectEpisodeCompleteDownloadSources,
-  isProjectEpisodePublic,
-} from "../../shared/project-publication.js";
 
 export const getPubliclyVisibleEpisodes = (project) =>
   (Array.isArray(project?.episodeDownloads) ? project.episodeDownloads : []).filter((episode) =>

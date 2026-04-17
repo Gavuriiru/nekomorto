@@ -61,12 +61,12 @@ describe("server url-safety", () => {
   });
 
   it("parses only safe URL values when a base URL is provided", () => {
-    expect(parseSafeUrlValue("/uploads/a.svg", { baseUrl: "https://example.com" })?.toString()).toBe(
-      "https://example.com/uploads/a.svg",
-    );
-    expect(parseSafeUrlValue("#chapter-1", { baseUrl: "https://example.com/book" })?.toString()).toBe(
-      "https://example.com/book#chapter-1",
-    );
+    expect(
+      parseSafeUrlValue("/uploads/a.svg", { baseUrl: "https://example.com" })?.toString(),
+    ).toBe("https://example.com/uploads/a.svg");
+    expect(
+      parseSafeUrlValue("#chapter-1", { baseUrl: "https://example.com/book" })?.toString(),
+    ).toBe("https://example.com/book#chapter-1");
     expect(parseSafeUrlValue("data:text/html,boom", { baseUrl: "https://example.com" })).toBeNull();
   });
 

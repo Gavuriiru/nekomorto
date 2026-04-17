@@ -4,8 +4,8 @@ import {
   normalizeUploadVariantUrlKey,
   resolveUploadVariantFocalPoint,
   resolveUploadVariantResponsiveSources,
-  resolveUploadVariantUrl,
   resolveUploadVariantSources,
+  resolveUploadVariantUrl,
   type UploadMediaVariantsMap,
 } from "@/lib/upload-variants";
 

@@ -1,13 +1,13 @@
-import { useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from "react";
-import { useSiteSettings } from "@/hooks/use-site-settings";
+import { type ReactNode, useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
   THEME_MODE_PRESERVE_MOTION_ATTRIBUTE,
   THEME_MODE_STORAGE_KEY,
-  ThemeModeContext,
   type ThemeMode,
+  ThemeModeContext,
   type ThemeModeContextValue,
   type ThemeModePreference,
 } from "@/hooks/theme-mode-context";
+import { useSiteSettings } from "@/hooks/use-site-settings";
 import { resolveThemeColor } from "@/lib/theme-color";
 
 const normalizeMode = (value: unknown): ThemeMode => (value === "light" ? "light" : "dark");

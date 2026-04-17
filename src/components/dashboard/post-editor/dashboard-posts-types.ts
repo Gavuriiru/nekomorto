@@ -1,6 +1,5 @@
-import type { ContentVersion } from "@/types/editorial";
-
 import { normalizeComparableDashboardPostCoverUrl } from "@/lib/dashboard-post-editor";
+import type { ContentVersion } from "@/types/editorial";
 
 export const emptyPostForm = {
   title: "",

@@ -1,14 +1,13 @@
-import { ImageLibraryDialogLoadingGrid } from "@/components/ImageLibraryDialogLoading";
 import type { Dispatch, SetStateAction } from "react";
-
+import { ImageLibraryDialogLoadingGrid } from "@/components/ImageLibraryDialogLoading";
+import ImageLibraryBrowserCardGrid from "@/components/image-library/ImageLibraryBrowserCardGrid";
+import type { LibraryImageItem, ProjectImageGroup } from "@/components/image-library/types";
 import {
   Accordion,
   AccordionContent,
   AccordionItem,
   AccordionTrigger,
 } from "@/components/ui/accordion";
-import type { LibraryImageItem, ProjectImageGroup } from "@/components/image-library/types";
-import ImageLibraryBrowserCardGrid from "@/components/image-library/ImageLibraryBrowserCardGrid";
 
 type ImageLibraryProjectSectionProps = {
   allowUploadManagementActions: boolean;

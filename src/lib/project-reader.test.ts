@@ -1,8 +1,8 @@
 import { describe, expect, it } from "vitest";
 
 import {
-  getProjectReaderPresetByType,
   getProjectReaderPreferenceByType,
+  getProjectReaderPresetByType,
   normalizeProjectEpisodePages,
   normalizeProjectReaderConfig,
   normalizeProjectReaderPreferences,

@@ -1,7 +1,9 @@
-import DashboardReaderPresetCard from "@/components/dashboard/DashboardReaderPresetCard";
+import { Download, GripVertical, Link2, Plus, Save, Trash2, User } from "lucide-react";
+import DashboardActionButton from "@/components/dashboard/DashboardActionButton";
 import DashboardFieldStack from "@/components/dashboard/DashboardFieldStack";
 import DashboardPageBadge from "@/components/dashboard/DashboardPageBadge";
-import DashboardActionButton from "@/components/dashboard/DashboardActionButton";
+import DashboardReaderPresetCard from "@/components/dashboard/DashboardReaderPresetCard";
+import DashboardSeoRedirectsPanel from "@/components/dashboard/DashboardSeoRedirectsPanel";
 import { Input, Textarea } from "@/components/dashboard/dashboard-form-controls";
 import {
   dashboardStrongFocusFieldClassName,
@@ -9,23 +11,21 @@ import {
   dashboardStrongFocusTriggerClassName,
   dashboardStrongSurfaceHoverClassName,
 } from "@/components/dashboard/dashboard-page-tokens";
-import DashboardSeoRedirectsPanel from "@/components/dashboard/DashboardSeoRedirectsPanel";
 import ReorderControls from "@/components/ReorderControls";
+import ThemedSvgLogo from "@/components/ThemedSvgLogo";
 import { Card, CardContent } from "@/components/ui/card";
-import { Label } from "@/components/ui/label";
 import { ColorPicker } from "@/components/ui/color-picker";
+import { Label } from "@/components/ui/label";
 import { Switch } from "@/components/ui/switch";
 import { TabsContent } from "@/components/ui/tabs";
-import ThemedSvgLogo from "@/components/ThemedSvgLogo";
-import { Download, GripVertical, Link2, Plus, Save, Trash2, User } from "lucide-react";
 import { navbarIconOptions } from "@/lib/navbar-icons";
 import { useDashboardSettingsContext } from "./dashboard-settings-context";
 import {
   brandingLogoEditorFields,
   dashboardSettingsCardClassName,
   type FooterBrandMode,
-  normalizeLinkTypeId,
   type NavbarBrandMode,
+  normalizeLinkTypeId,
   readerProjectTypeMeta,
   responsiveCompactRowDeleteButtonClass,
   responsiveCompactSelfEndDeleteButtonClass,
@@ -57,14 +57,8 @@ import {
 } from "./shared";
 
 export const DashboardSettingsDownloadsTab = () => {
-  const {
-    isIconUrl,
-    setSettings,
-    settings,
-    toIconPreviewUrl,
-    uploadDownloadIcon,
-    uploadingKey,
-  } = useDashboardSettingsContext();
+  const { isIconUrl, setSettings, settings, toIconPreviewUrl, uploadDownloadIcon, uploadingKey } =
+    useDashboardSettingsContext();
 
   return (
     <TabsContent

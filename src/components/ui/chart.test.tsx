@@ -1,5 +1,5 @@
-import type { ReactNode } from "react";
 import { act, fireEvent, render, waitFor } from "@testing-library/react";
+import type { ReactNode } from "react";
 import { afterEach, describe, expect, it, vi } from "vitest";
 
 const responsiveContainerSpy = vi.hoisted(() => vi.fn());

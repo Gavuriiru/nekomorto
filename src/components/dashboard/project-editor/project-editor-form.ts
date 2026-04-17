@@ -11,8 +11,8 @@ import {
   resolveEpisodeEditorLocalKey,
 } from "@/lib/project-anime-episodes";
 import { buildEpisodeKey, findDuplicateEpisodeKey } from "@/lib/project-episode-key";
-import { resolveProjectEpisodePublicationState } from "@/lib/project-publication";
 import { getProjectProgressStateForEditor } from "@/lib/project-progress";
+import { resolveProjectEpisodePublicationState } from "@/lib/project-publication";
 import { isChapterBasedType, isLightNovelType, isMangaType } from "@/lib/project-utils";
 import { buildVolumeCoverKey, findDuplicateVolumeCover } from "@/lib/project-volume-cover-key";
 import { normalizeProjectVolumeEntries } from "@/lib/project-volume-entries";

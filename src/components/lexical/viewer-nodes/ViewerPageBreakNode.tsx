@@ -1,11 +1,11 @@
-import * as React from "react";
 import {
+  DecoratorNode,
   type DOMConversionOutput,
   type DOMExportOutput,
   type LexicalNode,
   type SerializedLexicalNode,
-  DecoratorNode,
 } from "lexical";
+import * as React from "react";
 
 export type SerializedViewerPageBreakNode = SerializedLexicalNode;
 

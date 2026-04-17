@@ -2,11 +2,11 @@ import fs from "node:fs";
 import path from "node:path";
 
 import {
+  createAcceptedPublicSurfaceBaseline,
   PUBLIC_SURFACE_BASELINE_PATH,
   PUBLIC_SURFACE_SUMMARY_PATH,
-  WORKSPACE_ROOT,
-  createAcceptedPublicSurfaceBaseline,
   readJsonFile,
+  WORKSPACE_ROOT,
   writeJsonFile,
 } from "./public-surface-performance-lib.mjs";
 

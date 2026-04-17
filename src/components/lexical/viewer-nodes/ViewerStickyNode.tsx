@@ -1,11 +1,11 @@
-import * as React from "react";
 import {
+  DecoratorNode,
   type LexicalNode,
   type NodeKey,
   type SerializedLexicalNode,
   type Spread,
-  DecoratorNode,
 } from "lexical";
+import * as React from "react";
 
 import { extractSerializedLexicalText } from "./viewer-node-utils";
 

@@ -1,11 +1,11 @@
-import type { UploadMediaVariantsMap } from "@/lib/upload-variants";
 import { normalizePublicPagesConfig } from "@/lib/public-pages";
+import type { UploadMediaVariantsMap } from "@/lib/upload-variants";
 import {
   emptyPublicBootstrapPayload,
   type PublicBootstrapHomeHero,
   type PublicBootstrapHomeHeroSlide,
-  type PublicBootstrapPayloadMode,
   type PublicBootstrapPayload,
+  type PublicBootstrapPayloadMode,
 } from "@/types/public-bootstrap";
 import type { PublicTeamLinkType, PublicTeamMember } from "@/types/public-team";
 

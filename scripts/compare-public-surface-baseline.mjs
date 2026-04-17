@@ -2,14 +2,14 @@ import fs from "node:fs";
 import path from "node:path";
 
 import {
+  comparePublicSurfaceSummary,
+  formatPublicSurfaceComparisonMarkdown,
   PUBLIC_SURFACE_BASELINE_PATH,
   PUBLIC_SURFACE_COMPARISON_JSON_PATH,
   PUBLIC_SURFACE_COMPARISON_MARKDOWN_PATH,
   PUBLIC_SURFACE_SUMMARY_PATH,
-  WORKSPACE_ROOT,
-  comparePublicSurfaceSummary,
-  formatPublicSurfaceComparisonMarkdown,
   readJsonFile,
+  WORKSPACE_ROOT,
   writeJsonFile,
 } from "./public-surface-performance-lib.mjs";
 

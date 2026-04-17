@@ -130,12 +130,7 @@ export const collectReorderSurfaceRects = ({
     .map((surface) => {
       const index = Number(surface.getAttribute("data-reorder-index"));
       const rect = surface.getBoundingClientRect();
-      if (
-        !Number.isInteger(index) ||
-        index < 0 ||
-        rect.width <= 0 ||
-        rect.height <= 0
-      ) {
+      if (!Number.isInteger(index) || index < 0 || rect.width <= 0 || rect.height <= 0) {
         return null;
       }
       return {

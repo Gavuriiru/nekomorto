@@ -1,32 +1,32 @@
-import * as React from "react";
 import DOMPurify from "dompurify";
-import { Button } from "@/components/ui/button";
-import { ColorPicker } from "@/components/ui/color-picker";
-import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Textarea } from "@/components/ui/textarea";
-import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
 import {
   AlignCenter,
   AlignLeft,
   AlignRight,
   Bold,
-  Heading1,
   FileImage,
+  Heading1,
   Italic,
   Link as LinkIcon,
   List,
   ListOrdered,
-  Palette,
   PaintBucket,
-  Type,
+  Palette,
   Redo2,
   Strikethrough,
+  Type,
   Underline,
   Undo2,
   Video,
 } from "lucide-react";
+import * as React from "react";
+import { Button } from "@/components/ui/button";
+import { ColorPicker } from "@/components/ui/color-picker";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { Textarea } from "@/components/ui/textarea";
 import { normalizeAssetUrl } from "@/lib/asset-url";
 import "@/styles/rich-content.css";
 

@@ -12,10 +12,10 @@ import {
   generateUploadVariants,
   POST_UPLOAD_VARIANT_PRESET_KEYS,
   PROJECT_UPLOAD_VARIANT_PRESET_KEYS,
-  UPLOAD_VARIANT_PRESET_KEYS,
-  USER_UPLOAD_VARIANT_PRESET_KEYS,
   resolveUploadVariantAvifQuality,
   resolveUploadVariantPresetKeysForArea,
+  UPLOAD_VARIANT_PRESET_KEYS,
+  USER_UPLOAD_VARIANT_PRESET_KEYS,
 } from "../../server/lib/upload-media.js";
 import { storeUploadImageBuffer } from "../../server/lib/uploads-import.js";
 
@@ -39,9 +39,16 @@ const createTempUploadsDir = () => {
   return dir;
 };
 
-const createPatternSourceImage = async (sourcePath: string) => {
-  const width = 1280;
-  const height = 1800;
+const createPatternSourceImage = async (
+  sourcePath: string,
+  {
+    width = 1280,
+    height = 1800,
+  }: {
+    width?: number;
+    height?: number;
+  } = {},
+) => {
   const channels = 3;
   const buffer = Buffer.alloc(width * height * channels);
 
@@ -248,7 +255,7 @@ describe("upload-media", () => {
     const uploadsDir = createTempUploadsDir();
     const sourcePath = path.join(uploadsDir, "project-source.png");
 
-    await createPatternSourceImage(sourcePath);
+    await createPatternSourceImage(sourcePath, { width: 640, height: 900 });
 
     const generated = await generateUploadVariants({
       uploadsDir,
@@ -288,7 +295,7 @@ describe("upload-media", () => {
     const uploadsDir = createTempUploadsDir();
     const sourcePath = path.join(uploadsDir, "post-source.png");
 
-    await createPatternSourceImage(sourcePath);
+    await createPatternSourceImage(sourcePath, { width: 640, height: 900 });
 
     const initial = await attachUploadMediaMetadata({
       uploadsDir,

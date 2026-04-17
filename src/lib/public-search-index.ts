@@ -1,9 +1,9 @@
 import { buildTranslationMap, translateTag } from "@/lib/project-taxonomy";
 import {
-  selectVisibleTags,
-  sortAlphabeticallyPtBr,
   type PostSearchItem,
   type ProjectSearchItem,
+  selectVisibleTags,
+  sortAlphabeticallyPtBr,
 } from "@/lib/search-ranking";
 import type { PublicBootstrapPost, PublicBootstrapProject } from "@/types/public-bootstrap";
 

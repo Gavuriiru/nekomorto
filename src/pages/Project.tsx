@@ -1,48 +1,50 @@
-﻿import { useEffect, useMemo, useRef, useState } from "react";
-import { Link, useParams } from "react-router-dom";
-import {
+﻿import {
   BookOpen,
   CalendarDays,
   Clock3,
   Cloud,
   Download,
   Film,
-  Hash,
   HardDrive,
+  Hash,
   Link2,
   PlayCircle,
   Send,
   Share2,
   Users,
 } from "lucide-react";
+import { useEffect, useMemo, useRef, useState } from "react";
+import { Link, useParams } from "react-router-dom";
 
 import CommentsSection from "@/components/CommentsSection";
 import PublicProjectCard from "@/components/project/PublicProjectCard";
-import UploadPicture from "@/components/UploadPicture";
-import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
-import { Badge } from "@/components/ui/badge";
-import { Button } from "@/components/ui/button";
-import { PillButton } from "@/components/ui/pill-button";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { publicPageLayoutTokens } from "@/components/public-page-tokens";
+import ThemedSvgLogo from "@/components/ThemedSvgLogo";
+import UploadPicture from "@/components/UploadPicture";
 import {
   Accordion,
   AccordionContent,
   AccordionItem,
   AccordionTrigger,
 } from "@/components/ui/accordion";
-import ThemedSvgLogo from "@/components/ThemedSvgLogo";
+import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
+import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { PillButton } from "@/components/ui/pill-button";
+import type { Project } from "@/data/projects";
+import { usePageMeta } from "@/hooks/use-page-meta";
+import { usePublicCurrentUser } from "@/hooks/use-public-current-user";
+import { useSiteSettings } from "@/hooks/use-site-settings";
 import { canManageProjectsAccess } from "@/lib/access-control";
 import { getApiBase } from "@/lib/api-base";
-import { isChapterBasedType, isLightNovelType, isMangaType } from "@/lib/project-utils";
-import { buildEpisodeKey } from "@/lib/project-episode-key";
-import {
-  hasPublicEpisodePages,
-  hasPublicEpisodeReadableContent,
-} from "@/lib/public-project-episodes";
-import { findVolumeCoverByVolume } from "@/lib/project-volume-cover-key";
-import { formatDate } from "@/lib/date";
 import { apiFetch, apiFetchBestEffort } from "@/lib/api-client";
+import { normalizeAssetUrl } from "@/lib/asset-url";
+import { formatDate } from "@/lib/date";
+import { formatBytesCompact } from "@/lib/file-size";
+import { PROJECT_COVER_ASPECT_RATIO } from "@/lib/project-card-layout";
+import { buildProjectPublicReadingHref } from "@/lib/project-editor-routes";
+import { buildEpisodeKey } from "@/lib/project-episode-key";
 import {
   buildTranslationMap,
   sortByTranslatedLabel,
@@ -51,18 +53,16 @@ import {
   translateRelation,
   translateTag,
 } from "@/lib/project-taxonomy";
-import { formatBytesCompact } from "@/lib/file-size";
+import { isChapterBasedType, isLightNovelType, isMangaType } from "@/lib/project-utils";
+import { findVolumeCoverByVolume } from "@/lib/project-volume-cover-key";
 import { normalizeProjectVolumeEntries } from "@/lib/project-volume-entries";
 import { PUBLIC_ANALYTICS_INGEST_PATH } from "@/lib/public-analytics";
-import { useSiteSettings } from "@/hooks/use-site-settings";
-import { usePageMeta } from "@/hooks/use-page-meta";
-import { usePublicCurrentUser } from "@/hooks/use-public-current-user";
-import { normalizeAssetUrl } from "@/lib/asset-url";
-import { PROJECT_COVER_ASPECT_RATIO } from "@/lib/project-card-layout";
-import { buildProjectPublicReadingHref } from "@/lib/project-editor-routes";
+import {
+  hasPublicEpisodePages,
+  hasPublicEpisodeReadableContent,
+} from "@/lib/public-project-episodes";
 import type { UploadMediaVariantsMap } from "@/lib/upload-variants";
 import NotFound from "./NotFound";
-import type { Project } from "@/data/projects";
 
 type ProjectFilterPillTone = "secondary" | "outline";
 
@@ -104,9 +104,10 @@ const ProjectPage = () => {
     () =>
       project?.id
         ? normalizeAssetUrl(
-          `/api/og/project/${encodeURIComponent(project.id)}${projectRevision ? `?v=${encodeURIComponent(projectRevision)}` : ""
-          }`,
-        )
+            `/api/og/project/${encodeURIComponent(project.id)}${
+              projectRevision ? `?v=${encodeURIComponent(projectRevision)}` : ""
+            }`,
+          )
         : normalizeAssetUrl(settings.site.defaultShareImage),
     [project?.id, projectRevision, settings.site.defaultShareImage],
   );
@@ -439,8 +440,9 @@ const ProjectPage = () => {
     }
     const chapterNumber = Number(episode.number);
     const volumeNumber = Number(episode.volume);
-    const resourceId = `${project.id}:${Number.isFinite(chapterNumber) ? chapterNumber : 0}:${Number.isFinite(volumeNumber) ? volumeNumber : 0
-      }`;
+    const resourceId = `${project.id}:${Number.isFinite(chapterNumber) ? chapterNumber : 0}:${
+      Number.isFinite(volumeNumber) ? volumeNumber : 0
+    }`;
     const payload: {
       eventType: "download_click";
       resourceType: "chapter";
@@ -524,8 +526,9 @@ const ProjectPage = () => {
     return (
       <Card
         key={key}
-        className={`w-full overflow-hidden rounded-2xl border border-border/60 bg-gradient-card shadow-floating-soft ${isAnimeDownloadCard ? "md:h-[210px]" : "md:min-h-[185px]"
-          }`}
+        className={`w-full overflow-hidden rounded-2xl border border-border/60 bg-gradient-card shadow-floating-soft ${
+          isAnimeDownloadCard ? "md:h-[210px]" : "md:min-h-[185px]"
+        }`}
       >
         <CardContent className="relative grid h-full gap-4 p-4 md:grid-cols-[316px_minmax(0,1fr)] md:items-start md:gap-4 md:p-4">
           <div className="w-full overflow-hidden rounded-xl border border-border/40 bg-background/50 shadow-inner md:h-[178px] md:w-[316px]">
@@ -616,38 +619,38 @@ const ProjectPage = () => {
               ) : null}
               {hasSources
                 ? sources.map((source, sourceIndex) => {
-                  const theme = sourceThemeMap.get(source.label.toLowerCase());
-                  const color = theme?.color || "#4b5563";
-                  const icon = renderSourceIcon(
-                    theme?.icon,
-                    color,
-                    source.label,
-                    theme?.tintIcon ?? true,
-                  );
-                  return (
-                    <Button
-                      key={`${key}-${source.label}-${sourceIndex}`}
-                      asChild
-                      variant="outline"
-                      size="sm"
-                      className="h-9 w-9 rounded-full bg-card/70 px-0 text-sm hover:bg-primary/10 md:w-auto md:px-4"
-                      style={{ borderColor: `${color}99`, color }}
-                    >
-                      <a
-                        href={source.url}
-                        target="_blank"
-                        rel="noreferrer"
-                        aria-label={source.label}
-                        title={source.label}
-                        className="inline-flex items-center justify-center gap-0 md:gap-2"
-                        onClick={() => trackDownloadClick(episode, source.label)}
+                    const theme = sourceThemeMap.get(source.label.toLowerCase());
+                    const color = theme?.color || "#4b5563";
+                    const icon = renderSourceIcon(
+                      theme?.icon,
+                      color,
+                      source.label,
+                      theme?.tintIcon ?? true,
+                    );
+                    return (
+                      <Button
+                        key={`${key}-${source.label}-${sourceIndex}`}
+                        asChild
+                        variant="outline"
+                        size="sm"
+                        className="h-9 w-9 rounded-full bg-card/70 px-0 text-sm hover:bg-primary/10 md:w-auto md:px-4"
+                        style={{ borderColor: `${color}99`, color }}
                       >
-                        {icon}
-                        <span className="sr-only md:not-sr-only">{source.label}</span>
-                      </a>
-                    </Button>
-                  );
-                })
+                        <a
+                          href={source.url}
+                          target="_blank"
+                          rel="noreferrer"
+                          aria-label={source.label}
+                          title={source.label}
+                          className="inline-flex items-center justify-center gap-0 md:gap-2"
+                          onClick={() => trackDownloadClick(episode, source.label)}
+                        >
+                          {icon}
+                          <span className="sr-only md:not-sr-only">{source.label}</span>
+                        </a>
+                      </Button>
+                    );
+                  })
                 : null}
               {!hasReadAction && !hasSources && emptyStateBadge ? (
                 <Badge variant="outline" className="text-[10px] uppercase">
@@ -693,13 +696,13 @@ const ProjectPage = () => {
     const readAction: EpisodeReadAction | null =
       allowReadAction && hasContent
         ? {
-          href: buildProjectPublicReadingHref(projectId, chapter.number, chapter.volume),
-          label: isExtraEntry
-            ? "Ler extra"
-            : hasPages && !hasSources
-              ? "Abrir leitor"
-              : "Ler capítulo",
-        }
+            href: buildProjectPublicReadingHref(projectId, chapter.number, chapter.volume),
+            label: isExtraEntry
+              ? "Ler extra"
+              : hasPages && !hasSources
+                ? "Abrir leitor"
+                : "Ler capítulo",
+          }
         : null;
 
     return (
@@ -718,38 +721,38 @@ const ProjectPage = () => {
           <div className="chapter-download-card__actions flex flex-wrap items-center gap-2 md:justify-end">
             {hasSources
               ? (chapter.sources || []).map((source, sourceIndex) => {
-                const theme = sourceThemeMap.get(source.label.toLowerCase());
-                const color = theme?.color || "#4b5563";
-                const icon = renderSourceIcon(
-                  theme?.icon,
-                  color,
-                  source.label,
-                  theme?.tintIcon ?? true,
-                );
-                return (
-                  <Button
-                    key={`${key}-${source.label}-${sourceIndex}`}
-                    asChild
-                    variant="outline"
-                    size="sm"
-                    className="h-9 w-9 rounded-full bg-card/70 px-0 text-sm hover:bg-primary/10 md:w-auto md:px-4"
-                    style={{ borderColor: `${color}99`, color }}
-                  >
-                    <a
-                      href={source.url}
-                      target="_blank"
-                      rel="noreferrer"
-                      aria-label={source.label}
-                      title={source.label}
-                      className="inline-flex items-center justify-center gap-0 md:gap-2"
-                      onClick={() => trackDownloadClick(chapter, source.label)}
+                  const theme = sourceThemeMap.get(source.label.toLowerCase());
+                  const color = theme?.color || "#4b5563";
+                  const icon = renderSourceIcon(
+                    theme?.icon,
+                    color,
+                    source.label,
+                    theme?.tintIcon ?? true,
+                  );
+                  return (
+                    <Button
+                      key={`${key}-${source.label}-${sourceIndex}`}
+                      asChild
+                      variant="outline"
+                      size="sm"
+                      className="h-9 w-9 rounded-full bg-card/70 px-0 text-sm hover:bg-primary/10 md:w-auto md:px-4"
+                      style={{ borderColor: `${color}99`, color }}
                     >
-                      {icon}
-                      <span className="sr-only md:not-sr-only">{source.label}</span>
-                    </a>
-                  </Button>
-                );
-              })
+                      <a
+                        href={source.url}
+                        target="_blank"
+                        rel="noreferrer"
+                        aria-label={source.label}
+                        title={source.label}
+                        className="inline-flex items-center justify-center gap-0 md:gap-2"
+                        onClick={() => trackDownloadClick(chapter, source.label)}
+                      >
+                        {icon}
+                        <span className="sr-only md:not-sr-only">{source.label}</span>
+                      </a>
+                    </Button>
+                  );
+                })
               : null}
             {readAction ? (
               <Button asChild size="sm" className="order-last">
@@ -1279,15 +1282,15 @@ const ProjectPage = () => {
               <div className="grid gap-6">
                 {isManga
                   ? volumeGroups.map((group) =>
-                    renderVolumeAccordionCard(group, {
-                      allowReadAction: false,
-                    }),
-                  )
+                      renderVolumeAccordionCard(group, {
+                        allowReadAction: false,
+                      }),
+                    )
                   : paginatedEpisodes.map((episode) =>
-                    renderEpisodeDownloadCard(episode, String(episode.number), {
-                      showRawBadge: true,
-                    }),
-                  )}
+                      renderEpisodeDownloadCard(episode, String(episode.number), {
+                        showRawBadge: true,
+                      }),
+                    )}
               </div>
             )}
 

@@ -258,8 +258,10 @@ const createRuntimeDependencies = (overrides: Record<string, unknown> = {}) => {
   };
 };
 
-const getUseEntriesByPath = (entries: Array<{ method: string; args: unknown[] }>, routePath: string) =>
-  entries.filter((entry) => entry.method === "use" && entry.args[0] === routePath);
+const getUseEntriesByPath = (
+  entries: Array<{ method: string; args: unknown[] }>,
+  routePath: string,
+) => entries.filter((entry) => entry.method === "use" && entry.args[0] === routePath);
 
 const expectCodeQlVisibleAssetLimiterBeforeCustomLimiter = (args: unknown[]) => {
   expect(String(args[0])).toContain("Promise.resolve(fn");
@@ -284,8 +286,14 @@ describe("registerRuntimeMiddleware public asset throttling", () => {
       path: "/posts/cover.png",
     };
 
-    const first = await invokeMiddlewareStack([uploadEntries[0]?.args[1], uploadEntries[0]?.args[2]], req);
-    const second = await invokeMiddlewareStack([uploadEntries[1]?.args[1], uploadEntries[1]?.args[2]], req);
+    const first = await invokeMiddlewareStack(
+      [uploadEntries[0]?.args[1], uploadEntries[0]?.args[2]],
+      req,
+    );
+    const second = await invokeMiddlewareStack(
+      [uploadEntries[1]?.args[1], uploadEntries[1]?.args[2]],
+      req,
+    );
 
     expect(first.next).toHaveBeenCalledTimes(1);
     expect(second.next).toHaveBeenCalledTimes(1);
@@ -300,11 +308,14 @@ describe("registerRuntimeMiddleware public asset throttling", () => {
     });
     const uploadEntries = getUseEntriesByPath(entries, "/uploads");
 
-    const result = await invokeMiddlewareStack([uploadEntries[0]?.args[1], uploadEntries[0]?.args[2]], {
-      method: "GET",
-      originalUrl: "/uploads/posts/limited.png",
-      path: "/posts/limited.png",
-    });
+    const result = await invokeMiddlewareStack(
+      [uploadEntries[0]?.args[1], uploadEntries[0]?.args[2]],
+      {
+        method: "GET",
+        originalUrl: "/uploads/posts/limited.png",
+        path: "/posts/limited.png",
+      },
+    );
 
     expect(result.next).not.toHaveBeenCalled();
     expect(result.res.statusCode).toBe(429);
@@ -320,7 +331,9 @@ describe("registerRuntimeMiddleware public asset throttling", () => {
     const fallbackEntryIndex = entries.findIndex(
       (entry) =>
         entry.method === "use" &&
-        entry.args.some((arg) => typeof arg === "function" && String(arg).includes("pwa_asset_not_found")),
+        entry.args.some(
+          (arg) => typeof arg === "function" && String(arg).includes("pwa_asset_not_found"),
+        ),
     );
     const fallbackEntry = fallbackEntryIndex >= 0 ? entries[fallbackEntryIndex] : null;
 
@@ -349,7 +362,9 @@ describe("registerRuntimeMiddleware public asset throttling", () => {
     const fallbackEntryIndex = entries.findIndex(
       (entry) =>
         entry.method === "use" &&
-        entry.args.some((arg) => typeof arg === "function" && String(arg).includes("pwa_asset_not_found")),
+        entry.args.some(
+          (arg) => typeof arg === "function" && String(arg).includes("pwa_asset_not_found"),
+        ),
     );
     const fallbackEntry = fallbackEntryIndex >= 0 ? entries[fallbackEntryIndex] : null;
     expect(fallbackEntry).not.toBeNull();
@@ -381,7 +396,8 @@ describe("registerRuntimeMiddleware public asset throttling", () => {
       (entry) =>
         entry.method === "use" &&
         entry.args.some(
-          (arg) => typeof arg === "function" && String(arg).includes("resolveClientStaticAssetPath"),
+          (arg) =>
+            typeof arg === "function" && String(arg).includes("resolveClientStaticAssetPath"),
         ),
     );
     const fallbackEntry = fallbackEntryIndex >= 0 ? entries[fallbackEntryIndex] : null;
@@ -412,11 +428,14 @@ describe("registerRuntimeMiddleware public asset throttling", () => {
     });
     const uploadEntries = getUseEntriesByPath(entries, "/uploads");
 
-    const result = await invokeMiddlewareStack([uploadEntries[0]?.args[1], uploadEntries[0]?.args[2]], {
-      method: "POST",
-      originalUrl: "/uploads/posts/cover.png",
-      path: "/posts/cover.png",
-    });
+    const result = await invokeMiddlewareStack(
+      [uploadEntries[0]?.args[1], uploadEntries[0]?.args[2]],
+      {
+        method: "POST",
+        originalUrl: "/uploads/posts/cover.png",
+        path: "/posts/cover.png",
+      },
+    );
 
     expect(result.next).toHaveBeenCalledTimes(1);
     expect(canReadPublicAsset).not.toHaveBeenCalled();

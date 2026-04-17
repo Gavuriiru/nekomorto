@@ -1,9 +1,8 @@
 import { fireEvent, render, screen, waitFor } from "@testing-library/react";
 import type { ReactNode } from "react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import type { SiteSettings } from "@/types/site-settings";
+import { Badge } from "@/components/ui/badge";
 import { defaultSettings, mergeSettings, SiteSettingsContext } from "@/hooks/site-settings-context";
-import { resolveThemeColor } from "@/lib/theme-color";
 import {
   THEME_MODE_PRESERVE_MOTION_ATTRIBUTE,
   THEME_MODE_STORAGE_KEY,
@@ -11,7 +10,8 @@ import {
 } from "@/hooks/theme-mode-context";
 import { ThemeModeProvider } from "@/hooks/theme-mode-provider";
 import { useThemeMode } from "@/hooks/use-theme-mode";
-import { Badge } from "@/components/ui/badge";
+import { resolveThemeColor } from "@/lib/theme-color";
+import type { SiteSettings } from "@/types/site-settings";
 
 const createSettings = (override: Partial<SiteSettings> = {}) =>
   mergeSettings(defaultSettings, override);

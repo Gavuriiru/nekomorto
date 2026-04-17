@@ -1,13 +1,13 @@
+import { toComparableSelectionKey } from "@/components/image-library/selection";
 import type {
   LibraryImageItem,
   ProjectImageFolderGroup,
   ProjectImageGroup,
   UploadFolderGroup,
 } from "@/components/image-library/types";
-import { toComparableSelectionKey } from "@/components/image-library/selection";
 import {
-  compareProjectFolderGroupsRootFirst,
   compareNaturalTextPtBr,
+  compareProjectFolderGroupsRootFirst,
   isFolderWithinSelection,
   isProjectsNamespaceFolder,
   listFolderAncestors,

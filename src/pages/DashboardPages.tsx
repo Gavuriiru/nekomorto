@@ -1,73 +1,74 @@
 import {
+  BadgeDollarSign,
+  Banknote,
+  Bitcoin,
+  CircleDollarSign,
+  Coins,
+  Flame,
+  GripVertical,
+  Heart,
+  HeartHandshake,
+  HelpCircle,
+  Info,
+  Landmark,
+  Languages,
+  Layers,
+  Paintbrush,
+  PenTool,
+  PiggyBank,
+  Plus,
+  QrCode,
+  Rocket,
+  ScanText,
+  Server,
+  Shield,
+  ShieldCheck,
+  Sparkles,
+  Timer,
+  Trash2,
+  Users,
+  Video,
+  Wallet,
+  Wand2,
+  Zap,
+} from "lucide-react";
+import {
+  type DragEvent,
+  type FocusEvent,
   useCallback,
   useEffect,
   useMemo,
   useRef,
   useState,
-  type DragEvent,
-  type FocusEvent,
 } from "react";
 import { useLocation, useNavigate, useSearchParams } from "react-router-dom";
 import DashboardAutosaveStatus from "@/components/DashboardAutosaveStatus";
+import DashboardShell from "@/components/DashboardShell";
 import DashboardActionButton, {
   default as Button,
 } from "@/components/dashboard/DashboardActionButton";
-import DashboardPageBadge from "@/components/dashboard/DashboardPageBadge";
 import DashboardFieldStack from "@/components/dashboard/DashboardFieldStack";
+import DashboardPageBadge from "@/components/dashboard/DashboardPageBadge";
 import { Combobox, Input, Textarea } from "@/components/dashboard/dashboard-form-controls";
-import {
-  dashboardPageLayoutTokens,
-  dashboardSubtleSurfaceHoverClassName,
-} from "@/components/dashboard/dashboard-page-tokens";
-import DashboardShell from "@/components/DashboardShell";
-import ReorderControls from "@/components/ReorderControls";
-import LazyImageLibraryDialog from "@/components/lazy/LazyImageLibraryDialog";
 import {
   dashboardAnimationDelay,
   dashboardMotionDelays,
 } from "@/components/dashboard/dashboard-motion";
+import {
+  dashboardPageLayoutTokens,
+  dashboardSubtleSurfaceHoverClassName,
+} from "@/components/dashboard/dashboard-page-tokens";
+import LazyImageLibraryDialog from "@/components/lazy/LazyImageLibraryDialog";
+import ReorderControls from "@/components/ReorderControls";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import AsyncState from "@/components/ui/async-state";
+import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Card, CardContent } from "@/components/ui/card";
+import type { ComboboxOption } from "@/components/ui/combobox";
 import { Label } from "@/components/ui/label";
 import { Skeleton } from "@/components/ui/skeleton";
-import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
-import type { ComboboxOption } from "@/components/ui/combobox";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import {
-  Shield,
-  GripVertical,
-  Plus,
-  Trash2,
-  Coins,
-  Wallet,
-  BadgeDollarSign,
-  Landmark,
-  Banknote,
-  CircleDollarSign,
-  Bitcoin,
-  Heart,
-  Sparkles,
-  Users,
-  Wand2,
-  Flame,
-  Zap,
-  Server,
-  PiggyBank,
-  HelpCircle,
-  Info,
-  Rocket,
-  HeartHandshake,
-  QrCode,
-  Languages,
-  ScanText,
-  PenTool,
-  Video,
-  Paintbrush,
-  Layers,
-  Timer,
-  ShieldCheck,
-} from "lucide-react";
+import { toast } from "@/components/ui/use-toast";
 import {
   autosaveRuntimeConfig,
   autosaveStorageKeys,
@@ -75,16 +76,15 @@ import {
   writeAutosavePreference,
 } from "@/config/autosave";
 import { useAutosave } from "@/hooks/use-autosave";
-import { filterImageLibraryFoldersByAccess } from "@/lib/image-library-scope";
-import { getApiBase } from "@/lib/api-base";
-import { apiFetch } from "@/lib/api-client";
-import { applyBeforeUnloadCompatibility } from "@/lib/before-unload";
-import { toast } from "@/components/ui/use-toast";
 import { useDashboardCurrentUser } from "@/hooks/use-dashboard-current-user";
 import { useDashboardRefreshToast } from "@/hooks/use-dashboard-refresh-toast";
 import { usePageMeta } from "@/hooks/use-page-meta";
 import { usePixQrCode } from "@/hooks/use-pix-qr-code";
 import { useSiteSettings } from "@/hooks/use-site-settings";
+import { getApiBase } from "@/lib/api-base";
+import { apiFetch } from "@/lib/api-client";
+import { normalizeAssetUrl } from "@/lib/asset-url";
+import { applyBeforeUnloadCompatibility } from "@/lib/before-unload";
 import {
   DEFAULT_DONATIONS_CRYPTO_ICON,
   emptyDonationsCryptoService,
@@ -96,7 +96,7 @@ import {
   sanitizeMonthlyGoalSupportersInput,
 } from "@/lib/donations-monthly-goal";
 import { getShareImageAltFallback, resolveAssetAltText } from "@/lib/image-alt";
-import { normalizeAssetUrl } from "@/lib/asset-url";
+import { filterImageLibraryFoldersByAccess } from "@/lib/image-library-scope";
 import type { DonationsCryptoService } from "@/types/public-pages";
 
 type AboutHighlight = { label: string; text: string; icon: string };

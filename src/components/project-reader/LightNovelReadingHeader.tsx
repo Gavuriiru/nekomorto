@@ -1,8 +1,7 @@
 import { ArrowLeft, PencilLine } from "lucide-react";
 import { Link } from "react-router-dom";
-
-import UploadPicture from "@/components/UploadPicture";
 import { publicPageLayoutTokens } from "@/components/public-page-tokens";
+import UploadPicture from "@/components/UploadPicture";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import type { UploadMediaVariantsMap } from "@/lib/upload-variants";

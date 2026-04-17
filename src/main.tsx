@@ -1,13 +1,13 @@
 import { createRoot } from "react-dom/client";
-import App from "./App.tsx";
+import { primePublicBootstrapCache } from "@/hooks/use-public-bootstrap";
 import { getApiBase } from "@/lib/api-base";
 import { apiFetch } from "@/lib/api-client";
-import { primePublicBootstrapCache } from "@/hooks/use-public-bootstrap";
 import { armHomeHeroShellCleanup } from "@/lib/home-hero";
 import { asPublicBootstrapPayload } from "@/lib/public-bootstrap-global";
-import { installPwaCleanupReloadBridge, runPwaCleanup } from "@/lib/pwa-cleanup";
 import { startPublicFreshnessCoordinator } from "@/lib/public-freshness";
+import { installPwaCleanupReloadBridge, runPwaCleanup } from "@/lib/pwa-cleanup";
 import { installVitePreloadRecovery } from "@/lib/vite-preload-recovery";
+import App from "./App.tsx";
 import "./styles/fonts.css";
 import "./index.css";
 
@@ -108,11 +108,7 @@ const bootstrap = async () => {
           return;
         }
         loader.style.opacity = "0";
-        loader.addEventListener(
-          "transitionend",
-          () => loader.remove(),
-          { once: true },
-        );
+        loader.addEventListener("transitionend", () => loader.remove(), { once: true });
         // Safety: remove even if the transition event never fires
         globalWindow.setTimeout(() => loader.remove(), 500);
       });
@@ -148,9 +144,12 @@ const bootstrap = async () => {
             await Promise.race([
               bootstrapPromise,
               new Promise((_, reject) =>
-                globalWindow.setTimeout(() => reject(new Error("Bootstrap promise timeout")), fetchTimeoutMs)
+                globalWindow.setTimeout(
+                  () => reject(new Error("Bootstrap promise timeout")),
+                  fetchTimeoutMs,
+                ),
               ),
-            ])
+            ]),
           );
           if (resolved) {
             primePublicBootstrapCache(resolved);
@@ -186,4 +185,3 @@ const bootstrap = async () => {
 };
 
 bootstrap();
-

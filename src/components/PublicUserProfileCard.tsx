@@ -1,4 +1,3 @@
-import { useEffect, useMemo, useState, type KeyboardEvent, type MouseEvent } from "react";
 import {
   BadgeCheck,
   Camera,
@@ -19,6 +18,7 @@ import {
   Video,
   X,
 } from "lucide-react";
+import { type KeyboardEvent, type MouseEvent, useEffect, useMemo, useState } from "react";
 
 import ThemedSvgMaskIcon from "@/components/ThemedSvgMaskIcon";
 import UploadPicture from "@/components/UploadPicture";
@@ -29,14 +29,14 @@ import { useSiteSettings } from "@/hooks/use-site-settings";
 import { resolveDiscordAvatarRenderUrl } from "@/lib/discord-avatar";
 import type { UploadMediaVariantsMap } from "@/lib/upload-variants";
 import "@/styles/public-user-profile-card.css";
+import { isIconUrlSource, sanitizeIconSource, sanitizePublicHref } from "@/lib/url-safety";
+import { cn } from "@/lib/utils";
 import type {
   FavoriteWorkCategory,
   FavoriteWorksByCategory,
   PublicTeamLinkType,
   PublicTeamMember,
 } from "@/types/public-team";
-import { cn } from "@/lib/utils";
-import { isIconUrlSource, sanitizeIconSource, sanitizePublicHref } from "@/lib/url-safety";
 
 const FAVORITE_WORK_CATEGORIES = ["manga", "anime"] as const;
 const FAVORITES_HINT_TEXT = "Clique para ver as obras favoritas";

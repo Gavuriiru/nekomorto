@@ -1,6 +1,10 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
-
-import { apiFetch } from "@/lib/api-client";
+import {
+  buildUploadsListPath,
+  dedupeLibraryItemsByUrl,
+  mapProjectImageItemsToLibraryItems,
+  mapUploadsListFilesToLibraryItems,
+} from "@/components/image-library/data";
 import { getUploadsListErrorMessage } from "@/components/image-library/messages";
 import {
   buildStableUploadSelectionState,
@@ -8,12 +12,7 @@ import {
 } from "@/components/image-library/selection";
 import type { LibraryImageItem } from "@/components/image-library/types";
 import { dedupeUrlsByComparableKey } from "@/components/image-library/utils";
-import {
-  buildUploadsListPath,
-  dedupeLibraryItemsByUrl,
-  mapProjectImageItemsToLibraryItems,
-  mapUploadsListFilesToLibraryItems,
-} from "@/components/image-library/data";
+import { apiFetch } from "@/lib/api-client";
 
 type UseImageLibraryDataParams = {
   allowedProjectImageIdSet: Set<string>;

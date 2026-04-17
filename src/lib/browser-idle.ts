@@ -1,5 +1,3 @@
-
-
 type IdleCallback = (deadline: IdleDeadline) => void;
 
 type BrowserWindowWithIdle = Window & typeof globalThis;

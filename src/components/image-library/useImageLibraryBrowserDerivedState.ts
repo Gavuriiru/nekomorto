@@ -2,8 +2,8 @@ import { useCallback, useMemo } from "react";
 
 import { isAvatarGeneratedUsersUpload } from "@/components/image-library/avatar-selection";
 import {
-  buildInitialUploadAccordionState,
   buildInitialProjectAccordionState,
+  buildInitialUploadAccordionState,
   buildProjectImageGroups,
   buildUploadFolderFilterOptionLabels,
   buildUploadFolderFilterOptions,

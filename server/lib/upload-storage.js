@@ -1,5 +1,3 @@
-import fs from "fs";
-import path from "path";
 import { Readable } from "node:stream";
 import {
   CopyObjectCommand,
@@ -11,6 +9,8 @@ import {
   PutObjectCommand,
   S3Client,
 } from "@aws-sdk/client-s3";
+import fs from "fs";
+import path from "path";
 
 export const UPLOAD_STORAGE_PROVIDER_LOCAL = "local";
 export const UPLOAD_STORAGE_PROVIDER_S3 = "s3";

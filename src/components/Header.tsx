@@ -1,34 +1,34 @@
-import { Suspense, lazy, useEffect, useMemo, useRef, useState } from "react";
+import { Menu } from "lucide-react";
 import type { ReactNode } from "react";
+import { lazy, Suspense, useEffect, useMemo, useRef, useState } from "react";
 import { Link, useLocation } from "react-router-dom";
+import type { DashboardMenuItem } from "@/components/dashboard-menu";
+import type { HeaderActionMenusProps } from "@/components/HeaderActionMenus";
+import ThemedSvgLogo from "@/components/ThemedSvgLogo";
+import ThemeModeSwitcher from "@/components/ThemeModeSwitcher";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
 import { floatingSurfaceShadowClassName } from "@/components/ui/floating-surface";
-import { Menu } from "lucide-react";
-import ThemedSvgLogo from "@/components/ThemedSvgLogo";
-import ThemeModeSwitcher from "@/components/ThemeModeSwitcher";
-import type { DashboardMenuItem } from "@/components/dashboard-menu";
-import { cn } from "@/lib/utils";
-import { getApiBase } from "@/lib/api-base";
-import { apiFetch } from "@/lib/api-client";
-import { useSiteSettings } from "@/hooks/use-site-settings";
-import { usePublicCurrentUser } from "@/hooks/use-public-current-user";
-import { useIsMobile } from "@/hooks/use-mobile";
-import { resolveBranding } from "@/lib/branding";
 import { useGlobalShortcuts } from "@/hooks/use-global-shortcuts";
-import { scheduleOnBrowserLoadIdle } from "@/lib/browser-idle";
+import { useIsMobile } from "@/hooks/use-mobile";
+import { usePublicCurrentUser } from "@/hooks/use-public-current-user";
+import { useSiteSettings } from "@/hooks/use-site-settings";
 import {
   buildDashboardMenuFromGrants,
   getFirstAllowedDashboardRoute,
   resolveGrants,
 } from "@/lib/access-control";
+import { getApiBase } from "@/lib/api-base";
+import { apiFetch } from "@/lib/api-client";
 import { buildAvatarRenderUrl } from "@/lib/avatar-render-url";
-import { sanitizePublicHref } from "@/lib/url-safety";
-import { uiCopy } from "@/lib/ui-copy";
-import type { SearchSuggestion } from "@/types/search-suggestion";
-import type { UploadMediaVariantsMap } from "@/lib/upload-variants";
+import { resolveBranding } from "@/lib/branding";
+import { scheduleOnBrowserLoadIdle } from "@/lib/browser-idle";
 import { type PublicBootstrapCurrentUser } from "@/lib/public-bootstrap-global";
-import type { HeaderActionMenusProps } from "@/components/HeaderActionMenus";
+import { uiCopy } from "@/lib/ui-copy";
+import type { UploadMediaVariantsMap } from "@/lib/upload-variants";
+import { sanitizePublicHref } from "@/lib/url-safety";
+import { cn } from "@/lib/utils";
+import type { SearchSuggestion } from "@/types/search-suggestion";
 
 type HeaderProps = {
   variant?: "fixed" | "static";

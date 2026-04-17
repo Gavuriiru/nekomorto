@@ -1,24 +1,23 @@
-import React from "react";
 import { ImageResponse } from "@vercel/og";
+import React from "react";
 import sharp from "sharp";
-
 import {
-  OG_PROJECT_HEIGHT,
-  OG_PROJECT_WIDTH,
-  buildProjectOgFonts,
-  loadProjectOgArtworkDataUrl,
-  resolveProjectOgPalette,
-} from "./project-og.js";
-import { mixHexColors, normalizeHex } from "./og-color.js";
-import {
-  INSTITUTIONAL_OG_SCENE_VERSION,
   buildInstitutionalOgImageAlt,
+  INSTITUTIONAL_OG_SCENE_VERSION,
   isInstitutionalOgPageKey,
   resolveInstitutionalOgBackgroundImage,
   resolveInstitutionalOgPageTitle,
   resolveInstitutionalOgSupportText,
 } from "../../shared/institutional-og-seo.js";
+import { mixHexColors, normalizeHex } from "./og-color.js";
 import { finalizeVariantUrl, normalizeText } from "./og-shared.js";
+import {
+  buildProjectOgFonts,
+  loadProjectOgArtworkDataUrl,
+  OG_PROJECT_HEIGHT,
+  OG_PROJECT_WIDTH,
+  resolveProjectOgPalette,
+} from "./project-og.js";
 
 const { createElement } = React;
 

@@ -1,11 +1,11 @@
-﻿import type { ReactNode } from "react";
-import { act, fireEvent, render, screen, waitFor, within } from "@testing-library/react";
+﻿import { act, fireEvent, render, screen, waitFor, within } from "@testing-library/react";
+import type { ReactNode } from "react";
 import { MemoryRouter } from "react-router-dom";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 import { dashboardMotionDelays } from "@/components/dashboard/dashboard-motion";
-import DashboardSettings, { __testing } from "@/pages/DashboardSettings";
 import { defaultSettings } from "@/hooks/site-settings-context";
+import DashboardSettings, { __testing } from "@/pages/DashboardSettings";
 import type { SiteSettings } from "@/types/site-settings";
 
 const { apiFetchMock, dismissToastMock, navigateMock, refreshMock, toastMock } = vi.hoisted(() => ({

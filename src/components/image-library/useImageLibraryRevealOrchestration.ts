@@ -1,18 +1,18 @@
 import {
-  useCallback,
-  useEffect,
-  useRef,
   type Dispatch,
   type MutableRefObject,
   type SetStateAction,
+  useCallback,
+  useEffect,
+  useRef,
 } from "react";
 
 import { assignLibraryCardRef } from "@/components/image-library/avatar-selection";
-import { toComparableSelectionKey } from "@/components/image-library/selection";
 import {
   resolvePendingProjectRevealStep,
   resolvePendingUploadRevealStep,
 } from "@/components/image-library/groups";
+import { toComparableSelectionKey } from "@/components/image-library/selection";
 import type {
   LibraryImageItem,
   ProjectImageGroup,

@@ -2,8 +2,8 @@ import { registerAuthRoutes } from "../lib/register-auth-routes.js";
 import { registerOperationalRoutes } from "../lib/register-operational-routes.js";
 import { registerSelfServiceRoutes } from "../lib/register-self-service-routes.js";
 import { registerSessionRoutes } from "../lib/register-session-routes.js";
-import { DIRECT_ROUTE_DEPENDENCY_KEYS } from "./build-direct-route-dependencies.js";
 import { assertRequiredDependencies } from "./assert-required-dependencies.js";
+import { DIRECT_ROUTE_DEPENDENCY_KEYS } from "./build-direct-route-dependencies.js";
 
 const DIRECT_ROUTE_REGISTRARS = {
   auth: registerAuthRoutes,

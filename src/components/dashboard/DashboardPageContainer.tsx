@@ -1,9 +1,9 @@
+import type { ComponentPropsWithoutRef, ReactNode } from "react";
 import {
   dashboardPageLayoutTokens,
   dashboardStrongFocusScopeClassName,
 } from "@/components/dashboard/dashboard-page-tokens";
 import { cn } from "@/lib/utils";
-import type { ComponentPropsWithoutRef, ReactNode } from "react";
 
 const maxWidthClassMap = {
   editor: "max-w-[min(1520px,calc(100vw-1rem))]",

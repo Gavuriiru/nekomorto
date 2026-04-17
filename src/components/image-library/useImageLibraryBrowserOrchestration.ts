@@ -1,18 +1,17 @@
-import { useEffect, useRef, type Dispatch, type DragEvent, type SetStateAction } from "react";
-
-import useImageLibraryBrowserDerivedState from "@/components/image-library/useImageLibraryBrowserDerivedState";
-import useImageLibraryBrowserInteractions from "@/components/image-library/useImageLibraryBrowserInteractions";
+import { type Dispatch, type DragEvent, type SetStateAction, useEffect, useRef } from "react";
 import {
   resolveUploadFolderFilterValue,
   shouldFallbackUploadFolderFilterToAll,
 } from "@/components/image-library/groups";
-import useImageLibraryRevealOrchestration from "@/components/image-library/useImageLibraryRevealOrchestration";
-import useImageLibrarySelectionLifecycle from "@/components/image-library/useImageLibrarySelectionLifecycle";
 import type {
   LibraryImageItem,
   ProjectImageGroup,
   UploadFolderGroup,
 } from "@/components/image-library/types";
+import useImageLibraryBrowserDerivedState from "@/components/image-library/useImageLibraryBrowserDerivedState";
+import useImageLibraryBrowserInteractions from "@/components/image-library/useImageLibraryBrowserInteractions";
+import useImageLibraryRevealOrchestration from "@/components/image-library/useImageLibraryRevealOrchestration";
+import useImageLibrarySelectionLifecycle from "@/components/image-library/useImageLibrarySelectionLifecycle";
 
 type PendingRevealRequest = {
   url: string;

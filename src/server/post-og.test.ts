@@ -1,13 +1,12 @@
 import sharp from "sharp";
 import { describe, expect, it } from "vitest";
-
-import { OG_PROJECT_HEIGHT, OG_PROJECT_WIDTH } from "../../server/lib/project-og.js";
 import {
   buildPostOgCardModel,
   buildPostOgImagePath,
   buildPostOgImageResponse,
   buildPostOgScene,
 } from "../../server/lib/post-og.js";
+import { OG_PROJECT_HEIGHT, OG_PROJECT_WIDTH } from "../../server/lib/project-og.js";
 
 const transparentDataUrl = "data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///ywAAAAAAQABAAACAUwAOw==";
 

@@ -1,32 +1,31 @@
+import { Download, GripVertical, Link2, Plus, Save, Trash2, User } from "lucide-react";
 import { useMemo } from "react";
-
 import DashboardActionButton from "@/components/dashboard/DashboardActionButton";
-import DashboardReaderPresetCard from "@/components/dashboard/DashboardReaderPresetCard";
 import DashboardFieldStack from "@/components/dashboard/DashboardFieldStack";
 import DashboardPageBadge from "@/components/dashboard/DashboardPageBadge";
+import DashboardReaderPresetCard from "@/components/dashboard/DashboardReaderPresetCard";
+import DashboardSeoRedirectsPanel from "@/components/dashboard/DashboardSeoRedirectsPanel";
 import { Combobox, Input, Textarea } from "@/components/dashboard/dashboard-form-controls";
-import type { ComboboxOption } from "@/components/ui/combobox";
 import {
   dashboardStrongFocusFieldClassName,
   dashboardStrongFocusScopeClassName,
   dashboardStrongSurfaceHoverClassName,
 } from "@/components/dashboard/dashboard-page-tokens";
-import DashboardSeoRedirectsPanel from "@/components/dashboard/DashboardSeoRedirectsPanel";
 import ReorderControls from "@/components/ReorderControls";
 import { Card, CardContent } from "@/components/ui/card";
-import { Label } from "@/components/ui/label";
 import { ColorPicker } from "@/components/ui/color-picker";
+import type { ComboboxOption } from "@/components/ui/combobox";
+import { Label } from "@/components/ui/label";
 import { Switch } from "@/components/ui/switch";
 import { TabsContent } from "@/components/ui/tabs";
-import { Download, GripVertical, Link2, Plus, Save, Trash2, User } from "lucide-react";
 import { navbarIconOptions } from "@/lib/navbar-icons";
 import { useDashboardSettingsContext } from "./dashboard-settings-context";
 import {
   brandingLogoEditorFields,
   dashboardSettingsCardClassName,
   type FooterBrandMode,
-  normalizeLinkTypeId,
   type NavbarBrandMode,
+  normalizeLinkTypeId,
   readerProjectTypeMeta,
   responsiveCompactRowDeleteButtonClass,
   responsiveCompactSelfEndDeleteButtonClass,

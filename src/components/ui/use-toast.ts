@@ -64,5 +64,5 @@ const useToast = () => ({
   toasts: [],
 });
 
-export { useToast, toast, dismissToast };
 export type { ToastIntent, ToastPayload, ToastVariant };
+export { dismissToast, toast, useToast };

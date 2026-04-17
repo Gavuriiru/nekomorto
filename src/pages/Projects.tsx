@@ -26,7 +26,7 @@ import { useIsMobile } from "@/hooks/use-mobile";
 import { usePageMeta } from "@/hooks/use-page-meta";
 import { getApiBase } from "@/lib/api-base";
 import { apiFetch } from "@/lib/api-client";
-import { prepareProjectBadges, type ProjectBadgeItem } from "@/lib/project-card-layout";
+import { type ProjectBadgeItem, prepareProjectBadges } from "@/lib/project-card-layout";
 import { readWindowPublicBootstrap } from "@/lib/public-bootstrap-global";
 import { comparePtBr, normalizeSearchText } from "@/lib/search-ranking";
 import type { UploadMediaVariantsMap } from "@/lib/upload-variants";

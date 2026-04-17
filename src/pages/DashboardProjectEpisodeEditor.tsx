@@ -1,17 +1,20 @@
+import { ArrowLeft, ExternalLink, ImagePlus, Loader2, Plus, Search, Trash2 } from "lucide-react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { Link, useNavigate, useParams } from "react-router-dom";
 import DashboardShell from "@/components/DashboardShell";
 import DashboardActionButton from "@/components/dashboard/DashboardActionButton";
-import type { ImageLibraryOptions } from "@/components/ImageLibraryDialog";
-import { Combobox, Input } from "@/components/dashboard/dashboard-form-controls";
-import {
-  dedicatedEditorSidebarPanelClassName,
-  dedicatedEditorSidebarScrollRegionClassName,
-  dedicatedEditorSidebarStickyClassName,
-  type DedicatedEditorSidebarHeightStyle,
-  useDedicatedEditorSidebarHeight,
-} from "@/components/dashboard/dedicated-editor-sidebar";
 import DashboardDedicatedEditorHeader from "@/components/dashboard/DashboardDedicatedEditorHeader";
 import DashboardFieldStack from "@/components/dashboard/DashboardFieldStack";
 import DashboardPageContainer from "@/components/dashboard/DashboardPageContainer";
+import { Combobox, Input } from "@/components/dashboard/dashboard-form-controls";
+import {
+  type DedicatedEditorSidebarHeightStyle,
+  dedicatedEditorSidebarPanelClassName,
+  dedicatedEditorSidebarScrollRegionClassName,
+  dedicatedEditorSidebarStickyClassName,
+  useDedicatedEditorSidebarHeight,
+} from "@/components/dashboard/dedicated-editor-sidebar";
+import type { ImageLibraryOptions } from "@/components/ImageLibraryDialog";
 import LazyImageLibraryDialog from "@/components/lazy/LazyImageLibraryDialog";
 import DownloadSourceSelect from "@/components/project-reader/DownloadSourceSelect";
 import ProjectEditorSectionCard from "@/components/project-reader/ProjectEditorSectionCard";
@@ -29,35 +32,36 @@ import { Label } from "@/components/ui/label";
 import { toast } from "@/components/ui/use-toast";
 import type { Project, ProjectEpisode } from "@/data/projects";
 import { useDashboardCurrentUser } from "@/hooks/use-dashboard-current-user";
-import { refetchPublicBootstrapCache } from "@/hooks/use-public-bootstrap";
 import { usePageMeta } from "@/hooks/use-page-meta";
+import { refetchPublicBootstrapCache } from "@/hooks/use-public-bootstrap";
 import { canManageProjectsAccess } from "@/lib/access-control";
 import { getApiBase } from "@/lib/api-base";
 import { apiFetch } from "@/lib/api-client";
 import {
   canonicalToDisplayTime,
+  digitsOnly,
   displayDateToIso,
   displayTimeToCanonical,
-  digitsOnly,
   formatDateDigitsToDisplay,
   formatTimeDigitsToDisplay,
   getTodayIsoDate,
   isoToDisplayDate,
 } from "@/lib/dashboard-date-time";
 import { buildProjectEpisodeAssetLibraryOptions } from "@/lib/dashboard-image-library";
+import { formatBytesCompact, parseHumanSizeToBytes } from "@/lib/file-size";
 import {
+  DEFAULT_PROJECT_COVER_ALT,
+  getEpisodeCoverAltFallback,
+  resolveAssetAltText,
+} from "@/lib/image-alt";
+import {
+  type AnimeEpisodeQuickFilter,
   cloneEpisodeSources,
   getAnimeEpisodeCompletionIssues,
   getAnimeEpisodeCompletionLabel,
   matchesAnimeEpisodeQuickFilter,
-  type AnimeEpisodeQuickFilter,
 } from "@/lib/project-anime-episodes";
-import { formatBytesCompact, parseHumanSizeToBytes } from "@/lib/file-size";
-import {
-  getEpisodeCoverAltFallback,
-  resolveAssetAltText,
-  DEFAULT_PROJECT_COVER_ALT,
-} from "@/lib/image-alt";
+import { findIncompleteDownloadSourceIndex } from "@/lib/project-download-sources";
 import {
   buildDashboardProjectEditorHref,
   buildDashboardProjectEpisodeEditorHref,
@@ -70,21 +74,17 @@ import {
   resolveEpisodeLookup,
   resolveNextMainEpisodeNumber,
 } from "@/lib/project-episode-key";
+import { resolveProjectImageFolders } from "@/lib/project-image-folders";
+import {
+  getProjectProgressStagesForEditor,
+  getProjectProgressStateForEditor,
+  syncProjectProgress,
+} from "@/lib/project-progress";
 import {
   resolveProjectEpisodePublicationErrorState,
   resolveProjectEpisodePublicationState,
 } from "@/lib/project-publication";
-import {
-  getProjectProgressStateForEditor,
-  getProjectProgressStagesForEditor,
-  syncProjectProgress,
-} from "@/lib/project-progress";
-import { resolveProjectImageFolders } from "@/lib/project-image-folders";
-import { findIncompleteDownloadSourceIndex } from "@/lib/project-download-sources";
 import { isChapterBasedType } from "@/lib/project-utils";
-import { Search, ArrowLeft, ExternalLink, ImagePlus, Loader2, Plus, Trash2 } from "lucide-react";
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { Link, useNavigate, useParams } from "react-router-dom";
 
 const animeEpisodeFilterOptions = [
   { value: "all", label: "Todos" },
@@ -901,64 +901,66 @@ const DashboardProjectEpisodeEditor = () => {
       </div>
 
       <div
-        className={activeDraft ? `space-y-2.5 px-5 pb-5 ${dedicatedEditorSidebarScrollRegionClassName}` : "space-y-2.5 px-5 pb-5"}
+        className={
+          activeDraft
+            ? `space-y-2.5 px-5 pb-5 ${dedicatedEditorSidebarScrollRegionClassName}`
+            : "space-y-2.5 px-5 pb-5"
+        }
         data-testid={activeDraft ? "anime-episode-sidebar-scroll-region" : undefined}
       >
-          {filteredEpisodes.map((episode) => {
-            const episodeHref = buildDashboardProjectEpisodeEditorHref(project.id, episode.number);
-            const isActive = activeEpisodeKey === buildEpisodeKey(episode.number, episode.volume);
-            return (
-              <button
-                key={buildEpisodeKey(episode.number, episode.volume)}
-                type="button"
-                onClick={() => requestNavigateToHref(episodeHref)}
-                className={`w-full rounded-[18px] border px-3.5 py-3 text-left transition ${
-                  isActive
-                    ? "border-primary/50 bg-primary/[0.07] shadow-sm"
-                    : "border-border/50 bg-background/55 hover:bg-background/78"
-                }`}
-              >
-                <div className="flex items-start justify-between gap-3">
-                  <div className="min-w-0">
-                    <p className="text-[11px] font-medium uppercase tracking-[0.08em] text-muted-foreground">
-                      Episódio {episode.number}
-                    </p>
-                    <p className="line-clamp-2 text-sm font-semibold text-foreground">
-                      {episode.title || "Sem título"}
-                    </p>
-                  </div>
-                  <Badge variant={episode.publicationStatus === "draft" ? "outline" : "secondary"}>
-                    {episode.publicationStatus === "draft" ? "Rascunho" : "Publicado"}
+        {filteredEpisodes.map((episode) => {
+          const episodeHref = buildDashboardProjectEpisodeEditorHref(project.id, episode.number);
+          const isActive = activeEpisodeKey === buildEpisodeKey(episode.number, episode.volume);
+          return (
+            <button
+              key={buildEpisodeKey(episode.number, episode.volume)}
+              type="button"
+              onClick={() => requestNavigateToHref(episodeHref)}
+              className={`w-full rounded-[18px] border px-3.5 py-3 text-left transition ${
+                isActive
+                  ? "border-primary/50 bg-primary/[0.07] shadow-sm"
+                  : "border-border/50 bg-background/55 hover:bg-background/78"
+              }`}
+            >
+              <div className="flex items-start justify-between gap-3">
+                <div className="min-w-0">
+                  <p className="text-[11px] font-medium uppercase tracking-[0.08em] text-muted-foreground">
+                    Episódio {episode.number}
+                  </p>
+                  <p className="line-clamp-2 text-sm font-semibold text-foreground">
+                    {episode.title || "Sem título"}
+                  </p>
+                </div>
+                <Badge variant={episode.publicationStatus === "draft" ? "outline" : "secondary"}>
+                  {episode.publicationStatus === "draft" ? "Rascunho" : "Publicado"}
+                </Badge>
+              </div>
+              <div className="mt-2 flex flex-wrap items-center gap-2 text-xs text-muted-foreground">
+                {episode.releaseDate ? <span>{isoToDisplayDate(episode.releaseDate)}</span> : null}
+                {episode.sources?.length ? (
+                  <span>{formatCountLabel(episode.sources.length, "fonte", "fontes")}</span>
+                ) : null}
+                <span>{episode.sourceType}</span>
+              </div>
+              <div className="mt-2 flex flex-wrap gap-1.5">
+                {buildCompletionBadges(episode).map((badge) => (
+                  <Badge
+                    key={`${episode.number}-${badge.issue}`}
+                    variant="outline"
+                    className="text-[10px] uppercase tracking-[0.08em]"
+                  >
+                    {badge.label}
                   </Badge>
-                </div>
-                <div className="mt-2 flex flex-wrap items-center gap-2 text-xs text-muted-foreground">
-                  {episode.releaseDate ? (
-                    <span>{isoToDisplayDate(episode.releaseDate)}</span>
-                  ) : null}
-                  {episode.sources?.length ? (
-                    <span>{formatCountLabel(episode.sources.length, "fonte", "fontes")}</span>
-                  ) : null}
-                  <span>{episode.sourceType}</span>
-                </div>
-                <div className="mt-2 flex flex-wrap gap-1.5">
-                  {buildCompletionBadges(episode).map((badge) => (
-                    <Badge
-                      key={`${episode.number}-${badge.issue}`}
-                      variant="outline"
-                      className="text-[10px] uppercase tracking-[0.08em]"
-                    >
-                      {badge.label}
-                    </Badge>
-                  ))}
-                </div>
-              </button>
-            );
-          })}
-          {filteredEpisodes.length === 0 ? (
-            <div className="rounded-[18px] border border-dashed border-border/60 bg-background/30 px-4 py-6 text-sm text-muted-foreground">
-              Nenhum episódio corresponde aos filtros atuais.
-            </div>
-          ) : null}
+                ))}
+              </div>
+            </button>
+          );
+        })}
+        {filteredEpisodes.length === 0 ? (
+          <div className="rounded-[18px] border border-dashed border-border/60 bg-background/30 px-4 py-6 text-sm text-muted-foreground">
+            Nenhum episódio corresponde aos filtros atuais.
+          </div>
+        ) : null}
       </div>
     </section>
   );

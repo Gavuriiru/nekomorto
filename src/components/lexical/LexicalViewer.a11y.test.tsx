@@ -1,10 +1,10 @@
-import { Suspense } from "react";
-import { axe } from "jest-axe";
-import { render, screen } from "@testing-library/react";
-import { describe, expect, it, vi } from "vitest";
 import { $createListItemNode, $createListNode } from "@lexical/list";
 import { $createMarkNode } from "@lexical/mark";
-import { createEditor, $createParagraphNode, $createTextNode, $getRoot } from "lexical";
+import { render, screen } from "@testing-library/react";
+import { axe } from "jest-axe";
+import { $createParagraphNode, $createTextNode, $getRoot, createEditor } from "lexical";
+import { Suspense } from "react";
+import { describe, expect, it, vi } from "vitest";
 
 import LexicalViewer from "@/components/lexical/LexicalViewer";
 import LexicalViewerNodes from "@/components/lexical/LexicalViewerNodes";

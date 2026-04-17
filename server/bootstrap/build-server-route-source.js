@@ -1,9 +1,9 @@
-import { buildServerRouteDependencySource } from "./build-server-route-dependency-source.js";
 import {
   assertRequiredDependencies,
   mergeDependencySources,
   pickDependencyKeys,
 } from "./assert-required-dependencies.js";
+import { buildServerRouteDependencySource } from "./build-server-route-dependency-source.js";
 
 export const SERVER_ROUTE_SOURCE_FRAGMENT_KEYS = {
   constant: [

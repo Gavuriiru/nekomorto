@@ -1,6 +1,4 @@
 import { describe, expect, it } from "vitest";
-
-import { buildChapterFolder, resolveProjectImageFolders } from "../lib/project-image-folders";
 import {
   resolveEpisodeCoverFolder,
   resolveProjectLibraryFolders,
@@ -11,6 +9,7 @@ import {
   buildProjectFolderSet,
   resolveEpisodeCoverFolder as resolveEpisodeCoverFolderShared,
 } from "../../shared/project-upload-folders.js";
+import { buildChapterFolder, resolveProjectImageFolders } from "../lib/project-image-folders";
 
 const createSlug = (value: string) =>
   String(value || "")

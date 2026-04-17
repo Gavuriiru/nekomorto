@@ -4,8 +4,8 @@ import {
   dashboardAnimationDelay,
   dashboardMotionDelays,
 } from "@/components/dashboard/dashboard-motion";
-import { cn } from "@/lib/utils";
 import { dashboardPageLayoutTokens } from "@/components/dashboard/dashboard-page-tokens";
+import { cn } from "@/lib/utils";
 
 type DashboardPageHeaderProps = {
   badge: string;

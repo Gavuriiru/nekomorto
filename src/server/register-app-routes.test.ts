@@ -1,5 +1,5 @@
-import express from "express";
 import type { Server } from "node:http";
+import express from "express";
 import { afterEach, describe, expect, it } from "vitest";
 
 import { registerAppRoutes } from "../../server/routes/register-app-routes.js";

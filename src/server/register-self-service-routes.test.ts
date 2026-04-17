@@ -17,7 +17,8 @@ const createAppCapture = () => {
 const getRouteLayer = (router: any, method: string, path: string) =>
   router?.stack?.find(
     (layer: any) =>
-      layer?.route?.path === path && Boolean(layer.route.methods?.[String(method || "").toLowerCase()]),
+      layer?.route?.path === path &&
+      Boolean(layer.route.methods?.[String(method || "").toLowerCase()]),
   ) || null;
 
 const createResponse = () => ({
@@ -39,7 +40,10 @@ const createResponse = () => ({
   },
 });
 
-const invokeHandlers = async (handlers: Array<(...args: any[]) => unknown>, req: Record<string, unknown>) => {
+const invokeHandlers = async (
+  handlers: Array<(...args: any[]) => unknown>,
+  req: Record<string, unknown>,
+) => {
   const res = createResponse();
   let index = 0;
   const next = async () => {
@@ -129,7 +133,11 @@ describe("registerSelfServiceRoutes", () => {
       canManageMfa,
       verifyTotpCode,
     });
-    const routeLayer = getRouteLayer(dependencies.router, "post", "/api/me/security/totp/enroll/confirm");
+    const routeLayer = getRouteLayer(
+      dependencies.router,
+      "post",
+      "/api/me/security/totp/enroll/confirm",
+    );
     const handlers = getRouteHandlers(routeLayer);
     expect(handlers[0]?.name || "<anonymous>").toBe("<anonymous>");
     expect(handlers[1]).toBe(dependencies.requireAuth);
@@ -197,7 +205,11 @@ describe("registerSelfServiceRoutes", () => {
     const dependencies = createDependencies({
       verifyTotpCode,
     });
-    const routeLayer = getRouteLayer(dependencies.router, "post", "/api/me/security/totp/enroll/confirm");
+    const routeLayer = getRouteLayer(
+      dependencies.router,
+      "post",
+      "/api/me/security/totp/enroll/confirm",
+    );
 
     const res = await invokeRoute(routeLayer, {
       body: {
@@ -219,7 +231,11 @@ describe("registerSelfServiceRoutes", () => {
       canManageMfa,
       startTotpEnrollment,
     });
-    const routeLayer = getRouteLayer(dependencies.router, "post", "/api/me/security/totp/enroll/start");
+    const routeLayer = getRouteLayer(
+      dependencies.router,
+      "post",
+      "/api/me/security/totp/enroll/start",
+    );
 
     const res = await invokeRoute(routeLayer, {
       body: {},

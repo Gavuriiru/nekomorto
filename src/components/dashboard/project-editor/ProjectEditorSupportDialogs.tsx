@@ -1,7 +1,7 @@
-import type { EditorProjectEpisode } from "@/components/dashboard/project-editor/dashboard-projects-editor-types";
 import DashboardActionButton from "@/components/dashboard/DashboardActionButton";
 import DashboardFieldStack from "@/components/dashboard/DashboardFieldStack";
 import { Combobox, Input } from "@/components/dashboard/dashboard-form-controls";
+import type { EditorProjectEpisode } from "@/components/dashboard/project-editor/dashboard-projects-editor-types";
 import {
   Dialog,
   DialogContent,

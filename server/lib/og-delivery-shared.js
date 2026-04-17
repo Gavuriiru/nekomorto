@@ -1,11 +1,10 @@
 import { performance } from "node:perf_hooks";
-
-import { buildOgRenderCacheKey } from "./og-render-cache.js";
 import {
   optimizeOgPublicImageBuffer,
   resolveOgPublicImageEncodingConfig,
 } from "./og-image-output.js";
 import { PROJECT_STYLE_OG_TIMING_ORDER, renderProjectStyleOgBuffer } from "./og-project-render.js";
+import { buildOgRenderCacheKey } from "./og-render-cache.js";
 import {
   loadProjectOgArtworkDataUrl,
   loadProjectOgProcessedBackdropDataUrl,

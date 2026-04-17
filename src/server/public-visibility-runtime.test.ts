@@ -1,8 +1,8 @@
 import { describe, expect, it } from "vitest";
 
 import {
-  PUBLIC_STATIC_PATHS,
   createPublicVisibilityRuntime,
+  PUBLIC_STATIC_PATHS,
 } from "../../server/lib/public-visibility-runtime.js";
 
 const createDeps = (overrides = {}) => ({

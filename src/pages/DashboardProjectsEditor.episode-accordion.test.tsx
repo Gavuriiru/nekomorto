@@ -1,7 +1,7 @@
-import type { ReactNode } from "react";
 import { fireEvent, render, screen, within } from "@testing-library/react";
-import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import type { ReactNode } from "react";
 import { MemoryRouter } from "react-router-dom";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import DashboardProjectsEditor from "@/pages/DashboardProjectsEditor";
 

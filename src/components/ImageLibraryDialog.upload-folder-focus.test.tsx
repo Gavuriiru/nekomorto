@@ -3,8 +3,9 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import ImageLibraryDialog from "@/components/ImageLibraryDialog";
 
-const { apiFetchMock } = vi.hoisted(() => ({
+const { apiFetchMock, fileToDataUrlMock } = vi.hoisted(() => ({
   apiFetchMock: vi.fn(),
+  fileToDataUrlMock: vi.fn(),
 }));
 
 vi.mock("react-advanced-cropper", async () => {
@@ -44,6 +45,10 @@ vi.mock("react-advanced-cropper", async () => {
 
 vi.mock("@/lib/api-client", () => ({
   apiFetch: (...args: unknown[]) => apiFetchMock(...args),
+}));
+
+vi.mock("@/lib/file-data-url", () => ({
+  fileToDataUrl: (...args: unknown[]) => fileToDataUrlMock(...args),
 }));
 
 const mockJsonResponse = (ok: boolean, payload: unknown, status = ok ? 200 : 500) =>
@@ -201,8 +206,11 @@ const selectFolderFilterOption = async (name: string | RegExp) => {
 
 describe("ImageLibraryDialog upload folder focus", () => {
   beforeEach(() => {
+    vi.useRealTimers();
     HTMLElement.prototype.scrollIntoView = vi.fn();
     apiFetchMock.mockReset();
+    fileToDataUrlMock.mockReset();
+    fileToDataUrlMock.mockResolvedValue("data:image/png;base64,stable-upload");
     apiFetchMock.mockImplementation(async (_base: string, path: string) => {
       if (path.startsWith("/api/uploads/list")) {
         return mockJsonResponse(true, { files: uploadFilesFixture });
@@ -215,6 +223,7 @@ describe("ImageLibraryDialog upload folder focus", () => {
   });
 
   afterEach(() => {
+    vi.useRealTimers();
     HTMLElement.prototype.scrollIntoView = originalScrollIntoView;
   });
 

@@ -1,10 +1,10 @@
 import {
   DEFAULT_PROJECT_OG_LAYOUT,
+  measureTextWidth,
   OG_PROJECT_HEIGHT,
   OG_PROJECT_WIDTH,
   PROJECT_OG_CHIP_FONT_WEIGHT,
   PROJECT_OG_TITLE_FONT_WEIGHT,
-  measureTextWidth,
   parseProjectOgPolygonPoints,
 } from "./project-og-assets.js";
 

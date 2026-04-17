@@ -1,4 +1,4 @@
-import { useCallback, useMemo, useState, type DragEvent } from "react";
+import { type DragEvent, useCallback, useMemo, useState } from "react";
 import { useDashboardSettingsAutosave } from "@/components/dashboard/settings/use-dashboard-settings-autosave";
 import { useDashboardSettingsLoading } from "@/components/dashboard/settings/use-dashboard-settings-loading";
 import { useDashboardSettingsQuerySync } from "@/components/dashboard/settings/use-dashboard-settings-query-sync";
@@ -7,7 +7,7 @@ import {
   getProjectReaderPresetByType,
   mergeProjectReaderConfig,
 } from "../../../../shared/project-reader.js";
-import { reorderItems, type ReaderProjectTypeKey, type TranslationsPayload } from "./shared";
+import { type ReaderProjectTypeKey, reorderItems, type TranslationsPayload } from "./shared";
 
 type UseDashboardSettingsResourceOptions = {
   apiBase: string;

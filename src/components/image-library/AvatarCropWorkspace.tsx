@@ -1,14 +1,14 @@
-import { useCallback, useEffect, useRef, useState, type Ref } from "react";
 import { ImageRestriction } from "advanced-cropper";
+import { type Ref, useCallback, useEffect, useRef, useState } from "react";
 import { CircleStencil, FixedCropper, type FixedCropperRef } from "react-advanced-cropper";
 
 import DashboardActionButton from "@/components/dashboard/DashboardActionButton";
-import { toast } from "@/components/ui/use-toast";
 import {
   AVATAR_CROPPER_BOUNDARY_SIZE,
   renderAvatarCropDataUrl,
   resolveAvatarCropStencilSize,
 } from "@/components/ImageLibraryDialog.avatar-crop";
+import { toast } from "@/components/ui/use-toast";
 
 export type AvatarCropWorkspaceProps = {
   applyButtonRef?: Ref<HTMLButtonElement>;

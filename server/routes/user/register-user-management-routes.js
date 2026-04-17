@@ -2,10 +2,10 @@ import { SecurityEventSeverity as DefaultSecurityEventSeverity } from "../../lib
 import {
   buildLegacyManagedUser,
   buildLegacyManagedUserUpdate,
-  buildRbacManagedUser,
-  buildRbacManagedUserUpdate,
   buildManagedUserAuditChanges,
   buildManagedUserResponseContext,
+  buildRbacManagedUser,
+  buildRbacManagedUserUpdate,
   buildReorderedUsers,
   buildSelfResponseUser,
   buildUserApiSnapshot,

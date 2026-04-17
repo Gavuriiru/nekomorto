@@ -1,8 +1,7 @@
 import { render, screen } from "@testing-library/react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
-
-import Recruitment from "@/pages/Recruitment";
 import { defaultSettings, mergeSettings } from "@/hooks/site-settings-context";
+import Recruitment from "@/pages/Recruitment";
 import type { SiteSettings } from "@/types/site-settings";
 
 const apiFetchMock = vi.hoisted(() => vi.fn());

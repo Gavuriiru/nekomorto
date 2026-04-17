@@ -2,12 +2,12 @@ import { Cloud, Download, HardDrive, Link2, Send } from "lucide-react";
 import { useMemo } from "react";
 
 import ThemedSvgLogo from "@/components/ThemedSvgLogo";
-import { dropdownRichIconClassName } from "@/components/ui/dropdown-contract";
 import { Combobox } from "@/components/ui/combobox";
+import { dropdownRichIconClassName } from "@/components/ui/dropdown-contract";
 import { useSiteSettings } from "@/hooks/use-site-settings";
 import {
-  getDownloadSourceOptions,
   type DownloadSourceOption,
+  getDownloadSourceOptions,
 } from "@/lib/project-download-sources";
 
 const renderDownloadSourceIcon = (

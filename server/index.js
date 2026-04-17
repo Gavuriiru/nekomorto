@@ -1,39 +1,63 @@
 import "dotenv/config";
-import crypto from "crypto";
-import fs from "fs";
-import path from "path";
-import { fileURLToPath } from "url";
 import connectPgSimple from "connect-pg-simple";
+import crypto from "crypto";
 import express from "express";
 import session from "express-session";
+import fs from "fs";
 import multer from "multer";
+import path from "path";
 import { Pool } from "pg";
+import { fileURLToPath } from "url";
+import { deriveAniListMediaOrganization } from "../shared/anilist-media.js";
+import {
+  buildInstitutionalOgImageAlt,
+  resolveInstitutionalOgPageKeyFromPath,
+  resolveInstitutionalOgPagePath,
+  resolveInstitutionalOgPageTitle,
+  resolveInstitutionalOgSupportText,
+} from "../shared/institutional-og-seo.js";
+import {
+  buildPostOgImageAlt,
+  buildPostOgRevision,
+  buildVersionedPostOgImagePath,
+} from "../shared/post-og-seo.js";
+import {
+  getProjectEpisodePageCount,
+  hasProjectEpisodePages,
+  normalizeProjectEpisodeContentFormat,
+  normalizeProjectEpisodePages,
+  normalizeProjectReaderConfig,
+  normalizeProjectReaderPreferences,
+  resolveProjectReaderConfig,
+} from "../shared/project-reader.js";
 import { buildAdminExportRuntimeDependencies } from "./bootstrap/build-admin-export-runtime-dependencies.js";
 import { buildContentRuntimeDependencies } from "./bootstrap/build-content-runtime-dependencies.js";
 import { buildMediaSupportRuntimeDependencies } from "./bootstrap/build-media-support-runtime-dependencies.js";
-import { createContentRuntimeBundle } from "./bootstrap/create-content-runtime-bundle.js";
-import { createMediaSupportRuntimeBundle } from "./bootstrap/create-media-support-runtime-bundle.js";
-import { buildRootServerRegistrationSource } from "./bootstrap/build-root-server-registration-source.js";
 import { buildOperationalMonitoringRuntimeDependencies } from "./bootstrap/build-operational-monitoring-runtime-dependencies.js";
 import { buildProjectRuntimeDependencies } from "./bootstrap/build-project-runtime-dependencies.js";
 import { buildPublicRuntimeDependencies } from "./bootstrap/build-public-runtime-dependencies.js";
+import { buildRootServerRegistrationSource } from "./bootstrap/build-root-server-registration-source.js";
 import { buildServerBootConfig } from "./bootstrap/build-server-boot-config.js";
+import { buildSiteConfigRuntimeDependencies } from "./bootstrap/build-site-config-runtime-dependencies.js";
+import { buildSiteRenderingRuntimeDependencies } from "./bootstrap/build-site-rendering-runtime-dependencies.js";
+import { buildUserRuntimeDependencies } from "./bootstrap/build-user-runtime-dependencies.js";
+import { buildWebhookRuntimeDependencies } from "./bootstrap/build-webhook-runtime-dependencies.js";
+import { createContentRuntimeBundle } from "./bootstrap/create-content-runtime-bundle.js";
+import { createMediaSupportRuntimeBundle } from "./bootstrap/create-media-support-runtime-bundle.js";
+import { createProjectRuntimeBundle } from "./bootstrap/create-project-runtime-bundle.js";
+import { createPublicRuntimeBundle } from "./bootstrap/create-public-runtime-bundle.js";
 import {
   createServerPlatformRuntime,
   getRequestIp as getTrustedRequestIp,
 } from "./bootstrap/create-server-platform-runtime.js";
-import { buildSiteConfigRuntimeDependencies } from "./bootstrap/build-site-config-runtime-dependencies.js";
-import { buildSiteRenderingRuntimeDependencies } from "./bootstrap/build-site-rendering-runtime-dependencies.js";
 import { createSiteConfigRuntimeBundle } from "./bootstrap/create-site-config-runtime-bundle.js";
 import { createSiteRenderingRuntimeBundle } from "./bootstrap/create-site-rendering-runtime-bundle.js";
-import { registerRootServerRoutes } from "./bootstrap/register-root-server-routes.js";
-import { buildUserRuntimeDependencies } from "./bootstrap/build-user-runtime-dependencies.js";
-import { buildWebhookRuntimeDependencies } from "./bootstrap/build-webhook-runtime-dependencies.js";
-import { createProjectRuntimeBundle } from "./bootstrap/create-project-runtime-bundle.js";
-import { createPublicRuntimeBundle } from "./bootstrap/create-public-runtime-bundle.js";
 import { createUserRuntimeBundle } from "./bootstrap/create-user-runtime-bundle.js";
 import { createWebhookRuntimeBundle } from "./bootstrap/create-webhook-runtime-bundle.js";
+import { registerRootServerRoutes } from "./bootstrap/register-root-server-routes.js";
 import { startServerJobs } from "./bootstrap/start-server-jobs.js";
+import { createAdminExportRuntime } from "./lib/admin-export-runtime.js";
+import * as adminExports from "./lib/admin-exports.js";
 import {
   ADMIN_EXPORT_DATASETS,
   filterByDateRange,
@@ -44,18 +68,15 @@ import {
   normalizeExportStatus,
   writeExportFile,
 } from "./lib/admin-exports.js";
-import * as adminExports from "./lib/admin-exports.js";
-import { createAdminExportRuntime } from "./lib/admin-export-runtime.js";
 import { createAnalyticsStore } from "./lib/analytics-store.js";
-import { API_CONTRACT_VERSION } from "./lib/api-contract-v1.js";
 import { ANILIST_API, fetchAniListMediaById } from "./lib/anilist-client.js";
+import { API_CONTRACT_VERSION } from "./lib/api-contract-v1.js";
 import { createAuditLogStore } from "./lib/audit-log-store.js";
-import { createGlobalErrorHandler } from "./lib/global-error-handler.js";
+import * as authzLib from "./lib/authz.js";
 import {
   AccessRole,
-  BASIC_PROFILE_FIELDS,
-  PermissionId,
   addOwnerRoleLabel,
+  BASIC_PROFILE_FIELDS,
   can,
   computeEffectiveAccessRole,
   computeGrants,
@@ -63,11 +84,11 @@ import {
   expandLegacyPermissions,
   isBasicProfileField,
   normalizeAccessRole,
+  PermissionId,
   pickBasicProfilePatch,
   removeOwnerRoleLabel,
   sanitizePermissionsForStorage,
 } from "./lib/authz.js";
-import * as authzLib from "./lib/authz.js";
 import {
   isUploadFolderAllowedInScope,
   resolveUploadScopeAccess,
@@ -77,13 +98,14 @@ import { getBuildMetadata } from "./lib/build-metadata.js";
 import { deriveChapterSynopsis } from "./lib/chapter-synopsis.js";
 import { buildCommentTargetInfo } from "./lib/comment-target-info.js";
 import { bulkModeratePendingComments } from "./lib/comments-bulk-moderation.js";
-import { createPublicReadCacheRuntime } from "./lib/public-read-cache-runtime.js";
 import { selectRecentApprovedComments } from "./lib/dashboard-recent-comments.js";
 import { createDataRepository } from "./lib/data-repository.js";
 import { createDataRepositoryAdaptersRuntime } from "./lib/data-repository-adapters-runtime.js";
 import { createDataRepositoryBasicRuntime } from "./lib/data-repository-basic-runtime.js";
+import { withDatabaseStartupRetry } from "./lib/database-startup-retry.js";
 import { proxyDiscordAvatarRequest } from "./lib/discord-avatar-proxy.js";
 import { buildEditorialCalendarItems } from "./lib/editorial-calendar.js";
+import { createGlobalErrorHandler } from "./lib/global-error-handler.js";
 import { buildHealthStatusResponse } from "./lib/health-checks.js";
 import {
   extractLocalStylesheetHrefs,
@@ -93,76 +115,29 @@ import {
 } from "./lib/html-bootstrap.js";
 import { applyHtmlCachingHeaders } from "./lib/html-cache-control.js";
 import { createIdempotencyStore } from "./lib/idempotency-store.js";
-import { createJobQueue } from "./lib/job-queue.js";
-import { truncateMetaDescription } from "./lib/meta-description.js";
-import { createMetricsRegistry } from "./lib/metrics.js";
-import { createOgRenderCache } from "./lib/og-render-cache.js";
-import { createRateLimitRuntime } from "./lib/rate-limit-runtime.js";
 import {
   buildInstitutionalOgDeliveryHeaders,
   buildInstitutionalOgRevisionValue,
   buildVersionedInstitutionalOgImagePath,
   getInstitutionalOgCachedRender,
 } from "./lib/institutional-og-delivery.js";
+import { createJobQueue } from "./lib/job-queue.js";
+import { updateLexicalPollVotes } from "./lib/lexical-poll-votes.js";
+import { truncateMetaDescription } from "./lib/meta-description.js";
+import { createMetricsRegistry } from "./lib/metrics.js";
+import { createOgRenderCache } from "./lib/og-render-cache.js";
 import {
   buildOperationalAlertsResponse,
   buildOperationalAlertsV1,
 } from "./lib/operational-alerts.js";
 import { createOperationalMonitoringRuntime } from "./lib/operational-monitoring-runtime.js";
-import { createResolveBootstrapPwaEnabled } from "./lib/pwa-bootstrap-policy.js";
-import { updateLexicalPollVotes } from "./lib/lexical-poll-votes.js";
-import {
-  createDiscordAvatarUrl,
-  createRouteGuards,
-  createRuntimeMetadataBuilder,
-  normalizeTags,
-} from "./lib/root-composition-helpers.js";
-import { isPlainObject, parseEditRevisionOptions } from "./lib/request-runtime-helpers.js";
-import {
-  defaultSiteSettings,
-  fixMojibakeDeep,
-  fixMojibakeText,
-} from "./lib/site-settings-runtime-helpers.js";
-import {
-  MAX_SVG_SIZE_BYTES,
-  MAX_UPLOAD_SIZE_BYTES,
-  getUploadExtFromMime,
-  getUploadMimeFromExtension,
-  normalizeAvatarDisplay,
-  normalizeUploadMime,
-  sanitizeSvg,
-  sanitizeUploadBaseName,
-  sanitizeUploadFolder,
-  sanitizeUploadSlot,
-  validateUploadImageBuffer,
-} from "./lib/upload-runtime-helpers.js";
-import {
-  PWA_MANIFEST_BASE,
-  PWA_MANIFEST_CACHE_CONTROL,
-  PWA_THEME_COLOR_DARK,
-  PWA_THEME_COLOR_LIGHT,
-  STATIC_DEFAULT_CACHE_CONTROL,
-  setStaticCacheHeaders,
-} from "./lib/static-runtime-policy.js";
-import { createSystemAuditReqFactory } from "./lib/system-audit-req.js";
-import {
-  createGetActiveProjectTypes,
-  isChapterBasedType,
-  normalizeTypeLookupKey,
-} from "./lib/project-type-utils.js";
 import { resolveAuthAppOrigin } from "./lib/origin-config.js";
-import {
-  buildPostOgImageAlt,
-  buildPostOgRevision,
-  buildVersionedPostOgImagePath,
-} from "../shared/post-og-seo.js";
-import { getPostOgCachedRender } from "./lib/post-og-delivery.js";
 import { extractFirstImageFromPostContent, resolvePostCover } from "./lib/post-cover.js";
+import { getPostOgCachedRender } from "./lib/post-og-delivery.js";
 import { createSlug, createUniqueSlug } from "./lib/post-slug.js";
 import { resolvePostStatus } from "./lib/post-status.js";
 import { dedupePostVersionRecordsNewestFirst } from "./lib/post-version-dedupe.js";
 import { prisma } from "./lib/prisma-client.js";
-import { withDatabaseStartupRetry } from "./lib/database-startup-retry.js";
 import { applyProjectChapterUpdate } from "./lib/project-chapter-editor.js";
 import {
   applyEpisodePublicationMetadata,
@@ -177,20 +152,21 @@ import {
   resolveEpisodeLookup,
 } from "./lib/project-episodes.js";
 import { exportProjectEpub } from "./lib/project-epub-export.js";
+import { importProjectEpub } from "./lib/project-epub-import.js";
+import { cleanupProjectEpubImportTempUploads } from "./lib/project-epub-import-cleanup.js";
 import {
-  EPUB_IMPORT_JOB_RESULT_TTL_MS,
   deleteEpubImportJobResult,
+  EPUB_IMPORT_JOB_RESULT_TTL_MS,
   readEpubImportJobResult,
   toEpubImportJobApiResponse,
   writeEpubImportJobResult,
 } from "./lib/project-epub-import-jobs.js";
-import { cleanupProjectEpubImportTempUploads } from "./lib/project-epub-import-cleanup.js";
 import {
   EPUB_IMPORT_MULTIPART_LIMITS,
   mapEpubImportExecutionError,
   mapEpubImportMultipartError,
 } from "./lib/project-epub-import-request.js";
-import { importProjectEpub } from "./lib/project-epub-import.js";
+import { localizeProjectImageFields } from "./lib/project-image-localizer.js";
 import {
   exportProjectImageChapter,
   exportProjectImageCollection,
@@ -198,23 +174,22 @@ import {
   previewProjectImageImport,
 } from "./lib/project-manga.js";
 import {
-  PROJECT_IMAGE_EXPORT_JOB_RESULT_TTL_MS,
-  PROJECT_IMAGE_IMPORT_JOB_RESULT_TTL_MS,
   deleteProjectImageExportJobResult,
   deleteProjectImageImportJobResult,
   ensureProjectImageExportJobsDirectory,
+  PROJECT_IMAGE_EXPORT_JOB_RESULT_TTL_MS,
+  PROJECT_IMAGE_IMPORT_JOB_RESULT_TTL_MS,
   readProjectImageImportJobResult,
   toProjectImageExportJobApiResponse,
   toProjectImageImportJobApiResponse,
   writeProjectImageImportJobResult,
 } from "./lib/project-manga-jobs.js";
 import {
-  PROJECT_IMAGE_IMPORT_MULTIPART_LIMITS,
   mapProjectImageImportExecutionError,
   mapProjectImageImportMultipartError,
+  PROJECT_IMAGE_IMPORT_MULTIPART_LIMITS,
   resolveProjectImageImportRequestInput,
 } from "./lib/project-manga-request.js";
-import { localizeProjectImageFields } from "./lib/project-image-localizer.js";
 import {
   buildProjectOgDeliveryHeaders,
   buildProjectOgRevision,
@@ -230,14 +205,10 @@ import {
   getProjectReadingOgCachedRender,
 } from "./lib/project-reading-og-delivery.js";
 import {
-  getProjectEpisodePageCount,
-  hasProjectEpisodePages,
-  normalizeProjectEpisodeContentFormat,
-  normalizeProjectEpisodePages,
-  normalizeProjectReaderConfig,
-  normalizeProjectReaderPreferences,
-  resolveProjectReaderConfig,
-} from "../shared/project-reader.js";
+  createGetActiveProjectTypes,
+  isChapterBasedType,
+  normalizeTypeLookupKey,
+} from "./lib/project-type-utils.js";
 import { findDuplicateVolumeCover } from "./lib/project-volume-covers.js";
 import { normalizeLegacyUpdateRecord } from "./lib/pt-legacy-normalization.js";
 import { buildPublicBootstrapPayload } from "./lib/public-bootstrap.js";
@@ -249,14 +220,10 @@ import {
   sanitizePublicMediaVariantEntry,
   shouldExposePublicUploadInMediaVariants,
 } from "./lib/public-media-variants.js";
-import { resolvePublicProjectsListPreloads } from "./lib/public-projects-preloads.js";
 import { buildPublicReadableProjects, buildPublicVisibleProjects } from "./lib/public-projects.js";
+import { resolvePublicProjectsListPreloads } from "./lib/public-projects-preloads.js";
+import { createPublicReadCacheRuntime } from "./lib/public-read-cache-runtime.js";
 import { resolvePublicRedirect } from "./lib/public-redirects.js";
-import { PUBLIC_STATIC_PATHS as SITEMAP_STATIC_PUBLIC_PATHS } from "./lib/public-visibility-runtime.js";
-import {
-  PUBLIC_BOOTSTRAP_MODE_CRITICAL_HOME,
-  PUBLIC_BOOTSTRAP_MODE_FULL,
-} from "./lib/public-site-runtime.js";
 import {
   buildPublicSearchSuggestions,
   normalizeSearchQuery,
@@ -264,23 +231,36 @@ import {
   parseSearchScope,
   publicSearchConfig,
 } from "./lib/public-search.js";
+import {
+  PUBLIC_BOOTSTRAP_MODE_CRITICAL_HOME,
+  PUBLIC_BOOTSTRAP_MODE_FULL,
+} from "./lib/public-site-runtime.js";
 import { resolvePublicTeamAvatarPreload } from "./lib/public-team-preloads.js";
+import { PUBLIC_STATIC_PATHS as SITEMAP_STATIC_PUBLIC_PATHS } from "./lib/public-visibility-runtime.js";
+import { createResolveBootstrapPwaEnabled } from "./lib/pwa-bootstrap-policy.js";
+import { createRateLimitRuntime } from "./lib/rate-limit-runtime.js";
 import { createRateLimiter } from "./lib/rate-limiter.js";
+import { registerRuntimeMiddleware } from "./lib/register-runtime-middleware.js";
 import { importRemoteImageFile } from "./lib/remote-image-import.js";
+import { isPlainObject, parseEditRevisionOptions } from "./lib/request-runtime-helpers.js";
 import { createResponseCache } from "./lib/response-cache.js";
 import { createRevisionToken } from "./lib/revision-token.js";
-import { resolveThemeColor } from "./lib/theme-color.js";
+import {
+  createDiscordAvatarUrl,
+  createRouteGuards,
+  createRuntimeMetadataBuilder,
+  normalizeTags,
+} from "./lib/root-composition-helpers.js";
 import { buildRssXml } from "./lib/rss-xml.js";
-import { registerRuntimeMiddleware } from "./lib/register-runtime-middleware.js";
 import { buildSchemaOrgPayload, serializeSchemaOrgEntry } from "./lib/schema-org.js";
 import { decryptStringWithKeyring, encryptStringWithKeyring } from "./lib/security-crypto.js";
 import {
-  SecurityEventSeverity,
-  SecurityEventStatus,
   createSecurityEventPayload,
   createSlidingWindowCounter,
   getIpv4Network24,
   normalizeSecurityEventStatus,
+  SecurityEventSeverity,
+  SecurityEventStatus,
 } from "./lib/security-events.js";
 import { injectNonceIntoHtmlScripts } from "./lib/security-headers.js";
 import {
@@ -288,8 +268,23 @@ import {
   establishAuthenticatedSession,
   saveSessionState,
 } from "./lib/session-auth.js";
-import { buildSitemapXml } from "./lib/sitemap-xml.js";
 import { stripHtml } from "./lib/site-meta-builders.js";
+import {
+  defaultSiteSettings,
+  fixMojibakeDeep,
+  fixMojibakeText,
+} from "./lib/site-settings-runtime-helpers.js";
+import { buildSitemapXml } from "./lib/sitemap-xml.js";
+import {
+  PWA_MANIFEST_BASE,
+  PWA_MANIFEST_CACHE_CONTROL,
+  PWA_THEME_COLOR_DARK,
+  PWA_THEME_COLOR_LIGHT,
+  STATIC_DEFAULT_CACHE_CONTROL,
+  setStaticCacheHeaders,
+} from "./lib/static-runtime-policy.js";
+import { createSystemAuditReqFactory } from "./lib/system-audit-req.js";
+import { resolveThemeColor } from "./lib/theme-color.js";
 import {
   buildOtpAuthUrl,
   generateRecoveryCodes,
@@ -306,27 +301,26 @@ import {
   findUploadByHash,
   getPrimaryFocalPoint,
   mergeUploadVariantPresetKeys,
-  normalizeUploadVariantPresetKeys,
   normalizeFocalCrops,
   normalizeFocalPoints,
+  normalizeUploadVariantPresetKeys,
   normalizeVariants,
   resolveUploadAbsolutePath,
   resolveUploadVariantPresetKeysForArea,
 } from "./lib/upload-media.js";
-import { buildDiskStorageAreaSummary, runUploadsCleanup } from "./lib/uploads-cleanup.js";
 import {
-  buildWebhookAuditMeta,
-  clampWebhookInteger,
-  createResolveEditorialAuthorFromPost,
-  createWebhookAuditReqFromContext as createWebhookAuditReqFromContextBase,
-  pickFirstNonEmptyText,
-  resolveWebhookAuditActions as resolveWebhookAuditActionsBase,
-} from "./lib/webhook-support.js";
-import { createWebhookDeliveryRuntime } from "./lib/webhook-delivery-runtime.js";
-import {
-  invalidateUploadsCleanupPreviewCache,
-  loadCachedUploadsCleanupPreview,
-} from "./lib/uploads-cleanup-preview-cache.js";
+  getUploadExtFromMime,
+  getUploadMimeFromExtension,
+  MAX_SVG_SIZE_BYTES,
+  MAX_UPLOAD_SIZE_BYTES,
+  normalizeAvatarDisplay,
+  normalizeUploadMime,
+  sanitizeSvg,
+  sanitizeUploadBaseName,
+  sanitizeUploadFolder,
+  sanitizeUploadSlot,
+  validateUploadImageBuffer,
+} from "./lib/upload-runtime-helpers.js";
 import {
   createUploadStorageService,
   getUploadAssetDescriptors,
@@ -334,6 +328,16 @@ import {
   normalizeUploadStorageProvider,
   readUploadStorageProvider,
 } from "./lib/upload-storage.js";
+import { buildDiskStorageAreaSummary, runUploadsCleanup } from "./lib/uploads-cleanup.js";
+import {
+  invalidateUploadsCleanupPreviewCache,
+  loadCachedUploadsCleanupPreview,
+} from "./lib/uploads-cleanup-preview-cache.js";
+import {
+  extractUploadUrlsFromText,
+  normalizeUploadUrl,
+  runUploadsReorganization,
+} from "./lib/uploads-reorganizer.js";
 import {
   cleanupUploadStagingWorkspace,
   createUploadStagingWorkspace,
@@ -341,11 +345,6 @@ import {
   persistUploadEntryFromStaging,
   writeUploadBufferToStaging,
 } from "./lib/uploads-storage-runtime.js";
-import {
-  extractUploadUrlsFromText,
-  normalizeUploadUrl,
-  runUploadsReorganization,
-} from "./lib/uploads-reorganizer.js";
 import {
   sanitizeAssetUrl,
   sanitizeFavoriteWorksByCategory,
@@ -359,15 +358,24 @@ import {
   resolveUserAvatarRenderVersion,
   shouldSyncDiscordAvatarToStoredUser,
 } from "./lib/user-avatar.js";
-import { dispatchWebhookMessage } from "./lib/webhooks/dispatcher.js";
+import { createWebhookDeliveryRuntime } from "./lib/webhook-delivery-runtime.js";
 import {
-  WEBHOOK_DELIVERY_SCOPE,
-  WEBHOOK_DELIVERY_STATUS,
+  buildWebhookAuditMeta,
+  clampWebhookInteger,
+  createResolveEditorialAuthorFromPost,
+  createWebhookAuditReqFromContext as createWebhookAuditReqFromContextBase,
+  pickFirstNonEmptyText,
+  resolveWebhookAuditActions as resolveWebhookAuditActionsBase,
+} from "./lib/webhook-support.js";
+import {
   computeWebhookRetryDelayMs,
   createWebhookWorkerId,
   summarizeWebhookDeliveries,
   toWebhookDeliveryApiResponse,
+  WEBHOOK_DELIVERY_SCOPE,
+  WEBHOOK_DELIVERY_STATUS,
 } from "./lib/webhooks/delivery.js";
+import { dispatchWebhookMessage } from "./lib/webhooks/dispatcher.js";
 import {
   buildEditorialEventContext,
   buildEditorialMentions,
@@ -398,14 +406,6 @@ import {
   buildWebhookTargetLabel,
   validateWebhookUrlForProvider,
 } from "./lib/webhooks/validation.js";
-import { deriveAniListMediaOrganization } from "../shared/anilist-media.js";
-import {
-  buildInstitutionalOgImageAlt,
-  resolveInstitutionalOgPageKeyFromPath,
-  resolveInstitutionalOgPagePath,
-  resolveInstitutionalOgPageTitle,
-  resolveInstitutionalOgSupportText,
-} from "../shared/institutional-og-seo.js";
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -1483,10 +1483,7 @@ const projectRuntime = createProjectRuntimeBundle(
   }),
 );
 
-const {
-  recoverEpubImportJobsAfterRestart,
-  recoverProjectImageJobsAfterRestart,
-} = projectRuntime;
+const { recoverEpubImportJobsAfterRestart, recoverProjectImageJobsAfterRestart } = projectRuntime;
 
 const buildRuntimeMetadata = createRuntimeMetadataBuilder({
   apiVersion: API_CONTRACT_VERSION,
@@ -1638,9 +1635,7 @@ const publicRuntime = createPublicRuntimeBundle(
   }),
 );
 
-const {
-  getPublicVisibleProjects,
-} = publicRuntime;
+const { getPublicVisibleProjects } = publicRuntime;
 
 const rootRouteRegistrationDependencies = buildRootServerRegistrationSource({
   adminExports,

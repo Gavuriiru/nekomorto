@@ -1,10 +1,10 @@
-import { render, screen } from "@testing-library/react";
-import { describe, expect, it, vi } from "vitest";
-import { createEditor, $getRoot, $createParagraphNode, $createTextNode } from "lexical";
-import { $createTableNodeWithDimensions } from "@lexical/table";
 import { $createCodeNode } from "@lexical/code";
 import { $createHorizontalRuleNode } from "@lexical/react/LexicalHorizontalRuleNode";
+import { $createTableNodeWithDimensions } from "@lexical/table";
+import { render, screen } from "@testing-library/react";
+import { $createParagraphNode, $createTextNode, $getRoot, createEditor } from "lexical";
 import type { ReactNode } from "react";
+import { describe, expect, it, vi } from "vitest";
 
 import LexicalViewer from "@/components/lexical/LexicalViewer";
 import LexicalViewerNodes from "@/components/lexical/LexicalViewerNodes";

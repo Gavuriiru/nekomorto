@@ -1,11 +1,11 @@
+import { AlertCircle, CheckCircle2, Loader2, Save } from "lucide-react";
 import { useEffect, useMemo, useState } from "react";
 import DashboardActionButton from "@/components/dashboard/DashboardActionButton";
-import { Switch } from "@/components/ui/switch";
 import { dashboardPageLayoutTokens } from "@/components/dashboard/dashboard-page-tokens";
+import { Switch } from "@/components/ui/switch";
 import type { AutosaveStatus } from "@/hooks/use-autosave";
-import { AlertCircle, CheckCircle2, Loader2, Save } from "lucide-react";
-import { cn } from "@/lib/utils";
 import { uiCopy } from "@/lib/ui-copy";
+import { cn } from "@/lib/utils";
 
 type DashboardAutosaveStatusProps = {
   title?: string;

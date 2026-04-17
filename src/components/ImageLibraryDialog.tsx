@@ -5,8 +5,8 @@ import DashboardActionButton from "@/components/dashboard/DashboardActionButton"
 import ImageLibraryBrowserPane from "@/components/image-library/ImageLibraryBrowserPane";
 import ImageLibraryDialogs from "@/components/image-library/ImageLibraryDialogs";
 import ImageLibraryUploadPanel from "@/components/image-library/ImageLibraryUploadPanel";
-import useImageLibraryDialogController from "@/components/image-library/useImageLibraryDialogController";
 import type { ImageLibraryDialogProps } from "@/components/image-library/types";
+import useImageLibraryDialogController from "@/components/image-library/useImageLibraryDialogController";
 import {
   Dialog,
   DialogContent,

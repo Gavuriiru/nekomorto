@@ -6,9 +6,9 @@ import { Label } from "@/components/ui/label";
 import { Switch } from "@/components/ui/switch";
 import type { SiteSettings } from "@/types/site-settings";
 import {
-  PROJECT_READER_CHROME_MODES,
   normalizeProjectReaderConfig,
   PROJECT_READER_BACKGROUNDS,
+  PROJECT_READER_CHROME_MODES,
   PROJECT_READER_DIRECTIONS,
   PROJECT_READER_IMAGE_FITS,
   PROJECT_READER_LAYOUTS,

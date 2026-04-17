@@ -1,13 +1,12 @@
 import { act, fireEvent, render, screen, waitFor, within } from "@testing-library/react";
 import { useState } from "react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
-
-import type { Project, ProjectEpisode } from "@/data/projects";
-import { AccessibilityAnnouncerProvider } from "@/hooks/accessibility-announcer";
 import MangaWorkflowPanel, {
   type MangaWorkflowPanelHandle,
   type StageChapter,
 } from "@/components/project-reader/MangaWorkflowPanel";
+import type { Project, ProjectEpisode } from "@/data/projects";
+import { AccessibilityAnnouncerProvider } from "@/hooks/accessibility-announcer";
 
 const { apiFetchMock, toastMock, downloadBinaryResponseMock } = vi.hoisted(() => ({
   apiFetchMock: vi.fn(),
@@ -556,18 +555,12 @@ describe("MangaWorkflowPanel", () => {
       "data-reorder-motion",
       "spring",
     );
-    expect(getStagePageCardBySrc("blob:002.jpg")).toHaveAttribute(
-      "data-reorder-layout",
-      "static",
-    );
+    expect(getStagePageCardBySrc("blob:002.jpg")).toHaveAttribute("data-reorder-layout", "static");
 
     await waitFor(() => {
       expect(getStagePageOrder()).toEqual(["blob:002.jpg", "blob:001.jpg"]);
     });
-    expect(getStagePageCardBySrc("blob:002.jpg")).toHaveAttribute(
-      "data-reorder-layout",
-      "static",
-    );
+    expect(getStagePageCardBySrc("blob:002.jpg")).toHaveAttribute("data-reorder-layout", "static");
     expect(getStagePageCardBySrc("blob:001.jpg")).toHaveAttribute(
       "data-reorder-layout",
       "animated",

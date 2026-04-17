@@ -1,4 +1,4 @@
-import { forwardRef, type CSSProperties } from "react";
+import { type CSSProperties, forwardRef } from "react";
 
 import LazyLexicalEditor from "@/components/lazy/LazyLexicalEditor";
 import type { LexicalEditorHandle, LexicalEditorProps } from "@/components/lexical/LexicalEditor";

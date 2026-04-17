@@ -1,6 +1,6 @@
+import type { ReactNode } from "react";
 import ProjectEditorAccordionHeader from "@/components/dashboard/project-editor/ProjectEditorAccordionHeader";
 import { AccordionContent, AccordionItem, AccordionTrigger } from "@/components/ui/accordion";
-import type { ReactNode } from "react";
 
 export type ProjectEditorEpisodesSectionProps = {
   sectionClassName: string;

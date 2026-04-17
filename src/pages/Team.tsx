@@ -7,13 +7,13 @@ import { usePageMeta } from "@/hooks/use-page-meta";
 import { getApiBase } from "@/lib/api-base";
 import { apiFetch } from "@/lib/api-client";
 import { readWindowPublicBootstrap } from "@/lib/public-bootstrap-global";
+import { normalizeUploadVariantUrlKey, type UploadMediaVariantsMap } from "@/lib/upload-variants";
+import type { PublicTeamLinkType, PublicTeamMember } from "@/types/public-team";
 import {
   buildInstitutionalOgImageAlt,
   buildInstitutionalOgRevision,
   buildVersionedInstitutionalOgImagePath,
 } from "../../shared/institutional-og-seo.js";
-import { normalizeUploadVariantUrlKey, type UploadMediaVariantsMap } from "@/lib/upload-variants";
-import type { PublicTeamLinkType, PublicTeamMember } from "@/types/public-team";
 
 const TEAM_AVATAR_IMAGE_SIZES = "(max-width: 639px) 224px, (max-width: 767px) 240px, 256px";
 

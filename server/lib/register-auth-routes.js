@@ -281,9 +281,15 @@ export const registerAuthRoutes = ({
       if (!tokenResponse.ok) {
         metricsRegistry.inc("auth_login_total", { status: "failed" });
         handleAuthFailureSecuritySignals({ req, error: "token_exchange_failed" });
-        let discordErrorText = 'unknown';
-        try { discordErrorText = await tokenResponse.text(); } catch{}
-        appendAuditLog(req, "auth.login.failed", "auth", { error: "token_exchange_failed", discordError: discordErrorText, redirectUri: redirectUri });
+        let discordErrorText = "unknown";
+        try {
+          discordErrorText = await tokenResponse.text();
+        } catch {}
+        appendAuditLog(req, "auth.login.failed", "auth", {
+          error: "token_exchange_failed",
+          discordError: discordErrorText,
+          redirectUri: redirectUri,
+        });
         return res.redirect(
           buildAuthRedirectUrl({
             appOrigin: loginAppOrigin,
@@ -541,7 +547,11 @@ export const registerAuthRoutes = ({
       sessionIndexTouchTsBySid.delete(currentSid);
     }
     req.session?.destroy(() => undefined);
-    const { maxAge: _maxAge, expires: _expires, ...clearCookieOptions } = sessionCookieConfig.cookie;
+    const {
+      maxAge: _maxAge,
+      expires: _expires,
+      ...clearCookieOptions
+    } = sessionCookieConfig.cookie;
     res.clearCookie(sessionCookieConfig.name, clearCookieOptions);
     return res.json({ ok: true });
   });

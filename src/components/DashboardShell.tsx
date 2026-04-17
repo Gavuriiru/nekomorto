@@ -1,16 +1,22 @@
+import { Home } from "lucide-react";
 import {
-  memo,
-  useEffect,
-  useMemo,
   type CSSProperties,
   type MouseEvent,
+  memo,
   type ReactNode,
+  useEffect,
+  useMemo,
 } from "react";
 import { Link, useLocation } from "react-router-dom";
-import { Home } from "lucide-react";
 import DashboardHeader from "@/components/DashboardHeader";
-import { dashboardStrongFocusScopeClassName } from "@/components/dashboard/dashboard-page-tokens";
 import { dashboardMotionDurations } from "@/components/dashboard/dashboard-motion";
+import { dashboardStrongFocusScopeClassName } from "@/components/dashboard/dashboard-page-tokens";
+import {
+  type DashboardMenuItem,
+  dashboardMenuItems,
+  groupDashboardMenuItems,
+  isDashboardMenuItemActive,
+} from "@/components/dashboard-menu";
 import Footer from "@/components/Footer";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import {
@@ -27,12 +33,7 @@ import {
   SidebarMenuItem,
   SidebarProvider,
 } from "@/components/ui/sidebar";
-import {
-  dashboardMenuItems,
-  groupDashboardMenuItems,
-  isDashboardMenuItemActive,
-  type DashboardMenuItem,
-} from "@/components/dashboard-menu";
+import { useDashboardSession } from "@/hooks/use-dashboard-session";
 import {
   buildDashboardMenuFromGrants,
   getFirstAllowedDashboardRoute,
@@ -41,7 +42,6 @@ import {
 } from "@/lib/access-control";
 import { buildAvatarRenderUrl } from "@/lib/avatar-render-url";
 import { readWindowPublicBootstrapCurrentUser } from "@/lib/public-bootstrap-global";
-import { useDashboardSession } from "@/hooks/use-dashboard-session";
 import { uiCopy } from "@/lib/ui-copy";
 
 type DashboardUser = {

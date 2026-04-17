@@ -1,23 +1,23 @@
+import { $generateHtmlFromNodes, $generateNodesFromDOM } from "@lexical/html";
+import { $createLinkNode } from "@lexical/link";
 import {
-  createEditor,
-  $getRoot,
   $createParagraphNode,
+  $getRoot,
   $isElementNode,
   $isTextNode,
+  createEditor,
   DecoratorNode,
   type LexicalNode,
   TextNode,
 } from "lexical";
-import { $generateHtmlFromNodes, $generateNodesFromDOM } from "@lexical/html";
-import { $createLinkNode } from "@lexical/link";
-import PlaygroundNodes from "@/lexical-playground/nodes/PlaygroundNodes";
-import { EMPTY_LEXICAL_JSON } from "@/lib/lexical/empty-state";
-import { lexicalNodes as bridgeLexicalNodes } from "@/lib/lexical/nodes";
 import {
   buildStyleDeclaration,
   normalizeFontFamilyBucket,
   parseStyleDeclaration,
 } from "@/components/lexical/nodes/epub-style";
+import PlaygroundNodes from "@/lexical-playground/nodes/PlaygroundNodes";
+import { EMPTY_LEXICAL_JSON } from "@/lib/lexical/empty-state";
+import { lexicalNodes as bridgeLexicalNodes } from "@/lib/lexical/nodes";
 
 const INLINE_TEXT_STYLE_KEYS = ["font-size", "font-style", "font-weight", "font-family"] as const;
 const ZERO_LIKE_VALUES = new Set([
@@ -280,9 +280,9 @@ export const normalizeLexicalJson = (value: string) => {
 export const safeParseLexicalJson = normalizeLexicalJson;
 
 export {
+  createEmptyLexicalState,
   EMPTY_LEXICAL_JSON,
   EMPTY_LEXICAL_STATE,
-  createEmptyLexicalState,
 } from "@/lib/lexical/empty-state";
 
 export const renderLexicalJsonToHtml = (serialized: string) => {

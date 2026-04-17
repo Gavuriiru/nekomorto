@@ -272,7 +272,9 @@ describe("Donations Pix and crypto QR code", () => {
     const donorsHeading = screen.getByText("Lista de doadores").parentElement as HTMLElement;
 
     expect(screen.getByText("Apoiador")).toBeInTheDocument();
-    expect(classTokens(donorsCard)).toEqual(expect.arrayContaining(["bg-card/80", "shadow-public-card"]));
+    expect(classTokens(donorsCard)).toEqual(
+      expect.arrayContaining(["bg-card/80", "shadow-public-card"]),
+    );
     expect(classTokens(donorsCard)).not.toContain("group");
     expect(classTokens(donorsCard)).not.toContain("transition-all");
     expect(classTokens(donorsCard)).not.toContain("hover:-translate-y-1");
@@ -612,4 +614,3 @@ describe("Donations Pix and crypto QR code", () => {
     );
   });
 });
-

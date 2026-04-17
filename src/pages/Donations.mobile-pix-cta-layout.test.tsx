@@ -312,4 +312,3 @@ describe("Donations mobile PIX CTA layout", () => {
     expect(copyAddressButton).toBeInTheDocument();
   });
 });
-

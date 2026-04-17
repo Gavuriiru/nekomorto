@@ -2,8 +2,8 @@ import { describe, expect, it } from "vitest";
 
 import { DIRECT_ROUTE_DEPENDENCY_KEYS } from "../../server/bootstrap/build-direct-route-dependencies.js";
 import { buildRootRouteRegistrationDependencies } from "../../server/bootstrap/build-root-route-registration-dependencies.js";
-import { createRouteRuntimeGroups } from "../../server/bootstrap/create-route-runtime-groups.js";
 import { SERVER_ROUTE_SOURCE_FRAGMENT_KEYS } from "../../server/bootstrap/build-server-route-source.js";
+import { createRouteRuntimeGroups } from "../../server/bootstrap/create-route-runtime-groups.js";
 import { createRootServerRouteContexts } from "../../server/bootstrap/register-root-server-routes.js";
 
 const PUBLIC_MEDIA_RUNTIME_KEYS = [

@@ -1,9 +1,10 @@
 {
-  "$schema": "https://biomejs.dev/schemas/2.4.10/schema.json",
+  "$schema": "https://biomejs.dev/schemas/2.4.12/schema.json",
   "files": {
     "includes": [
       "**",
       "!**/.codex-test-hidden/**",
+      "!**/.vscode/**",
       "!**/.lighthouse/**",
       "!**/backups/**",
       "!**/dev-dist/**",
@@ -12,6 +13,7 @@
       "!**/output/**",
       "!**/public/uploads/**",
       "!**/reports/**",
+      "!**/scratch-*",
       "!**/server/data/**",
       "!**/src/lexical-playground/**",
       "!**/tmp/**",

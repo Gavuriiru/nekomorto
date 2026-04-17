@@ -2,16 +2,16 @@ import { useCallback, useEffect, useMemo, useState } from "react";
 
 import PublicProjectCard, {
   PUBLIC_PROJECT_CARD_CLAMP_PROFILES,
+  type PublicProjectCardBadge,
   resolvePublicProjectCardClampState,
   resolvePublicProjectCardResponsiveMaxLines,
-  type PublicProjectCardBadge,
 } from "@/components/project/PublicProjectCard";
 import type { Project } from "@/data/projects";
 import { useDynamicSynopsisClamp } from "@/hooks/use-dynamic-synopsis-clamp";
 import { getApiBase } from "@/lib/api-base";
 import { apiFetch } from "@/lib/api-client";
-import { readWindowPublicBootstrap } from "@/lib/public-bootstrap-global";
 import { buildTranslationMap, sortByTranslatedLabel, translateTag } from "@/lib/project-taxonomy";
+import { readWindowPublicBootstrap } from "@/lib/public-bootstrap-global";
 import type { UploadMediaVariantsMap } from "@/lib/upload-variants";
 import "@/styles/project-embed-card.css";
 import type { PublicBootstrapPayload } from "@/types/public-bootstrap";

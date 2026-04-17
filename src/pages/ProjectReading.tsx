@@ -1,6 +1,7 @@
+import { ChevronLeft, ChevronRight, PencilLine } from "lucide-react";
 import {
-  Suspense,
   lazy,
+  Suspense,
   useCallback,
   useEffect,
   useLayoutEffect,
@@ -9,7 +10,6 @@ import {
   useState,
 } from "react";
 import { Link, useLocation, useNavigate, useParams, useSearchParams } from "react-router-dom";
-import { ChevronLeft, ChevronRight, PencilLine } from "lucide-react";
 
 import CommentsSection from "@/components/CommentsSection";
 import Footer from "@/components/Footer";
@@ -26,29 +26,29 @@ import "@/styles/project-reading.css";
 import type { Project } from "@/data/projects";
 import { useDeferredVisibility } from "@/hooks/use-deferred-visibility";
 import { usePageMeta } from "@/hooks/use-page-meta";
-import { useSiteSettings } from "@/hooks/use-site-settings";
 import { usePublicCurrentUser } from "@/hooks/use-public-current-user";
+import { useSiteSettings } from "@/hooks/use-site-settings";
 import { canManageProjectsAccess } from "@/lib/access-control";
 import { getApiBase } from "@/lib/api-base";
 import { apiFetch, apiFetchBestEffort } from "@/lib/api-client";
 import { normalizeAssetUrl } from "@/lib/asset-url";
-import { cn } from "@/lib/utils";
-import { PUBLIC_ANALYTICS_INGEST_PATH } from "@/lib/public-analytics";
-import { readWindowPublicBootstrap } from "@/lib/public-bootstrap-global";
 import { resolveEpubInternalProjectReadingHref } from "@/lib/epub-internal-links";
+import { prepareLexicalViewerState } from "@/lib/lexical/viewer";
+import { createSlug } from "@/lib/post-content";
 import {
   buildDashboardProjectChapterEditorHref,
   buildProjectPublicReadingHref,
 } from "@/lib/project-editor-routes";
 import { buildEpisodeKey, resolveCanonicalEpisodeRouteTarget } from "@/lib/project-episode-key";
-import { normalizeProjectVolumeEntries } from "@/lib/project-volume-entries";
-import { createSlug } from "@/lib/post-content";
-import { hasPublicEpisodeReadableContent } from "@/lib/public-project-episodes";
 import { isLightNovelType, isMangaType } from "@/lib/project-utils";
 import { findVolumeCoverByVolume } from "@/lib/project-volume-cover-key";
+import { normalizeProjectVolumeEntries } from "@/lib/project-volume-entries";
+import { PUBLIC_ANALYTICS_INGEST_PATH } from "@/lib/public-analytics";
+import { readWindowPublicBootstrap } from "@/lib/public-bootstrap-global";
+import { hasPublicEpisodeReadableContent } from "@/lib/public-project-episodes";
 import type { UploadMediaVariantsMap } from "@/lib/upload-variants";
+import { cn } from "@/lib/utils";
 import type { PublicBootstrapPayload, PublicBootstrapProject } from "@/types/public-bootstrap";
-import { prepareLexicalViewerState } from "@/lib/lexical/viewer";
 import {
   normalizeProjectEpisodeContentFormat,
   normalizeProjectEpisodePages,

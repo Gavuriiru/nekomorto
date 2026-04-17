@@ -142,10 +142,14 @@ const mockPageSurfaceRects = (count: number) => {
       bottom: top + height,
       toJSON: () => rect,
     } as DOMRect;
-    Object.defineProperty(screen.getByTestId(`manga-page-surface-${index}`), "getBoundingClientRect", {
-      configurable: true,
-      value: () => rect,
-    });
+    Object.defineProperty(
+      screen.getByTestId(`manga-page-surface-${index}`),
+      "getBoundingClientRect",
+      {
+        configurable: true,
+        value: () => rect,
+      },
+    );
   });
 };
 
@@ -301,7 +305,10 @@ describe("MangaChapterPagesEditor", () => {
       clientX: 160,
       clientY: 40,
     });
-    expect(screen.getByTestId("manga-page-surface-1")).toHaveAttribute("data-surface-active", "true");
+    expect(screen.getByTestId("manga-page-surface-1")).toHaveAttribute(
+      "data-surface-active",
+      "true",
+    );
     expect(screen.getByTestId("manga-page-surface-1")).toHaveAttribute(
       "data-reorder-state",
       "idle",

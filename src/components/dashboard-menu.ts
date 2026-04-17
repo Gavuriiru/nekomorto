@@ -1,15 +1,15 @@
 import {
   ChartSpline,
-  ScrollText,
   FileText,
   FolderCog,
+  HardDriveUpload,
   LayoutGrid,
   MessageSquare,
+  ScrollText,
   Send,
   Settings,
-  ShieldAlert,
   Shield,
-  HardDriveUpload,
+  ShieldAlert,
   UserRound,
 } from "lucide-react";
 import { uiCopy } from "@/lib/ui-copy";

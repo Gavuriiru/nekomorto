@@ -1,9 +1,10 @@
+import { parseColor } from "@react-stately/color";
 import React from "react";
 import {
-  Button,
-  ColorArea,
   ColorPicker as AriaColorPicker,
   ColorPickerProps as AriaColorPickerProps,
+  Button,
+  ColorArea,
   ColorPickerStateContext,
   ColorSlider,
   ColorSwatch,
@@ -15,7 +16,6 @@ import {
   Popover,
   SliderTrack,
 } from "react-aria-components";
-import { parseColor } from "@react-stately/color";
 import { buttonVariants } from "@/components/ui/button-variants";
 import { floatingSurfaceShadowClassName } from "@/components/ui/floating-surface";
 import "./color-picker.css";

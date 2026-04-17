@@ -1,10 +1,10 @@
-import { useCallback, useEffect, useMemo, useState, type ReactNode } from "react";
-import { getApiBase } from "@/lib/api-base";
-import { apiFetch } from "@/lib/api-client";
+import { type ReactNode, useCallback, useEffect, useMemo, useState } from "react";
 import {
   DashboardSessionContext,
   type DashboardSessionUser,
 } from "@/hooks/dashboard-session-context";
+import { getApiBase } from "@/lib/api-base";
+import { apiFetch } from "@/lib/api-client";
 import { readWindowPublicBootstrapCurrentUser } from "@/lib/public-bootstrap-global";
 
 export const DashboardSessionProvider = ({ children }: { children: ReactNode }) => {

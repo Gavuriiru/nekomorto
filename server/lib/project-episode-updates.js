@@ -1,3 +1,5 @@
+import { isProjectEpisodePublic } from "../../shared/project-publication.js";
+import { normalizeProjectEpisodePages } from "../../shared/project-reader.js";
 import {
   buildEpisodeKey,
   getEpisodeContentFormat,
@@ -7,8 +9,6 @@ import {
   hasEpisodeContent,
 } from "./project-episodes.js";
 import { isChapterBasedType, normalizeTypeLookupKey } from "./project-type-utils.js";
-import { normalizeProjectEpisodePages } from "../../shared/project-reader.js";
-import { isProjectEpisodePublic } from "../../shared/project-publication.js";
 
 const sortStrings = (values) => [...values].sort((a, b) => a.localeCompare(b, "en"));
 

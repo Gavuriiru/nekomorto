@@ -1,23 +1,23 @@
-import { useMemo } from "react";
-import { Card, CardContent } from "@/components/ui/card";
-import PublicPageHero from "@/components/PublicPageHero";
 import {
+  Flame,
   Heart,
+  HeartHandshake,
+  HelpCircle,
+  Info,
+  PiggyBank,
+  QrCode,
+  Rocket,
+  Server,
+  Shield,
   Sparkles,
   Users,
   Wand2,
-  Flame,
   Zap,
-  HeartHandshake,
-  QrCode,
-  PiggyBank,
-  Server,
-  HelpCircle,
-  Info,
-  Rocket,
-  Shield,
 } from "lucide-react";
+import { useMemo } from "react";
+import PublicPageHero from "@/components/PublicPageHero";
 import { publicPageLayoutTokens } from "@/components/public-page-tokens";
+import { Card, CardContent } from "@/components/ui/card";
 import { usePageMeta } from "@/hooks/use-page-meta";
 import { readWindowPublicBootstrap } from "@/lib/public-bootstrap-global";
 import {
@@ -173,16 +173,21 @@ const About = () => {
           badges={about.heroBadges}
         />
 
-        {about.highlights.length > 0 || about.manifestoTitle || about.manifestoParagraphs.length > 0 ? (
+        {about.highlights.length > 0 ||
+        about.manifestoTitle ||
+        about.manifestoParagraphs.length > 0 ? (
           <section
             className={`${publicPageLayoutTokens.sectionBase} max-w-6xl pb-16 pt-10 reveal`}
             data-reveal
           >
-            <div className={`grid gap-6 ${
-              about.highlights.length > 0 && (about.manifestoTitle || about.manifestoParagraphs.length > 0)
-                ? "lg:grid-cols-[0.9fr_1.1fr]"
-                : "lg:grid-cols-1"
-            }`}>
+            <div
+              className={`grid gap-6 ${
+                about.highlights.length > 0 &&
+                (about.manifestoTitle || about.manifestoParagraphs.length > 0)
+                  ? "lg:grid-cols-[0.9fr_1.1fr]"
+                  : "lg:grid-cols-1"
+              }`}
+            >
               {about.highlights.length > 0 ? (
                 <div className="space-y-4">
                   {about.highlights.map((item) => {
@@ -215,7 +220,9 @@ const About = () => {
                       >
                         {(() => {
                           const ManifestoIcon = resolveAboutIcon(about.manifestoIcon, Flame);
-                          return <ManifestoIcon className={publicPageLayoutTokens.sectionLabelIcon} />;
+                          return (
+                            <ManifestoIcon className={publicPageLayoutTokens.sectionLabelIcon} />
+                          );
                         })()}
                         {about.manifestoTitle}
                       </div>
@@ -302,4 +309,3 @@ const About = () => {
 };
 
 export default About;
-

@@ -1,23 +1,23 @@
-import * as React from "react";
-import heroImageAvif from "@/assets/hero-illya.avif";
-import heroImageWebp from "@/assets/hero-illya.webp";
-import heroImageJpg from "@/assets/hero-illya.jpg";
 import { Globe, Play } from "lucide-react";
+import * as React from "react";
 import { Link } from "react-router-dom";
+import heroImageAvif from "@/assets/hero-illya.avif";
+import heroImageJpg from "@/assets/hero-illya.jpg";
+import heroImageWebp from "@/assets/hero-illya.webp";
+import UploadPicture from "@/components/UploadPicture";
+import { buttonVariants } from "@/components/ui/button-variants";
 import {
   Carousel,
+  type CarouselApi,
   CarouselContent,
   CarouselItem,
   CarouselNext,
   CarouselPrevious,
-  type CarouselApi,
 } from "@/components/ui/carousel";
-import { buttonVariants } from "@/components/ui/button-variants";
-import UploadPicture from "@/components/UploadPicture";
+import { usePublicBootstrap } from "@/hooks/use-public-bootstrap";
+import { useThemeMode } from "@/hooks/use-theme-mode";
 import { scheduleOnBrowserIdle } from "@/lib/browser-idle";
 import { HOME_HERO_READY_EVENT, PUBLIC_HOME_HERO_VIEWPORT_CLASS } from "@/lib/home-hero";
-import { useThemeMode } from "@/hooks/use-theme-mode";
-import { usePublicBootstrap } from "@/hooks/use-public-bootstrap";
 import type { UploadMediaVariantsMap } from "@/lib/upload-variants";
 import type {
   PublicBootstrapHomeHeroSlide,

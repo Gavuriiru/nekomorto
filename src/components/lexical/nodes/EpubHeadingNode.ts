@@ -1,3 +1,4 @@
+import { HeadingNode } from "@lexical/rich-text";
 import {
   $applyNodeReplacement,
   $createParagraphNode,
@@ -7,7 +8,6 @@ import {
   type SerializedElementNode,
   type Spread,
 } from "lexical";
-import { HeadingNode } from "@lexical/rich-text";
 
 import {
   applyEditorialStyleToElement,

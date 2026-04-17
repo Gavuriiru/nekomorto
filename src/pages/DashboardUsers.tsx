@@ -1,6 +1,27 @@
-import { useCallback, useEffect, useMemo, useState, type DragEvent } from "react";
-import { useNavigate, useSearchParams } from "react-router-dom";
+import {
+  BadgeCheck,
+  Camera,
+  Check,
+  Clock,
+  Code,
+  Globe,
+  GripVertical,
+  Languages,
+  Layers,
+  MessageCircle,
+  Paintbrush,
+  Palette,
+  PenTool,
+  Play,
+  Sparkles,
+  Trash2,
+  UserRound,
+  Video,
+  X,
+} from "lucide-react";
 import QRCode from "qrcode";
+import { type DragEvent, useCallback, useEffect, useMemo, useState } from "react";
+import { useNavigate, useSearchParams } from "react-router-dom";
 import DashboardShell from "@/components/DashboardShell";
 import DashboardActionButton, {
   default as Button,
@@ -8,30 +29,30 @@ import DashboardActionButton, {
 import DashboardEditorBackdrop from "@/components/dashboard/DashboardEditorBackdrop";
 import DashboardFieldStack from "@/components/dashboard/DashboardFieldStack";
 import DashboardPageBadge from "@/components/dashboard/DashboardPageBadge";
-import ProjectEditorAccordionHeader from "@/components/dashboard/project-editor/ProjectEditorAccordionHeader";
 import { Combobox, Input, Textarea } from "@/components/dashboard/dashboard-form-controls";
-import {
-  dashboardEditorDialogWidthClassName,
-  dashboardPageLayoutTokens,
-  dashboardSubtleSurfaceHoverClassName,
-  dashboardStrongSurfaceHoverClassName,
-} from "@/components/dashboard/dashboard-page-tokens";
 import {
   dashboardAnimationDelay,
   dashboardClampedStaggerMs,
   dashboardMotionDelays,
 } from "@/components/dashboard/dashboard-motion";
-import ReorderControls from "@/components/ReorderControls";
-import AsyncState from "@/components/ui/async-state";
+import {
+  dashboardEditorDialogWidthClassName,
+  dashboardPageLayoutTokens,
+  dashboardStrongSurfaceHoverClassName,
+  dashboardSubtleSurfaceHoverClassName,
+} from "@/components/dashboard/dashboard-page-tokens";
+import ProjectEditorAccordionHeader from "@/components/dashboard/project-editor/ProjectEditorAccordionHeader";
 import LazyImageLibraryDialog from "@/components/lazy/LazyImageLibraryDialog";
-
-import { Badge } from "@/components/ui/badge";
+import ReorderControls from "@/components/ReorderControls";
+import ThemedSvgLogo from "@/components/ThemedSvgLogo";
 import {
   Accordion,
   AccordionContent,
   AccordionItem,
   AccordionTrigger,
 } from "@/components/ui/accordion";
+import AsyncState from "@/components/ui/async-state";
+import { Badge } from "@/components/ui/badge";
 import {
   Dialog,
   DialogContent,
@@ -43,37 +64,15 @@ import { dropdownRichIconClassName } from "@/components/ui/dropdown-contract";
 import { Label } from "@/components/ui/label";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Switch } from "@/components/ui/switch";
-import {
-  UserRound,
-  BadgeCheck,
-  Camera,
-  Check,
-  Clock,
-  Code,
-  Globe,
-  Languages,
-  Layers,
-  Paintbrush,
-  Palette,
-  PenTool,
-  Play,
-  Sparkles,
-  Video,
-  X,
-  MessageCircle,
-  GripVertical,
-  Trash2,
-} from "lucide-react";
+import { toast } from "@/components/ui/use-toast";
+import { useDashboardCurrentUser } from "@/hooks/use-dashboard-current-user";
+import { useEditorScrollLock } from "@/hooks/use-editor-scroll-lock";
+import { usePageMeta } from "@/hooks/use-page-meta";
+import { useSiteSettings } from "@/hooks/use-site-settings";
+import { type AccessRole, permissionIds } from "@/lib/access-control";
 import { getApiBase } from "@/lib/api-base";
 import { apiFetch } from "@/lib/api-client";
 import { buildAvatarRenderUrl } from "@/lib/avatar-render-url";
-import { useDashboardCurrentUser } from "@/hooks/use-dashboard-current-user";
-import { usePageMeta } from "@/hooks/use-page-meta";
-import { useEditorScrollLock } from "@/hooks/use-editor-scroll-lock";
-import { useSiteSettings } from "@/hooks/use-site-settings";
-import { toast } from "@/components/ui/use-toast";
-import ThemedSvgLogo from "@/components/ThemedSvgLogo";
-import { type AccessRole, permissionIds } from "@/lib/access-control";
 import { filterImageLibraryFoldersByAccess } from "@/lib/image-library-scope";
 
 const FAVORITE_WORK_CATEGORIES = ["manga", "anime"] as const;

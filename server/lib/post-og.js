@@ -1,3 +1,5 @@
+import { buildPostOgImagePath, POST_OG_SCENE_VERSION } from "../../shared/post-og-seo.js";
+import { finalizeVariantUrl, normalizeText } from "./og-shared.js";
 import {
   buildProjectOgCardModel,
   buildProjectOgImageResponse,
@@ -5,8 +7,7 @@ import {
   getDiagonalXAtY,
   measureTextWidth,
 } from "./project-og.js";
-import { POST_OG_SCENE_VERSION, buildPostOgImagePath } from "../../shared/post-og-seo.js";
-import { finalizeVariantUrl, normalizeText } from "./og-shared.js";
+
 const POST_OG_SUBTITLE_FONT_WEIGHT = 500;
 const POST_OG_SUBTITLE_DIAGONAL_INSET = 48;
 
@@ -313,4 +314,4 @@ export const buildPostOgScene = (model) => buildProjectOgScene(model);
 
 export const buildPostOgImageResponse = (model) => buildProjectOgImageResponse(model);
 
-export { POST_OG_SCENE_VERSION, buildPostOgImagePath };
+export { buildPostOgImagePath, POST_OG_SCENE_VERSION };

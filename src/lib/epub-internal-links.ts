@@ -1,5 +1,5 @@
-import { resolveCanonicalEpisodeRouteTarget } from "@/lib/project-episode-key";
 import { buildProjectPublicReadingHref } from "@/lib/project-editor-routes";
+import { resolveCanonicalEpisodeRouteTarget } from "@/lib/project-episode-key";
 
 const EPUB_INTERNAL_CHAPTER_PROTOCOL = "epub-internal://chapter/";
 const EXTERNAL_HREF_PROTOCOL_RE = /^[a-z][a-z0-9+.-]*:/i;

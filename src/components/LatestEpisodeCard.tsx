@@ -1,6 +1,6 @@
+import { Clock, Sparkles } from "lucide-react";
 import type { CSSProperties } from "react";
 import { useMemo } from "react";
-import { Clock, Sparkles } from "lucide-react";
 import { Link } from "react-router-dom";
 
 import PublicInteractiveCardShell from "@/components/PublicInteractiveCardShell";

@@ -1,17 +1,16 @@
 import { CalendarDays, User } from "lucide-react";
 import { useCallback, useMemo, useRef, useState } from "react";
 import { Link } from "react-router-dom";
-
-import DiscordInviteCard from "./DiscordInviteCard";
-import LatestEpisodeCard from "./LatestEpisodeCard";
-import TopProjectsSection from "./TopProjectsSection";
-import UploadPicture from "./UploadPicture";
-import WorkStatusCard from "./WorkStatusCard";
 import CompactPagination from "@/components/ui/compact-pagination";
 import { Skeleton } from "@/components/ui/skeleton";
 import { usePublicBootstrap } from "@/hooks/use-public-bootstrap";
 import { formatDate } from "@/lib/date";
 import { cn } from "@/lib/utils";
+import DiscordInviteCard from "./DiscordInviteCard";
+import LatestEpisodeCard from "./LatestEpisodeCard";
+import TopProjectsSection from "./TopProjectsSection";
+import UploadPicture from "./UploadPicture";
+import WorkStatusCard from "./WorkStatusCard";
 
 const HOME_POSTS_PAGE_SIZE = 10;
 

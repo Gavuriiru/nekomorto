@@ -1,4 +1,3 @@
-import { useMemo } from "react";
 import {
   Bell,
   FilePlus2,
@@ -9,6 +8,7 @@ import {
   UserCog,
   UserPlus,
 } from "lucide-react";
+import { useMemo } from "react";
 import type { DashboardMenuItem } from "@/components/dashboard-menu";
 import {
   CommandDialog,

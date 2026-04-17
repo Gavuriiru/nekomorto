@@ -1,6 +1,6 @@
+import { spawnSync } from "node:child_process";
 import net from "node:net";
 import path from "node:path";
-import { spawnSync } from "node:child_process";
 import { fileURLToPath } from "node:url";
 
 const DEFAULT_APP_PORT = 8080;

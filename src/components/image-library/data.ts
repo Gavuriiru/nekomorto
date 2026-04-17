@@ -1,13 +1,13 @@
-import {
-  deriveUploadFocalPointsFromCrops,
-  normalizeUploadFocalCrops,
-} from "@/lib/upload-focal-points";
 import type { LibraryImageItem } from "@/components/image-library/types";
 import {
   normalizeComparableUploadUrl,
   parseUploadUrlPath,
   sanitizeUploadFolderForComparison,
 } from "@/components/image-library/utils";
+import {
+  deriveUploadFocalPointsFromCrops,
+  normalizeUploadFocalCrops,
+} from "@/lib/upload-focal-points";
 
 type UploadListResponseFile = {
   altText?: unknown;

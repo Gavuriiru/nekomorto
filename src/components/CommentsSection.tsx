@@ -1,10 +1,7 @@
-﻿import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { MessageSquare, Reply } from "lucide-react";
+﻿import { MessageSquare, Reply } from "lucide-react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useLocation } from "react-router-dom";
-
-import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
-import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Input, Textarea } from "@/components/public-form-controls";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -15,13 +12,15 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
-import { Input, Textarea } from "@/components/public-form-controls";
+import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
+import { Button } from "@/components/ui/button";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Separator } from "@/components/ui/separator";
 import { toast } from "@/components/ui/use-toast";
+import { usePublicCurrentUser } from "@/hooks/use-public-current-user";
 import { getApiBase } from "@/lib/api-base";
 import { apiFetch } from "@/lib/api-client";
 import { formatDateTime } from "@/lib/date";
-import { usePublicCurrentUser } from "@/hooks/use-public-current-user";
 
 type CommentTargetType = "post" | "project" | "chapter";
 

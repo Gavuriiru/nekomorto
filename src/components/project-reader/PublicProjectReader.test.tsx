@@ -1,5 +1,5 @@
-import { StrictMode } from "react";
 import { act, fireEvent, render, screen, waitFor, within } from "@testing-library/react";
+import { StrictMode } from "react";
 import { MemoryRouter, useLocation, useNavigationType } from "react-router-dom";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
@@ -4773,38 +4773,6 @@ describe("PublicProjectReader", () => {
     expect(onNavigateChapter).toHaveBeenLastCalledWith("/projeto/projeto-teste/leitura/1");
 
     secondRender.unmount();
-  });
-
-  it.skip("shows the site header behavior options in the reader menu", async () => {
-    renderReader({ imageFit: "both", siteHeaderVariant: "static" });
-
-    fireEvent.click(screen.getByTestId("project-reader-menu-button"));
-    const trigger = await screen.findByRole("combobox", {
-      name: "Selecionar comportamento do header do site",
-    });
-
-    trigger.focus();
-    fireEvent.keyDown(trigger, { key: "ArrowDown", code: "ArrowDown" });
-
-    expect(await screen.findByRole("option", { name: "Estática" })).toBeInTheDocument();
-    expect(await screen.findByRole("option", { name: "Fixa" })).toBeInTheDocument();
-  });
-
-  it.skip("updates the saved site header behavior from the reader menu", async () => {
-    renderReader({ imageFit: "both", siteHeaderVariant: "static" });
-
-    fireEvent.click(screen.getByTestId("project-reader-menu-button"));
-    const trigger = await screen.findByRole("combobox", {
-      name: "Selecionar comportamento do header do site",
-    });
-
-    trigger.focus();
-    fireEvent.keyDown(trigger, { key: "ArrowDown", code: "ArrowDown" });
-    fireEvent.click(await screen.findByRole("option", { name: "Fixa" }));
-
-    expect(updateConfigMock).toHaveBeenCalledWith({
-      siteHeaderVariant: "fixed",
-    });
   });
 
   it("shows the site header variant options in the reader menu", async () => {

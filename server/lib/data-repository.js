@@ -1,24 +1,24 @@
 import crypto from "crypto";
-import { prisma } from "./prisma-client.js";
 import {
   isNormalizedDomainReady,
   loadCommentsFromNormalized,
   loadNormalizedRuntimeStateMap,
-  loadPostVersionsFromNormalized,
   loadPostsFromNormalized,
+  loadPostVersionsFromNormalized,
   loadProjectsFromNormalized,
   loadUpdatesFromNormalized,
   loadUploadsFromNormalized,
   loadUsersFromNormalized,
   syncCommentsToNormalized,
-  syncPostVersionsToNormalized,
   syncPostsToNormalized,
+  syncPostVersionsToNormalized,
   syncProjectsToNormalized,
   syncUpdatesToNormalized,
   syncUploadsToNormalized,
   syncUsersToNormalized,
   toDateOnlyOrNull,
 } from "./normalized-domain-store.js";
+import { prisma } from "./prisma-client.js";
 import { WEBHOOK_DELIVERY_STATUS } from "./webhooks/delivery.js";
 
 const cloneValue = (value) => {

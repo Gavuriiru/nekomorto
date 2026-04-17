@@ -1,7 +1,7 @@
 import { useEffect, useState } from "react";
 import { useLocation, useNavigate } from "react-router-dom";
-import { getApiBase } from "@/lib/api-base";
-import { apiFetch } from "@/lib/api-client";
+import { toast } from "@/components/ui/use-toast";
+import { useDashboardSession } from "@/hooks/use-dashboard-session";
 import {
   getFirstAllowedDashboardRoute,
   isDashboardPathAllowed,
@@ -9,8 +9,8 @@ import {
   resolveAccessRole,
   resolveGrants,
 } from "@/lib/access-control";
-import { useDashboardSession } from "@/hooks/use-dashboard-session";
-import { toast } from "@/components/ui/use-toast";
+import { getApiBase } from "@/lib/api-base";
+import { apiFetch } from "@/lib/api-client";
 
 type RequireAuthProps = {
   children: React.ReactNode;

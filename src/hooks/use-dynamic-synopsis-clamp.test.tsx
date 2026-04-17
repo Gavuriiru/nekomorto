@@ -1,8 +1,8 @@
 import { act, render, screen, waitFor } from "@testing-library/react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import {
-  useDynamicSynopsisClamp,
   type DynamicSynopsisClampMaxLinesContext,
+  useDynamicSynopsisClamp,
 } from "@/hooks/use-dynamic-synopsis-clamp";
 
 let resizeObserverCallback: ResizeObserverCallback | null = null;

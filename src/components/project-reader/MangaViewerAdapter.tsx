@@ -1,5 +1,5 @@
-import { useEffect, useMemo, useRef } from "react";
 import BaseMangaViewer from "@tokagemushi/manga-viewer";
+import { useEffect, useMemo, useRef } from "react";
 
 import { buildMangaSpreadSlots } from "@/components/project-reader/manga-spread-slots";
 

@@ -1,11 +1,30 @@
+import {
+  ArrowDown,
+  ArrowLeft,
+  ArrowUp,
+  ChevronLeft,
+  ChevronRight,
+  ExternalLink,
+  FileArchive,
+  ImagePlus,
+  Loader2,
+  Plus,
+  Search,
+  Trash2,
+} from "lucide-react";
+import type { KeyboardEvent as ReactKeyboardEvent, ReactNode } from "react";
+import {
+  forwardRef,
+  useCallback,
+  useEffect,
+  useImperativeHandle,
+  useLayoutEffect,
+  useMemo,
+  useRef,
+  useState,
+} from "react";
+import { Link, useNavigate, useParams, useSearchParams } from "react-router-dom";
 import DashboardShell from "@/components/DashboardShell";
-import DashboardActionButton from "@/components/dashboard/DashboardActionButton";
-import { Input } from "@/components/dashboard/dashboard-form-controls";
-import DashboardPageContainer from "@/components/dashboard/DashboardPageContainer";
-import { useChapterEditorLeaveGuard } from "@/components/dashboard/chapter-editor/useChapterEditorLeaveGuard";
-import { useDashboardProjectChapterEpub } from "@/components/dashboard/chapter-editor/useDashboardProjectChapterEpub";
-import { useDashboardProjectChapterEditorResource } from "@/components/dashboard/chapter-editor/useDashboardProjectChapterEditorResource";
-import { loadLexicalEditor } from "@/components/lazy/LazyLexicalEditor";
 import ChapterEditorPane from "@/components/dashboard/chapter-editor/ChapterEditorPane";
 import type {
   ChapterEditorPaneHandle,
@@ -13,6 +32,13 @@ import type {
   StructureScrollAnchor,
   VolumeSelectionOptions,
 } from "@/components/dashboard/chapter-editor/chapter-editor-types";
+import { useChapterEditorLeaveGuard } from "@/components/dashboard/chapter-editor/useChapterEditorLeaveGuard";
+import { useDashboardProjectChapterEditorResource } from "@/components/dashboard/chapter-editor/useDashboardProjectChapterEditorResource";
+import { useDashboardProjectChapterEpub } from "@/components/dashboard/chapter-editor/useDashboardProjectChapterEpub";
+import DashboardActionButton from "@/components/dashboard/DashboardActionButton";
+import DashboardPageContainer from "@/components/dashboard/DashboardPageContainer";
+import { Input } from "@/components/dashboard/dashboard-form-controls";
+import { loadLexicalEditor } from "@/components/lazy/LazyLexicalEditor";
 import {
   reconcileStageChapters,
   revokeStagePages,
@@ -33,46 +59,44 @@ import { usePageMeta } from "@/hooks/use-page-meta";
 import { canManageProjectsAccess } from "@/lib/access-control";
 import { getApiBase } from "@/lib/api-base";
 import {
-  EMPTY_CHAPTER_DRAFT,
-  VOLUME_REQUIRED_IDENTITY_MESSAGE,
-  VOLUME_REQUIRED_SAVE_DIALOG_DESCRIPTION,
-  buildNewChapterDraft,
+  appendNextProjectVolumeEntryDraft,
+  buildChapterSnapshot,
   buildChapterStructureGroups,
   buildChapterVolumeLabel,
   buildEditableVolumeOptions,
-  resolveFallbackSelectedChapterVolume,
-  resolveSelectedChapterVolume,
-  resolveSelectedVolumeChapterCount,
-  buildChapterSnapshot,
+  buildNewChapterDraft,
   buildProjectSnapshotWithVolumeEntries,
+  buildVolumeEntriesSnapshot,
+  type ChapterFilterMode,
   chapterHasContent,
-  findChapterStructureGroupElement,
+  type EditableVolumeOption,
+  EMPTY_CHAPTER_DRAFT,
   ensureProjectVolumeEntryDraft,
-  appendNextProjectVolumeEntryDraft,
-  updateProjectVolumeEntriesDraft,
+  findChapterStructureGroupElement,
   groupChaptersByStructureKey,
   groupStageChaptersByStructureKey,
   matchesChapterSearch,
   matchesFilter,
   matchesStageChapterFilter,
   matchesStageChapterSearch,
-  normalizeStructureGroupKeys,
   normalizeChapterForEditor,
   normalizeChapterForSave,
-  normalizePositiveInteger,
   normalizeNonNegativeInteger,
-  resolveChapterEntrySubtype,
-  buildVolumeEntriesSnapshot,
+  normalizePositiveInteger,
+  normalizeStructureGroupKeys,
   normalizeVolumeEntriesForSave,
   reorderChaptersWithinStructureGroup,
+  resolveChapterEntrySubtype,
+  resolveFallbackSelectedChapterVolume,
+  resolveSelectedChapterVolume,
+  resolveSelectedVolumeChapterCount,
   sortChapters,
   supportsStructureChapterReordering,
-  type ChapterFilterMode,
-  type EditableVolumeOption,
+  updateProjectVolumeEntriesDraft,
+  VOLUME_REQUIRED_IDENTITY_MESSAGE,
+  VOLUME_REQUIRED_SAVE_DIALOG_DESCRIPTION,
 } from "@/lib/dashboard-project-chapter";
 import { findIncompleteDownloadSourceIndex } from "@/lib/project-download-sources";
-import { cn } from "@/lib/utils";
-import { overlayDraftOnProject } from "@/lib/project-epub";
 import {
   buildDashboardProjectChapterEditorHref,
   buildDashboardProjectChaptersEditorHref,
@@ -80,44 +104,20 @@ import {
   buildProjectPublicReadingHref,
 } from "@/lib/project-editor-routes";
 import {
-  getProjectProgressState,
-  syncProjectProgress,
-  type ProjectProgressKind,
-} from "@/lib/project-progress";
-import {
   buildEpisodeKey,
   resolveCanonicalEpisodeRouteTarget,
   resolveEpisodeLookup,
 } from "@/lib/project-episode-key";
+import { overlayDraftOnProject } from "@/lib/project-epub";
+import {
+  getProjectProgressState,
+  type ProjectProgressKind,
+  syncProjectProgress,
+} from "@/lib/project-progress";
 import { isChapterBasedType, isLightNovelType, isMangaType } from "@/lib/project-utils";
 import { buildVolumeCoverKey, findDuplicateVolumeCover } from "@/lib/project-volume-cover-key";
 import { normalizeProjectVolumeEntries } from "@/lib/project-volume-entries";
-import {
-  ArrowLeft,
-  ArrowDown,
-  ArrowUp,
-  ChevronLeft,
-  ChevronRight,
-  FileArchive,
-  ExternalLink,
-  ImagePlus,
-  Loader2,
-  Plus,
-  Search,
-  Trash2,
-} from "lucide-react";
-import type { KeyboardEvent as ReactKeyboardEvent, ReactNode } from "react";
-import {
-  forwardRef,
-  useCallback,
-  useEffect,
-  useImperativeHandle,
-  useLayoutEffect,
-  useMemo,
-  useRef,
-  useState,
-} from "react";
-import { Link, useNavigate, useParams, useSearchParams } from "react-router-dom";
+import { cn } from "@/lib/utils";
 import {
   normalizeProjectEpisodeContentFormat,
   normalizeProjectEpisodePages,

@@ -1,6 +1,6 @@
-import { cn } from "@/lib/utils";
 import { AlertCircle, Inbox, Loader2 } from "lucide-react";
 import { type ReactNode, useEffect } from "react";
+import { cn } from "@/lib/utils";
 
 type AsyncStateKind = "loading" | "empty" | "error";
 

@@ -1,14 +1,14 @@
 import { motion, type Transition } from "framer-motion";
 import { Columns2, Link2Off, Star, Trash2 } from "lucide-react";
 import {
-  memo,
-  useEffect,
-  useRef,
-  useState,
   type FocusEvent,
   type KeyboardEvent,
   type MouseEvent,
+  memo,
   type PointerEvent,
+  useEffect,
+  useRef,
+  useState,
 } from "react";
 
 import UploadPicture from "@/components/UploadPicture";
@@ -445,10 +445,7 @@ const MangaPageTile = ({
   );
 };
 
-const areMangaPageTilePropsEqual = (
-  previous: MangaPageTileProps,
-  next: MangaPageTileProps,
-) =>
+const areMangaPageTilePropsEqual = (previous: MangaPageTileProps, next: MangaPageTileProps) =>
   previous.testIdPrefix === next.testIdPrefix &&
   previous.src === next.src &&
   previous.actionId === next.actionId &&

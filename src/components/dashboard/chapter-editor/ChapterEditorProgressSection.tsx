@@ -1,6 +1,6 @@
+import ProjectEditorSectionCard from "@/components/project-reader/ProjectEditorSectionCard";
 import { Badge } from "@/components/ui/badge";
 import { Checkbox } from "@/components/ui/checkbox";
-import ProjectEditorSectionCard from "@/components/project-reader/ProjectEditorSectionCard";
 import { getProjectProgressState } from "@/lib/project-progress";
 import { cn } from "@/lib/utils";
 

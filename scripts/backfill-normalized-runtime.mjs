@@ -1,7 +1,6 @@
 import crypto from "crypto";
 import fs from "fs/promises";
 import path from "path";
-import { prisma } from "../server/lib/prisma-client.js";
 import {
   loadCommentsFromNormalized,
   loadPostsFromNormalized,
@@ -19,6 +18,7 @@ import {
   syncUsersToNormalized,
   upsertNormalizedRuntimeState,
 } from "../server/lib/normalized-domain-store.js";
+import { prisma } from "../server/lib/prisma-client.js";
 
 const DEFAULT_DOMAINS = [
   "users",

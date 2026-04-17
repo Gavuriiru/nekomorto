@@ -1,20 +1,19 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
-
+import { isAvatarSlotSelection } from "@/components/image-library/avatar-selection";
 import type { ImageLibraryBrowserPaneProps } from "@/components/image-library/ImageLibraryBrowserPane";
 import type { ImageLibraryDialogsProps } from "@/components/image-library/ImageLibraryDialogs";
 import type { ImageLibraryUploadPanelProps } from "@/components/image-library/ImageLibraryUploadPanel";
-import { isAvatarSlotSelection } from "@/components/image-library/avatar-selection";
 import {
   buildPersistentUploadIncludeUrlsState,
   toSelectionSignature,
 } from "@/components/image-library/selection";
-import { dedupeUrlsByComparableKey } from "@/components/image-library/utils";
+import type { ImageLibraryDialogProps } from "@/components/image-library/types";
 import useImageLibraryBrowserOrchestration from "@/components/image-library/useImageLibraryBrowserOrchestration";
 import useImageLibraryData from "@/components/image-library/useImageLibraryData";
 import useImageLibraryMutations from "@/components/image-library/useImageLibraryMutations";
-import useImageLibrarySelectionState from "@/components/image-library/useImageLibrarySelectionState";
 import useImageLibraryScope from "@/components/image-library/useImageLibraryScope";
-import type { ImageLibraryDialogProps } from "@/components/image-library/types";
+import useImageLibrarySelectionState from "@/components/image-library/useImageLibrarySelectionState";
+import { dedupeUrlsByComparableKey } from "@/components/image-library/utils";
 
 export type ImageLibraryDialogFooterProps = {
   allowDeselect: boolean;

@@ -1,6 +1,6 @@
 import { useEffect, useRef } from "react";
 
-import { dismissToast, toast, type ToastIntent } from "@/components/ui/use-toast";
+import { dismissToast, type ToastIntent, toast } from "@/components/ui/use-toast";
 
 const PERSISTENT_TOAST_DURATION_MS = 86_400_000;
 

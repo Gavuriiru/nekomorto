@@ -2289,11 +2289,7 @@ describe("DashboardProjectChapterEditor", () => {
       .getAllByText("Atual")
       .find((element) => String((element as HTMLElement).className || "").includes("rounded-full"));
     expect(within(progressCard).getAllByText("Atual")).toHaveLength(1);
-    expect(currentStageBadge).toHaveClass(
-      "border-accent/60",
-      "bg-accent/10",
-      "text-accent",
-    );
+    expect(currentStageBadge).toHaveClass("border-accent/60", "bg-accent/10", "text-accent");
     expect(within(contentCard).getByRole("heading", { name: /Páginas/i })).toBeInTheDocument();
     expect(document.getElementById("chapter-volume-image") as HTMLInputElement).toHaveClass(
       "w-full",

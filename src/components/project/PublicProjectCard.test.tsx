@@ -3,9 +3,9 @@ import { MemoryRouter } from "react-router-dom";
 import { describe, expect, it, vi } from "vitest";
 
 import PublicProjectCard, {
-  PUBLIC_PROJECT_CARD_CLAMP_PROFILES,
   getPublicProjectCardClampClass,
   normalizePublicProjectCardClampLines,
+  PUBLIC_PROJECT_CARD_CLAMP_PROFILES,
   resolvePublicProjectCardClampState,
   resolvePublicProjectCardResponsiveMaxLines,
 } from "@/components/project/PublicProjectCard";

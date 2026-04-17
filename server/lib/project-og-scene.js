@@ -1,20 +1,20 @@
-import React from "react";
 import { ImageResponse } from "@vercel/og";
+import React from "react";
 import { mixHexColors } from "./og-color.js";
 import {
+  buildProjectOgFonts,
+  measureTextWidth,
   OG_PROJECT_HEIGHT,
   OG_PROJECT_WIDTH,
   PROJECT_OG_CHIP_FONT_WEIGHT,
   PROJECT_OG_EYEBROW_FONT_WEIGHT,
   PROJECT_OG_SUBTITLE_FONT_WEIGHT,
   PROJECT_OG_TITLE_FONT_WEIGHT,
-  buildProjectOgFonts,
-  measureTextWidth,
 } from "./project-og-assets.js";
 import {
-  PROJECT_OG_TITLE_LINE_HEIGHT,
   buildProjectOgChipLayouts,
   cloneProjectOgLayout,
+  PROJECT_OG_TITLE_LINE_HEIGHT,
 } from "./project-og-layout.js";
 import { normalizeProjectOgKey, resolveProjectOgPalette } from "./project-og-text.js";
 

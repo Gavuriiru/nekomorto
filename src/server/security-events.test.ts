@@ -1,14 +1,14 @@
 import { describe, expect, it } from "vitest";
 
 import {
-  SecurityEventSeverity,
-  SecurityEventStatus,
   createSecurityEventPayload,
   createSlidingWindowCounter,
   getIpv4Network24,
   normalizeSecurityEventSeverity,
   normalizeSecurityEventStatus,
   normalizeSecurityEventType,
+  SecurityEventSeverity,
+  SecurityEventStatus,
 } from "../../server/lib/security-events.js";
 
 describe("security-events", () => {

@@ -1,6 +1,6 @@
 import { useMemo } from "react";
-import { buildStaticPixPayload } from "@/lib/pix";
 import { useTextQrCode } from "@/hooks/use-text-qr-code";
+import { buildStaticPixPayload } from "@/lib/pix";
 
 type UsePixQrCodeParams = {
   pixKey: string;

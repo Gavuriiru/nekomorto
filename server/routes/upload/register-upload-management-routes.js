@@ -1,7 +1,7 @@
-import path from "path";
 import fs from "fs";
-import { getUsedUploadUrls, replaceUploadReferencesDeep } from "./upload-route-utils.js";
+import path from "path";
 import { normalizeUploadUrl } from "../../lib/uploads-reorganizer.js";
+import { getUsedUploadUrls, replaceUploadReferencesDeep } from "./upload-route-utils.js";
 
 export const registerUploadManagementRoutes = (deps) => {
   const {

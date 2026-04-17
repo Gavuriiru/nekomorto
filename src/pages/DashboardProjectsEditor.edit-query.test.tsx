@@ -2,13 +2,12 @@ import { fireEvent, render, screen, waitFor, within } from "@testing-library/rea
 import type { ReactNode } from "react";
 import { MemoryRouter, useLocation } from "react-router-dom";
 import { afterEach, describe, expect, it, vi } from "vitest";
-
+import { dashboardEditorDialogWidthClassName } from "@/components/dashboard/dashboard-page-tokens";
 import type {
   EditorProjectEpisode,
   ProjectRecord,
 } from "@/components/dashboard/project-editor/dashboard-projects-editor-types";
 import DashboardProjectsEditor from "@/pages/DashboardProjectsEditor";
-import { dashboardEditorDialogWidthClassName } from "@/components/dashboard/dashboard-page-tokens";
 
 const apiFetchMock = vi.hoisted(() => vi.fn());
 
@@ -256,7 +255,7 @@ const resizeObserverUnobserveMock = vi.fn();
 const resizeObserverDisconnectMock = vi.fn();
 const originalResizeObserver = globalThis.ResizeObserver;
 class ResizeObserverMock {
-  constructor(_callback: ResizeObserverCallback) { }
+  constructor(_callback: ResizeObserverCallback) {}
 
   observe = resizeObserverObserveMock;
 

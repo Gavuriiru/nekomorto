@@ -1,11 +1,10 @@
 import { act, renderHook } from "@testing-library/react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
-
-import { buildEmptyProjectForm } from "@/components/dashboard/project-editor/project-editor-form";
 import type {
   ProjectForm,
   ProjectRecord,
 } from "@/components/dashboard/project-editor/dashboard-projects-editor-types";
+import { buildEmptyProjectForm } from "@/components/dashboard/project-editor/project-editor-form";
 import { useDashboardProjectsEditorPersistence } from "@/components/dashboard/project-editor/useDashboardProjectsEditorPersistence";
 
 const apiFetchMock = vi.hoisted(() => vi.fn());

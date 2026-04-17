@@ -1,7 +1,6 @@
-import { Suspense, lazy, type ReactNode } from "react";
-
-import { ImageLibraryDialogLoadingFallback } from "@/components/ImageLibraryDialogLoading";
+import { lazy, type ReactNode, Suspense } from "react";
 import type { ImageLibraryDialogProps } from "@/components/ImageLibraryDialog";
+import { ImageLibraryDialogLoadingFallback } from "@/components/ImageLibraryDialogLoading";
 
 const ImageLibraryDialog = lazy(() => import("@/components/ImageLibraryDialog"));
 

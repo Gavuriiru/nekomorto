@@ -1,9 +1,9 @@
-import { getApiBase } from "@/lib/api-base";
-import { apiFetch } from "@/lib/api-client";
 import {
   getPublicBootstrapLastFetchedAt,
   refetchPublicBootstrapCache,
 } from "@/hooks/use-public-bootstrap";
+import { getApiBase } from "@/lib/api-base";
+import { apiFetch } from "@/lib/api-client";
 import {
   getBuildFingerprint,
   getFrontendBuildMetadata,

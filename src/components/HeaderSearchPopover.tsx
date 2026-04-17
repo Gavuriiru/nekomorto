@@ -9,6 +9,7 @@ import PublicProjectCard, {
 import { floatingSurfaceShadowClassName } from "@/components/ui/floating-surface";
 import { useDynamicSynopsisClamp } from "@/hooks/use-dynamic-synopsis-clamp";
 import { usePublicBootstrap } from "@/hooks/use-public-bootstrap";
+import { buildTranslationMap, translateTag } from "@/lib/project-taxonomy";
 import { buildPublicSearchIndex } from "@/lib/public-search-index";
 import {
   rankPosts,
@@ -16,11 +17,10 @@ import {
   selectVisibleTags,
   sortAlphabeticallyPtBr,
 } from "@/lib/search-ranking";
-import { buildTranslationMap, translateTag } from "@/lib/project-taxonomy";
-import { cn } from "@/lib/utils";
 import { uiCopy } from "@/lib/ui-copy";
-import type { SearchSuggestion } from "@/types/search-suggestion";
 import type { UploadMediaVariantsMap } from "@/lib/upload-variants";
+import { cn } from "@/lib/utils";
+import type { SearchSuggestion } from "@/types/search-suggestion";
 
 type HeaderSearchPopoverProps = {
   queryTrimmed: string;

@@ -1,5 +1,5 @@
-import { beforeEach, describe, expect, it, vi } from "vitest";
 import { JSDOM } from "jsdom";
+import { beforeEach, describe, expect, it, vi } from "vitest";
 
 const htmlToLexicalJsonMock = vi.hoisted(() => vi.fn((html: string) => `LEXICAL:${html}`));
 const storeUploadImageBufferMock = vi.hoisted(() =>

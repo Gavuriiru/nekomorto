@@ -2,12 +2,12 @@ import fs from "fs";
 import path from "path";
 import { buildStorageAreaSummary, deriveUploadArea, normalizeVariants } from "./upload-media.js";
 import { getUploadVariantUrlPrefix, readUploadStorageProvider } from "./upload-storage.js";
-import { extractUploadUrlsFromText, normalizeUploadUrl } from "./uploads-reorganizer.js";
 import {
   EPUB_IMPORT_TMP_PREFIX,
   EPUB_IMPORT_TMP_TTL_MS,
   isEpubImportTempFolder,
 } from "./uploads-import.js";
+import { extractUploadUrlsFromText, normalizeUploadUrl } from "./uploads-reorganizer.js";
 
 const DATASETS_TO_SCAN = [
   "siteSettings",

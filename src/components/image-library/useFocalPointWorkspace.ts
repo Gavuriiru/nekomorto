@@ -1,11 +1,11 @@
 import {
+  type PointerEvent as ReactPointerEvent,
+  type SyntheticEvent,
   useCallback,
   useEffect,
   useMemo,
   useRef,
   useState,
-  type PointerEvent as ReactPointerEvent,
-  type SyntheticEvent,
 } from "react";
 
 import type { LibraryImageItem } from "@/components/image-library/types";

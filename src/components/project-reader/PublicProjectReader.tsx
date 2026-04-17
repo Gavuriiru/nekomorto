@@ -1,16 +1,4 @@
 import {
-  memo,
-  useCallback,
-  useEffect,
-  useId,
-  useLayoutEffect,
-  useMemo,
-  useRef,
-  useState,
-  type CSSProperties,
-  type PointerEvent as ReactPointerEvent,
-} from "react";
-import {
   ArrowLeft,
   ArrowRight,
   BookOpenText,
@@ -20,6 +8,18 @@ import {
   SlidersHorizontal,
   X,
 } from "lucide-react";
+import {
+  type CSSProperties,
+  memo,
+  type PointerEvent as ReactPointerEvent,
+  useCallback,
+  useEffect,
+  useId,
+  useLayoutEffect,
+  useMemo,
+  useRef,
+  useState,
+} from "react";
 import { Link, useLocation, useNavigate } from "react-router-dom";
 
 import ProjectReadingInfoBar from "@/components/project-reader/ProjectReadingInfoBar";
@@ -33,12 +33,12 @@ import {
   interpolateContinuousPageRatio,
   isPaginatedReaderLayout,
   pickMostVisiblePage,
-  resolvePaginatedPointerAction,
   type ReaderRenderablePage,
+  resolvePaginatedPointerAction,
 } from "@/components/project-reader/project-reader-state";
 import {
-  useProjectReaderPreferences,
   type ProjectReaderPreferencesState,
+  useProjectReaderPreferences,
 } from "@/components/project-reader/use-project-reader-preferences";
 import { Combobox } from "@/components/public-form-controls";
 import { Button } from "@/components/ui/button";

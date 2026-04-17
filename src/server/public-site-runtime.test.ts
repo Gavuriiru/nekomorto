@@ -2,9 +2,9 @@ import { JSDOM } from "jsdom";
 import { describe, expect, it } from "vitest";
 
 import {
+  createPublicSiteRuntime,
   PUBLIC_BOOTSTRAP_MODE_CRITICAL_HOME,
   PUBLIC_BOOTSTRAP_MODE_FULL,
-  createPublicSiteRuntime,
 } from "../../server/lib/public-site-runtime.js";
 
 const createDeps = (overrides = {}) => ({

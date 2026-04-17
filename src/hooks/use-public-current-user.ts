@@ -4,8 +4,8 @@ import { apiFetch } from "@/lib/api-client";
 import { scheduleOnBrowserLoadIdle } from "@/lib/browser-idle";
 import {
   asPublicBootstrapCurrentUser,
-  readWindowPublicBootstrapCurrentUser,
   type PublicBootstrapCurrentUser,
+  readWindowPublicBootstrapCurrentUser,
 } from "@/lib/public-bootstrap-global";
 
 type PublicCurrentUserStatus = "idle" | "loading" | "success" | "error";

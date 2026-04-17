@@ -2,9 +2,9 @@ import {
   assertRequiredDependencies,
   pickDependencyKeys,
 } from "../../bootstrap/assert-required-dependencies.js";
-import { registerContentPostVersionListRoute } from "./post-versions/register-content-post-version-list-route.js";
 import { registerContentPostManualVersionRoute } from "./post-versions/register-content-post-manual-version-route.js";
 import { registerContentPostRollbackRoute } from "./post-versions/register-content-post-rollback-route.js";
+import { registerContentPostVersionListRoute } from "./post-versions/register-content-post-version-list-route.js";
 
 const pickContentPostVersionDependencies = (dependencies, scopeName, keys) =>
   assertRequiredDependencies(scopeName, pickDependencyKeys(dependencies, keys), keys);

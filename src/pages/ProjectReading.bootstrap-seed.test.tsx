@@ -1,6 +1,6 @@
-import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { fireEvent, render, screen, waitFor } from "@testing-library/react";
 import { MemoryRouter } from "react-router-dom";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import { PUBLIC_ANALYTICS_INGEST_PATH } from "@/lib/public-analytics";
 import ProjectReading from "@/pages/ProjectReading";

@@ -1,9 +1,9 @@
+import { HelpCircle, Info, Rocket, Shield, Sparkles, Users } from "lucide-react";
 import { useMemo } from "react";
 import PublicPageHero from "@/components/PublicPageHero";
+import { publicPageLayoutTokens } from "@/components/public-page-tokens";
 import { Card, CardContent } from "@/components/ui/card";
 import { Separator } from "@/components/ui/separator";
-import { HelpCircle, Info, Users, Rocket, Shield, Sparkles } from "lucide-react";
-import { publicPageLayoutTokens } from "@/components/public-page-tokens";
 import { usePageMeta } from "@/hooks/use-page-meta";
 import { readWindowPublicBootstrap } from "@/lib/public-bootstrap-global";
 import {
@@ -173,7 +173,10 @@ const FAQ = () => {
               {faq.groups.map((group) => {
                 const Icon = resolveFaqIcon(group.icon, HelpCircle);
                 return (
-                  <Card key={group.title} className="border-border/60 bg-card/80 shadow-public-card">
+                  <Card
+                    key={group.title}
+                    className="border-border/60 bg-card/80 shadow-public-card"
+                  >
                     <CardContent className="space-y-5 p-6">
                       <div className="flex items-center gap-3 text-sm font-semibold uppercase tracking-widest text-muted-foreground">
                         <Icon className="h-4 w-4 text-primary/80" />
@@ -207,4 +210,3 @@ const FAQ = () => {
 };
 
 export default FAQ;
-

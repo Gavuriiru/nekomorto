@@ -16,14 +16,14 @@ import {
   PenTool,
   Send,
   Sparkles,
-  Users,
   User,
+  Users,
   Video,
   X,
 } from "lucide-react";
 import { dashboardPageLayoutTokens } from "@/components/dashboard/dashboard-page-tokens";
-import { DEFAULT_SITE_SHARE_IMAGE_ALT, resolveAssetAltText } from "@/lib/image-alt";
 import { type DashboardSettingsLinkTypeItem } from "@/lib/dashboard-settings-cache";
+import { DEFAULT_SITE_SHARE_IMAGE_ALT, resolveAssetAltText } from "@/lib/image-alt";
 import type { SiteSettings } from "@/types/site-settings";
 import {
   getProjectReaderPresetByType,

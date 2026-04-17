@@ -1,15 +1,15 @@
+import { spawn } from "node:child_process";
 import fs from "node:fs";
 import net from "node:net";
 import path from "node:path";
-import { spawn } from "node:child_process";
 
 import {
+  aggregatePublicSurfaceSummaries,
   LIGHTHOUSE_DIR,
   PUBLIC_SURFACE_ROUTE_LABELS,
   PUBLIC_SURFACE_SUMMARY_PATH,
-  WORKSPACE_ROOT,
-  aggregatePublicSurfaceSummaries,
   readJsonFile,
+  WORKSPACE_ROOT,
   writeJsonFile,
 } from "./public-surface-performance-lib.mjs";
 

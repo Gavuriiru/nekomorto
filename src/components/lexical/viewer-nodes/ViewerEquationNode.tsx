@@ -1,7 +1,7 @@
 import katex from "katex";
-import * as React from "react";
 import {
   $applyNodeReplacement,
+  DecoratorNode,
   type DOMConversionMap,
   type DOMConversionOutput,
   type DOMExportOutput,
@@ -9,8 +9,8 @@ import {
   type NodeKey,
   type SerializedLexicalNode,
   type Spread,
-  DecoratorNode,
 } from "lexical";
+import * as React from "react";
 
 export type SerializedViewerEquationNode = Spread<
   {

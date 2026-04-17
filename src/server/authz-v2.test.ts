@@ -2,12 +2,12 @@ import { describe, expect, it } from "vitest";
 
 import {
   AccessRole,
-  PermissionId,
   can,
   computeEffectiveAccessRole,
   computeGrants,
   defaultPermissionsForRole,
   expandLegacyPermissions,
+  PermissionId,
   sanitizePermissionsForStorage,
 } from "../../server/lib/authz.js";
 

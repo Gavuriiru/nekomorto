@@ -1,8 +1,6 @@
 import { deriveAniListMediaOrganization } from "@/lib/anilist-media";
 import { extractPlainTextFromHtml } from "@/lib/html-text";
 import { translateRelation } from "@/lib/project-taxonomy";
-
-import { normalizeUniqueStringList } from "./project-editor-form";
 import type {
   AniListMedia,
   ProjectForm,
@@ -10,6 +8,7 @@ import type {
   ProjectRelation,
   ProjectStaff,
 } from "./dashboard-projects-editor-types";
+import { normalizeUniqueStringList } from "./project-editor-form";
 
 const formatSeason = (season?: string | null, seasonYear?: number | null) => {
   if (!season && !seasonYear) {
@@ -68,7 +67,8 @@ const formatType = (format?: string | null) => {
   }
 };
 
-const stripHtml = (value?: string | null) => extractPlainTextFromHtml(value, { preserveLineBreaks: true });
+const stripHtml = (value?: string | null) =>
+  extractPlainTextFromHtml(value, { preserveLineBreaks: true });
 
 type BuildProjectFormPatchFromAniListArgs = {
   media: AniListMedia;

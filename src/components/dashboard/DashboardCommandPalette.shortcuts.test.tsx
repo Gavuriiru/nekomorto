@@ -1,9 +1,8 @@
 import { cleanup, fireEvent, render, screen } from "@testing-library/react";
 import { LayoutGrid } from "lucide-react";
 import { afterEach, beforeAll, describe, expect, it, vi } from "vitest";
-
-import type { DashboardMenuItem } from "@/components/dashboard-menu";
 import DashboardCommandPalette from "@/components/dashboard/DashboardCommandPalette";
+import type { DashboardMenuItem } from "@/components/dashboard-menu";
 
 class ResizeObserverMock {
   observe() {}

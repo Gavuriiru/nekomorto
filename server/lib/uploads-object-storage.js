@@ -1,12 +1,12 @@
 import fs from "fs";
 import path from "path";
+import { buildUploadFilterScope } from "./upload-filter-scope.js";
 import {
   attachUploadMediaMetadata,
   computeBufferSha256,
   isRasterUploadMime,
   resolveUploadAbsolutePath,
 } from "./upload-media.js";
-import { buildUploadFilterScope } from "./upload-filter-scope.js";
 import {
   getUploadAssetDescriptors,
   readUploadStorageProvider,

@@ -1,5 +1,5 @@
-import fs from "fs";
 import crypto from "crypto";
+import fs from "fs";
 import readline from "readline";
 
 const args = new Set(process.argv.slice(2));
