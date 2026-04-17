@@ -4,8 +4,8 @@ import {
   buildDirectRouteDependencies,
   DIRECT_ROUTE_DEPENDENCY_KEYS,
 } from "../../server/bootstrap/build-direct-route-dependencies.js";
-import { buildDirectRouteRegistrationDependencies } from "../../server/bootstrap/build-direct-route-registration-dependencies.js";
 import { buildDirectRouteRegistrationDependenciesFromRoot } from "../../server/bootstrap/build-direct-route-registration-dependencies-from-root.js";
+import { buildDirectRouteRegistrationDependencies } from "../../server/bootstrap/build-direct-route-registration-dependencies.js";
 import { buildOperationalMonitoringRuntimeDependencies } from "../../server/bootstrap/build-operational-monitoring-runtime-dependencies.js";
 import { buildProjectRuntimeDependencies } from "../../server/bootstrap/build-project-runtime-dependencies.js";
 import { buildPublicRuntimeDependencies } from "../../server/bootstrap/build-public-runtime-dependencies.js";

@@ -1,5 +1,3 @@
-import { Loader2 } from "lucide-react";
-import type { ChangeEvent, RefObject } from "react";
 import DashboardActionButton from "@/components/dashboard/DashboardActionButton";
 import { Input } from "@/components/dashboard/dashboard-form-controls";
 import {
@@ -10,6 +8,8 @@ import {
 } from "@/components/ui/accordion";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Label } from "@/components/ui/label";
+import { Loader2 } from "lucide-react";
+import type { ChangeEvent, RefObject } from "react";
 
 import ChapterEditorAccordionHeader from "./ChapterEditorAccordionHeader";
 

@@ -1,15 +1,15 @@
-import { useMemo } from "react";
-import { Link } from "react-router-dom";
 import { dashboardStrongSurfaceHoverClassName } from "@/components/dashboard/dashboard-page-tokens";
-import UploadPicture from "@/components/UploadPicture";
 import { Badge } from "@/components/ui/badge";
 import { floatingSurfaceShadowClassName } from "@/components/ui/floating-surface";
+import UploadPicture from "@/components/UploadPicture";
 import { useDynamicSynopsisClamp } from "@/hooks/use-dynamic-synopsis-clamp";
 import { PROJECT_COVER_ASPECT_RATIO } from "@/lib/project-card-layout";
 import { uiCopy } from "@/lib/ui-copy";
 import type { UploadMediaVariantsMap } from "@/lib/upload-variants";
 import { cn } from "@/lib/utils";
 import type { SearchSuggestion } from "@/types/search-suggestion";
+import { useMemo } from "react";
+import { Link } from "react-router-dom";
 
 type DashboardSearchPopoverProps = {
   hasMinimumSearchQueryLength: boolean;

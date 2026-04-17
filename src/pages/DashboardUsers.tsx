@@ -1,28 +1,6 @@
-import {
-  BadgeCheck,
-  Camera,
-  Check,
-  Clock,
-  Code,
-  Globe,
-  GripVertical,
-  Languages,
-  Layers,
-  MessageCircle,
-  Paintbrush,
-  Palette,
-  PenTool,
-  Play,
-  Sparkles,
-  Trash2,
-  UserRound,
-  Video,
-  X,
-} from "lucide-react";
-import QRCode from "qrcode";
-import { type DragEvent, useCallback, useEffect, useMemo, useState } from "react";
-import { useNavigate, useSearchParams } from "react-router-dom";
 import DashboardShell from "@/components/DashboardShell";
+import ReorderControls from "@/components/ReorderControls";
+import ThemedSvgLogo from "@/components/ThemedSvgLogo";
 import DashboardActionButton, {
   default as Button,
 } from "@/components/dashboard/DashboardActionButton";
@@ -43,8 +21,6 @@ import {
 } from "@/components/dashboard/dashboard-page-tokens";
 import ProjectEditorAccordionHeader from "@/components/dashboard/project-editor/ProjectEditorAccordionHeader";
 import LazyImageLibraryDialog from "@/components/lazy/LazyImageLibraryDialog";
-import ReorderControls from "@/components/ReorderControls";
-import ThemedSvgLogo from "@/components/ThemedSvgLogo";
 import {
   Accordion,
   AccordionContent,
@@ -74,6 +50,30 @@ import { getApiBase } from "@/lib/api-base";
 import { apiFetch } from "@/lib/api-client";
 import { buildAvatarRenderUrl } from "@/lib/avatar-render-url";
 import { filterImageLibraryFoldersByAccess } from "@/lib/image-library-scope";
+import {
+  BadgeCheck,
+  Camera,
+  Check,
+  Clock,
+  Code,
+  Globe,
+  GripVertical,
+  Languages,
+  Layers,
+  MessageCircle,
+  Paintbrush,
+  Palette,
+  PenTool,
+  Play,
+  Sparkles,
+  Trash2,
+  UserRound,
+  Video,
+  X,
+} from "lucide-react";
+import QRCode from "qrcode";
+import { type DragEvent, useCallback, useEffect, useMemo, useState } from "react";
+import { useNavigate, useSearchParams } from "react-router-dom";
 
 const FAVORITE_WORK_CATEGORIES = ["manga", "anime"] as const;
 type FavoriteWorkCategory = (typeof FAVORITE_WORK_CATEGORIES)[number];

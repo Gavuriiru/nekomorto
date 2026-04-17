@@ -6,12 +6,12 @@
  *
  */
 
-import type {JSX} from 'react';
+import type { JSX } from "react";
 
-import './FlashMessage.css';
+import "./FlashMessage.css";
 
-import {ReactNode} from 'react';
-import {createPortal} from 'react-dom';
+import { ReactNode } from "react";
+import { createPortal } from "react-dom";
 
 export interface FlashMessageProps {
   children: ReactNode;

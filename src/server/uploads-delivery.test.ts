@@ -1,6 +1,6 @@
+import fs from "fs";
 import { once } from "node:events";
 import { Readable, Writable } from "node:stream";
-import fs from "fs";
 import os from "os";
 import path from "path";
 import { afterEach, describe, expect, it, vi } from "vitest";

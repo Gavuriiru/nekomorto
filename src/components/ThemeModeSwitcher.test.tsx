@@ -1,7 +1,7 @@
-import { fireEvent, render, screen } from "@testing-library/react";
-import { beforeEach, describe, expect, it, vi } from "vitest";
 import ThemeModeSwitcher from "@/components/ThemeModeSwitcher";
 import { THEME_MODE_PRESERVE_MOTION_ATTRIBUTE } from "@/hooks/theme-mode-context";
+import { fireEvent, render, screen } from "@testing-library/react";
+import { beforeEach, describe, expect, it, vi } from "vitest";
 
 const setPreferenceMock = vi.hoisted(() => vi.fn());
 const useThemeModeMock = vi.hoisted(() => vi.fn());

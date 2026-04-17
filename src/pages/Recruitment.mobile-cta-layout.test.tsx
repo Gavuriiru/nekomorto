@@ -1,8 +1,8 @@
-import { render, screen, waitFor } from "@testing-library/react";
-import { beforeEach, describe, expect, it, vi } from "vitest";
 import { defaultSettings, mergeSettings } from "@/hooks/site-settings-context";
 import Recruitment from "@/pages/Recruitment";
 import type { SiteSettings } from "@/types/site-settings";
+import { render, screen, waitFor } from "@testing-library/react";
+import { beforeEach, describe, expect, it, vi } from "vitest";
 
 const apiFetchMock = vi.hoisted(() => vi.fn());
 const useSiteSettingsMock = vi.hoisted(() => vi.fn());

@@ -1,4 +1,3 @@
-import { useCallback, useEffect, useRef, useState } from "react";
 import { toast } from "@/components/ui/use-toast";
 import { defaultSettings, mergeSettings } from "@/hooks/site-settings-context";
 import { useDashboardRefreshToast } from "@/hooks/use-dashboard-refresh-toast";
@@ -8,6 +7,7 @@ import {
   writeDashboardSettingsCache,
 } from "@/lib/dashboard-settings-cache";
 import type { SiteSettings } from "@/types/site-settings";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { type LinkTypeItem, normalizeDefaultShareImageSettings } from "./shared";
 
 type UseDashboardSettingsLoadingOptions = {

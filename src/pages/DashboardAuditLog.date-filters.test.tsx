@@ -1,8 +1,8 @@
-﻿import { fireEvent, render, screen, waitFor } from "@testing-library/react";
+﻿import DashboardAuditLog from "@/pages/DashboardAuditLog";
+import { fireEvent, render, screen, waitFor } from "@testing-library/react";
 import type { ReactNode } from "react";
 import { MemoryRouter } from "react-router-dom";
 import { beforeEach, describe, expect, it, vi } from "vitest";
-import DashboardAuditLog from "@/pages/DashboardAuditLog";
 
 const apiFetchMock = vi.hoisted(() => vi.fn());
 const toastMock = vi.hoisted(() => vi.fn());

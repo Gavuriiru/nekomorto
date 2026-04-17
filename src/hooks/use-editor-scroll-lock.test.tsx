@@ -1,6 +1,6 @@
+import { useEditorScrollLock } from "@/hooks/use-editor-scroll-lock";
 import { renderHook } from "@testing-library/react";
 import { beforeEach, describe, expect, it } from "vitest";
-import { useEditorScrollLock } from "@/hooks/use-editor-scroll-lock";
 
 const EDITOR_SCROLL_LOCKED_CLASS = "editor-scroll-locked";
 const EDITOR_SCROLL_LOCK_COUNT_ATTR = "data-editor-scroll-lock-count";

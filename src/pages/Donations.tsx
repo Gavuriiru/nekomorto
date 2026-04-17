@@ -1,30 +1,3 @@
-import {
-  BadgeDollarSign,
-  Banknote,
-  Bitcoin,
-  Check,
-  CircleDollarSign,
-  Coins,
-  Copy,
-  ExternalLink,
-  Flame,
-  Heart,
-  HeartHandshake,
-  HelpCircle,
-  Info,
-  Landmark,
-  PiggyBank,
-  QrCode,
-  Rocket,
-  Server,
-  Shield,
-  Sparkles,
-  Users,
-  Wallet,
-  Wand2,
-  Zap,
-} from "lucide-react";
-import { useEffect, useMemo, useRef, useState } from "react";
 import PublicPageHero from "@/components/PublicPageHero";
 import ThemedSvgMaskIcon from "@/components/ThemedSvgMaskIcon";
 import {
@@ -55,6 +28,33 @@ import {
 import { buildMonthlyGoalSummary } from "@/lib/donations-monthly-goal";
 import { readWindowPublicBootstrap } from "@/lib/public-bootstrap-global";
 import type { DonationsCryptoService } from "@/types/public-pages";
+import {
+  BadgeDollarSign,
+  Banknote,
+  Bitcoin,
+  Check,
+  CircleDollarSign,
+  Coins,
+  Copy,
+  ExternalLink,
+  Flame,
+  Heart,
+  HeartHandshake,
+  HelpCircle,
+  Info,
+  Landmark,
+  PiggyBank,
+  QrCode,
+  Rocket,
+  Server,
+  Shield,
+  Sparkles,
+  Users,
+  Wallet,
+  Wand2,
+  Zap,
+} from "lucide-react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import {
   buildInstitutionalOgImageAlt,
   buildInstitutionalOgRevision,
@@ -615,7 +615,7 @@ const Donations = () => {
               >
                 <Card
                   data-testid="donations-crypto-card"
-                  className={`${publicStackedSurfaceClassName} border-0 bg-card/90`}
+                  className={`${publicStackedSurfaceClassName} border-0 bg-card/90 shadow-public-card`}
                 >
                   <CardContent className="space-y-4 p-5 md:space-y-5 md:p-6">
                     <div
@@ -669,8 +669,7 @@ const Donations = () => {
                                       <ThemedSvgMaskIcon
                                         url={tabLogoUrl}
                                         label={
-                                          normalizedService.name ||
-                                          `Serviço cripto ${index + 1}`
+                                          normalizedService.name || `Serviço cripto ${index + 1}`
                                         }
                                         decorative
                                         testId={`donations-crypto-tab-logo-${index}`}
@@ -740,7 +739,7 @@ const Donations = () => {
               >
                 <Card
                   data-testid="donations-donors-card"
-                  className={`${publicStackedSurfaceClassName} bg-card/80`}
+                  className={`${publicStackedSurfaceClassName} bg-card/80 shadow-public-card`}
                 >
                   <CardContent className="p-6 md:p-8">
                     <div className="flex items-center gap-3 text-xl font-semibold text-foreground">

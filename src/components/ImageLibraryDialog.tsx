@@ -1,5 +1,5 @@
-import "react-advanced-cropper/dist/style.css";
 import "@/styles/image-library.css";
+import "react-advanced-cropper/dist/style.css";
 
 import DashboardActionButton from "@/components/dashboard/DashboardActionButton";
 import ImageLibraryBrowserPane from "@/components/image-library/ImageLibraryBrowserPane";

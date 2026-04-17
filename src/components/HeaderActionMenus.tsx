@@ -1,5 +1,3 @@
-import { LogOut, Menu } from "lucide-react";
-import { Link } from "react-router-dom";
 import type { DashboardMenuItem } from "@/components/dashboard-menu";
 import ThemeModeSwitcher from "@/components/ThemeModeSwitcher";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
@@ -14,6 +12,8 @@ import {
 import { getNavbarIcon } from "@/lib/navbar-icons";
 import type { PublicBootstrapCurrentUser } from "@/lib/public-bootstrap-global";
 import { uiCopy } from "@/lib/ui-copy";
+import { LogOut, Menu } from "lucide-react";
+import { Link } from "react-router-dom";
 
 export type HeaderActionMenuNavbarLink = {
   label: string;

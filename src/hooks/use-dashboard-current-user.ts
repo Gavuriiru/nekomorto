@@ -1,9 +1,9 @@
-import { useCallback, useEffect, useRef, useState } from "react";
 import type { DashboardSessionUser } from "@/hooks/dashboard-session-context";
 import { useDashboardSession } from "@/hooks/use-dashboard-session";
 import { getApiBase } from "@/lib/api-base";
 import { apiFetch } from "@/lib/api-client";
 import { readWindowPublicBootstrapCurrentUser } from "@/lib/public-bootstrap-global";
+import { useCallback, useEffect, useRef, useState } from "react";
 
 type UseDashboardCurrentUserOptions = {
   revalidateBootstrap?: boolean;

@@ -1,4 +1,4 @@
-const SCROLLABLE_OVERFLOW_VALUES = new Set(['auto', 'scroll', 'overlay']);
+const SCROLLABLE_OVERFLOW_VALUES = new Set(["auto", "scroll", "overlay"]);
 
 const hasScrollableOverflow = (value: string) =>
   SCROLLABLE_OVERFLOW_VALUES.has(value.trim().toLowerCase());
@@ -27,7 +27,9 @@ export const getStickyTopPx = (toolbar: HTMLElement): number => {
 };
 
 export const getScrollRootTop = (scrollRoot: HTMLElement | Window): number =>
-  scrollRoot instanceof HTMLElement ? scrollRoot.getBoundingClientRect().top : 0;
+  scrollRoot instanceof HTMLElement
+    ? scrollRoot.getBoundingClientRect().top
+    : 0;
 
 export const isToolbarStickyStuck = ({
   toolbarTop,

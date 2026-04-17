@@ -38,8 +38,6 @@ type UseImageLibraryUploadMutationsResult = {
 export const useImageLibraryUploadMutations = ({
   apiBase,
   cropAvatar,
-  cropSlot,
-  cropTargetFolder,
   loadUploads,
   mode,
   onRequestRevealUpload,

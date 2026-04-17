@@ -1,3 +1,14 @@
+import PublicPageHero from "@/components/PublicPageHero";
+import {
+  publicInteractiveStackedSurfaceClassName,
+  publicPageLayoutTokens,
+} from "@/components/public-page-tokens";
+import { Button } from "@/components/ui/button";
+import { Card, CardContent } from "@/components/ui/card";
+import { usePageMeta } from "@/hooks/use-page-meta";
+import { usePublicBootstrap } from "@/hooks/use-public-bootstrap";
+import { useSiteSettings } from "@/hooks/use-site-settings";
+import { readWindowPublicBootstrap } from "@/lib/public-bootstrap-global";
 import {
   Languages,
   Layers,
@@ -10,17 +21,6 @@ import {
   Video,
 } from "lucide-react";
 import { useMemo } from "react";
-import PublicPageHero from "@/components/PublicPageHero";
-import {
-  publicInteractiveStackedSurfaceClassName,
-  publicPageLayoutTokens,
-} from "@/components/public-page-tokens";
-import { Button } from "@/components/ui/button";
-import { Card, CardContent } from "@/components/ui/card";
-import { usePageMeta } from "@/hooks/use-page-meta";
-import { usePublicBootstrap } from "@/hooks/use-public-bootstrap";
-import { useSiteSettings } from "@/hooks/use-site-settings";
-import { readWindowPublicBootstrap } from "@/lib/public-bootstrap-global";
 import {
   buildInstitutionalOgImageAlt,
   buildInstitutionalOgRevision,

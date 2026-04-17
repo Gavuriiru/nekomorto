@@ -1,27 +1,30 @@
-import {fireEvent, render, screen} from '@testing-library/react';
-import {beforeEach, describe, expect, it, vi} from 'vitest';
+import { fireEvent, render, screen } from "@testing-library/react";
+import { beforeEach, describe, expect, it, vi } from "vitest";
 
-const {restoreSelectionForInsertionSpy} = vi.hoisted(() => ({
+const { restoreSelectionForInsertionSpy } = vi.hoisted(() => ({
   restoreSelectionForInsertionSpy: vi.fn(),
 }));
 
-vi.mock('@lexical/react/LexicalComposerContext', () => ({
+vi.mock("@lexical/react/LexicalComposerContext", () => ({
   useLexicalComposerContext: () => [null],
 }));
 
-vi.mock('@/lexical-playground/plugins/ImagesPlugin/selectionSnapshot', () => ({
+vi.mock("@/lexical-playground/plugins/ImagesPlugin/selectionSnapshot", () => ({
   restoreSelectionForInsertion: restoreSelectionForInsertionSpy,
 }));
 
-import {INSERT_POLL_COMMAND, InsertPollDialog} from '@/lexical-playground/plugins/PollPlugin';
+import {
+  INSERT_POLL_COMMAND,
+  InsertPollDialog,
+} from "@/lexical-playground/plugins/PollPlugin";
 
-describe('InsertPollDialog', () => {
+describe("InsertPollDialog", () => {
   beforeEach(() => {
     restoreSelectionForInsertionSpy.mockReset();
   });
 
-  it('restaura o snapshot antes de inserir a enquete no editor ativo', () => {
-    const selectionSnapshot = {anchor: {key: 'a'}, focus: {key: 'b'}};
+  it("restaura o snapshot antes de inserir a enquete no editor ativo", () => {
+    const selectionSnapshot = { anchor: { key: "a" }, focus: { key: "b" } };
     const activeEditor = {
       dispatchCommand: vi.fn(() => true),
       update: vi.fn((callback: () => void) => callback()),
@@ -36,10 +39,10 @@ describe('InsertPollDialog', () => {
       />,
     );
 
-    fireEvent.change(screen.getByRole('textbox'), {
-      target: {value: 'Pergunta teste'},
+    fireEvent.change(screen.getByRole("textbox"), {
+      target: { value: "Pergunta teste" },
     });
-    fireEvent.click(screen.getByRole('button', {name: /confirmar/i}));
+    fireEvent.click(screen.getByRole("button", { name: /confirmar/i }));
 
     expect(activeEditor.update).toHaveBeenCalledTimes(1);
     expect(restoreSelectionForInsertionSpy).toHaveBeenCalledWith(
@@ -47,13 +50,13 @@ describe('InsertPollDialog', () => {
     );
     expect(activeEditor.dispatchCommand).toHaveBeenCalledWith(
       INSERT_POLL_COMMAND,
-      'Pergunta teste',
+      "Pergunta teste",
     );
     expect(onClose).toHaveBeenCalledTimes(1);
   });
 
-  it('usa apenas a selecao do editor de fallback quando o editor ativo nao trata o comando', () => {
-    const selectionSnapshot = {anchor: {key: 'a'}, focus: {key: 'b'}};
+  it("usa apenas a selecao do editor de fallback quando o editor ativo nao trata o comando", () => {
+    const selectionSnapshot = { anchor: { key: "a" }, focus: { key: "b" } };
     const activeEditor = {
       dispatchCommand: vi.fn(() => false),
       update: vi.fn((callback: () => void) => callback()),
@@ -72,10 +75,10 @@ describe('InsertPollDialog', () => {
       />,
     );
 
-    fireEvent.change(screen.getByRole('textbox'), {
-      target: {value: 'Pergunta fallback'},
+    fireEvent.change(screen.getByRole("textbox"), {
+      target: { value: "Pergunta fallback" },
     });
-    fireEvent.click(screen.getByRole('button', {name: /confirmar/i}));
+    fireEvent.click(screen.getByRole("button", { name: /confirmar/i }));
 
     expect(restoreSelectionForInsertionSpy).toHaveBeenNthCalledWith(
       1,
@@ -85,7 +88,7 @@ describe('InsertPollDialog', () => {
     expect(fallbackEditor.update).toHaveBeenCalledTimes(1);
     expect(fallbackEditor.dispatchCommand).toHaveBeenCalledWith(
       INSERT_POLL_COMMAND,
-      'Pergunta fallback',
+      "Pergunta fallback",
     );
   });
 });

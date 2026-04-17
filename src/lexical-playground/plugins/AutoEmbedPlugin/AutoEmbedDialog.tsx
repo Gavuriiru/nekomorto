@@ -6,21 +6,21 @@
  *
  */
 
-import type {JSX} from 'react';
+import type { JSX } from "react";
 
-import type {EmbedMatchResult} from '@lexical/react/LexicalAutoEmbedPlugin';
+import type { EmbedMatchResult } from "@lexical/react/LexicalAutoEmbedPlugin";
 
-import {URL_MATCHER} from '@lexical/react/LexicalAutoEmbedPlugin';
-import {useLexicalComposerContext} from '@lexical/react/LexicalComposerContext';
-import {useMemo, useState} from 'react';
+import { URL_MATCHER } from "@lexical/react/LexicalAutoEmbedPlugin";
+import { useLexicalComposerContext } from "@lexical/react/LexicalComposerContext";
+import { useMemo, useState } from "react";
 
-import Button from '../../ui/Button';
-import {DialogActions} from '../../ui/Dialog';
+import Button from "../../ui/Button";
+import { DialogActions } from "../../ui/Dialog";
 import {
   restoreSelectionForInsertion,
   type RangeSelectionSnapshot,
-} from '../ImagesPlugin/selectionSnapshot';
-import type {PlaygroundEmbedConfig} from './AutoEmbedConfig';
+} from "../ImagesPlugin/selectionSnapshot";
+import type { PlaygroundEmbedConfig } from "./AutoEmbedConfig";
 
 const debounce = (callback: (text: string) => void, delay: number) => {
   let timeoutId: number;
@@ -42,7 +42,7 @@ export function AutoEmbedDialog({
   onClose: () => void;
   selectionSnapshot?: RangeSelectionSnapshot | null;
 }): JSX.Element {
-  const [text, setText] = useState('');
+  const [text, setText] = useState("");
   const [editor] = useLexicalComposerContext();
   const [embedResult, setEmbedResult] = useState<EmbedMatchResult | null>(null);
 
@@ -74,7 +74,7 @@ export function AutoEmbedDialog({
   };
 
   return (
-    <div style={{width: '600px'}}>
+    <div style={{ width: "600px" }}>
       <div className="Input__wrapper">
         <input
           type="text"
@@ -83,7 +83,7 @@ export function AutoEmbedDialog({
           value={text}
           data-test-id={`${embedConfig.type}-embed-modal-url`}
           onChange={(e) => {
-            const {value} = e.target;
+            const { value } = e.target;
             setText(value);
             validateText(value);
           }}
@@ -93,7 +93,8 @@ export function AutoEmbedDialog({
         <Button
           disabled={!embedResult}
           onClick={onClick}
-          data-test-id={`${embedConfig.type}-embed-modal-submit-btn`}>
+          data-test-id={`${embedConfig.type}-embed-modal-submit-btn`}
+        >
           Embed
         </Button>
       </DialogActions>

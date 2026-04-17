@@ -1,9 +1,9 @@
-import type { ReactNode } from "react";
-import { lazy } from "react";
-import { Route, Routes } from "react-router-dom";
 import { DashboardPreferencesProvider } from "@/hooks/dashboard-preferences-provider";
 import { DashboardSessionProvider } from "@/hooks/dashboard-session-provider";
 import "@/styles/project-editor.css";
+import type { ReactNode } from "react";
+import { lazy } from "react";
+import { Route, Routes } from "react-router-dom";
 
 const RequireAuth = lazy(() => import("@/components/RequireAuth"));
 const Dashboard = lazy(() => import("@/pages/Dashboard"));

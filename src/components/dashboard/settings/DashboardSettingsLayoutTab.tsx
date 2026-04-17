@@ -1,32 +1,17 @@
-import { Download, GripVertical, Link2, Plus, Save, Trash2, User } from "lucide-react";
-import { useMemo } from "react";
+import { Combobox, Input, Textarea } from "@/components/dashboard/dashboard-form-controls";
 import DashboardActionButton from "@/components/dashboard/DashboardActionButton";
 import DashboardFieldStack from "@/components/dashboard/DashboardFieldStack";
-import DashboardPageBadge from "@/components/dashboard/DashboardPageBadge";
-import DashboardReaderPresetCard from "@/components/dashboard/DashboardReaderPresetCard";
-import DashboardSeoRedirectsPanel from "@/components/dashboard/DashboardSeoRedirectsPanel";
-import { Combobox, Input, Textarea } from "@/components/dashboard/dashboard-form-controls";
-import {
-  dashboardStrongFocusFieldClassName,
-  dashboardStrongFocusScopeClassName,
-  dashboardStrongSurfaceHoverClassName,
-} from "@/components/dashboard/dashboard-page-tokens";
 import ReorderControls from "@/components/ReorderControls";
 import { Card, CardContent } from "@/components/ui/card";
-import { ColorPicker } from "@/components/ui/color-picker";
 import type { ComboboxOption } from "@/components/ui/combobox";
 import { Label } from "@/components/ui/label";
-import { Switch } from "@/components/ui/switch";
 import { TabsContent } from "@/components/ui/tabs";
 import { navbarIconOptions } from "@/lib/navbar-icons";
+import { GripVertical, Link2, Plus, Trash2 } from "lucide-react";
+import { useMemo } from "react";
 import { useDashboardSettingsContext } from "./dashboard-settings-context";
 import {
-  brandingLogoEditorFields,
   dashboardSettingsCardClassName,
-  type FooterBrandMode,
-  type NavbarBrandMode,
-  normalizeLinkTypeId,
-  readerProjectTypeMeta,
   responsiveCompactRowDeleteButtonClass,
   responsiveCompactSelfEndDeleteButtonClass,
   responsiveCompactTextareaRowClass,
@@ -34,24 +19,8 @@ import {
   responsiveFooterSocialDesktopRemoveButtonClass,
   responsiveFooterSocialDragButtonClass,
   responsiveFooterSocialTopRowClass,
-  responsiveSvgCardColorClass,
-  responsiveSvgCardDesktopRemoveButtonClass,
   responsiveSvgCardMobileRemoveButtonClass,
-  responsiveSvgCardPickerClusterClass,
-  responsiveSvgCardPreviewClass,
-  responsiveSvgCardPreviewStatusClass,
   responsiveSvgCardRowClass,
-  responsiveSvgCardTintClass,
-  responsiveSvgCardTintLabelClass,
-  responsiveSvgCardUploadActionClass,
-  responsiveSvgCardUploadLabelClass,
-  responsiveTranslationActionColClass,
-  responsiveTranslationTableClass,
-  responsiveTranslationTermColClass,
-  responsiveTranslationValueColClass,
-  roleIconMap,
-  roleIconOptions,
-  seoLogoEditorFields,
   socialIconMap,
 } from "./shared";
 

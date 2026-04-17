@@ -1,7 +1,7 @@
-import { act, fireEvent, render, screen, waitFor } from "@testing-library/react";
-import { beforeEach, describe, expect, it, vi } from "vitest";
 import DashboardSeoRedirectsPanel from "@/components/dashboard/DashboardSeoRedirectsPanel";
 import { defaultSettings } from "@/hooks/site-settings-context";
+import { act, fireEvent, render, screen, waitFor } from "@testing-library/react";
+import { beforeEach, describe, expect, it, vi } from "vitest";
 
 const { apiFetchMock, refreshMock } = vi.hoisted(() => ({
   apiFetchMock: vi.fn(),

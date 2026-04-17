@@ -1,4 +1,3 @@
-import type { Dispatch, SetStateAction } from "react";
 import { ImageLibraryDialogLoadingGrid } from "@/components/ImageLibraryDialogLoading";
 import ImageLibraryBrowserCardGrid from "@/components/image-library/ImageLibraryBrowserCardGrid";
 import type { LibraryImageItem, ProjectImageGroup } from "@/components/image-library/types";
@@ -8,6 +7,7 @@ import {
   AccordionItem,
   AccordionTrigger,
 } from "@/components/ui/accordion";
+import type { Dispatch, SetStateAction } from "react";
 
 type ImageLibraryProjectSectionProps = {
   allowUploadManagementActions: boolean;

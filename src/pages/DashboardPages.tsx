@@ -1,3 +1,61 @@
+import { Combobox, Input, Textarea } from "@/components/dashboard/dashboard-form-controls";
+import {
+  dashboardAnimationDelay,
+  dashboardMotionDelays,
+} from "@/components/dashboard/dashboard-motion";
+import {
+  dashboardPageLayoutTokens,
+  dashboardSubtleSurfaceHoverClassName,
+} from "@/components/dashboard/dashboard-page-tokens";
+import DashboardActionButton, {
+  default as Button,
+} from "@/components/dashboard/DashboardActionButton";
+import DashboardFieldStack from "@/components/dashboard/DashboardFieldStack";
+import DashboardPageBadge from "@/components/dashboard/DashboardPageBadge";
+import DashboardAutosaveStatus from "@/components/DashboardAutosaveStatus";
+import DashboardShell from "@/components/DashboardShell";
+import LazyImageLibraryDialog from "@/components/lazy/LazyImageLibraryDialog";
+import ReorderControls from "@/components/ReorderControls";
+import ThemedSvgMaskIcon from "@/components/ThemedSvgMaskIcon";
+import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
+import AsyncState from "@/components/ui/async-state";
+import { Card, CardContent } from "@/components/ui/card";
+import type { ComboboxOption } from "@/components/ui/combobox";
+import { Label } from "@/components/ui/label";
+import { Skeleton } from "@/components/ui/skeleton";
+import { Switch } from "@/components/ui/switch";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { toast } from "@/components/ui/use-toast";
+import {
+  autosaveRuntimeConfig,
+  autosaveStorageKeys,
+  readAutosavePreference,
+  writeAutosavePreference,
+} from "@/config/autosave";
+import { useAutosave } from "@/hooks/use-autosave";
+import { useDashboardCurrentUser } from "@/hooks/use-dashboard-current-user";
+import { useDashboardRefreshToast } from "@/hooks/use-dashboard-refresh-toast";
+import { usePageMeta } from "@/hooks/use-page-meta";
+import { usePixQrCode } from "@/hooks/use-pix-qr-code";
+import { useSiteSettings } from "@/hooks/use-site-settings";
+import { getApiBase } from "@/lib/api-base";
+import { apiFetch } from "@/lib/api-client";
+import { normalizeAssetUrl } from "@/lib/asset-url";
+import { applyBeforeUnloadCompatibility } from "@/lib/before-unload";
+import { uploadDashboardImageAsset } from "@/lib/dashboard-upload-assets";
+import {
+  DEFAULT_DONATIONS_CRYPTO_ICON,
+  emptyDonationsCryptoService,
+  normalizeDonationsCryptoServices,
+} from "@/lib/donations-crypto";
+import {
+  finalizeMonthlyGoalAmountInput,
+  normalizeMonthlyGoalAmountInput,
+  sanitizeMonthlyGoalSupportersInput,
+} from "@/lib/donations-monthly-goal";
+import { getShareImageAltFallback, resolveAssetAltText } from "@/lib/image-alt";
+import { filterImageLibraryFoldersByAccess } from "@/lib/image-library-scope";
+import type { DonationsCryptoService } from "@/types/public-pages";
 import {
   BadgeDollarSign,
   Banknote,
@@ -42,65 +100,6 @@ import {
   useState,
 } from "react";
 import { useLocation, useNavigate, useSearchParams } from "react-router-dom";
-import DashboardAutosaveStatus from "@/components/DashboardAutosaveStatus";
-import DashboardShell from "@/components/DashboardShell";
-import DashboardActionButton, {
-  default as Button,
-} from "@/components/dashboard/DashboardActionButton";
-import DashboardFieldStack from "@/components/dashboard/DashboardFieldStack";
-import DashboardPageBadge from "@/components/dashboard/DashboardPageBadge";
-import ThemedSvgMaskIcon from "@/components/ThemedSvgMaskIcon";
-import { Combobox, Input, Textarea } from "@/components/dashboard/dashboard-form-controls";
-import {
-  dashboardAnimationDelay,
-  dashboardMotionDelays,
-} from "@/components/dashboard/dashboard-motion";
-import {
-  dashboardPageLayoutTokens,
-  dashboardSubtleSurfaceHoverClassName,
-} from "@/components/dashboard/dashboard-page-tokens";
-import LazyImageLibraryDialog from "@/components/lazy/LazyImageLibraryDialog";
-import ReorderControls from "@/components/ReorderControls";
-import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
-import AsyncState from "@/components/ui/async-state";
-import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
-import { Card, CardContent } from "@/components/ui/card";
-import type { ComboboxOption } from "@/components/ui/combobox";
-import { Label } from "@/components/ui/label";
-import { Skeleton } from "@/components/ui/skeleton";
-import { Switch } from "@/components/ui/switch";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { toast } from "@/components/ui/use-toast";
-import {
-  autosaveRuntimeConfig,
-  autosaveStorageKeys,
-  readAutosavePreference,
-  writeAutosavePreference,
-} from "@/config/autosave";
-import { useAutosave } from "@/hooks/use-autosave";
-import { useDashboardCurrentUser } from "@/hooks/use-dashboard-current-user";
-import { useDashboardRefreshToast } from "@/hooks/use-dashboard-refresh-toast";
-import { usePageMeta } from "@/hooks/use-page-meta";
-import { usePixQrCode } from "@/hooks/use-pix-qr-code";
-import { useSiteSettings } from "@/hooks/use-site-settings";
-import { getApiBase } from "@/lib/api-base";
-import { apiFetch } from "@/lib/api-client";
-import { normalizeAssetUrl } from "@/lib/asset-url";
-import { applyBeforeUnloadCompatibility } from "@/lib/before-unload";
-import { uploadDashboardImageAsset } from "@/lib/dashboard-upload-assets";
-import {
-  DEFAULT_DONATIONS_CRYPTO_ICON,
-  emptyDonationsCryptoService,
-  normalizeDonationsCryptoServices,
-} from "@/lib/donations-crypto";
-import {
-  finalizeMonthlyGoalAmountInput,
-  normalizeMonthlyGoalAmountInput,
-  sanitizeMonthlyGoalSupportersInput,
-} from "@/lib/donations-monthly-goal";
-import { getShareImageAltFallback, resolveAssetAltText } from "@/lib/image-alt";
-import { filterImageLibraryFoldersByAccess } from "@/lib/image-library-scope";
-import type { DonationsCryptoService } from "@/types/public-pages";
 
 type AboutHighlight = { label: string; text: string; icon: string };
 type AboutValue = { title: string; description: string; icon: string };
@@ -2410,7 +2409,9 @@ const DashboardPagesContent = ({ currentUser }: DashboardPagesContentProps) => {
                                             }}
                                             disabled={isUploadingIcon}
                                           />
-                                          <p className={`text-xs ${dashboardPagesMetaTextClassName}`}>
+                                          <p
+                                            className={`text-xs ${dashboardPagesMetaTextClassName}`}
+                                          >
                                             Envie um SVG para substituir o ícone padrão.
                                           </p>
                                         </DashboardFieldStack>
@@ -2480,27 +2481,29 @@ const DashboardPagesContent = ({ currentUser }: DashboardPagesContentProps) => {
                                           </p>
                                           <div className="flex items-center gap-3 rounded-xl border border-border/60 bg-background/70 p-3">
                                             <div className="flex h-14 w-14 items-center justify-center overflow-hidden rounded-2xl border border-border/60 bg-background">
-                                              {previewLogoUrl ? shouldTintCustomIcon ? (
-                                                <ThemedSvgMaskIcon
-                                                  url={normalizeAssetUrl(previewLogoUrl)}
-                                                  label={
-                                                    service.name
-                                                      ? `Logo ${service.name}`
-                                                      : `Logo do servico cripto ${index + 1}`
-                                                  }
-                                                  className="h-10 w-10 rounded-xl bg-background/90 p-1.5"
-                                                  color={settings.theme.accent || undefined}
-                                                />
-                                              ) : (
-                                                <img
-                                                  src={normalizeAssetUrl(previewLogoUrl)}
-                                                  alt={
-                                                    service.name
-                                                      ? `Logo ${service.name}`
-                                                      : `Logo do servico cripto ${index + 1}`
-                                                  }
-                                                  className="h-full w-full object-cover"
-                                                />
+                                              {previewLogoUrl ? (
+                                                shouldTintCustomIcon ? (
+                                                  <ThemedSvgMaskIcon
+                                                    url={normalizeAssetUrl(previewLogoUrl)}
+                                                    label={
+                                                      service.name
+                                                        ? `Logo ${service.name}`
+                                                        : `Logo do servico cripto ${index + 1}`
+                                                    }
+                                                    className="h-10 w-10 rounded-xl bg-background/90 p-1.5"
+                                                    color={settings.theme.accent || undefined}
+                                                  />
+                                                ) : (
+                                                  <img
+                                                    src={normalizeAssetUrl(previewLogoUrl)}
+                                                    alt={
+                                                      service.name
+                                                        ? `Logo ${service.name}`
+                                                        : `Logo do servico cripto ${index + 1}`
+                                                    }
+                                                    className="h-full w-full object-cover"
+                                                  />
+                                                )
                                               ) : (
                                                 <PreviewIcon className="h-6 w-6 text-primary" />
                                               )}

@@ -6,9 +6,9 @@
  *
  */
 
-import type {ElementFormatType, NodeKey} from 'lexical';
+import type { ElementFormatType, NodeKey } from "lexical";
 
-import {BlockWithAlignableContents} from '@lexical/react/LexicalBlockWithAlignableContents';
+import { BlockWithAlignableContents } from "@lexical/react/LexicalBlockWithAlignableContents";
 
 export type YouTubeComponentProps = Readonly<{
   className: Readonly<{
@@ -30,23 +30,25 @@ export default function YouTubeComponent({
     <BlockWithAlignableContents
       className={className}
       format={format}
-      nodeKey={nodeKey}>
+      nodeKey={nodeKey}
+    >
       <div
         className="lexical-youtube"
         data-lexical-youtube-embed="true"
-        style={{display: 'block', width: '100%'}}>
+        style={{ display: "block", width: "100%" }}
+      >
         <iframe
           data-lexical-youtube-iframe="true"
           width="560"
           height="315"
           src={`https://www.youtube-nocookie.com/embed/${videoID}`}
           style={{
-            aspectRatio: '16 / 9',
+            aspectRatio: "16 / 9",
             border: 0,
-            display: 'block',
-            height: 'auto',
-            maxWidth: '100%',
-            width: '100%',
+            display: "block",
+            height: "auto",
+            maxWidth: "100%",
+            width: "100%",
           }}
           allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
           allowFullScreen={true}

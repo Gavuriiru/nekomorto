@@ -1,14 +1,3 @@
-import {
-  ArrowDown,
-  ArrowUp,
-  ChevronRight,
-  ExternalLink,
-  FileArchive,
-  Loader2,
-  Plus,
-  Search,
-} from "lucide-react";
-import { memo, type KeyboardEvent as ReactKeyboardEvent } from "react";
 import DashboardActionButton from "@/components/dashboard/DashboardActionButton";
 import { Combobox, Input } from "@/components/dashboard/dashboard-form-controls";
 import {
@@ -26,16 +15,27 @@ import {
 import { Badge } from "@/components/ui/badge";
 import type { ComboboxOption } from "@/components/ui/combobox";
 import {
-  type ChapterFilterMode,
-  type ChapterStructureGroup,
   chapterHasContent,
   chapterStatusLabel,
+  type ChapterFilterMode,
+  type ChapterStructureGroup,
 } from "@/lib/dashboard-project-chapter";
 import {
   buildDashboardProjectChapterEditorHref,
   buildProjectPublicReadingHref,
 } from "@/lib/project-editor-routes";
 import { buildEpisodeKey } from "@/lib/project-episode-key";
+import {
+  ArrowDown,
+  ArrowUp,
+  ChevronRight,
+  ExternalLink,
+  FileArchive,
+  Loader2,
+  Plus,
+  Search,
+} from "lucide-react";
+import { memo, type KeyboardEvent as ReactKeyboardEvent } from "react";
 import {
   normalizeProjectEpisodeContentFormat,
   normalizeProjectEpisodePages,

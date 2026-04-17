@@ -1,5 +1,5 @@
-import { afterEach, describe, expect, it, vi } from "vitest";
 import type { GrantMap } from "@/lib/access-control";
+import { afterEach, describe, expect, it, vi } from "vitest";
 
 const loadAccessControl = async (enabled: boolean) => {
   vi.resetModules();

@@ -1,4 +1,3 @@
-import { useCallback, useEffect, useMemo, useState } from "react";
 import {
   buildUploadsListPath,
   dedupeLibraryItemsByUrl,
@@ -13,6 +12,7 @@ import {
 import type { LibraryImageItem } from "@/components/image-library/types";
 import { dedupeUrlsByComparableKey } from "@/components/image-library/utils";
 import { apiFetch } from "@/lib/api-client";
+import { useCallback, useEffect, useMemo, useState } from "react";
 
 type UseImageLibraryDataParams = {
   allowedProjectImageIdSet: Set<string>;

@@ -1,6 +1,6 @@
-import {useLexicalComposerContext} from '@lexical/react/LexicalComposerContext';
-import {$getSelection, $isRangeSelection} from 'lexical';
-import {useEffect, useRef} from 'react';
+import { useLexicalComposerContext } from "@lexical/react/LexicalComposerContext";
+import { $getSelection, $isRangeSelection } from "lexical";
+import { useEffect, useRef } from "react";
 
 type ScrollRoot = HTMLElement | Window;
 
@@ -9,26 +9,28 @@ const CARET_VISIBILITY_PADDING_PX = 12;
 const hasMeasuredRect = (rect: DOMRect | null): rect is DOMRect =>
   Boolean(
     rect &&
-      (rect.width !== 0 ||
-        rect.height !== 0 ||
-        rect.top !== 0 ||
-        rect.bottom !== 0 ||
-        rect.left !== 0 ||
-        rect.right !== 0),
+    (rect.width !== 0 ||
+      rect.height !== 0 ||
+      rect.top !== 0 ||
+      rect.bottom !== 0 ||
+      rect.left !== 0 ||
+      rect.right !== 0),
   );
 
 const isElementScrollRoot = (value: ScrollRoot): value is HTMLElement =>
-  typeof window !== 'undefined' && value instanceof window.HTMLElement;
+  typeof window !== "undefined" && value instanceof window.HTMLElement;
 
 export const findCaretScrollRoot = (rootElement: HTMLElement): ScrollRoot => {
-  const shell = rootElement.closest('.project-editor-scroll-shell');
+  const shell = rootElement.closest(".project-editor-scroll-shell");
   if (shell instanceof HTMLElement) {
     return shell;
   }
   return rootElement.ownerDocument.defaultView ?? window;
 };
 
-export const getCaretClientRect = (rootElement: HTMLElement): DOMRect | null => {
+export const getCaretClientRect = (
+  rootElement: HTMLElement,
+): DOMRect | null => {
   const selection = rootElement.ownerDocument.defaultView?.getSelection();
   if (!selection || selection.rangeCount === 0 || !selection.isCollapsed) {
     return null;
@@ -63,7 +65,7 @@ const getScrollViewportRect = (scrollRoot: ScrollRoot) =>
     : ({
         top: 0,
         bottom: scrollRoot.innerHeight,
-      } as Pick<DOMRect, 'top' | 'bottom'>);
+      } as Pick<DOMRect, "top" | "bottom">);
 
 export const getCaretTopOffset = (
   rootElement: HTMLElement,
@@ -71,8 +73,8 @@ export const getCaretTopOffset = (
   paddingPx = CARET_VISIBILITY_PADDING_PX,
 ): number => {
   const toolbar = rootElement
-    .closest('.lexical-playground')
-    ?.querySelector('.toolbar') as HTMLElement | null;
+    .closest(".lexical-playground")
+    ?.querySelector(".toolbar") as HTMLElement | null;
   if (!toolbar) {
     return paddingPx;
   }
@@ -86,10 +88,7 @@ export const getCaretTopOffset = (
     return paddingPx;
   }
 
-  return Math.max(
-    paddingPx,
-    toolbarRect.bottom - viewportRect.top + paddingPx,
-  );
+  return Math.max(paddingPx, toolbarRect.bottom - viewportRect.top + paddingPx);
 };
 
 export const scrollCaretRectIntoView = ({
@@ -122,7 +121,7 @@ export const scrollCaretRectIntoView = ({
   if (isElementScrollRoot(scrollRoot)) {
     scrollRoot.scrollTop += delta;
   } else {
-    scrollRoot.scrollBy({top: delta, behavior: 'auto'});
+    scrollRoot.scrollBy({ top: delta, behavior: "auto" });
   }
 
   return true;
@@ -160,7 +159,7 @@ export default function CaretFollowScrollPlugin() {
       });
     };
 
-    const unregister = editor.registerUpdateListener(({editorState}) => {
+    const unregister = editor.registerUpdateListener(({ editorState }) => {
       editorState.read(() => {
         const selection = $getSelection();
         if (!$isRangeSelection(selection) || !selection.isCollapsed()) {

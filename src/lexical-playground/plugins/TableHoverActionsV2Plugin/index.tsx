@@ -5,9 +5,9 @@
  * LICENSE file in the root directory of this source tree.
  *
  */
-import type {JSX} from 'react';
+import type { JSX } from "react";
 
-import './index.css';
+import "./index.css";
 
 import {
   autoUpdate,
@@ -15,9 +15,9 @@ import {
   shift,
   useFloating,
   type VirtualElement,
-} from '@floating-ui/react';
-import {useLexicalComposerContext} from '@lexical/react/LexicalComposerContext';
-import {useLexicalEditable} from '@lexical/react/useLexicalEditable';
+} from "@floating-ui/react";
+import { useLexicalComposerContext } from "@lexical/react/LexicalComposerContext";
+import { useLexicalEditable } from "@lexical/react/useLexicalEditable";
 import {
   $computeTableMapSkipCellCheck,
   $insertTableColumnAtSelection,
@@ -26,19 +26,19 @@ import {
   $isTableNode,
   $isTableRowNode,
   type TableNode,
-} from '@lexical/table';
+} from "@lexical/table";
 import {
   $getChildCaret,
   $getNearestNodeFromDOMNode,
   $getSiblingCaret,
   type EditorThemeClasses,
   isHTMLElement,
-} from 'lexical';
-import {useEffect, useRef, useState} from 'react';
-import {createPortal} from 'react-dom';
+} from "lexical";
+import { useEffect, useRef, useState } from "react";
+import { createPortal } from "react-dom";
 
-import DropDown, {DropDownItem} from '../../ui/DropDown';
-import {getThemeSelector} from '../../utils/getThemeSelector';
+import DropDown, { DropDownItem } from "../../ui/DropDown";
+import { getThemeSelector } from "../../utils/getThemeSelector";
 
 const INDICATOR_SIZE_PX = 18;
 const SIDE_INDICATOR_SIZE_PX = 18;
@@ -86,12 +86,12 @@ function getTableFromMouseEvent(
   tableElement: HTMLTableElement | null;
 } {
   if (!isHTMLElement(event.target)) {
-    return {isOutside: true, tableElement: null};
+    return { isOutside: true, tableElement: null };
   }
 
-  const cellSelector = `td${getThemeSelector(getTheme, 'tableCell')}, th${getThemeSelector(getTheme, 'tableCell')}`;
+  const cellSelector = `td${getThemeSelector(getTheme, "tableCell")}, th${getThemeSelector(getTheme, "tableCell")}`;
   const cell = event.target.closest<HTMLTableCellElement>(cellSelector);
-  const tableElement = cell?.closest<HTMLTableElement>('table') ?? null;
+  const tableElement = cell?.closest<HTMLTableElement>("table") ?? null;
 
   return {
     isOutside: tableElement == null,
@@ -102,7 +102,7 @@ function getTableFromMouseEvent(
 function getClosestTopCellPosition(
   tableElement: HTMLTableElement,
   clientX: number,
-): {centerX: number; top: number; cell: HTMLTableCellElement} | null {
+): { centerX: number; top: number; cell: HTMLTableCellElement } | null {
   const firstRow = tableElement.rows[0];
   if (!firstRow) {
     return null;
@@ -121,7 +121,7 @@ function getClosestTopCellPosition(
     const delta = Math.abs(centerX - clientX);
     if (delta < smallestDelta) {
       smallestDelta = delta;
-      closest = {cell, centerX, top: rect.top};
+      closest = { cell, centerX, top: rect.top };
     }
   }
 
@@ -133,7 +133,7 @@ function TableHoverActionsV2({
 }: {
   anchorElem: HTMLElement;
 }): JSX.Element | null {
-  const [editor, {getTheme}] = useLexicalComposerContext();
+  const [editor, { getTheme }] = useLexicalComposerContext();
   const isEditable = useLexicalEditable();
   const [isVisible, setIsVisible] = useState(false);
   const [isLeftVisible, setIsLeftVisible] = useState(false);
@@ -151,15 +151,15 @@ function TableHoverActionsV2({
     null,
   );
 
-  const {refs, floatingStyles, update} = useFloating({
+  const { refs, floatingStyles, update } = useFloating({
     middleware: [
-      offset({mainAxis: -TOP_BUTTON_OVERHANG}),
+      offset({ mainAxis: -TOP_BUTTON_OVERHANG }),
       shift({
         padding: 8,
       }),
     ],
-    placement: 'top',
-    strategy: 'fixed',
+    placement: "top",
+    strategy: "fixed",
     whileElementsMounted: autoUpdate,
   });
 
@@ -169,13 +169,13 @@ function TableHoverActionsV2({
     update: updateLeft,
   } = useFloating({
     middleware: [
-      offset({mainAxis: -LEFT_BUTTON_OVERHANG}),
+      offset({ mainAxis: -LEFT_BUTTON_OVERHANG }),
       shift({
         padding: 8,
       }),
     ],
-    placement: 'left',
-    strategy: 'fixed',
+    placement: "left",
+    strategy: "fixed",
     whileElementsMounted: autoUpdate,
   });
 
@@ -196,7 +196,10 @@ function TableHoverActionsV2({
         return;
       }
 
-      const {tableElement, isOutside} = getTableFromMouseEvent(event, getTheme);
+      const { tableElement, isOutside } = getTableFromMouseEvent(
+        event,
+        getTheme,
+      );
 
       if (
         isOutside ||
@@ -208,7 +211,7 @@ function TableHoverActionsV2({
         return;
       }
 
-      const cellSelector = `td${getThemeSelector(getTheme, 'tableCell')}, th${getThemeSelector(getTheme, 'tableCell')}`;
+      const cellSelector = `td${getThemeSelector(getTheme, "tableCell")}, th${getThemeSelector(getTheme, "tableCell")}`;
       const hoveredCell = isHTMLElement(event.target)
         ? event.target.closest<HTMLTableCellElement>(cellSelector)
         : null;
@@ -249,7 +252,7 @@ function TableHoverActionsV2({
         setIsLeftVisible(false);
         hoveredLeftCellRef.current = null;
       } else {
-        const {top, height} = hoveredCell.getBoundingClientRect();
+        const { top, height } = hoveredCell.getBoundingClientRect();
         const centerY = top + height / 2;
         hoveredLeftCellRef.current = hoveredCell;
         leftVirtualRef.current.getBoundingClientRect = () =>
@@ -260,10 +263,10 @@ function TableHoverActionsV2({
       }
     };
 
-    document.addEventListener('mousemove', handleMouseMove);
+    document.addEventListener("mousemove", handleMouseMove);
 
     return () => {
-      document.removeEventListener('mousemove', handleMouseMove);
+      document.removeEventListener("mousemove", handleMouseMove);
       setIsVisible(false);
       setIsLeftVisible(false);
     };
@@ -294,12 +297,12 @@ function TableHoverActionsV2({
     return editor.registerRootListener((rootElement, prevRootElement) => {
       if (prevRootElement && handleMouseLeaveRef.current) {
         prevRootElement.removeEventListener(
-          'mouseleave',
+          "mouseleave",
           handleMouseLeaveRef.current,
         );
       }
       if (rootElement && handleMouseLeaveRef.current) {
-        rootElement.addEventListener('mouseleave', handleMouseLeaveRef.current);
+        rootElement.addEventListener("mouseleave", handleMouseLeaveRef.current);
       }
     });
   }, [editor]);
@@ -336,7 +339,7 @@ function TableHoverActionsV2({
     });
   };
 
-  const handleSortColumn = (direction: 'asc' | 'desc') => {
+  const handleSortColumn = (direction: "asc" | "desc") => {
     const targetCell = hoveredTopCellRef.current;
     if (!targetCell) {
       return;
@@ -386,15 +389,15 @@ function TableHoverActionsV2({
         const aCellValue = aMapRow[colIndex];
         const bCellValue = bMapRow[colIndex];
 
-        const aText = aCellValue?.cell.getTextContent() ?? '';
-        const bText = bCellValue?.cell.getTextContent() ?? '';
-        const result = aText.localeCompare(bText, undefined, {numeric: true});
-        return direction === 'asc' ? -result : result;
+        const aText = aCellValue?.cell.getTextContent() ?? "";
+        const bText = bCellValue?.cell.getTextContent() ?? "";
+        const result = aText.localeCompare(bText, undefined, { numeric: true });
+        return direction === "asc" ? -result : result;
       });
 
       const insertionCaret = shouldSkipTopRow
-        ? $getSiblingCaret(rows[0], 'next')
-        : $getChildCaret(tableNode, 'next');
+        ? $getSiblingCaret(rows[0], "next")
+        : $getChildCaret(tableNode, "next");
 
       insertionCaret?.splice(0, sortableRows);
     });
@@ -411,19 +414,23 @@ function TableHoverActionsV2({
           ...floatingStyles,
           opacity: isVisible ? 1 : 0,
         }}
-        className="floating-top-actions">
+        className="floating-top-actions"
+      >
         <DropDown
           buttonAriaLabel="Ordenar coluna"
           buttonClassName="floating-filter-indicator"
-          hideChevron={true}>
+          hideChevron={true}
+        >
           <DropDownItem
             className="item"
-            onClick={() => handleSortColumn('desc')}>
+            onClick={() => handleSortColumn("desc")}
+          >
             Ordenar crescente
           </DropDownItem>
           <DropDownItem
             className="item"
-            onClick={() => handleSortColumn('asc')}>
+            onClick={() => handleSortColumn("asc")}
+          >
             Ordenar decrescente
           </DropDownItem>
         </DropDown>

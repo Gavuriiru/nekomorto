@@ -9,7 +9,7 @@
 import {
   type ShowFlashMessage,
   useFlashMessageContext,
-} from '../context/FlashMessageContext';
+} from "../context/FlashMessageContext";
 
 export default function useFlashMessage(): ShowFlashMessage {
   return useFlashMessageContext();

@@ -1,9 +1,9 @@
-﻿import { Link, useLocation } from "react-router-dom";
-import { publicPageLayoutTokens } from "@/components/public-page-tokens";
+﻿import { publicPageLayoutTokens } from "@/components/public-page-tokens";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { usePageMeta } from "@/hooks/use-page-meta";
+import { Link, useLocation } from "react-router-dom";
 
 const NotFound = () => {
   const location = useLocation();

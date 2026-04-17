@@ -1,6 +1,6 @@
-import type { HTMLAttributes, ReactNode } from "react";
 import { dashboardPageLayoutTokens } from "@/components/dashboard/dashboard-page-tokens";
 import { cn } from "@/lib/utils";
+import type { HTMLAttributes, ReactNode } from "react";
 
 type DashboardPageBadgeProps = HTMLAttributes<HTMLDivElement> & {
   [key: `data-${string}`]: string | number | boolean | undefined;

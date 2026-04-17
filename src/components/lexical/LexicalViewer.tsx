@@ -15,8 +15,8 @@ import LexicalViewerNodes from "./LexicalViewerNodes";
 import LexicalViewerTheme from "./LexicalViewerTheme";
 import { type PollTarget, ViewerPollProvider } from "./viewer-nodes/ViewerPollContext";
 
-import "./lexical-viewer.css";
 import "@/styles/rich-content.css";
+import "./lexical-viewer.css";
 
 type LexicalViewerProps = {
   value: string;

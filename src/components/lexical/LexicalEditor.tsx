@@ -1,8 +1,3 @@
-import { LexicalComposer } from "@lexical/react/LexicalComposer";
-import { useLexicalComposerContext } from "@lexical/react/LexicalComposerContext";
-import { OnChangePlugin } from "@lexical/react/LexicalOnChangePlugin";
-import { $setSelection } from "lexical";
-import * as React from "react";
 import type { ImageLibraryOptions } from "@/components/ImageLibraryDialog";
 import { FlashMessageContext } from "@/lexical-playground/context/FlashMessageContext";
 import { PollProvider } from "@/lexical-playground/context/PollContext";
@@ -14,10 +9,15 @@ import PlaygroundNodes from "@/lexical-playground/nodes/PlaygroundNodes";
 import { TableContext } from "@/lexical-playground/plugins/TablePlugin";
 import PlaygroundEditorTheme from "@/lexical-playground/themes/PlaygroundEditorTheme";
 import { EMPTY_LEXICAL_JSON, normalizeLexicalJson } from "@/lib/lexical/serialize";
+import { LexicalComposer } from "@lexical/react/LexicalComposer";
+import { useLexicalComposerContext } from "@lexical/react/LexicalComposerContext";
+import { OnChangePlugin } from "@lexical/react/LexicalOnChangePlugin";
+import { $setSelection } from "lexical";
+import * as React from "react";
 
-import "@/lexical-playground/playground.css";
-import "@/lexical-playground/playground-overrides.css";
 import "@/lexical-playground/lexical-editor.css";
+import "@/lexical-playground/playground-overrides.css";
+import "@/lexical-playground/playground.css";
 
 export type LexicalEditorHandle = {
   focus: () => void;

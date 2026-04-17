@@ -1,7 +1,3 @@
-import { Menu } from "lucide-react";
-import type { ReactNode } from "react";
-import { lazy, Suspense, useEffect, useMemo, useRef, useState } from "react";
-import { Link, useLocation } from "react-router-dom";
 import type { DashboardMenuItem } from "@/components/dashboard-menu";
 import type { HeaderActionMenusProps } from "@/components/HeaderActionMenus";
 import ThemedSvgLogo from "@/components/ThemedSvgLogo";
@@ -23,12 +19,15 @@ import { apiFetch } from "@/lib/api-client";
 import { buildAvatarRenderUrl } from "@/lib/avatar-render-url";
 import { resolveBranding } from "@/lib/branding";
 import { scheduleOnBrowserLoadIdle } from "@/lib/browser-idle";
-import { type PublicBootstrapCurrentUser } from "@/lib/public-bootstrap-global";
 import { uiCopy } from "@/lib/ui-copy";
 import type { UploadMediaVariantsMap } from "@/lib/upload-variants";
 import { sanitizePublicHref } from "@/lib/url-safety";
 import { cn } from "@/lib/utils";
 import type { SearchSuggestion } from "@/types/search-suggestion";
+import { Menu } from "lucide-react";
+import type { ReactNode } from "react";
+import { lazy, Suspense, useEffect, useMemo, useRef, useState } from "react";
+import { Link, useLocation } from "react-router-dom";
 
 type HeaderProps = {
   variant?: "fixed" | "static";

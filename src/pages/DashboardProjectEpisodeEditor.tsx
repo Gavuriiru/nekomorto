@@ -1,7 +1,5 @@
-import { ArrowLeft, ExternalLink, ImagePlus, Loader2, Plus, Search, Trash2 } from "lucide-react";
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { Link, useNavigate, useParams } from "react-router-dom";
 import DashboardShell from "@/components/DashboardShell";
+import type { ImageLibraryOptions } from "@/components/ImageLibraryDialog";
 import DashboardActionButton from "@/components/dashboard/DashboardActionButton";
 import DashboardDedicatedEditorHeader from "@/components/dashboard/DashboardDedicatedEditorHeader";
 import DashboardFieldStack from "@/components/dashboard/DashboardFieldStack";
@@ -14,7 +12,6 @@ import {
   dedicatedEditorSidebarStickyClassName,
   useDedicatedEditorSidebarHeight,
 } from "@/components/dashboard/dedicated-editor-sidebar";
-import type { ImageLibraryOptions } from "@/components/ImageLibraryDialog";
 import LazyImageLibraryDialog from "@/components/lazy/LazyImageLibraryDialog";
 import DownloadSourceSelect from "@/components/project-reader/DownloadSourceSelect";
 import ProjectEditorSectionCard from "@/components/project-reader/ProjectEditorSectionCard";
@@ -85,6 +82,9 @@ import {
   resolveProjectEpisodePublicationState,
 } from "@/lib/project-publication";
 import { isChapterBasedType } from "@/lib/project-utils";
+import { ArrowLeft, ExternalLink, ImagePlus, Loader2, Plus, Search, Trash2 } from "lucide-react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { Link, useNavigate, useParams } from "react-router-dom";
 
 const animeEpisodeFilterOptions = [
   { value: "all", label: "Todos" },

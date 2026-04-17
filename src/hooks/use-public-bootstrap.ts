@@ -1,4 +1,3 @@
-import { useCallback, useEffect, useState } from "react";
 import { getApiBase } from "@/lib/api-base";
 import { apiFetch } from "@/lib/api-client";
 import { asPublicBootstrapPayload } from "@/lib/public-bootstrap-global";
@@ -11,6 +10,7 @@ import {
   type PublicBootstrapPayload,
 } from "@/types/public-bootstrap";
 import type { PublicTeamLinkType, PublicTeamMember } from "@/types/public-team";
+import { useCallback, useEffect, useState } from "react";
 
 const PUBLIC_BOOTSTRAP_STALE_TIME_MS = 60_000;
 

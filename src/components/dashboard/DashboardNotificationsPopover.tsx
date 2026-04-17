@@ -1,6 +1,3 @@
-import { AlertTriangle, Bell, CheckCircle2, CircleDot, Clock3 } from "lucide-react";
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { Link } from "react-router-dom";
 import { dashboardStrongSurfaceHoverClassName } from "@/components/dashboard/dashboard-page-tokens";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -8,6 +5,9 @@ import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover
 import { Skeleton } from "@/components/ui/skeleton";
 import { useDashboardPreferences } from "@/hooks/use-dashboard-preferences";
 import { apiFetch } from "@/lib/api-client";
+import { AlertTriangle, Bell, CheckCircle2, CircleDot, Clock3 } from "lucide-react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { Link } from "react-router-dom";
 
 type DashboardNotificationItem = {
   id: string;

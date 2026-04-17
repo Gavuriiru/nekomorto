@@ -1,10 +1,10 @@
-import { ArrowLeft, PencilLine } from "lucide-react";
-import { Link } from "react-router-dom";
 import { publicPageLayoutTokens } from "@/components/public-page-tokens";
-import UploadPicture from "@/components/UploadPicture";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
+import UploadPicture from "@/components/UploadPicture";
 import type { UploadMediaVariantsMap } from "@/lib/upload-variants";
+import { ArrowLeft, PencilLine } from "lucide-react";
+import { Link } from "react-router-dom";
 
 type LightNovelReadingHeaderChapterLink = {
   href: string;

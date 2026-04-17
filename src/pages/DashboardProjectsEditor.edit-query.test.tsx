@@ -1,7 +1,3 @@
-import { fireEvent, render, screen, waitFor, within } from "@testing-library/react";
-import type { ReactNode } from "react";
-import { MemoryRouter, useLocation } from "react-router-dom";
-import { afterEach, describe, expect, it, vi } from "vitest";
 import {
   dashboardEditorDialogWidthClassName,
   dashboardInteractiveStackedSurfaceClassName,
@@ -11,6 +7,10 @@ import type {
   ProjectRecord,
 } from "@/components/dashboard/project-editor/dashboard-projects-editor-types";
 import DashboardProjectsEditor from "@/pages/DashboardProjectsEditor";
+import { fireEvent, render, screen, waitFor, within } from "@testing-library/react";
+import type { ReactNode } from "react";
+import { MemoryRouter, useLocation } from "react-router-dom";
+import { afterEach, describe, expect, it, vi } from "vitest";
 
 const apiFetchMock = vi.hoisted(() => vi.fn());
 

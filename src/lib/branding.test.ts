@@ -1,7 +1,7 @@
-import { describe, expect, it } from "vitest";
 import { defaultSettings, mergeSettings } from "@/hooks/site-settings-context";
 import { resolveBranding } from "@/lib/branding";
 import type { SiteSettings } from "@/types/site-settings";
+import { describe, expect, it } from "vitest";
 
 const createSettings = (override: unknown) =>
   mergeSettings(defaultSettings, override as Partial<SiteSettings>);

@@ -141,17 +141,6 @@
   background-color: hsl(var(--accent) / 0.9);
 }
 
-.app-textarea::-webkit-resizer {
-  background: transparent;
-  background-image: none;
-  border: 0;
-  box-shadow: none;
-}
-
-.app-textarea::-webkit-scrollbar-corner {
-  background: transparent;
-}
-
 @keyframes search-popover-enter {
   from {
     opacity: 0;

@@ -1,22 +1,12 @@
-import { Home } from "lucide-react";
-import {
-  type CSSProperties,
-  type MouseEvent,
-  memo,
-  type ReactNode,
-  useEffect,
-  useMemo,
-} from "react";
-import { Link, useLocation } from "react-router-dom";
-import DashboardHeader from "@/components/DashboardHeader";
-import { dashboardMotionDurations } from "@/components/dashboard/dashboard-motion";
-import { dashboardStrongFocusScopeClassName } from "@/components/dashboard/dashboard-page-tokens";
 import {
   type DashboardMenuItem,
   dashboardMenuItems,
   groupDashboardMenuItems,
   isDashboardMenuItemActive,
 } from "@/components/dashboard-menu";
+import { dashboardMotionDurations } from "@/components/dashboard/dashboard-motion";
+import { dashboardStrongFocusScopeClassName } from "@/components/dashboard/dashboard-page-tokens";
+import DashboardHeader from "@/components/DashboardHeader";
 import Footer from "@/components/Footer";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import {
@@ -43,6 +33,16 @@ import {
 import { buildAvatarRenderUrl } from "@/lib/avatar-render-url";
 import { readWindowPublicBootstrapCurrentUser } from "@/lib/public-bootstrap-global";
 import { uiCopy } from "@/lib/ui-copy";
+import { Home } from "lucide-react";
+import {
+  type CSSProperties,
+  memo,
+  type MouseEvent,
+  type ReactNode,
+  useEffect,
+  useMemo,
+} from "react";
+import { Link, useLocation } from "react-router-dom";
 
 type DashboardUser = {
   id?: string;

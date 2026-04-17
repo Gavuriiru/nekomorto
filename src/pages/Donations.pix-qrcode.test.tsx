@@ -30,14 +30,7 @@ vi.mock("@/components/ThemedSvgMaskIcon", () => ({
     testId?: string;
     label: string;
     className?: string;
-  }) => (
-    <span
-      role="img"
-      aria-label={label}
-      data-testid={testId}
-      className={className}
-    />
-  ),
+  }) => <span role="img" aria-label={label} data-testid={testId} className={className} />,
 }));
 
 vi.mock("qrcode", () => ({

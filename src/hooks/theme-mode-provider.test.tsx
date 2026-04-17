@@ -1,6 +1,3 @@
-import { fireEvent, render, screen, waitFor } from "@testing-library/react";
-import type { ReactNode } from "react";
-import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { Badge } from "@/components/ui/badge";
 import { defaultSettings, mergeSettings, SiteSettingsContext } from "@/hooks/site-settings-context";
 import {
@@ -12,6 +9,9 @@ import { ThemeModeProvider } from "@/hooks/theme-mode-provider";
 import { useThemeMode } from "@/hooks/use-theme-mode";
 import { resolveThemeColor } from "@/lib/theme-color";
 import type { SiteSettings } from "@/types/site-settings";
+import { fireEvent, render, screen, waitFor } from "@testing-library/react";
+import type { ReactNode } from "react";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 const createSettings = (override: Partial<SiteSettings> = {}) =>
   mergeSettings(defaultSettings, override);

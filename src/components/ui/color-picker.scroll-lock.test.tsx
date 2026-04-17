@@ -1,9 +1,10 @@
+import { ColorPicker } from "@/components/ui/color-picker";
 import { render, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { beforeEach, describe, expect, it, vi } from "vitest";
-import { ColorPicker } from "@/components/ui/color-picker";
 
-const classTokens = (element: HTMLElement) => String(element.className).split(/\s+/).filter(Boolean);
+const classTokens = (element: HTMLElement) =>
+  String(element.className).split(/\s+/).filter(Boolean);
 
 const findAncestor = (
   element: HTMLElement,

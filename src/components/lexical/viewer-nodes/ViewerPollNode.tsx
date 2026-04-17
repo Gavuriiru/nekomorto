@@ -1,3 +1,4 @@
+import { createRandomId } from "@/lib/random-id";
 import {
   $getState,
   $setState,
@@ -14,7 +15,6 @@ import {
 } from "lexical";
 import type { JSX } from "react";
 import * as React from "react";
-import { createRandomId } from "@/lib/random-id";
 
 const ViewerPollComponent = React.lazy(() => import("./ViewerPollComponent"));
 

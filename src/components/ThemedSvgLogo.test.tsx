@@ -1,6 +1,6 @@
+import ThemedSvgLogo from "@/components/ThemedSvgLogo";
 import { render, screen } from "@testing-library/react";
 import { describe, expect, it } from "vitest";
-import ThemedSvgLogo from "@/components/ThemedSvgLogo";
 
 describe("ThemedSvgLogo", () => {
   it("renders allowed remote https icons as img", () => {

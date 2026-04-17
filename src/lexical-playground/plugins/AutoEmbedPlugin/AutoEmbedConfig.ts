@@ -9,14 +9,14 @@
 import type {
   EmbedConfig,
   EmbedMatchResult,
-} from '@lexical/react/LexicalAutoEmbedPlugin';
-import type {LexicalEditor} from 'lexical';
-import type {JSX} from 'react';
+} from "@lexical/react/LexicalAutoEmbedPlugin";
+import type { LexicalEditor } from "lexical";
+import type { JSX } from "react";
 
-import * as React from 'react';
+import * as React from "react";
 
-import {INSERT_TWEET_COMMAND} from '../TwitterPlugin';
-import {INSERT_YOUTUBE_COMMAND} from '../YouTubePlugin';
+import { INSERT_TWEET_COMMAND } from "../TwitterPlugin";
+import { INSERT_YOUTUBE_COMMAND } from "../YouTubePlugin";
 
 export interface PlaygroundEmbedConfig extends EmbedConfig {
   contentName: string;
@@ -33,20 +33,20 @@ type AutoEmbedConfigRegistry = {
 };
 
 const AUTO_EMBED_CONFIG_REGISTRY_KEY =
-  '__lexicalPlaygroundAutoEmbedConfigRegistry__';
+  "__lexicalPlaygroundAutoEmbedConfigRegistry__";
 
 const createEmbedIcon = (className: string): JSX.Element =>
-  React.createElement('i', {className});
+  React.createElement("i", { className });
 
 const upsertYoutubeEmbedConfig = (config: PlaygroundEmbedConfig) => {
   Object.assign(config, {
-    contentName: 'V\u00c3\u00addeo do YouTube',
-    exampleUrl: 'https://www.youtube.com/watch?v=jNQXAC9IVRw',
-    icon: createEmbedIcon('icon youtube'),
+    contentName: "V\u00c3\u00addeo do YouTube",
+    exampleUrl: "https://www.youtube.com/watch?v=jNQXAC9IVRw",
+    icon: createEmbedIcon("icon youtube"),
     insertNode: (editor: LexicalEditor, result: EmbedMatchResult) => {
       editor.dispatchCommand(INSERT_YOUTUBE_COMMAND, result.id);
     },
-    keywords: ['youtube', 'video'],
+    keywords: ["youtube", "video"],
     parseUrl: async (url: string) => {
       const match =
         /^.*(youtu\.be\/|v\/|u\/\w\/|embed\/|watch\?v=|&v=)([^#&?]*).*/.exec(
@@ -64,19 +64,19 @@ const upsertYoutubeEmbedConfig = (config: PlaygroundEmbedConfig) => {
 
       return null;
     },
-    type: 'youtube-video',
+    type: "youtube-video",
   } satisfies PlaygroundEmbedConfig);
 };
 
 const upsertTwitterEmbedConfig = (config: PlaygroundEmbedConfig) => {
   Object.assign(config, {
-    contentName: 'X (Tweet)',
-    exampleUrl: 'https://x.com/jack/status/20',
-    icon: createEmbedIcon('icon x'),
+    contentName: "X (Tweet)",
+    exampleUrl: "https://x.com/jack/status/20",
+    icon: createEmbedIcon("icon x"),
     insertNode: (editor: LexicalEditor, result: EmbedMatchResult) => {
       editor.dispatchCommand(INSERT_TWEET_COMMAND, result.id);
     },
-    keywords: ['tweet', 'twitter', 'x'],
+    keywords: ["tweet", "twitter", "x"],
     parseUrl: (text: string) => {
       const match =
         /^https:\/\/(twitter|x)\.com\/(#!\/)?(\w+)\/status(es)*\/(\d+)/.exec(
@@ -92,7 +92,7 @@ const upsertTwitterEmbedConfig = (config: PlaygroundEmbedConfig) => {
 
       return null;
     },
-    type: 'tweet',
+    type: "tweet",
   } satisfies PlaygroundEmbedConfig);
 };
 

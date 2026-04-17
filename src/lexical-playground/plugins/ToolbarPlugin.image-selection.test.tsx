@@ -1,11 +1,11 @@
-import {fireEvent, render, screen} from '@testing-library/react';
+import { fireEvent, render, screen } from "@testing-library/react";
 import type {
   ButtonHTMLAttributes,
   MouseEvent,
   ReactElement,
   ReactNode,
-} from 'react';
-import {beforeEach, describe, expect, it, vi} from 'vitest';
+} from "react";
+import { beforeEach, describe, expect, it, vi } from "vitest";
 
 const {
   captureCurrentRangeSelectionSpy,
@@ -18,14 +18,14 @@ const {
   captureCurrentRangeSelectionSpy: vi.fn(),
   insertImageDialogPropsSpy: vi.fn(),
   openEmbedModalWithSelectionCommand: {
-    type: 'OPEN_EMBED_MODAL_WITH_SELECTION_COMMAND',
+    type: "OPEN_EMBED_MODAL_WITH_SELECTION_COMMAND",
   },
   restoreSelectionForInsertionSpy: vi.fn(),
   showModalSpy: vi.fn(),
   updateToolbarStateSpy: vi.fn(),
 }));
 
-vi.mock('@/lexical-playground/context/SettingsContext', () => ({
+vi.mock("@/lexical-playground/context/SettingsContext", () => ({
   useSettings: () => ({
     settings: {
       isCodeHighlighted: false,
@@ -33,19 +33,19 @@ vi.mock('@/lexical-playground/context/SettingsContext', () => ({
   }),
 }));
 
-vi.mock('@/lexical-playground/context/ToolbarContext', () => ({
+vi.mock("@/lexical-playground/context/ToolbarContext", () => ({
   blockTypeToBlockName: {
-    paragraph: 'Normal',
+    paragraph: "Normal",
   },
   useToolbarState: () => ({
     toolbarState: {
-      bgColor: '#000000',
-      blockType: 'paragraph',
+      bgColor: "#000000",
+      blockType: "paragraph",
       canRedo: false,
       canUndo: false,
-      codeLanguage: 'javascript',
-      elementFormat: 'left',
-      fontColor: '#ffffff',
+      codeLanguage: "javascript",
+      elementFormat: "left",
+      fontColor: "#ffffff",
       isBold: false,
       isCapitalize: false,
       isCode: false,
@@ -60,69 +60,69 @@ vi.mock('@/lexical-playground/context/ToolbarContext', () => ({
       isSuperscript: false,
       isUnderline: false,
       isUppercase: false,
-      rootType: 'root',
+      rootType: "root",
     },
     updateToolbarState: updateToolbarStateSpy,
   }),
 }));
 
-vi.mock('@/lexical-playground/hooks/useModal', () => ({
+vi.mock("@/lexical-playground/hooks/useModal", () => ({
   default: () => [null, showModalSpy],
 }));
 
-vi.mock('@/lexical-playground/plugins/AutoEmbedPlugin', () => ({
+vi.mock("@/lexical-playground/plugins/AutoEmbedPlugin", () => ({
   EmbedConfigs: [
     {
-      contentName: 'X (Tweet)',
+      contentName: "X (Tweet)",
       icon: <span aria-hidden="true">x</span>,
-      type: 'tweet',
+      type: "tweet",
     },
     {
-      contentName: 'Vídeo do YouTube',
+      contentName: "Vídeo do YouTube",
       icon: <span aria-hidden="true">yt</span>,
-      type: 'youtube-video',
+      type: "youtube-video",
     },
   ],
   OPEN_EMBED_MODAL_WITH_SELECTION_COMMAND: openEmbedModalWithSelectionCommand,
 }));
 
-vi.mock('@/lexical-playground/plugins/ImagesPlugin/selectionSnapshot', () => ({
+vi.mock("@/lexical-playground/plugins/ImagesPlugin/selectionSnapshot", () => ({
   captureCurrentRangeSelection: captureCurrentRangeSelectionSpy,
   restoreSelectionForInsertion: restoreSelectionForInsertionSpy,
 }));
 
-vi.mock('@/lexical-playground/plugins/ImagesPlugin', () => ({
+vi.mock("@/lexical-playground/plugins/ImagesPlugin", () => ({
   InsertImageDialog: (props: unknown) => {
     insertImageDialogPropsSpy(props);
     return <div data-testid="mock-insert-image-dialog" />;
   },
 }));
 
-vi.mock('@/lexical-playground/plugins/LayoutPlugin/InsertLayoutDialog', () => ({
+vi.mock("@/lexical-playground/plugins/LayoutPlugin/InsertLayoutDialog", () => ({
   default: () => null,
 }));
 
-vi.mock('@/lexical-playground/plugins/PollPlugin', () => ({
+vi.mock("@/lexical-playground/plugins/PollPlugin", () => ({
   InsertPollDialog: () => null,
 }));
 
-vi.mock('@/lexical-playground/plugins/TablePlugin', () => ({
+vi.mock("@/lexical-playground/plugins/TablePlugin", () => ({
   InsertTableDialog: () => null,
 }));
 
-vi.mock('@/lexical-playground/plugins/ToolbarPlugin/fontSize', () => ({
+vi.mock("@/lexical-playground/plugins/ToolbarPlugin/fontSize", () => ({
   default: () => null,
-  parseFontSizeForToolbar: () => '16px',
+  parseFontSizeForToolbar: () => "16px",
 }));
 
-vi.mock('@/lexical-playground/plugins/ToolbarPlugin/sticky-state', () => ({
+vi.mock("@/lexical-playground/plugins/ToolbarPlugin/sticky-state", () => ({
   findToolbarScrollRoot: () => window,
   getScrollRootTop: () => 0,
   getStickyTopPx: () => 0,
   isToolbarStickyStuck: () => false,
 }));
 
-vi.mock('@/lexical-playground/plugins/ToolbarPlugin/utils', () => ({
+vi.mock("@/lexical-playground/plugins/ToolbarPlugin/utils", () => ({
   clearFormatting: vi.fn(),
   formatBulletList: vi.fn(),
   formatCheckList: vi.fn(),
@@ -133,19 +133,19 @@ vi.mock('@/lexical-playground/plugins/ToolbarPlugin/utils', () => ({
   formatQuote: vi.fn(),
 }));
 
-vi.mock('@/lexical-playground/ui/Button', () => ({
+vi.mock("@/lexical-playground/ui/Button", () => ({
   default: (props: ButtonHTMLAttributes<HTMLButtonElement>) => (
     <button type="button" {...props} />
   ),
 }));
 
-vi.mock('@/lexical-playground/ui/DropdownColorPicker', () => ({
+vi.mock("@/lexical-playground/ui/DropdownColorPicker", () => ({
   default: () => null,
 }));
 
-vi.mock('@/lexical-playground/ui/DropDown', () => ({
+vi.mock("@/lexical-playground/ui/DropDown", () => ({
   __esModule: true,
-  default: ({children}: {children: ReactNode}) => <div>{children}</div>,
+  default: ({ children }: { children: ReactNode }) => <div>{children}</div>,
   DropDownItem: ({
     children,
     onClick,
@@ -161,8 +161,8 @@ vi.mock('@/lexical-playground/ui/DropDown', () => ({
   ),
 }));
 
-import {INSERT_COLLAPSIBLE_COMMAND} from '@/lexical-playground/plugins/CollapsiblePlugin';
-import ToolbarPlugin from '@/lexical-playground/plugins/ToolbarPlugin';
+import { INSERT_COLLAPSIBLE_COMMAND } from "@/lexical-playground/plugins/CollapsiblePlugin";
+import ToolbarPlugin from "@/lexical-playground/plugins/ToolbarPlugin";
 
 const createEditor = () => ({
   dispatchCommand: vi.fn(),
@@ -170,8 +170,8 @@ const createEditor = () => ({
   getEditorState: vi.fn(() => ({
     read: vi.fn(),
   })),
-  getElementByKey: vi.fn(() => document.createElement('div')),
-  getRootElement: vi.fn(() => document.createElement('div')),
+  getElementByKey: vi.fn(() => document.createElement("div")),
+  getRootElement: vi.fn(() => document.createElement("div")),
   isEditable: vi.fn(() => true),
   registerCommand: vi.fn(() => () => undefined),
   registerEditableListener: vi.fn(() => () => undefined),
@@ -185,7 +185,7 @@ const getLastModalProps = () => {
     | undefined;
 
   if (!getContent) {
-    throw new Error('Modal was not opened');
+    throw new Error("Modal was not opened");
   }
 
   return getContent(vi.fn()).props as {
@@ -193,7 +193,7 @@ const getLastModalProps = () => {
   };
 };
 
-describe('ToolbarPlugin insert dropdown selection capture', () => {
+describe("ToolbarPlugin insert dropdown selection capture", () => {
   beforeEach(() => {
     captureCurrentRangeSelectionSpy.mockReset();
     insertImageDialogPropsSpy.mockReset();
@@ -202,9 +202,9 @@ describe('ToolbarPlugin insert dropdown selection capture', () => {
     updateToolbarStateSpy.mockReset();
   });
 
-  it('captura a selecao da imagem no mousedown antes de abrir a biblioteca', () => {
+  it("captura a selecao da imagem no mousedown antes de abrir a biblioteca", () => {
     const editor = createEditor();
-    const selectionSnapshot = {anchor: {key: 'a'}, focus: {key: 'b'}};
+    const selectionSnapshot = { anchor: { key: "a" }, focus: { key: "b" } };
 
     captureCurrentRangeSelectionSpy.mockReturnValue(selectionSnapshot);
 
@@ -218,7 +218,7 @@ describe('ToolbarPlugin insert dropdown selection capture', () => {
       />,
     );
 
-    const imageButton = screen.getByRole('button', {name: /imagem/i});
+    const imageButton = screen.getByRole("button", { name: /imagem/i });
     fireEvent.mouseDown(imageButton);
 
     expect(captureCurrentRangeSelectionSpy).toHaveBeenCalledTimes(1);
@@ -230,11 +230,11 @@ describe('ToolbarPlugin insert dropdown selection capture', () => {
       selectionSnapshot?: unknown;
     };
 
-    expect(screen.getByTestId('mock-insert-image-dialog')).toBeInTheDocument();
+    expect(screen.getByTestId("mock-insert-image-dialog")).toBeInTheDocument();
     expect(dialogProps.selectionSnapshot).toBe(selectionSnapshot);
   });
 
-  it('nao captura selecao para linha horizontal', () => {
+  it("nao captura selecao para linha horizontal", () => {
     const editor = createEditor();
 
     render(
@@ -247,20 +247,16 @@ describe('ToolbarPlugin insert dropdown selection capture', () => {
       />,
     );
 
-    fireEvent.click(screen.getByRole('button', {name: /linha horizontal/i}));
+    fireEvent.click(screen.getByRole("button", { name: /linha horizontal/i }));
 
     expect(captureCurrentRangeSelectionSpy).not.toHaveBeenCalled();
   });
 
-  it.each([
-    ['Tabela'],
-    ['Enquete'],
-    ['Layout de colunas'],
-  ])(
-    'passa o snapshot salvo para o dialogo de %s',
+  it.each([["Tabela"], ["Enquete"], ["Layout de colunas"]])(
+    "passa o snapshot salvo para o dialogo de %s",
     (buttonLabel: string) => {
       const editor = createEditor();
-      const selectionSnapshot = {anchor: {key: 'a'}, focus: {key: 'b'}};
+      const selectionSnapshot = { anchor: { key: "a" }, focus: { key: "b" } };
 
       captureCurrentRangeSelectionSpy.mockReturnValue(selectionSnapshot);
 
@@ -274,7 +270,9 @@ describe('ToolbarPlugin insert dropdown selection capture', () => {
         />,
       );
 
-      const button = screen.getByRole('button', {name: new RegExp(buttonLabel, 'i')});
+      const button = screen.getByRole("button", {
+        name: new RegExp(buttonLabel, "i"),
+      });
       fireEvent.mouseDown(button);
       fireEvent.click(button);
 
@@ -283,9 +281,9 @@ describe('ToolbarPlugin insert dropdown selection capture', () => {
     },
   );
 
-  it('restaura a selecao antes de inserir uma secao recolhivel', () => {
+  it("restaura a selecao antes de inserir uma secao recolhivel", () => {
     const editor = createEditor();
-    const selectionSnapshot = {anchor: {key: 'a'}, focus: {key: 'b'}};
+    const selectionSnapshot = { anchor: { key: "a" }, focus: { key: "b" } };
 
     captureCurrentRangeSelectionSpy.mockReturnValue(selectionSnapshot);
 
@@ -299,7 +297,7 @@ describe('ToolbarPlugin insert dropdown selection capture', () => {
       />,
     );
 
-    const collapsibleButton = screen.getByRole('button', {name: /recolh/i});
+    const collapsibleButton = screen.getByRole("button", { name: /recolh/i });
     fireEvent.mouseDown(collapsibleButton);
     fireEvent.click(collapsibleButton);
 
@@ -317,13 +315,13 @@ describe('ToolbarPlugin insert dropdown selection capture', () => {
   });
 
   it.each([
-    ['X (Tweet)', 'tweet'],
-    ['Vídeo do YouTube', 'youtube-video'],
+    ["X (Tweet)", "tweet"],
+    ["Vídeo do YouTube", "youtube-video"],
   ])(
-    'abre o fluxo de embed do toolbar com snapshot para %s',
+    "abre o fluxo de embed do toolbar com snapshot para %s",
     (buttonLabel: string, type: string) => {
       const editor = createEditor();
-      const selectionSnapshot = {anchor: {key: 'a'}, focus: {key: 'b'}};
+      const selectionSnapshot = { anchor: { key: "a" }, focus: { key: "b" } };
 
       captureCurrentRangeSelectionSpy.mockReturnValue(selectionSnapshot);
 
@@ -337,7 +335,7 @@ describe('ToolbarPlugin insert dropdown selection capture', () => {
         />,
       );
 
-      const embedButton = screen.getByRole('button', {name: buttonLabel});
+      const embedButton = screen.getByRole("button", { name: buttonLabel });
       fireEvent.mouseDown(embedButton);
       fireEvent.click(embedButton);
 

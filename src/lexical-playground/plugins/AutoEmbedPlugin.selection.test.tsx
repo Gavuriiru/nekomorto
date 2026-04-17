@@ -1,7 +1,7 @@
-import {act, fireEvent, render, screen} from '@testing-library/react';
-import {afterEach, beforeEach, describe, expect, it, vi} from 'vitest';
+import { act, fireEvent, render, screen } from "@testing-library/react";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
-const {restoreSelectionForInsertionSpy} = vi.hoisted(() => ({
+const { restoreSelectionForInsertionSpy } = vi.hoisted(() => ({
   restoreSelectionForInsertionSpy: vi.fn(),
 }));
 
@@ -10,11 +10,11 @@ let currentEditor: {
   update: ReturnType<typeof vi.fn>;
 } | null = null;
 
-vi.mock('@lexical/react/LexicalComposerContext', () => ({
+vi.mock("@lexical/react/LexicalComposerContext", () => ({
   useLexicalComposerContext: () => [currentEditor],
 }));
 
-vi.mock('@lexical/react/LexicalAutoEmbedPlugin', () => ({
+vi.mock("@lexical/react/LexicalAutoEmbedPlugin", () => ({
   AutoEmbedOption: class {
     key: string;
     title: string;
@@ -28,13 +28,13 @@ vi.mock('@lexical/react/LexicalAutoEmbedPlugin', () => ({
   URL_MATCHER: /https?:\/\/\S+/,
 }));
 
-vi.mock('@/lexical-playground/plugins/ImagesPlugin/selectionSnapshot', () => ({
+vi.mock("@/lexical-playground/plugins/ImagesPlugin/selectionSnapshot", () => ({
   restoreSelectionForInsertion: restoreSelectionForInsertionSpy,
 }));
 
-import {AutoEmbedDialog} from '@/lexical-playground/plugins/AutoEmbedPlugin';
+import { AutoEmbedDialog } from "@/lexical-playground/plugins/AutoEmbedPlugin";
 
-describe('AutoEmbedDialog', () => {
+describe("AutoEmbedDialog", () => {
   beforeEach(() => {
     vi.useFakeTimers();
     restoreSelectionForInsertionSpy.mockReset();
@@ -44,8 +44,8 @@ describe('AutoEmbedDialog', () => {
     vi.useRealTimers();
   });
 
-  it('restaura o snapshot antes de inserir o embed confirmado', async () => {
-    const selectionSnapshot = {anchor: {key: 'a'}, focus: {key: 'b'}};
+  it("restaura o snapshot antes de inserir o embed confirmado", async () => {
+    const selectionSnapshot = { anchor: { key: "a" }, focus: { key: "b" } };
     const insertNodeSpy = vi.fn();
     const onClose = vi.fn();
 
@@ -54,19 +54,19 @@ describe('AutoEmbedDialog', () => {
       update: vi.fn((callback: () => void) => callback()),
     };
 
-    const {container} = render(
+    const { container } = render(
       <AutoEmbedDialog
         embedConfig={
           {
-            contentName: 'X (Tweet)',
-            exampleUrl: 'https://x.com/jack/status/20',
+            contentName: "X (Tweet)",
+            exampleUrl: "https://x.com/jack/status/20",
             insertNode: insertNodeSpy,
-            keywords: ['tweet'],
+            keywords: ["tweet"],
             parseUrl: vi.fn(async (url: string) => ({
-              id: '123',
+              id: "123",
               url,
             })),
-            type: 'tweet',
+            type: "tweet",
           } as never
         }
         onClose={onClose}
@@ -74,16 +74,19 @@ describe('AutoEmbedDialog', () => {
       />,
     );
 
-    fireEvent.change(container.querySelector('[data-test-id="tweet-embed-modal-url"]')!, {
-      target: {value: 'https://x.com/jack/status/20'},
-    });
+    fireEvent.change(
+      container.querySelector('[data-test-id="tweet-embed-modal-url"]')!,
+      {
+        target: { value: "https://x.com/jack/status/20" },
+      },
+    );
 
     await act(async () => {
       vi.advanceTimersByTime(200);
       await Promise.resolve();
     });
 
-    const submitButton = screen.getByRole('button', {name: /embed/i});
+    const submitButton = screen.getByRole("button", { name: /embed/i });
     expect(submitButton).not.toBeDisabled();
 
     fireEvent.click(submitButton);
@@ -93,8 +96,8 @@ describe('AutoEmbedDialog', () => {
       selectionSnapshot,
     );
     expect(insertNodeSpy).toHaveBeenCalledWith(currentEditor, {
-      id: '123',
-      url: 'https://x.com/jack/status/20',
+      id: "123",
+      url: "https://x.com/jack/status/20",
     });
     expect(
       restoreSelectionForInsertionSpy.mock.invocationCallOrder[0],

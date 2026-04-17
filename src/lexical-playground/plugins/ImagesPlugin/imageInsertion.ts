@@ -1,21 +1,18 @@
+import { $wrapNodeInElement } from "@lexical/utils";
+import type { LexicalEditor } from "lexical";
 import {
   $createParagraphNode,
   $getRoot,
   $getSelection,
   $insertNodes,
   $isRootOrShadowRoot,
-} from 'lexical';
-import {$wrapNodeInElement} from '@lexical/utils';
-import type {LexicalEditor} from 'lexical';
+} from "lexical";
 
-import {
-  $createImageNode,
-  type ImagePayload,
-} from '../../nodes/ImageNode';
+import { $createImageNode, type ImagePayload } from "../../nodes/ImageNode";
 import {
   restoreRangeSelectionSnapshot,
   type RangeSelectionSnapshot,
-} from './selectionSnapshot';
+} from "./selectionSnapshot";
 
 export type InsertImagePayload = Readonly<ImagePayload>;
 

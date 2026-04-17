@@ -6,14 +6,14 @@
  *
  */
 
-import './Collapsible.css';
+import "./Collapsible.css";
 
-import {useLexicalComposerContext} from '@lexical/react/LexicalComposerContext';
+import { useLexicalComposerContext } from "@lexical/react/LexicalComposerContext";
 import {
   $findMatchingParent,
   $insertNodeToNearestRoot,
   mergeRegister,
-} from '@lexical/utils';
+} from "@lexical/utils";
 import {
   $createParagraphNode,
   $getSelection,
@@ -25,27 +25,27 @@ import {
   KEY_ARROW_LEFT_COMMAND,
   KEY_ARROW_RIGHT_COMMAND,
   KEY_ARROW_UP_COMMAND,
-} from 'lexical';
-import {useEffect} from 'react';
+} from "lexical";
+import { useEffect } from "react";
 
 import {
   $createCollapsibleContainerNode,
   $isCollapsibleContainerNode,
   CollapsibleContainerNode,
-} from './CollapsibleContainerNode';
+} from "./CollapsibleContainerNode";
 import {
   $createCollapsibleContentNode,
   $isCollapsibleContentNode,
   CollapsibleContentNode,
-} from './CollapsibleContentNode';
+} from "./CollapsibleContentNode";
 import {
   $createCollapsibleTitleNode,
   $isCollapsibleTitleNode,
   CollapsibleTitleNode,
-} from './CollapsibleTitleNode';
+} from "./CollapsibleTitleNode";
 
 export const INSERT_COLLAPSIBLE_COMMAND = createCommand<void>(
-  'INSERT_COLLAPSIBLE_COMMAND',
+  "INSERT_COLLAPSIBLE_COMMAND",
 );
 
 export default function CollapsiblePlugin(): null {
@@ -60,7 +60,7 @@ export default function CollapsiblePlugin(): null {
       ])
     ) {
       throw new Error(
-        'CollapsiblePlugin: CollapsibleContainerNode, CollapsibleTitleNode, or CollapsibleContentNode not registered on editor',
+        "CollapsiblePlugin: CollapsibleContainerNode, CollapsibleTitleNode, or CollapsibleContentNode not registered on editor",
       );
     }
 

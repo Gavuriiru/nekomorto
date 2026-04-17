@@ -6,12 +6,11 @@
  *
  */
 
-import type {JSX} from 'react';
+import type { JSX } from "react";
 
-import {useCallback, useMemo, useState} from 'react';
-import * as React from 'react';
+import { useCallback, useMemo, useState } from "react";
 
-import Modal from '../ui/Modal';
+import Modal from "../ui/Modal";
 
 export default function useModal(): [
   JSX.Element | null,
@@ -31,12 +30,13 @@ export default function useModal(): [
     if (modalContent === null) {
       return null;
     }
-    const {title, content, closeOnClickOutside} = modalContent;
+    const { title, content, closeOnClickOutside } = modalContent;
     return (
       <Modal
         onClose={onClose}
         title={title}
-        closeOnClickOutside={closeOnClickOutside}>
+        closeOnClickOutside={closeOnClickOutside}
+      >
         {content}
       </Modal>
     );

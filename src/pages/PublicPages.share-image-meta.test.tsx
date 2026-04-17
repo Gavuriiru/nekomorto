@@ -1,10 +1,10 @@
-import { render, screen, waitFor } from "@testing-library/react";
-import { MemoryRouter } from "react-router-dom";
-import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import {
   publicInteractiveStackedSurfaceClassName,
   publicStackedSurfaceClassName,
 } from "@/components/public-page-tokens";
+import { render, screen, waitFor } from "@testing-library/react";
+import { MemoryRouter } from "react-router-dom";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import About from "@/pages/About";
 import Donations from "@/pages/Donations";

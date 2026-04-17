@@ -1,6 +1,3 @@
-import { Globe, Play } from "lucide-react";
-import * as React from "react";
-import { Link } from "react-router-dom";
 import heroImageAvif from "@/assets/hero-illya.avif";
 import heroImageJpg from "@/assets/hero-illya.jpg";
 import heroImageWebp from "@/assets/hero-illya.webp";
@@ -24,6 +21,9 @@ import type {
   PublicBootstrapProject,
   PublicBootstrapUpdate,
 } from "@/types/public-bootstrap";
+import { Globe, Play } from "lucide-react";
+import * as React from "react";
+import { Link } from "react-router-dom";
 
 type HeroSlide = PublicBootstrapHomeHeroSlide & {
   optimizedImageSet?: {

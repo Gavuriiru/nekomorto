@@ -6,25 +6,25 @@
  *
  */
 
-import type {JSX} from 'react';
+import type { JSX } from "react";
 
 import {
   AutoEmbedOption,
   LexicalAutoEmbedPlugin,
-} from '@lexical/react/LexicalAutoEmbedPlugin';
-import {useLexicalComposerContext} from '@lexical/react/LexicalComposerContext';
-import {COMMAND_PRIORITY_EDITOR} from 'lexical';
-import {useCallback, useEffect} from 'react';
-import * as ReactDOM from 'react-dom';
+} from "@lexical/react/LexicalAutoEmbedPlugin";
+import { useLexicalComposerContext } from "@lexical/react/LexicalComposerContext";
+import { COMMAND_PRIORITY_EDITOR } from "lexical";
+import { useCallback, useEffect } from "react";
+import * as ReactDOM from "react-dom";
 
-import useModal from '../../hooks/useModal';
-import {AutoEmbedDialog} from './AutoEmbedDialog';
+import useModal from "../../hooks/useModal";
+import type { RangeSelectionSnapshot } from "../ImagesPlugin/selectionSnapshot";
 import {
   OPEN_EMBED_MODAL_WITH_SELECTION_COMMAND,
   type OpenEmbedModalCommandPayload,
-} from './AutoEmbedCommands';
-import {EmbedConfigs, type PlaygroundEmbedConfig} from './AutoEmbedConfig';
-import type {RangeSelectionSnapshot} from '../ImagesPlugin/selectionSnapshot';
+} from "./AutoEmbedCommands";
+import { EmbedConfigs, type PlaygroundEmbedConfig } from "./AutoEmbedConfig";
+import { AutoEmbedDialog } from "./AutoEmbedDialog";
 
 function AutoEmbedMenuItem({
   index,
@@ -39,9 +39,9 @@ function AutoEmbedMenuItem({
   onMouseEnter: () => void;
   option: AutoEmbedOption;
 }) {
-  let className = 'item';
+  let className = "item";
   if (isSelected) {
-    className += ' selected';
+    className += " selected";
   }
   return (
     <li
@@ -51,9 +51,10 @@ function AutoEmbedMenuItem({
       ref={option.setRefElement}
       role="option"
       aria-selected={isSelected}
-      id={'typeahead-item-' + index}
+      id={"typeahead-item-" + index}
       onMouseEnter={onMouseEnter}
-      onClick={onClick}>
+      onClick={onClick}
+    >
       <span className="text">{option.title}</span>
     </li>
   );
@@ -133,7 +134,7 @@ export default function AutoEmbedPlugin(): JSX.Element {
     dismissFn: () => void,
   ) => {
     return [
-      new AutoEmbedOption('Dismiss', {
+      new AutoEmbedOption("Dismiss", {
         onSelect: dismissFn,
       }),
       new AutoEmbedOption(`Embed ${activeEmbedConfig.contentName}`, {
@@ -151,7 +152,12 @@ export default function AutoEmbedPlugin(): JSX.Element {
         getMenuOptions={getMenuOptions}
         menuRenderFn={(
           anchorElementRef,
-          {selectedIndex, options, selectOptionAndCleanUp, setHighlightedIndex},
+          {
+            selectedIndex,
+            options,
+            selectOptionAndCleanUp,
+            setHighlightedIndex,
+          },
         ) =>
           anchorElementRef.current
             ? ReactDOM.createPortal(
@@ -163,7 +169,8 @@ export default function AutoEmbedPlugin(): JSX.Element {
                       0,
                     )}px`,
                     width: 200,
-                  }}>
+                  }}
+                >
                   <AutoEmbedMenu
                     options={options}
                     selectedItemIndex={selectedIndex}

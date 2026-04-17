@@ -1,9 +1,9 @@
-import { render, screen, waitFor, within } from "@testing-library/react";
-import { MemoryRouter } from "react-router-dom";
-import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import Footer from "@/components/Footer";
 import { defaultSettings, mergeSettings } from "@/hooks/site-settings-context";
 import type { SiteSettings } from "@/types/site-settings";
+import { render, screen, waitFor, within } from "@testing-library/react";
+import { MemoryRouter } from "react-router-dom";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 const useSiteSettingsMock = vi.hoisted(() => vi.fn());
 const supportsMock = vi.hoisted(() => vi.fn());

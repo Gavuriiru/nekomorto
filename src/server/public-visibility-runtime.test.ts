@@ -8,7 +8,7 @@ import {
 const createDeps = (overrides = {}) => ({
   buildPublicReadableProjects: (projects) => projects.filter((project) => project.readable),
   buildPublicVisibleProjects: (projects) => projects.filter((project) => project.visible),
-  isEpisodePublic: (type, episode) => Boolean(episode?.isPublic),
+  isEpisodePublic: (_type, episode) => Boolean(episode?.isPublic),
   loadPosts: () => [
     {
       id: "post-1",

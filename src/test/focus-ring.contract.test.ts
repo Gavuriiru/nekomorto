@@ -246,13 +246,21 @@ describe("focus ring contract", () => {
     );
 
     expect(muiFieldsSource).toContain('borderColor: "hsl(var(--primary))"');
-    expect(muiFieldsSource).toContain('"& .MuiPickersInputBase-root, & .MuiPickersOutlinedInput-root, & .MuiOutlinedInput-root"');
+    expect(muiFieldsSource).toContain(
+      '"& .MuiPickersInputBase-root, & .MuiPickersOutlinedInput-root, & .MuiOutlinedInput-root"',
+    );
     expect(muiFieldsSource).toContain('"& .MuiPickersSectionList-root"');
-    expect(muiFieldsSource).toContain('"& .MuiPickersSectionList-section, & .MuiPickersSectionList-sectionContent, & .MuiPickersInputBase-sectionContent"');
+    expect(muiFieldsSource).toContain(
+      '"& .MuiPickersSectionList-section, & .MuiPickersSectionList-sectionContent, & .MuiPickersInputBase-sectionContent"',
+    );
     expect(muiFieldsSource).toContain('color: "inherit"');
     expect(muiFieldsSource).toContain('outline: "none"');
-    expect(muiFieldsSource).toContain('"& .MuiPickersSectionList-root::selection, & .MuiPickersSectionList-sectionContent::selection, & .MuiPickersInputBase-sectionContent::selection"');
-    expect(muiFieldsSource).toContain('"& .MuiPickersSectionList-root::-moz-selection, & .MuiPickersSectionList-sectionContent::-moz-selection, & .MuiPickersInputBase-sectionContent::-moz-selection"');
+    expect(muiFieldsSource).toContain(
+      '"& .MuiPickersSectionList-root::selection, & .MuiPickersSectionList-sectionContent::selection, & .MuiPickersInputBase-sectionContent::selection"',
+    );
+    expect(muiFieldsSource).toContain(
+      '"& .MuiPickersSectionList-root::-moz-selection, & .MuiPickersSectionList-sectionContent::-moz-selection, & .MuiPickersInputBase-sectionContent::-moz-selection"',
+    );
     expect(muiFieldsSource).toContain('backgroundColor: "transparent"');
     expect(muiFieldsSource).toContain('"& .MuiInputBase-input, & .MuiPickersInputBase-input"');
     expect(muiFieldsSource).toContain('size: "small"');
@@ -268,7 +276,7 @@ describe("focus ring contract", () => {
     expect(muiFieldsSource).toContain('fontSize: "0.875rem"');
     expect(muiFieldsSource).toContain('minHeight: "2.5rem"');
     expect(muiFieldsSource).toContain('minHeight: "2.75rem"');
-    expect(muiFieldsSource).toContain('padding: 0');
+    expect(muiFieldsSource).toContain("padding: 0");
     expect(muiFieldsSource).toContain('backgroundColor: "hsl(var(--background) / 0.6)"');
     expect(muiFieldsSource).toContain('borderColor: "hsl(var(--border) / 0.6)"');
     expect(muiFieldsSource).toContain('"&.Mui-disabled": {');

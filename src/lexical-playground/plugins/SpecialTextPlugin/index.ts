@@ -5,17 +5,17 @@
  * LICENSE file in the root directory of this source tree.
  *
  */
-import type {LexicalEditor} from 'lexical';
-import type {JSX} from 'react';
+import type { LexicalEditor } from "lexical";
+import type { JSX } from "react";
 
-import {useLexicalComposerContext} from '@lexical/react/LexicalComposerContext';
-import {TextNode} from 'lexical';
-import {useEffect} from 'react';
+import { useLexicalComposerContext } from "@lexical/react/LexicalComposerContext";
+import { TextNode } from "lexical";
+import { useEffect } from "react";
 
 import {
   $createSpecialTextNode,
   SpecialTextNode,
-} from '../../nodes/SpecialTextNode';
+} from "../../nodes/SpecialTextNode";
 
 const BRACKETED_TEXT_REGEX = /\[([^\[\]]+)\]/; // eslint-disable-line
 
@@ -58,7 +58,7 @@ function useTextTransformation(editor: LexicalEditor): void {
   useEffect(() => {
     if (!editor.hasNodes([SpecialTextNode])) {
       throw new Error(
-        'SpecialTextPlugin: SpecialTextNode not registered on editor',
+        "SpecialTextPlugin: SpecialTextNode not registered on editor",
       );
     }
 

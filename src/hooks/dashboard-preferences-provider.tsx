@@ -1,4 +1,3 @@
-import { type ReactNode, useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
   DashboardPreferencesContext,
   type DashboardPreferencesShape,
@@ -6,6 +5,7 @@ import {
 import { useDashboardSession } from "@/hooks/use-dashboard-session";
 import { getApiBase } from "@/lib/api-base";
 import { apiFetch } from "@/lib/api-client";
+import { type ReactNode, useCallback, useEffect, useMemo, useRef, useState } from "react";
 
 const isRecord = (value: unknown): value is Record<string, unknown> =>
   Boolean(value) && typeof value === "object" && !Array.isArray(value);

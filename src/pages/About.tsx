@@ -1,3 +1,11 @@
+import PublicPageHero from "@/components/PublicPageHero";
+import {
+  publicInteractiveStackedSurfaceClassName,
+  publicPageLayoutTokens,
+} from "@/components/public-page-tokens";
+import { Card, CardContent } from "@/components/ui/card";
+import { usePageMeta } from "@/hooks/use-page-meta";
+import { readWindowPublicBootstrap } from "@/lib/public-bootstrap-global";
 import {
   Flame,
   Heart,
@@ -15,14 +23,6 @@ import {
   Zap,
 } from "lucide-react";
 import { useMemo } from "react";
-import PublicPageHero from "@/components/PublicPageHero";
-import {
-  publicInteractiveStackedSurfaceClassName,
-  publicPageLayoutTokens,
-} from "@/components/public-page-tokens";
-import { Card, CardContent } from "@/components/ui/card";
-import { usePageMeta } from "@/hooks/use-page-meta";
-import { readWindowPublicBootstrap } from "@/lib/public-bootstrap-global";
 import {
   buildInstitutionalOgImageAlt,
   buildInstitutionalOgRevision,

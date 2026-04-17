@@ -5,7 +5,6 @@ import {
   type SerializedLexicalNode,
   type Spread,
 } from "lexical";
-import * as React from "react";
 
 import { extractSerializedLexicalText } from "./viewer-node-utils";
 

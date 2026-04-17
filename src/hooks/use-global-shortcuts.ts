@@ -1,5 +1,5 @@
-import { useContext, useEffect } from "react";
 import { GlobalShortcutsContext } from "@/hooks/global-shortcuts-context";
+import { useContext, useEffect } from "react";
 
 type GlobalShortcutRegistration = {
   getDashboardHref?: (() => string) | null;

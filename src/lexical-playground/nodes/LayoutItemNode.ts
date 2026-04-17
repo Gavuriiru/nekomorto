@@ -12,15 +12,15 @@ import type {
   EditorConfig,
   LexicalNode,
   SerializedElementNode,
-} from 'lexical';
+} from "lexical";
 
-import {addClassNamesToElement} from '@lexical/utils';
-import {$isParagraphNode, ElementNode} from 'lexical';
+import { addClassNamesToElement } from "@lexical/utils";
+import { $isParagraphNode, ElementNode } from "lexical";
 
 export type SerializedLayoutItemNode = SerializedElementNode;
 
 function $convertLayoutItemElement(): DOMConversionOutput | null {
-  return {node: $createLayoutItemNode()};
+  return { node: $createLayoutItemNode() };
 }
 
 export function $isEmptyLayoutItemNode(node: LexicalNode): boolean {
@@ -33,7 +33,7 @@ export function $isEmptyLayoutItemNode(node: LexicalNode): boolean {
 
 export class LayoutItemNode extends ElementNode {
   static getType(): string {
-    return 'layout-item';
+    return "layout-item";
   }
 
   static clone(node: LayoutItemNode): LayoutItemNode {
@@ -41,9 +41,9 @@ export class LayoutItemNode extends ElementNode {
   }
 
   createDOM(config: EditorConfig): HTMLElement {
-    const dom = document.createElement('div');
-    dom.setAttribute('data-lexical-layout-item', 'true');
-    if (typeof config.theme.layoutItem === 'string') {
+    const dom = document.createElement("div");
+    dom.setAttribute("data-lexical-layout-item", "true");
+    if (typeof config.theme.layoutItem === "string") {
       addClassNamesToElement(dom, config.theme.layoutItem);
     }
     return dom;
@@ -68,7 +68,7 @@ export class LayoutItemNode extends ElementNode {
   static importDOM(): DOMConversionMap | null {
     return {
       div: (domNode: HTMLElement) => {
-        if (!domNode.hasAttribute('data-lexical-layout-item')) {
+        if (!domNode.hasAttribute("data-lexical-layout-item")) {
           return null;
         }
         return {

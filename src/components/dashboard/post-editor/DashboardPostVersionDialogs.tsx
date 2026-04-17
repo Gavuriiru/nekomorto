@@ -1,4 +1,3 @@
-import { RotateCcw } from "lucide-react";
 import DashboardActionButton from "@/components/dashboard/DashboardActionButton";
 import {
   getPostStatusLabel,
@@ -18,6 +17,7 @@ import {
 import type { Project } from "@/data/projects";
 import { formatDateTimeShort } from "@/lib/date";
 import type { ContentVersion } from "@/types/editorial";
+import { RotateCcw } from "lucide-react";
 
 type DashboardPostVersionDialogsProps = {
   editingPost: PostRecord | null;

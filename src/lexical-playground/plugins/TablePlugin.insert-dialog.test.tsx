@@ -1,31 +1,33 @@
-import {fireEvent, render, screen} from '@testing-library/react';
-import {describe, expect, it, vi} from 'vitest';
+import { fireEvent, render, screen } from "@testing-library/react";
+import { describe, expect, it, vi } from "vitest";
 
-const {insertTableCommand, restoreSelectionForInsertionSpy} = vi.hoisted(() => ({
-  insertTableCommand: {type: 'INSERT_TABLE_COMMAND'},
-  restoreSelectionForInsertionSpy: vi.fn(),
-}));
+const { insertTableCommand, restoreSelectionForInsertionSpy } = vi.hoisted(
+  () => ({
+    insertTableCommand: { type: "INSERT_TABLE_COMMAND" },
+    restoreSelectionForInsertionSpy: vi.fn(),
+  }),
+);
 
-vi.mock('@lexical/react/LexicalComposerContext', () => ({
+vi.mock("@lexical/react/LexicalComposerContext", () => ({
   useLexicalComposerContext: () => [null],
 }));
 
-vi.mock('@lexical/table', () => ({
+vi.mock("@lexical/table", () => ({
   INSERT_TABLE_COMMAND: insertTableCommand,
   TableCellNode: class {},
   TableNode: class {},
   TableRowNode: class {},
 }));
 
-vi.mock('@/lexical-playground/plugins/ImagesPlugin/selectionSnapshot', () => ({
+vi.mock("@/lexical-playground/plugins/ImagesPlugin/selectionSnapshot", () => ({
   restoreSelectionForInsertion: restoreSelectionForInsertionSpy,
 }));
 
-import {InsertTableDialog} from '@/lexical-playground/plugins/TablePlugin';
+import { InsertTableDialog } from "@/lexical-playground/plugins/TablePlugin";
 
-describe('InsertTableDialog', () => {
-  it('restaura o snapshot antes de disparar a insercao da tabela', () => {
-    const selectionSnapshot = {anchor: {key: 'a'}, focus: {key: 'b'}};
+describe("InsertTableDialog", () => {
+  it("restaura o snapshot antes de disparar a insercao da tabela", () => {
+    const selectionSnapshot = { anchor: { key: "a" }, focus: { key: "b" } };
     const activeEditor = {
       dispatchCommand: vi.fn(),
       update: vi.fn((callback: () => void) => callback()),
@@ -40,7 +42,7 @@ describe('InsertTableDialog', () => {
       />,
     );
 
-    fireEvent.click(screen.getByRole('button', {name: /confirm/i}));
+    fireEvent.click(screen.getByRole("button", { name: /confirm/i }));
 
     expect(activeEditor.update).toHaveBeenCalledTimes(1);
     expect(restoreSelectionForInsertionSpy).toHaveBeenCalledWith(
@@ -49,8 +51,8 @@ describe('InsertTableDialog', () => {
     expect(activeEditor.dispatchCommand).toHaveBeenCalledWith(
       insertTableCommand,
       {
-        columns: '5',
-        rows: '5',
+        columns: "5",
+        rows: "5",
       },
     );
     expect(

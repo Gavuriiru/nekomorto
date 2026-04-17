@@ -1,5 +1,5 @@
-import { useEffect, useMemo, useState } from "react";
 import { isIconUrlSource, sanitizeIconSource } from "@/lib/url-safety";
+import { useEffect, useMemo, useState } from "react";
 
 type ThemedSvgMaskIconProps = {
   url: string;

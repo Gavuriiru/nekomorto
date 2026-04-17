@@ -1,9 +1,9 @@
+import { dashboardEditorDialogWidthClassName } from "@/components/dashboard/dashboard-page-tokens";
+import DashboardPosts from "@/pages/DashboardPosts";
 import { act, fireEvent, render, screen, waitFor, within } from "@testing-library/react";
 import type { ReactNode } from "react";
 import { MemoryRouter, useLocation } from "react-router-dom";
 import { describe, expect, it, vi } from "vitest";
-import { dashboardEditorDialogWidthClassName } from "@/components/dashboard/dashboard-page-tokens";
-import DashboardPosts from "@/pages/DashboardPosts";
 
 const { apiFetchMock, resizeObserverInstances, lexicalEditorPropsSpy } = vi.hoisted(() => ({
   apiFetchMock: vi.fn(),

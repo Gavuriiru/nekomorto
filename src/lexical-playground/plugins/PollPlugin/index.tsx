@@ -6,10 +6,10 @@
  *
  */
 
-import type {JSX} from 'react';
+import type { JSX } from "react";
 
-import {useLexicalComposerContext} from '@lexical/react/LexicalComposerContext';
-import {$wrapNodeInElement} from '@lexical/utils';
+import { useLexicalComposerContext } from "@lexical/react/LexicalComposerContext";
+import { $wrapNodeInElement } from "@lexical/utils";
 import {
   $createParagraphNode,
   $getRoot,
@@ -20,25 +20,24 @@ import {
   createCommand,
   LexicalCommand,
   LexicalEditor,
-} from 'lexical';
-import {useEffect, useState} from 'react';
-import * as React from 'react';
+} from "lexical";
+import { useEffect, useState } from "react";
 
 import {
   $createPollNode,
   createPollOption,
   PollNode,
-} from '../../nodes/PollNode';
+} from "../../nodes/PollNode";
+import Button from "../../ui/Button";
+import { DialogActions } from "../../ui/Dialog";
+import TextInput from "../../ui/TextInput";
 import {
   restoreSelectionForInsertion,
   type RangeSelectionSnapshot,
-} from '../ImagesPlugin/selectionSnapshot';
-import Button from '../../ui/Button';
-import {DialogActions} from '../../ui/Dialog';
-import TextInput from '../../ui/TextInput';
+} from "../ImagesPlugin/selectionSnapshot";
 
 export const INSERT_POLL_COMMAND: LexicalCommand<string> = createCommand(
-  'INSERT_POLL_COMMAND',
+  "INSERT_POLL_COMMAND",
 );
 
 export function InsertPollDialog({
@@ -52,7 +51,7 @@ export function InsertPollDialog({
   onClose: () => void;
   selectionSnapshot?: RangeSelectionSnapshot | null;
 }): JSX.Element {
-  const [question, setQuestion] = useState('');
+  const [question, setQuestion] = useState("");
 
   const onClick = () => {
     let handled = false;
@@ -74,7 +73,7 @@ export function InsertPollDialog({
     <>
       <TextInput label="Pergunta" onChange={setQuestion} value={question} />
       <DialogActions>
-        <Button disabled={question.trim() === ''} onClick={onClick}>
+        <Button disabled={question.trim() === ""} onClick={onClick}>
           Confirmar
         </Button>
       </DialogActions>
@@ -86,7 +85,7 @@ export default function PollPlugin(): JSX.Element | null {
   const [editor] = useLexicalComposerContext();
   useEffect(() => {
     if (!editor.hasNodes([PollNode])) {
-      throw new Error('PollPlugin: PollNode not registered on editor');
+      throw new Error("PollPlugin: PollNode not registered on editor");
     }
 
     return editor.registerCommand<string>(

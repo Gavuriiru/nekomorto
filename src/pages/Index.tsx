@@ -1,8 +1,8 @@
-import { lazy, Suspense, useEffect, useRef, useState } from "react";
 import HeroSection from "@/components/HeroSection";
 import { useIsMobile } from "@/hooks/use-mobile";
 import { usePageMeta } from "@/hooks/use-page-meta";
 import { readWindowPublicBootstrap } from "@/lib/public-bootstrap-global";
+import { lazy, Suspense, useEffect, useRef, useState } from "react";
 
 const ReleasesSection = lazy(() => import("@/components/ReleasesSection"));
 

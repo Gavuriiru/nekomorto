@@ -16,24 +16,24 @@ import type {
   LexicalNode,
   NodeKey,
   Spread,
-} from 'lexical';
-import type {JSX} from 'react';
+} from "lexical";
+import type { JSX } from "react";
 
 import {
   DecoratorBlockNode,
   SerializedDecoratorBlockNode,
-} from '@lexical/react/LexicalDecoratorBlockNode';
-import * as React from 'react';
+} from "@lexical/react/LexicalDecoratorBlockNode";
+import * as React from "react";
 
-import TweetComponent from './TweetComponent';
+import TweetComponent from "./TweetComponent";
 
 function $convertTweetElement(
   domNode: HTMLDivElement,
 ): DOMConversionOutput | null {
-  const id = domNode.getAttribute('data-lexical-tweet-id');
+  const id = domNode.getAttribute("data-lexical-tweet-id");
   if (id) {
     const node = $createTweetNode(id);
-    return {node};
+    return { node };
   }
   return null;
 }
@@ -49,7 +49,7 @@ export class TweetNode extends DecoratorBlockNode {
   __id: string;
 
   static getType(): string {
-    return 'tweet';
+    return "tweet";
   }
 
   static clone(node: TweetNode): TweetNode {
@@ -70,7 +70,7 @@ export class TweetNode extends DecoratorBlockNode {
   static importDOM(): DOMConversionMap<HTMLDivElement> | null {
     return {
       div: (domNode: HTMLDivElement) => {
-        if (!domNode.hasAttribute('data-lexical-tweet-id')) {
+        if (!domNode.hasAttribute("data-lexical-tweet-id")) {
           return null;
         }
         return {
@@ -82,11 +82,11 @@ export class TweetNode extends DecoratorBlockNode {
   }
 
   exportDOM(): DOMExportOutput {
-    const element = document.createElement('div');
-    element.setAttribute('data-lexical-tweet-id', this.__id);
+    const element = document.createElement("div");
+    element.setAttribute("data-lexical-tweet-id", this.__id);
     const text = document.createTextNode(this.getTextContent());
     element.append(text);
-    return {element};
+    return { element };
   }
 
   constructor(id: string, format?: ElementFormatType, key?: NodeKey) {
@@ -108,8 +108,8 @@ export class TweetNode extends DecoratorBlockNode {
   decorate(_editor: LexicalEditor, config: EditorConfig): JSX.Element {
     const embedBlockTheme = config.theme.embedBlock || {};
     const className = {
-      base: embedBlockTheme.base || '',
-      focus: embedBlockTheme.focus || '',
+      base: embedBlockTheme.base || "",
+      focus: embedBlockTheme.focus || "",
     };
 
     return React.createElement(TweetComponent, {

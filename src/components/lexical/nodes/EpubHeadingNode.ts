@@ -121,7 +121,7 @@ export class EpubHeadingNode extends HeadingNode {
   updateDOM(
     prevNode: HeadingNode,
     dom: HTMLElement,
-    config: Parameters<HeadingNode["createDOM"]>[0],
+    _config: Parameters<HeadingNode["createDOM"]>[0],
   ) {
     const needsRemount = prevNode.getTag() !== this.getTag();
     if (!needsRemount) {

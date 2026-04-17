@@ -6,40 +6,40 @@
  *
  */
 
-import type {Klass, LexicalNode} from 'lexical';
+import type { Klass, LexicalNode } from "lexical";
 
-import {CodeHighlightNode, CodeNode} from '@lexical/code';
-import {HashtagNode} from '@lexical/hashtag';
-import {AutoLinkNode, LinkNode} from '@lexical/link';
-import {ListItemNode, ListNode} from '@lexical/list';
-import {MarkNode} from '@lexical/mark';
-import {OverflowNode} from '@lexical/overflow';
-import {HorizontalRuleNode} from '@lexical/react/LexicalHorizontalRuleNode';
-import {HeadingNode, QuoteNode} from '@lexical/rich-text';
-import {TableCellNode, TableNode, TableRowNode} from '@lexical/table';
+import { CodeHighlightNode, CodeNode } from "@lexical/code";
+import { HashtagNode } from "@lexical/hashtag";
+import { AutoLinkNode, LinkNode } from "@lexical/link";
+import { ListItemNode, ListNode } from "@lexical/list";
+import { MarkNode } from "@lexical/mark";
+import { OverflowNode } from "@lexical/overflow";
+import { HorizontalRuleNode } from "@lexical/react/LexicalHorizontalRuleNode";
+import { HeadingNode, QuoteNode } from "@lexical/rich-text";
+import { TableCellNode, TableNode, TableRowNode } from "@lexical/table";
 
-import {CollapsibleContainerNode} from '../plugins/CollapsiblePlugin/CollapsibleContainerNode';
-import {CollapsibleContentNode} from '../plugins/CollapsiblePlugin/CollapsibleContentNode';
-import {CollapsibleTitleNode} from '../plugins/CollapsiblePlugin/CollapsibleTitleNode';
-import {AutocompleteNode} from './AutocompleteNode';
-import {DateTimeNode} from './DateTimeNode/DateTimeNode';
-import {EmojiNode} from './EmojiNode';
-import {EpubAnchorNode} from '@/components/lexical/nodes/EpubAnchorNode';
-import {EpubHeadingNode} from '@/components/lexical/nodes/EpubHeadingNode';
-import {EpubImageNode} from '@/components/lexical/nodes/EpubImageNode';
-import {EpubParagraphNode} from '@/components/lexical/nodes/EpubParagraphNode';
-import {EquationNode} from './EquationNode';
-import {ImageNode} from './ImageNode';
-import {KeywordNode} from './KeywordNode';
-import {LayoutContainerNode} from './LayoutContainerNode';
-import {LayoutItemNode} from './LayoutItemNode';
-import {MentionNode} from './MentionNode';
-import {PageBreakNode} from './PageBreakNode';
-import {PollNode} from './PollNode';
-import {SpecialTextNode} from './SpecialTextNode';
-import {StickyNode} from './StickyNode';
-import {TweetNode} from './TweetNode';
-import {YouTubeNode} from './YouTubeNode';
+import { EpubAnchorNode } from "@/components/lexical/nodes/EpubAnchorNode";
+import { EpubHeadingNode } from "@/components/lexical/nodes/EpubHeadingNode";
+import { EpubImageNode } from "@/components/lexical/nodes/EpubImageNode";
+import { EpubParagraphNode } from "@/components/lexical/nodes/EpubParagraphNode";
+import { CollapsibleContainerNode } from "../plugins/CollapsiblePlugin/CollapsibleContainerNode";
+import { CollapsibleContentNode } from "../plugins/CollapsiblePlugin/CollapsibleContentNode";
+import { CollapsibleTitleNode } from "../plugins/CollapsiblePlugin/CollapsibleTitleNode";
+import { AutocompleteNode } from "./AutocompleteNode";
+import { DateTimeNode } from "./DateTimeNode/DateTimeNode";
+import { EmojiNode } from "./EmojiNode";
+import { EquationNode } from "./EquationNode";
+import { ImageNode } from "./ImageNode";
+import { KeywordNode } from "./KeywordNode";
+import { LayoutContainerNode } from "./LayoutContainerNode";
+import { LayoutItemNode } from "./LayoutItemNode";
+import { MentionNode } from "./MentionNode";
+import { PageBreakNode } from "./PageBreakNode";
+import { PollNode } from "./PollNode";
+import { SpecialTextNode } from "./SpecialTextNode";
+import { StickyNode } from "./StickyNode";
+import { TweetNode } from "./TweetNode";
+import { YouTubeNode } from "./YouTubeNode";
 
 const PlaygroundNodes: Array<Klass<LexicalNode>> = [
   HeadingNode,

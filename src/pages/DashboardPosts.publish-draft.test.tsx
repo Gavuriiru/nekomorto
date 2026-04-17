@@ -1,8 +1,8 @@
+import DashboardPosts from "@/pages/DashboardPosts";
 import { fireEvent, render, screen, waitFor, within } from "@testing-library/react";
 import type { ReactNode } from "react";
 import { MemoryRouter } from "react-router-dom";
 import { afterEach, describe, expect, it, vi } from "vitest";
-import DashboardPosts from "@/pages/DashboardPosts";
 
 const { apiFetchMock } = vi.hoisted(() => ({
   apiFetchMock: vi.fn(),

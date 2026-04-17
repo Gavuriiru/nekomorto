@@ -1,16 +1,12 @@
-import { LogOut, Menu } from "lucide-react";
-import { lazy, Suspense, useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { Link, useLocation, useNavigate } from "react-router-dom";
-import DashboardNotificationsPopover from "@/components/dashboard/DashboardNotificationsPopover";
 import {
   type DashboardMenuItem,
   dashboardMenuItems as defaultMenuItems,
   isDashboardMenuItemActive,
 } from "@/components/dashboard-menu";
+import DashboardNotificationsPopover from "@/components/dashboard/DashboardNotificationsPopover";
 import ThemedSvgLogo from "@/components/ThemedSvgLogo";
 import ThemeModeSwitcher from "@/components/ThemeModeSwitcher";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
-import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import {
   DropdownMenu,
@@ -34,6 +30,9 @@ import type { UploadMediaVariantsMap } from "@/lib/upload-variants";
 import { sanitizePublicHref } from "@/lib/url-safety";
 import { cn } from "@/lib/utils";
 import type { SearchSuggestion } from "@/types/search-suggestion";
+import { LogOut, Menu } from "lucide-react";
+import { lazy, Suspense, useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { Link, useLocation, useNavigate } from "react-router-dom";
 
 type DashboardHeaderUser = {
   name?: string;

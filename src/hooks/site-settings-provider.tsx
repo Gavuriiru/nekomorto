@@ -1,5 +1,3 @@
-import type { ReactNode } from "react";
-import { useCallback, useEffect, useMemo, useState } from "react";
 import { defaultSettings, mergeSettings, SiteSettingsContext } from "@/hooks/site-settings-context";
 import { getApiBase } from "@/lib/api-base";
 import { apiFetch } from "@/lib/api-client";
@@ -7,6 +5,8 @@ import { normalizeAssetUrl } from "@/lib/asset-url";
 import { truncateMetaDescription } from "@/lib/meta-description";
 import { deriveThemeAccentTokens } from "@/lib/theme-accent";
 import type { SiteSettings } from "@/types/site-settings";
+import type { ReactNode } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 
 const ensureMeta = (selector: string, attrs: Record<string, string>) => {
   let el = document.querySelector(selector) as HTMLMetaElement | null;

@@ -1,3 +1,11 @@
+import {
+  buildStyleDeclaration,
+  normalizeFontFamilyBucket,
+  parseStyleDeclaration,
+} from "@/components/lexical/nodes/epub-style";
+import PlaygroundNodes from "@/lexical-playground/nodes/PlaygroundNodes";
+import { EMPTY_LEXICAL_JSON } from "@/lib/lexical/empty-state";
+import { lexicalNodes as bridgeLexicalNodes } from "@/lib/lexical/nodes";
 import { $generateHtmlFromNodes, $generateNodesFromDOM } from "@lexical/html";
 import { $createLinkNode } from "@lexical/link";
 import {
@@ -10,14 +18,6 @@ import {
   type LexicalNode,
   TextNode,
 } from "lexical";
-import {
-  buildStyleDeclaration,
-  normalizeFontFamilyBucket,
-  parseStyleDeclaration,
-} from "@/components/lexical/nodes/epub-style";
-import PlaygroundNodes from "@/lexical-playground/nodes/PlaygroundNodes";
-import { EMPTY_LEXICAL_JSON } from "@/lib/lexical/empty-state";
-import { lexicalNodes as bridgeLexicalNodes } from "@/lib/lexical/nodes";
 
 const INLINE_TEXT_STYLE_KEYS = ["font-size", "font-style", "font-weight", "font-family"] as const;
 const ZERO_LIKE_VALUES = new Set([

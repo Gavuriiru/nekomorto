@@ -1,3 +1,12 @@
+import { Button } from "@/components/ui/button";
+import { ColorPicker } from "@/components/ui/color-picker";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { Textarea } from "@/components/ui/textarea";
+import { normalizeAssetUrl } from "@/lib/asset-url";
+import "@/styles/rich-content.css";
 import DOMPurify from "dompurify";
 import {
   AlignCenter,
@@ -20,15 +29,6 @@ import {
   Video,
 } from "lucide-react";
 import * as React from "react";
-import { Button } from "@/components/ui/button";
-import { ColorPicker } from "@/components/ui/color-picker";
-import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
-import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Textarea } from "@/components/ui/textarea";
-import { normalizeAssetUrl } from "@/lib/asset-url";
-import "@/styles/rich-content.css";
 
 type PostContentEditorProps = {
   format: "markdown" | "html";
@@ -120,9 +120,6 @@ const PostContentEditor = ({
   toolbarExtra,
   imagePanel,
   onPreviewClick,
-  onPreviewDragStart,
-  onPreviewDrop,
-  onPreviewDragOver,
   showPreview = true,
 }: PostContentEditorProps) => {
   const sanitizedPreviewHtml = DOMPurify.sanitize(previewHtml, {

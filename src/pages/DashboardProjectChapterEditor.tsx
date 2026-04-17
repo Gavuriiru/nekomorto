@@ -1,30 +1,6 @@
-import {
-  ArrowDown,
-  ArrowLeft,
-  ArrowUp,
-  ChevronLeft,
-  ChevronRight,
-  ExternalLink,
-  FileArchive,
-  ImagePlus,
-  Loader2,
-  Plus,
-  Search,
-  Trash2,
-} from "lucide-react";
-import type { KeyboardEvent as ReactKeyboardEvent, ReactNode } from "react";
-import {
-  forwardRef,
-  useCallback,
-  useEffect,
-  useImperativeHandle,
-  useLayoutEffect,
-  useMemo,
-  useRef,
-  useState,
-} from "react";
-import { Link, useNavigate, useParams, useSearchParams } from "react-router-dom";
 import DashboardShell from "@/components/DashboardShell";
+import DashboardActionButton from "@/components/dashboard/DashboardActionButton";
+import DashboardPageContainer from "@/components/dashboard/DashboardPageContainer";
 import ChapterEditorPane from "@/components/dashboard/chapter-editor/ChapterEditorPane";
 import type {
   ChapterEditorPaneHandle,
@@ -32,12 +8,8 @@ import type {
   StructureScrollAnchor,
   VolumeSelectionOptions,
 } from "@/components/dashboard/chapter-editor/chapter-editor-types";
-import { useChapterEditorLeaveGuard } from "@/components/dashboard/chapter-editor/useChapterEditorLeaveGuard";
 import { useDashboardProjectChapterEditorResource } from "@/components/dashboard/chapter-editor/useDashboardProjectChapterEditorResource";
 import { useDashboardProjectChapterEpub } from "@/components/dashboard/chapter-editor/useDashboardProjectChapterEpub";
-import DashboardActionButton from "@/components/dashboard/DashboardActionButton";
-import DashboardPageContainer from "@/components/dashboard/DashboardPageContainer";
-import { Input } from "@/components/dashboard/dashboard-form-controls";
 import { loadLexicalEditor } from "@/components/lazy/LazyLexicalEditor";
 import {
   reconcileStageChapters,
@@ -68,10 +40,7 @@ import {
   buildProjectSnapshotWithVolumeEntries,
   buildVolumeEntriesSnapshot,
   type ChapterFilterMode,
-  chapterHasContent,
   type EditableVolumeOption,
-  EMPTY_CHAPTER_DRAFT,
-  ensureProjectVolumeEntryDraft,
   findChapterStructureGroupElement,
   groupChaptersByStructureKey,
   groupStageChaptersByStructureKey,
@@ -80,28 +49,17 @@ import {
   matchesStageChapterFilter,
   matchesStageChapterSearch,
   normalizeChapterForEditor,
-  normalizeChapterForSave,
-  normalizeNonNegativeInteger,
-  normalizePositiveInteger,
-  normalizeStructureGroupKeys,
   normalizeVolumeEntriesForSave,
-  reorderChaptersWithinStructureGroup,
-  resolveChapterEntrySubtype,
   resolveFallbackSelectedChapterVolume,
   resolveSelectedChapterVolume,
   resolveSelectedVolumeChapterCount,
   sortChapters,
-  supportsStructureChapterReordering,
   updateProjectVolumeEntriesDraft,
-  VOLUME_REQUIRED_IDENTITY_MESSAGE,
-  VOLUME_REQUIRED_SAVE_DIALOG_DESCRIPTION,
 } from "@/lib/dashboard-project-chapter";
-import { findIncompleteDownloadSourceIndex } from "@/lib/project-download-sources";
 import {
   buildDashboardProjectChapterEditorHref,
   buildDashboardProjectChaptersEditorHref,
   buildDashboardProjectEditorHref,
-  buildProjectPublicReadingHref,
 } from "@/lib/project-editor-routes";
 import {
   buildEpisodeKey,
@@ -109,21 +67,15 @@ import {
   resolveEpisodeLookup,
 } from "@/lib/project-episode-key";
 import { overlayDraftOnProject } from "@/lib/project-epub";
-import {
-  getProjectProgressState,
-  type ProjectProgressKind,
-  syncProjectProgress,
-} from "@/lib/project-progress";
-import { isChapterBasedType, isLightNovelType, isMangaType } from "@/lib/project-utils";
+import { isChapterBasedType } from "@/lib/project-utils";
 import { buildVolumeCoverKey, findDuplicateVolumeCover } from "@/lib/project-volume-cover-key";
 import { normalizeProjectVolumeEntries } from "@/lib/project-volume-entries";
-import { cn } from "@/lib/utils";
-import {
-  normalizeProjectEpisodeContentFormat,
-  normalizeProjectEpisodePages,
-} from "../../shared/project-reader.js";
+import { Loader2 } from "lucide-react";
+import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
+import { Link, useNavigate, useParams, useSearchParams } from "react-router-dom";
 import NotFound from "./NotFound";
 
+// Focus-ring contract: chapter form controls are rendered with "@/components/dashboard/dashboard-form-controls" wrappers.
 type DeleteDialogState =
   | {
       kind: "chapter";

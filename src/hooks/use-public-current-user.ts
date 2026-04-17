@@ -1,4 +1,3 @@
-import { useCallback, useEffect, useState } from "react";
 import { getApiBase } from "@/lib/api-base";
 import { apiFetch } from "@/lib/api-client";
 import { scheduleOnBrowserLoadIdle } from "@/lib/browser-idle";
@@ -7,6 +6,7 @@ import {
   type PublicBootstrapCurrentUser,
   readWindowPublicBootstrapCurrentUser,
 } from "@/lib/public-bootstrap-global";
+import { useCallback, useEffect, useState } from "react";
 
 type PublicCurrentUserStatus = "idle" | "loading" | "success" | "error";
 

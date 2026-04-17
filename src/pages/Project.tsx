@@ -20,18 +20,17 @@ import CommentsSection from "@/components/CommentsSection";
 import PublicProjectCard from "@/components/project/PublicProjectCard";
 import { publicPageLayoutTokens } from "@/components/public-page-tokens";
 import ThemedSvgLogo from "@/components/ThemedSvgLogo";
-import UploadPicture from "@/components/UploadPicture";
 import {
   Accordion,
   AccordionContent,
   AccordionItem,
   AccordionTrigger,
 } from "@/components/ui/accordion";
-import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { PillButton } from "@/components/ui/pill-button";
+import UploadPicture from "@/components/UploadPicture";
 import type { Project } from "@/data/projects";
 import { usePageMeta } from "@/hooks/use-page-meta";
 import { usePublicCurrentUser } from "@/hooks/use-public-current-user";
@@ -53,7 +52,7 @@ import {
   translateRelation,
   translateTag,
 } from "@/lib/project-taxonomy";
-import { isChapterBasedType, isLightNovelType, isMangaType } from "@/lib/project-utils";
+import { isChapterBasedType, isMangaType } from "@/lib/project-utils";
 import { findVolumeCoverByVolume } from "@/lib/project-volume-cover-key";
 import { normalizeProjectVolumeEntries } from "@/lib/project-volume-entries";
 import { PUBLIC_ANALYTICS_INGEST_PATH } from "@/lib/public-analytics";

@@ -1,9 +1,9 @@
-import type { ReactNode } from "react";
 import {
   publicPageLayoutTokens,
   publicStrongFocusScopeClassName,
 } from "@/components/public-page-tokens";
 import { cn } from "@/lib/utils";
+import type { ReactNode } from "react";
 
 const maxWidthClassMap = {
   "3xl": "max-w-3xl",

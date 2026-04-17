@@ -1,14 +1,3 @@
-import {
-  Bell,
-  FilePlus2,
-  FileText,
-  FolderPlus,
-  LucideIcon,
-  Settings,
-  UserCog,
-  UserPlus,
-} from "lucide-react";
-import { useMemo } from "react";
 import type { DashboardMenuItem } from "@/components/dashboard-menu";
 import {
   CommandDialog,
@@ -20,6 +9,17 @@ import {
   CommandShortcut,
 } from "@/components/ui/command";
 import { uiCopy } from "@/lib/ui-copy";
+import {
+  Bell,
+  FilePlus2,
+  FileText,
+  FolderPlus,
+  LucideIcon,
+  Settings,
+  UserCog,
+  UserPlus,
+} from "lucide-react";
+import { useMemo } from "react";
 
 type DashboardCommandPaletteProps = {
   open: boolean;

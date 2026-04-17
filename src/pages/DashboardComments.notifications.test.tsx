@@ -3,8 +3,8 @@ import type { ReactNode } from "react";
 import { MemoryRouter } from "react-router-dom";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
-import { dashboardInteractiveStackedSurfaceClassName } from "@/components/dashboard/dashboard-page-tokens";
 import { dashboardMotionDelays } from "@/components/dashboard/dashboard-motion";
+import { dashboardInteractiveStackedSurfaceClassName } from "@/components/dashboard/dashboard-page-tokens";
 import { formatDateTime } from "@/lib/date";
 import DashboardComments from "@/pages/DashboardComments";
 

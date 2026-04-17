@@ -1,8 +1,8 @@
-import { type CSSProperties, useId } from "react";
 import { buttonVariants } from "@/components/ui/button-variants";
 import { THEME_MODE_PRESERVE_MOTION_ATTRIBUTE } from "@/hooks/theme-mode-context";
 import { useThemeMode } from "@/hooks/use-theme-mode";
 import { cn } from "@/lib/utils";
+import { type CSSProperties, useId } from "react";
 import "./ThemeModeSwitcher.css";
 
 type ThemeModeSwitcherProps = {

@@ -1,3 +1,4 @@
+import { uiCopy } from "@/lib/ui-copy";
 import {
   ChartSpline,
   FileText,
@@ -12,7 +13,6 @@ import {
   ShieldAlert,
   UserRound,
 } from "lucide-react";
-import { uiCopy } from "@/lib/ui-copy";
 
 export type DashboardMenuSectionId = "home" | "content" | "team" | "system";
 export type DashboardMenuActiveMatch = "exact" | "prefix";

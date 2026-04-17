@@ -1,7 +1,7 @@
-import { type ReactNode, useCallback, useEffect, useMemo, useRef } from "react";
-import { useNavigate } from "react-router-dom";
 import { GlobalShortcutsContext } from "@/hooks/global-shortcuts-context";
 import { isEditableShortcutTarget, isSearchShortcutBlockedTarget } from "@/lib/keyboard-shortcuts";
+import { type ReactNode, useCallback, useEffect, useMemo, useRef } from "react";
+import { useNavigate } from "react-router-dom";
 
 const DASHBOARD_CHORD_TIMEOUT_MS = 800;
 

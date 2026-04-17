@@ -6,7 +6,7 @@ import {
   $setSelection,
   type LexicalEditor,
   type RangeSelection,
-} from 'lexical';
+} from "lexical";
 
 export type RangeSelectionSnapshot = RangeSelection;
 

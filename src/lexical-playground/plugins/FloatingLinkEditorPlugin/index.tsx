@@ -5,19 +5,18 @@
  * LICENSE file in the root directory of this source tree.
  *
  */
-import type {JSX} from 'react';
+import type { JSX } from "react";
 
-import './index.css';
+import "./index.css";
 
 import {
   $createLinkNode,
   $isAutoLinkNode,
   $isLinkNode,
   TOGGLE_LINK_COMMAND,
-} from '@lexical/link';
-import {Check, Pencil, Trash2, X} from 'lucide-react';
-import {useLexicalComposerContext} from '@lexical/react/LexicalComposerContext';
-import {$findMatchingParent, mergeRegister} from '@lexical/utils';
+} from "@lexical/link";
+import { useLexicalComposerContext } from "@lexical/react/LexicalComposerContext";
+import { $findMatchingParent, mergeRegister } from "@lexical/utils";
 import {
   $getSelection,
   $isLineBreakNode,
@@ -32,14 +31,15 @@ import {
   KEY_ESCAPE_COMMAND,
   LexicalEditor,
   SELECTION_CHANGE_COMMAND,
-} from 'lexical';
-import {Dispatch, useCallback, useEffect, useRef, useState} from 'react';
-import * as React from 'react';
-import {createPortal} from 'react-dom';
+} from "lexical";
+import { Check, Pencil, Trash2, X } from "lucide-react";
+import * as React from "react";
+import { Dispatch, useCallback, useEffect, useRef, useState } from "react";
+import { createPortal } from "react-dom";
 
-import {getSelectedNode} from '../../utils/getSelectedNode';
-import {setFloatingElemPositionForLinkEditor} from '../../utils/setFloatingElemPositionForLinkEditor';
-import {sanitizeUrl} from '../../utils/url';
+import { getSelectedNode } from "../../utils/getSelectedNode";
+import { setFloatingElemPositionForLinkEditor } from "../../utils/setFloatingElemPositionForLinkEditor";
+import { sanitizeUrl } from "../../utils/url";
 
 function preventDefault(
   event: React.KeyboardEvent<HTMLInputElement> | React.MouseEvent<HTMLElement>,
@@ -48,14 +48,14 @@ function preventDefault(
 }
 
 function toSafeHttpUrl(value: string): string | null {
-  const normalized = String(value || '').trim();
+  const normalized = String(value || "").trim();
   if (!normalized) {
     return null;
   }
   try {
     const parsed = new URL(normalized, window.location.origin);
-    const protocol = String(parsed.protocol || '').toLowerCase();
-    if (protocol === 'http:' || protocol === 'https:') {
+    const protocol = String(parsed.protocol || "").toLowerCase();
+    if (protocol === "http:" || protocol === "https:") {
       return parsed.toString();
     }
     return null;
@@ -81,8 +81,8 @@ function FloatingLinkEditor({
 }): JSX.Element | null {
   const editorRef = useRef<HTMLDivElement | null>(null);
   const inputRef = useRef<HTMLInputElement>(null);
-  const [linkUrl, setLinkUrl] = useState('');
-  const [editedLinkUrl, setEditedLinkUrl] = useState('https://');
+  const [linkUrl, setLinkUrl] = useState("");
+  const [editedLinkUrl, setEditedLinkUrl] = useState("https://");
   const [lastSelection, setLastSelection] = useState<BaseSelection | null>(
     null,
   );
@@ -98,7 +98,7 @@ function FloatingLinkEditor({
       } else if ($isLinkNode(node)) {
         setLinkUrl(node.getURL());
       } else {
-        setLinkUrl('');
+        setLinkUrl("");
       }
       if (isLinkEditMode) {
         setEditedLinkUrl(linkUrl);
@@ -113,7 +113,7 @@ function FloatingLinkEditor({
         } else if ($isLinkNode(node)) {
           setLinkUrl(node.getURL());
         } else {
-          setLinkUrl('');
+          setLinkUrl("");
         }
         if (isLinkEditMode) {
           setEditedLinkUrl(linkUrl);
@@ -155,13 +155,13 @@ function FloatingLinkEditor({
         setFloatingElemPositionForLinkEditor(domRect, editorElem, anchorElem);
       }
       setLastSelection(selection);
-    } else if (!activeElement || activeElement.className !== 'link-input') {
+    } else if (!activeElement || activeElement.className !== "link-input") {
       if (rootElement !== null) {
         setFloatingElemPositionForLinkEditor(null, editorElem, anchorElem);
       }
       setLastSelection(null);
       setIsLinkEditMode(false);
-      setLinkUrl('');
+      setLinkUrl("");
     }
 
     return true;
@@ -176,24 +176,24 @@ function FloatingLinkEditor({
       });
     };
 
-    window.addEventListener('resize', update);
+    window.addEventListener("resize", update);
 
     if (scrollerElem) {
-      scrollerElem.addEventListener('scroll', update);
+      scrollerElem.addEventListener("scroll", update);
     }
 
     return () => {
-      window.removeEventListener('resize', update);
+      window.removeEventListener("resize", update);
 
       if (scrollerElem) {
-        scrollerElem.removeEventListener('scroll', update);
+        scrollerElem.removeEventListener("scroll", update);
       }
     };
   }, [anchorElem.parentElement, editor, $updateLinkEditor]);
 
   useEffect(() => {
     return mergeRegister(
-      editor.registerUpdateListener(({editorState}) => {
+      editor.registerUpdateListener(({ editorState }) => {
         editorState.read(() => {
           $updateLinkEditor();
         });
@@ -244,18 +244,18 @@ function FloatingLinkEditor({
         setIsLinkEditMode(false);
       }
     };
-    editorElement.addEventListener('focusout', handleBlur);
+    editorElement.addEventListener("focusout", handleBlur);
     return () => {
-      editorElement.removeEventListener('focusout', handleBlur);
+      editorElement.removeEventListener("focusout", handleBlur);
     };
   }, [editorRef, setIsLink, setIsLinkEditMode, isLink]);
 
   const monitorInputInteraction = (
     event: React.KeyboardEvent<HTMLInputElement>,
   ) => {
-    if (event.key === 'Enter') {
+    if (event.key === "Enter") {
       handleLinkSubmission(event);
-    } else if (event.key === 'Escape') {
+    } else if (event.key === "Escape") {
       event.preventDefault();
       setIsLinkEditMode(false);
     }
@@ -268,7 +268,7 @@ function FloatingLinkEditor({
   ) => {
     event.preventDefault();
     if (lastSelection !== null) {
-      if (linkUrl !== '') {
+      if (linkUrl !== "") {
         editor.update(() => {
           editor.dispatchCommand(
             TOGGLE_LINK_COMMAND,
@@ -288,7 +288,7 @@ function FloatingLinkEditor({
           }
         });
       }
-      setEditedLinkUrl('https://');
+      setEditedLinkUrl("https://");
       setIsLinkEditMode(false);
     }
   };
@@ -320,7 +320,8 @@ function FloatingLinkEditor({
               onMouseDown={preventDefault}
               onClick={() => {
                 setIsLinkEditMode(false);
-              }}>
+              }}
+            >
               <X size={16} aria-hidden="true" />
             </button>
 
@@ -329,7 +330,8 @@ function FloatingLinkEditor({
               type="button"
               aria-label="Confirmar link"
               onMouseDown={preventDefault}
-              onClick={handleLinkSubmission}>
+              onClick={handleLinkSubmission}
+            >
               <Check size={16} aria-hidden="true" />
             </button>
           </div>
@@ -339,7 +341,8 @@ function FloatingLinkEditor({
           <a
             href={sanitizeUrl(linkUrl)}
             target="_blank"
-            rel="noopener noreferrer">
+            rel="noopener noreferrer"
+          >
             {linkUrl}
           </a>
           <button
@@ -351,7 +354,8 @@ function FloatingLinkEditor({
               event.preventDefault();
               setEditedLinkUrl(linkUrl);
               setIsLinkEditMode(true);
-            }}>
+            }}
+          >
             <Pencil size={16} aria-hidden="true" />
           </button>
           <button
@@ -361,7 +365,8 @@ function FloatingLinkEditor({
             onMouseDown={preventDefault}
             onClick={() => {
               editor.dispatchCommand(TOGGLE_LINK_COMMAND, null);
-            }}>
+            }}
+          >
             <Trash2 size={16} aria-hidden="true" />
           </button>
         </div>
@@ -429,7 +434,7 @@ function useFloatingLinkEditorToolbar(
       }
     }
     return mergeRegister(
-      editor.registerUpdateListener(({editorState}) => {
+      editor.registerUpdateListener(({ editorState }) => {
         editorState.read(() => {
           $updateToolbar();
         });
@@ -455,7 +460,7 @@ function useFloatingLinkEditorToolbar(
               if (!safeUrl) {
                 return true;
               }
-              window.open(safeUrl, '_blank', 'noopener,noreferrer');
+              window.open(safeUrl, "_blank", "noopener,noreferrer");
               return true;
             }
           }

@@ -6,26 +6,25 @@
  *
  */
 
-import type {JSX} from 'react';
+import type { JSX } from "react";
 
-import {LexicalEditor} from 'lexical';
-import * as React from 'react';
-import {useState} from 'react';
+import { LexicalEditor } from "lexical";
+import { useState } from "react";
 
-import Button from '../../ui/Button';
-import DropDown, {DropDownItem} from '../../ui/DropDown';
+import Button from "../../ui/Button";
+import DropDown, { DropDownItem } from "../../ui/DropDown";
 import {
   restoreSelectionForInsertion,
   type RangeSelectionSnapshot,
-} from '../ImagesPlugin/selectionSnapshot';
-import {INSERT_LAYOUT_COMMAND} from './LayoutPlugin';
+} from "../ImagesPlugin/selectionSnapshot";
+import { INSERT_LAYOUT_COMMAND } from "./LayoutPlugin";
 
 const LAYOUTS = [
-  {label: '2 colunas (largura igual)', value: '1fr 1fr'},
-  {label: '2 colunas (25% - 75%)', value: '1fr 3fr'},
-  {label: '3 colunas (largura igual)', value: '1fr 1fr 1fr'},
-  {label: '3 colunas (25% - 50% - 25%)', value: '1fr 2fr 1fr'},
-  {label: '4 colunas (largura igual)', value: '1fr 1fr 1fr 1fr'},
+  { label: "2 colunas (largura igual)", value: "1fr 1fr" },
+  { label: "2 colunas (25% - 75%)", value: "1fr 3fr" },
+  { label: "3 colunas (largura igual)", value: "1fr 1fr 1fr" },
+  { label: "3 colunas (25% - 50% - 25%)", value: "1fr 2fr 1fr" },
+  { label: "4 colunas (largura igual)", value: "1fr 1fr 1fr 1fr" },
 ];
 
 export default function InsertLayoutDialog({
@@ -52,12 +51,14 @@ export default function InsertLayoutDialog({
     <>
       <DropDown
         buttonClassName="toolbar-item dialog-dropdown"
-        buttonLabel={buttonLabel}>
-        {LAYOUTS.map(({label, value}) => (
+        buttonLabel={buttonLabel}
+      >
+        {LAYOUTS.map(({ label, value }) => (
           <DropDownItem
             key={value}
             className="item"
-            onClick={() => setLayout(value)}>
+            onClick={() => setLayout(value)}
+          >
             <span className="text">{label}</span>
           </DropDownItem>
         ))}

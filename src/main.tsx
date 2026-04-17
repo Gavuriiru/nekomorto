@@ -1,4 +1,3 @@
-import { createRoot } from "react-dom/client";
 import { primePublicBootstrapCache } from "@/hooks/use-public-bootstrap";
 import { getApiBase } from "@/lib/api-base";
 import { apiFetch } from "@/lib/api-client";
@@ -7,9 +6,10 @@ import { asPublicBootstrapPayload } from "@/lib/public-bootstrap-global";
 import { startPublicFreshnessCoordinator } from "@/lib/public-freshness";
 import { installPwaCleanupReloadBridge, runPwaCleanup } from "@/lib/pwa-cleanup";
 import { installVitePreloadRecovery } from "@/lib/vite-preload-recovery";
+import { createRoot } from "react-dom/client";
 import App from "./App.tsx";
-import "./styles/fonts.css";
 import "./index.css";
+import "./styles/fonts.css";
 
 installVitePreloadRecovery();
 

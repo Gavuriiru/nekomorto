@@ -51,18 +51,20 @@ const muiTextFieldSx = {
     "&:hover .MuiPickersOutlinedInput-notchedOutline, &:hover .MuiOutlinedInput-notchedOutline": {
       borderColor: "hsl(var(--input))",
     },
-    "&.Mui-focused .MuiPickersOutlinedInput-notchedOutline, &.Mui-focused .MuiOutlinedInput-notchedOutline": {
-      borderColor: "hsl(var(--primary))",
-      borderWidth: "1px",
-    },
+    "&.Mui-focused .MuiPickersOutlinedInput-notchedOutline, &.Mui-focused .MuiOutlinedInput-notchedOutline":
+      {
+        borderColor: "hsl(var(--primary))",
+        borderWidth: "1px",
+      },
     "&.Mui-disabled": {
       backgroundColor: "hsl(var(--background))",
       color: "hsl(var(--muted-foreground) / 0.72)",
       cursor: "not-allowed",
     },
-    "&.Mui-disabled .MuiPickersOutlinedInput-notchedOutline, &.Mui-disabled .MuiOutlinedInput-notchedOutline": {
-      borderColor: "hsl(var(--input))",
-    },
+    "&.Mui-disabled .MuiPickersOutlinedInput-notchedOutline, &.Mui-disabled .MuiOutlinedInput-notchedOutline":
+      {
+        borderColor: "hsl(var(--input))",
+      },
   },
   "& .MuiPickersSectionList-root": {
     minWidth: 0,
@@ -96,22 +98,25 @@ const muiTextFieldSx = {
   [`&.${muiDateTimeFieldEditorClassName} .MuiPickersSectionList-root`]: {
     minHeight: "calc(2.5rem - 2px)",
   },
-  "& .MuiPickersSectionList-section, & .MuiPickersSectionList-sectionContent, & .MuiPickersInputBase-sectionContent": {
-    color: "inherit",
-    fontFamily: "inherit",
-    fontSize: "inherit",
-    lineHeight: "inherit",
-    letterSpacing: "inherit",
-    outline: "none",
-  },
-  "& .MuiPickersSectionList-root::selection, & .MuiPickersSectionList-sectionContent::selection, & .MuiPickersInputBase-sectionContent::selection": {
-    backgroundColor: "transparent",
-    color: "inherit",
-  },
-  "& .MuiPickersSectionList-root::-moz-selection, & .MuiPickersSectionList-sectionContent::-moz-selection, & .MuiPickersInputBase-sectionContent::-moz-selection": {
-    backgroundColor: "transparent",
-    color: "inherit",
-  },
+  "& .MuiPickersSectionList-section, & .MuiPickersSectionList-sectionContent, & .MuiPickersInputBase-sectionContent":
+    {
+      color: "inherit",
+      fontFamily: "inherit",
+      fontSize: "inherit",
+      lineHeight: "inherit",
+      letterSpacing: "inherit",
+      outline: "none",
+    },
+  "& .MuiPickersSectionList-root::selection, & .MuiPickersSectionList-sectionContent::selection, & .MuiPickersInputBase-sectionContent::selection":
+    {
+      backgroundColor: "transparent",
+      color: "inherit",
+    },
+  "& .MuiPickersSectionList-root::-moz-selection, & .MuiPickersSectionList-sectionContent::-moz-selection, & .MuiPickersInputBase-sectionContent::-moz-selection":
+    {
+      backgroundColor: "transparent",
+      color: "inherit",
+    },
   "& .MuiInputBase-input, & .MuiPickersInputBase-input": {
     color: "hsl(var(--foreground))",
     fontFamily: "inherit",
@@ -130,15 +135,18 @@ const muiTextFieldSx = {
   "& .MuiSvgIcon-root": {
     color: "hsl(var(--muted-foreground))",
   },
-  "& .MuiInputAdornment-root .MuiIconButton-root, & .MuiPickersInputAdornment-root .MuiIconButton-root": {
-    color: "hsl(var(--muted-foreground))",
-  },
-  "& .MuiPickersInputBase-root.Mui-disabled .MuiSvgIcon-root, & .MuiOutlinedInput-root.Mui-disabled .MuiSvgIcon-root": {
-    color: "hsl(var(--muted-foreground))",
-  },
-  "& .MuiPickersInputBase-root.Mui-disabled .MuiInputAdornment-root .MuiIconButton-root, & .MuiOutlinedInput-root.Mui-disabled .MuiInputAdornment-root .MuiIconButton-root, & .MuiPickersInputBase-root.Mui-disabled .MuiPickersInputAdornment-root .MuiIconButton-root": {
-    color: "hsl(var(--muted-foreground))",
-  },
+  "& .MuiInputAdornment-root .MuiIconButton-root, & .MuiPickersInputAdornment-root .MuiIconButton-root":
+    {
+      color: "hsl(var(--muted-foreground))",
+    },
+  "& .MuiPickersInputBase-root.Mui-disabled .MuiSvgIcon-root, & .MuiOutlinedInput-root.Mui-disabled .MuiSvgIcon-root":
+    {
+      color: "hsl(var(--muted-foreground))",
+    },
+  "& .MuiPickersInputBase-root.Mui-disabled .MuiInputAdornment-root .MuiIconButton-root, & .MuiOutlinedInput-root.Mui-disabled .MuiInputAdornment-root .MuiIconButton-root, & .MuiPickersInputBase-root.Mui-disabled .MuiPickersInputAdornment-root .MuiIconButton-root":
+    {
+      color: "hsl(var(--muted-foreground))",
+    },
 } as const;
 
 export const MuiDateTimeFieldsProvider = ({ children }: { children: ReactNode }) => (

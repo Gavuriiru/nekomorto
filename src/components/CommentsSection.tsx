@@ -1,7 +1,4 @@
-﻿import { MessageSquare, Reply } from "lucide-react";
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { useLocation } from "react-router-dom";
-import { Input, Textarea } from "@/components/public-form-controls";
+﻿import { Input, Textarea } from "@/components/public-form-controls";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -21,6 +18,9 @@ import { usePublicCurrentUser } from "@/hooks/use-public-current-user";
 import { getApiBase } from "@/lib/api-base";
 import { apiFetch } from "@/lib/api-client";
 import { formatDateTime } from "@/lib/date";
+import { MessageSquare, Reply } from "lucide-react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useLocation } from "react-router-dom";
 
 type CommentTargetType = "post" | "project" | "chapter";
 

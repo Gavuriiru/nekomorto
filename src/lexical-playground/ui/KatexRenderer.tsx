@@ -6,11 +6,11 @@
  *
  */
 
-import type {JSX} from 'react';
+import type { JSX } from "react";
 
-import katex from 'katex';
-import * as React from 'react';
-import {useEffect, useRef} from 'react';
+import katex from "katex";
+import * as React from "react";
+import { useEffect, useRef } from "react";
 
 export default function KatexRenderer({
   equation,
@@ -24,7 +24,7 @@ export default function KatexRenderer({
   const katexElementRef = useRef(null);
 
   const handleKeyDown = (event: React.KeyboardEvent<HTMLButtonElement>) => {
-    if (event.key !== 'Enter' && event.key !== ' ') {
+    if (event.key !== "Enter" && event.key !== " ") {
       return;
     }
     event.preventDefault();
@@ -37,9 +37,9 @@ export default function KatexRenderer({
     if (katexElement !== null) {
       katex.render(equation, katexElement, {
         displayMode: !inline, // true === block display //
-        errorColor: '#cc0000',
-        output: 'html',
-        strict: 'warn',
+        errorColor: "#cc0000",
+        output: "html",
+        strict: "warn",
         throwOnError: false,
         trust: false,
       });
@@ -61,12 +61,13 @@ export default function KatexRenderer({
         type="button"
         className={
           inline
-            ? 'inline-flex max-w-full appearance-none items-center border-0 bg-transparent p-0 text-left text-inherit'
-            : 'flex w-full appearance-none justify-start border-0 bg-transparent p-0 text-left text-inherit'
+            ? "inline-flex max-w-full appearance-none items-center border-0 bg-transparent p-0 text-left text-inherit"
+            : "flex w-full appearance-none justify-start border-0 bg-transparent p-0 text-left text-inherit"
         }
         aria-label="Editar formula"
         onDoubleClick={onDoubleClick}
-        onKeyDown={handleKeyDown}>
+        onKeyDown={handleKeyDown}
+      >
         <span ref={katexElementRef} aria-hidden="true" />
       </button>
       <img

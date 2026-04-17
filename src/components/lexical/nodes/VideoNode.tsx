@@ -9,7 +9,6 @@ import {
   type SerializedLexicalNode,
   type Spread,
 } from "lexical";
-import * as React from "react";
 
 export type VideoPayload = {
   src: string;

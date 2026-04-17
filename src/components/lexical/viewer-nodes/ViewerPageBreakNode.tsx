@@ -5,7 +5,6 @@ import {
   type LexicalNode,
   type SerializedLexicalNode,
 } from "lexical";
-import * as React from "react";
 
 export type SerializedViewerPageBreakNode = SerializedLexicalNode;
 

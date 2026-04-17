@@ -1,10 +1,10 @@
+import { DashboardPreferencesProvider } from "@/hooks/dashboard-preferences-provider";
+import { DashboardSessionProvider } from "@/hooks/dashboard-session-provider";
+import Dashboard from "@/pages/Dashboard";
 import { fireEvent, render, screen, waitFor, within } from "@testing-library/react";
 import type { ReactNode } from "react";
 import { MemoryRouter } from "react-router-dom";
 import { beforeEach, describe, expect, it, vi } from "vitest";
-import { DashboardPreferencesProvider } from "@/hooks/dashboard-preferences-provider";
-import { DashboardSessionProvider } from "@/hooks/dashboard-session-provider";
-import Dashboard from "@/pages/Dashboard";
 
 const apiFetchMock = vi.hoisted(() => vi.fn());
 

@@ -20,7 +20,7 @@ describe("public projects list preloads", () => {
       { title: "Eta", cover: "/uploads/projects/eta.png" },
     ];
     const mediaVariants = Object.fromEntries(
-      ["alpha", "beta", "delta", "epsilon", "eta", "gamma", "zeta"].map((slug, index) => [
+      ["alpha", "beta", "delta", "epsilon", "eta", "gamma", "zeta"].map((slug) => [
         `/uploads/projects/${slug}.png`,
         {
           variantsVersion: 3,

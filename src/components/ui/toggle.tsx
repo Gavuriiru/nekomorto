@@ -1,8 +1,8 @@
+import { toggleVariants } from "@/components/ui/toggle-variants";
+import { cn } from "@/lib/utils";
 import * as TogglePrimitive from "@radix-ui/react-toggle";
 import { type VariantProps } from "class-variance-authority";
 import * as React from "react";
-import { toggleVariants } from "@/components/ui/toggle-variants";
-import { cn } from "@/lib/utils";
 
 const Toggle = React.forwardRef<
   React.ElementRef<typeof TogglePrimitive.Root>,

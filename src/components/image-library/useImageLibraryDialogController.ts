@@ -1,4 +1,3 @@
-import { useCallback, useEffect, useMemo, useState } from "react";
 import { isAvatarSlotSelection } from "@/components/image-library/avatar-selection";
 import type { ImageLibraryBrowserPaneProps } from "@/components/image-library/ImageLibraryBrowserPane";
 import type { ImageLibraryDialogsProps } from "@/components/image-library/ImageLibraryDialogs";
@@ -14,6 +13,7 @@ import useImageLibraryMutations from "@/components/image-library/useImageLibrary
 import useImageLibraryScope from "@/components/image-library/useImageLibraryScope";
 import useImageLibrarySelectionState from "@/components/image-library/useImageLibrarySelectionState";
 import { dedupeUrlsByComparableKey } from "@/components/image-library/utils";
+import { useCallback, useEffect, useMemo, useState } from "react";
 
 export type ImageLibraryDialogFooterProps = {
   allowDeselect: boolean;

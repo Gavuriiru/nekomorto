@@ -1,6 +1,6 @@
+import { useAutosave } from "@/hooks/use-autosave";
 import { act, renderHook } from "@testing-library/react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import { useAutosave } from "@/hooks/use-autosave";
 
 const flushMicrotasks = async () => {
   await Promise.resolve();

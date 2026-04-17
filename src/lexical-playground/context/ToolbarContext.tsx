@@ -6,10 +6,10 @@
  *
  */
 
-import type {JSX} from 'react';
+import type { JSX } from "react";
 
-import {ElementFormatType} from 'lexical';
-import React, {
+import { ElementFormatType } from "lexical";
+import {
   createContext,
   ReactNode,
   useCallback,
@@ -17,45 +17,39 @@ import React, {
   useEffect,
   useMemo,
   useState,
-} from 'react';
+} from "react";
 
 export const MIN_ALLOWED_FONT_SIZE = 8;
 export const MAX_ALLOWED_FONT_SIZE = 72;
 export const DEFAULT_FONT_SIZE = 15;
 
-// eslint-disable-next-line @typescript-eslint/no-unused-vars
-const rootTypeToRootName = {
-  root: 'Raiz',
-  table: 'Tabela',
-};
-
 export const blockTypeToBlockName = {
-  bullet: 'Lista com marcadores',
-  check: 'Lista de tarefas',
-  code: 'Bloco de código',
-  h1: 'Título 1',
-  h2: 'Título 2',
-  h3: 'Título 3',
-  h4: 'Título 4',
-  h5: 'Título 5',
-  h6: 'Título 6',
-  number: 'Lista numerada',
-  paragraph: 'Normal',
-  quote: 'Citação',
+  bullet: "Lista com marcadores",
+  check: "Lista de tarefas",
+  code: "Bloco de código",
+  h1: "Título 1",
+  h2: "Título 2",
+  h3: "Título 3",
+  h4: "Título 4",
+  h5: "Título 5",
+  h6: "Título 6",
+  number: "Lista numerada",
+  paragraph: "Normal",
+  quote: "Citação",
 };
 
 //disable eslint sorting rule for quick reference to toolbar state
 /* eslint-disable sort-keys-fix/sort-keys-fix */
 const INITIAL_TOOLBAR_STATE = {
-  bgColor: '#fff',
-  blockType: 'paragraph' as keyof typeof blockTypeToBlockName,
+  bgColor: "#fff",
+  blockType: "paragraph" as keyof typeof blockTypeToBlockName,
   canRedo: false,
   canUndo: false,
-  codeLanguage: '',
-  codeTheme: '',
-  elementFormat: 'left' as ElementFormatType,
-  fontColor: '#000',
-  fontFamily: 'Arial',
+  codeLanguage: "",
+  codeTheme: "",
+  elementFormat: "left" as ElementFormatType,
+  fontColor: "#000",
+  fontFamily: "Arial",
   // Current font size in px
   fontSize: `${DEFAULT_FONT_SIZE}px`,
   // Font size input value - for controlled input
@@ -74,7 +68,6 @@ const INITIAL_TOOLBAR_STATE = {
   isLowercase: false,
   isUppercase: false,
   isCapitalize: false,
-  rootType: 'root' as keyof typeof rootTypeToRootName,
   listStartNumber: null as number | null,
 };
 
@@ -113,7 +106,7 @@ export const ToolbarContext = ({
   );
 
   useEffect(() => {
-    updateToolbarState('fontSizeInputValue', selectionFontSize.slice(0, -2));
+    updateToolbarState("fontSizeInputValue", selectionFontSize.slice(0, -2));
   }, [selectionFontSize, updateToolbarState]);
 
   const contextValue = useMemo(() => {
@@ -130,7 +123,7 @@ export const useToolbarState = () => {
   const context = useContext(Context);
 
   if (context === undefined) {
-    throw new Error('useToolbarState must be used within a ToolbarProvider');
+    throw new Error("useToolbarState must be used within a ToolbarProvider");
   }
 
   return context;

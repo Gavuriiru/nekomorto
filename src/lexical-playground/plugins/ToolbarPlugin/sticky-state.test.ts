@@ -1,9 +1,9 @@
-import {describe, expect, it} from 'vitest';
+import { describe, expect, it } from "vitest";
 
-import {isToolbarStickyStuck} from './sticky-state';
+import { isToolbarStickyStuck } from "./sticky-state";
 
-describe('isToolbarStickyStuck', () => {
-  it('returns false when toolbar is below sticky threshold', () => {
+describe("isToolbarStickyStuck", () => {
+  it("returns false when toolbar is below sticky threshold", () => {
     expect(
       isToolbarStickyStuck({
         toolbarTop: 40,
@@ -13,7 +13,7 @@ describe('isToolbarStickyStuck', () => {
     ).toBe(false);
   });
 
-  it('returns true when toolbar hits sticky threshold exactly', () => {
+  it("returns true when toolbar hits sticky threshold exactly", () => {
     expect(
       isToolbarStickyStuck({
         toolbarTop: 11,
@@ -23,7 +23,7 @@ describe('isToolbarStickyStuck', () => {
     ).toBe(true);
   });
 
-  it('returns true when toolbar is above sticky threshold', () => {
+  it("returns true when toolbar is above sticky threshold", () => {
     expect(
       isToolbarStickyStuck({
         toolbarTop: 6,
@@ -33,7 +33,7 @@ describe('isToolbarStickyStuck', () => {
     ).toBe(true);
   });
 
-  it('respects one pixel tolerance', () => {
+  it("respects one pixel tolerance", () => {
     expect(
       isToolbarStickyStuck({
         toolbarTop: 10.9,

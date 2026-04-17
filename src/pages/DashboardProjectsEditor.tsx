@@ -1,30 +1,10 @@
-import {
-  Clapperboard,
-  Copy,
-  Eye,
-  FileImage,
-  FileText,
-  LayoutGrid,
-  Loader2,
-  type LucideIcon,
-  MessageSquare,
-  PencilLine,
-  Plus,
-  Settings,
-  Shield,
-  Trash2,
-  UserRound,
-} from "lucide-react";
-import { useCallback, useDeferredValue, useEffect, useMemo, useRef, useState } from "react";
-import { Link, useNavigate } from "react-router-dom";
 import DashboardShell from "@/components/DashboardShell";
 import DashboardActionButton, {
   default as Button,
 } from "@/components/dashboard/DashboardActionButton";
-import DashboardFieldStack from "@/components/dashboard/DashboardFieldStack";
 import DashboardPageContainer from "@/components/dashboard/DashboardPageContainer";
 import DashboardPageHeader from "@/components/dashboard/DashboardPageHeader";
-import { Combobox, Input, Textarea } from "@/components/dashboard/dashboard-form-controls";
+import { Combobox, Input } from "@/components/dashboard/dashboard-form-controls";
 import {
   dashboardAnimationDelay,
   dashboardClampedStaggerMs,
@@ -36,11 +16,6 @@ import {
   dashboardStrongSurfaceHoverClassName,
   dashboardSubtleSurfaceHoverClassName,
 } from "@/components/dashboard/dashboard-page-tokens";
-import type {
-  EditorProjectEpisode,
-  ProjectForm,
-  ProjectRecord,
-} from "@/components/dashboard/project-editor/dashboard-projects-editor-types";
 import ProjectEditorDialogShell from "@/components/dashboard/project-editor/ProjectEditorDialogShell";
 import ProjectEditorImageLibraryDialog from "@/components/dashboard/project-editor/ProjectEditorImageLibraryDialog";
 import ProjectEditorImportSection from "@/components/dashboard/project-editor/ProjectEditorImportSection";
@@ -53,6 +28,11 @@ import {
   ProjectEditorConfirmDialog,
   ProjectEditorDeleteDialog,
 } from "@/components/dashboard/project-editor/ProjectEditorSupportDialogs";
+import type {
+  EditorProjectEpisode,
+  ProjectForm,
+  ProjectRecord,
+} from "@/components/dashboard/project-editor/dashboard-projects-editor-types";
 import { DEFAULT_PROJECT_FORMAT_OPTIONS } from "@/components/dashboard/project-editor/project-editor-constants";
 import {
   buildEmptyProjectForm,
@@ -62,9 +42,6 @@ import {
   resolveSortedProjectEpisodeFocusIndex,
 } from "@/components/dashboard/project-editor/project-editor-form";
 import {
-  buildCompletionBadges,
-  getEpisodeAccordionValue,
-  shiftCollapsedEpisodesAfterRemoval,
   shiftDraftAfterRemoval,
   shouldSkipEpisodeHeaderToggle,
   useDashboardProjectsEditorAnimeBatch,
@@ -78,28 +55,14 @@ import { useProjectEditorDialogState } from "@/components/dashboard/project-edit
 import { useProjectEditorEpisodeSectionState } from "@/components/dashboard/project-editor/useProjectEditorEpisodeSectionState";
 import { useProjectEditorImageLibrary } from "@/components/dashboard/project-editor/useProjectEditorImageLibrary";
 import { useProjectEditorTaxonomy } from "@/components/dashboard/project-editor/useProjectEditorTaxonomy";
-import type { LexicalEditorHandle } from "@/components/lexical/LexicalEditor";
-import DownloadSourceSelect from "@/components/project-reader/DownloadSourceSelect";
-import ReorderControls from "@/components/ReorderControls";
 import { Accordion } from "@/components/ui/accordion";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import AsyncState from "@/components/ui/async-state";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent } from "@/components/ui/card";
-import { Checkbox } from "@/components/ui/checkbox";
 import type { ComboboxOption } from "@/components/ui/combobox";
 import CompactPagination from "@/components/ui/compact-pagination";
-import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogHeader,
-  DialogTitle,
-} from "@/components/ui/dialog";
-import { Label } from "@/components/ui/label";
 import { Skeleton } from "@/components/ui/skeleton";
-import { toast } from "@/components/ui/use-toast";
-import type { ProjectEpisode } from "@/data/projects";
 import { useDashboardCurrentUser } from "@/hooks/use-dashboard-current-user";
 import { useDashboardRefreshToast } from "@/hooks/use-dashboard-refresh-toast";
 import { useEditorScrollLock } from "@/hooks/use-editor-scroll-lock";
@@ -108,45 +71,32 @@ import { useSiteSettings } from "@/hooks/use-site-settings";
 import { canManageProjectsAccess } from "@/lib/access-control";
 import { parseAniListMediaId } from "@/lib/anilist";
 import { getApiBase } from "@/lib/api-base";
-import { apiFetch } from "@/lib/api-client";
-import {
-  canonicalToDisplayTime,
-  digitsOnly,
-  displayDateToIso,
-  displayTimeToCanonical,
-  formatDateDigitsToDisplay,
-  formatEpisodeReleaseDate,
-  formatTimeDigitsToDisplay,
-  isoToDisplayDate,
-  normalizeCanonicalTimeFromUnknown,
-  normalizeIsoDateFromUnknown,
-} from "@/lib/dashboard-date-time";
+import { formatTimeDigitsToDisplay } from "@/lib/dashboard-date-time";
 import { clearIndexedRecordValue } from "@/lib/dashboard-indexed-drafts";
-import { formatBytesCompact, parseHumanSizeToBytes } from "@/lib/file-size";
-import type { AnimeEpisodeQuickFilter } from "@/lib/project-anime-episodes";
 import { PROJECT_COVER_ASPECT_RATIO } from "@/lib/project-card-layout";
 import {
   buildDashboardProjectChapterEditorHref,
   buildDashboardProjectChaptersEditorHref,
-  buildDashboardProjectEpisodeEditorHref,
   buildDashboardProjectEpisodesEditorHref,
   buildProjectPublicHref,
 } from "@/lib/project-editor-routes";
-import {
-  buildEpisodeKey,
-  EXTRA_TECHNICAL_NUMBER_BASE,
-  resolveEpisodeLookup,
-  resolveNextExtraTechnicalNumber,
-  resolveNextMainEpisodeNumber,
-} from "@/lib/project-episode-key";
-import {
-  getProjectProgressStagesForEditor,
-  getProjectProgressStateForEditor,
-} from "@/lib/project-progress";
-import { translateRelation } from "@/lib/project-taxonomy";
+import { resolveEpisodeLookup } from "@/lib/project-episode-key";
 import { isChapterBasedType, isLightNovelType, isMangaType } from "@/lib/project-utils";
 import { buildVolumeCoverKey } from "@/lib/project-volume-cover-key";
 import { reorderItems } from "@/lib/reorder-items";
+import {
+  Clapperboard,
+  Copy,
+  Eye,
+  FileImage,
+  FileText,
+  type LucideIcon,
+  PencilLine,
+  Plus,
+  Trash2,
+} from "lucide-react";
+import { useCallback, useDeferredValue, useEffect, useMemo, useRef, useState } from "react";
+import { Link, useNavigate } from "react-router-dom";
 
 const getDedicatedEditorCtaIcon = (projectType?: string | null): LucideIcon => {
   const normalizedType = String(projectType || "").trim();

@@ -1,5 +1,5 @@
-import {fireEvent, render, screen} from '@testing-library/react';
-import {describe, expect, it, vi} from 'vitest';
+import { fireEvent, render, screen } from "@testing-library/react";
+import { describe, expect, it, vi } from "vitest";
 
 const {
   cloneCurrentRangeSelectionSpy,
@@ -18,11 +18,11 @@ let currentEditor: {
   update: ReturnType<typeof vi.fn>;
 } | null = null;
 
-vi.mock('@lexical/react/LexicalComposerContext', () => ({
+vi.mock("@lexical/react/LexicalComposerContext", () => ({
   useLexicalComposerContext: () => [currentEditor],
 }));
 
-vi.mock('@lexical/react/LexicalTypeaheadMenuPlugin', () => ({
+vi.mock("@lexical/react/LexicalTypeaheadMenuPlugin", () => ({
   LexicalTypeaheadMenuPlugin: ({
     onSelectOption,
     options,
@@ -31,11 +31,11 @@ vi.mock('@lexical/react/LexicalTypeaheadMenuPlugin', () => ({
       option: {
         title: string;
       },
-      nodeToRemove: {remove: () => void},
+      nodeToRemove: { remove: () => void },
       closeMenu: () => void,
       matchingString: string,
     ) => void;
-    options: Array<{title: string}>;
+    options: Array<{ title: string }>;
   }) => (
     <div>
       {options.map((option) => (
@@ -45,11 +45,12 @@ vi.mock('@lexical/react/LexicalTypeaheadMenuPlugin', () => ({
           onClick={() =>
             onSelectOption(
               option,
-              {remove: nodeToRemoveSpy},
+              { remove: nodeToRemoveSpy },
               closeMenuSpy,
               option.title.toLowerCase(),
             )
-          }>
+          }
+        >
           {option.title}
         </button>
       ))}
@@ -71,42 +72,42 @@ vi.mock('@lexical/react/LexicalTypeaheadMenuPlugin', () => ({
   useBasicTypeaheadTriggerMatch: () => vi.fn(),
 }));
 
-vi.mock('@/lexical-playground/hooks/useModal', () => ({
+vi.mock("@/lexical-playground/hooks/useModal", () => ({
   default: () => [null, vi.fn()],
 }));
 
-vi.mock('@/lexical-playground/plugins/AutoEmbedPlugin', () => ({
+vi.mock("@/lexical-playground/plugins/AutoEmbedPlugin", () => ({
   EmbedConfigs: [],
 }));
 
-vi.mock('@/lexical-playground/plugins/ImagesPlugin', () => ({
+vi.mock("@/lexical-playground/plugins/ImagesPlugin", () => ({
   InsertImageDialog: (props: unknown) => {
     insertImageDialogPropsSpy(props);
     return <div data-testid="mock-insert-image-dialog" />;
   },
 }));
 
-vi.mock('@/lexical-playground/plugins/ImagesPlugin/selectionSnapshot', () => ({
+vi.mock("@/lexical-playground/plugins/ImagesPlugin/selectionSnapshot", () => ({
   cloneCurrentRangeSelection: cloneCurrentRangeSelectionSpy,
 }));
 
-vi.mock('@/lexical-playground/plugins/LayoutPlugin/InsertLayoutDialog', () => ({
+vi.mock("@/lexical-playground/plugins/LayoutPlugin/InsertLayoutDialog", () => ({
   default: () => null,
 }));
 
-vi.mock('@/lexical-playground/plugins/PollPlugin', () => ({
+vi.mock("@/lexical-playground/plugins/PollPlugin", () => ({
   InsertPollDialog: () => null,
 }));
 
-vi.mock('@/lexical-playground/plugins/TablePlugin', () => ({
+vi.mock("@/lexical-playground/plugins/TablePlugin", () => ({
   InsertTableDialog: () => null,
 }));
 
-import ComponentPickerMenuPlugin from '@/lexical-playground/plugins/ComponentPickerPlugin';
+import ComponentPickerMenuPlugin from "@/lexical-playground/plugins/ComponentPickerPlugin";
 
-describe('ComponentPickerMenuPlugin image selection capture', () => {
-  it('usa o snapshot da selecao apos remover o gatilho do typeahead', () => {
-    const selectionSnapshot = {anchor: {key: 'a'}, focus: {key: 'b'}};
+describe("ComponentPickerMenuPlugin image selection capture", () => {
+  it("usa o snapshot da selecao apos remover o gatilho do typeahead", () => {
+    const selectionSnapshot = { anchor: { key: "a" }, focus: { key: "b" } };
 
     closeMenuSpy.mockReset();
     cloneCurrentRangeSelectionSpy.mockReset();
@@ -121,7 +122,7 @@ describe('ComponentPickerMenuPlugin image selection capture', () => {
 
     render(<ComponentPickerMenuPlugin imageLibraryOptions={undefined} />);
 
-    fireEvent.click(screen.getByRole('button', {name: 'Image'}));
+    fireEvent.click(screen.getByRole("button", { name: "Image" }));
 
     expect(nodeToRemoveSpy).toHaveBeenCalledTimes(1);
     expect(cloneCurrentRangeSelectionSpy).toHaveBeenCalledTimes(1);
@@ -134,7 +135,7 @@ describe('ComponentPickerMenuPlugin image selection capture', () => {
       selectionSnapshot?: unknown;
     };
 
-    expect(screen.getByTestId('mock-insert-image-dialog')).toBeInTheDocument();
+    expect(screen.getByTestId("mock-insert-image-dialog")).toBeInTheDocument();
     expect(dialogProps.selectionSnapshot).toBe(selectionSnapshot);
   });
 });

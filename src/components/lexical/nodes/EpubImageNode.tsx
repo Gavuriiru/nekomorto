@@ -8,7 +8,6 @@ import {
   type SerializedLexicalNode,
   type Spread,
 } from "lexical";
-import * as React from "react";
 
 import {
   applyEditorialStyleToElement,

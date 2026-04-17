@@ -1,8 +1,8 @@
-import { render, screen } from "@testing-library/react";
-import { beforeEach, describe, expect, it, vi } from "vitest";
 import DiscordInviteCard from "@/components/DiscordInviteCard";
 import { defaultSettings, mergeSettings } from "@/hooks/site-settings-context";
 import type { SiteSettings } from "@/types/site-settings";
+import { render, screen } from "@testing-library/react";
+import { beforeEach, describe, expect, it, vi } from "vitest";
 
 const useSiteSettingsMock = vi.hoisted(() => vi.fn());
 

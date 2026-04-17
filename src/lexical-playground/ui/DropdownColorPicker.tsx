@@ -6,10 +6,8 @@
  *
  */
 
-import * as React from 'react';
-
-import ColorPicker from './ColorPicker';
-import DropDown from './DropDown';
+import ColorPicker from "./ColorPicker";
+import DropDown from "./DropDown";
 
 type Props = {
   disabled?: boolean;
@@ -41,7 +39,8 @@ export default function DropdownColorPicker({
       {...rest}
       disabled={disabled}
       stopCloseOnClickSelf={stopCloseOnClickSelf}
-      dropDownClassName={dropDownClassName ?? 'color-picker-dropdown'}>
+      dropDownClassName={dropDownClassName ?? "color-picker-dropdown"}
+    >
       <ColorPicker color={color} onChange={onChange} />
     </DropDown>
   );

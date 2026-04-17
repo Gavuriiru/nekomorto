@@ -1,5 +1,5 @@
-import { describe, expect, it } from "vitest";
 import { buildStaticPixPayload } from "@/lib/pix";
+import { describe, expect, it } from "vitest";
 
 describe("buildStaticPixPayload", () => {
   it("reproduz o exemplo estatico do Bacen", () => {

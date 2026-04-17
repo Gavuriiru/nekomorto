@@ -1,9 +1,9 @@
+import { GlobalShortcutsProvider } from "@/hooks/global-shortcuts-provider";
+import { useGlobalShortcuts } from "@/hooks/use-global-shortcuts";
 import { fireEvent, render, screen } from "@testing-library/react";
 import { useState } from "react";
 import { MemoryRouter, useLocation } from "react-router-dom";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import { GlobalShortcutsProvider } from "@/hooks/global-shortcuts-provider";
-import { useGlobalShortcuts } from "@/hooks/use-global-shortcuts";
 
 const ShortcutHarness = ({ dashboardHref = "/dashboard/posts" }: { dashboardHref?: string }) => {
   const [searchCount, setSearchCount] = useState(0);

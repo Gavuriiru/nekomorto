@@ -1,5 +1,3 @@
-import { useEffect, useState } from "react";
-import { useLocation, useNavigate } from "react-router-dom";
 import { toast } from "@/components/ui/use-toast";
 import { useDashboardSession } from "@/hooks/use-dashboard-session";
 import {
@@ -11,6 +9,8 @@ import {
 } from "@/lib/access-control";
 import { getApiBase } from "@/lib/api-base";
 import { apiFetch } from "@/lib/api-client";
+import { useEffect, useState } from "react";
+import { useLocation, useNavigate } from "react-router-dom";
 
 type RequireAuthProps = {
   children: React.ReactNode;

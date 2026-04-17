@@ -6,11 +6,11 @@
  *
  */
 
-import type {JSX} from 'react';
+import type { JSX } from "react";
 
-import {calculateZoomLevel} from '@lexical/utils';
-import {isDOMNode} from 'lexical';
-import * as React from 'react';
+import { calculateZoomLevel } from "@lexical/utils";
+import { isDOMNode } from "lexical";
+import * as React from "react";
 import {
   ReactNode,
   useCallback,
@@ -18,10 +18,10 @@ import {
   useMemo,
   useRef,
   useState,
-} from 'react';
-import {createPortal} from 'react-dom';
+} from "react";
+import { createPortal } from "react-dom";
 
-import {focusNearestDescendant, isKeyboardInput} from '../utils/focusUtils';
+import { focusNearestDescendant, isKeyboardInput } from "../utils/focusUtils";
 
 type DropDownContextType = {
   registerItem: (ref: React.RefObject<null | HTMLButtonElement>) => void;
@@ -49,10 +49,10 @@ export function DropDownItem({
   const dropDownContext = React.useContext(DropDownContext);
 
   if (dropDownContext === null) {
-    throw new Error('DropDownItem must be used within a DropDown');
+    throw new Error("DropDownItem must be used within a DropDown");
   }
 
-  const {registerItem} = dropDownContext;
+  const { registerItem } = dropDownContext;
 
   useEffect(() => {
     if (ref && ref.current) {
@@ -67,7 +67,8 @@ export function DropDownItem({
       onMouseDown={onMouseDown}
       ref={ref}
       title={title}
-      type="button">
+      type="button"
+    >
       {children}
     </button>
   );
@@ -100,20 +101,20 @@ function DropDownItems({
 
   const handleKeyDown = (event: React.KeyboardEvent<HTMLDivElement>) => {
     const key = event.key;
-    if (key === 'Escape') {
+    if (key === "Escape") {
       onClose();
     }
     if (!items) {
       return;
     }
 
-    if (['Escape', 'ArrowUp', 'ArrowDown', 'Tab'].includes(key)) {
+    if (["Escape", "ArrowUp", "ArrowDown", "Tab"].includes(key)) {
       event.preventDefault();
     }
 
-    if (key === 'Escape' || key === 'Tab') {
+    if (key === "Escape" || key === "Tab") {
       onClose();
-    } else if (key === 'ArrowUp') {
+    } else if (key === "ArrowUp") {
       setHighlightedItem((prev) => {
         if (!prev) {
           return items[0];
@@ -121,7 +122,7 @@ function DropDownItems({
         const index = items.indexOf(prev) - 1;
         return items[index === -1 ? items.length - 1 : index];
       });
-    } else if (key === 'ArrowDown') {
+    } else if (key === "ArrowDown") {
       setHighlightedItem((prev) => {
         if (!prev) {
           return items[0];
@@ -145,7 +146,7 @@ function DropDownItems({
 
     if (highlightedItem && highlightedItem.current) {
       try {
-        highlightedItem.current.focus({preventScroll: true});
+        highlightedItem.current.focus({ preventScroll: true });
       } catch {
         highlightedItem.current.focus();
       }
@@ -161,9 +162,10 @@ function DropDownItems({
   return (
     <DropDownContext.Provider value={contextValue}>
       <div
-        className={className ? `dropdown ${className}` : 'dropdown'}
+        className={className ? `dropdown ${className}` : "dropdown"}
         ref={dropDownRef}
-        onKeyDown={handleKeyDown}>
+        onKeyDown={handleKeyDown}
+      >
         {children}
       </div>
     </DropDownContext.Provider>
@@ -200,7 +202,7 @@ export default function DropDown({
     setShowDropDown(false);
     if (buttonRef && buttonRef.current) {
       try {
-        buttonRef.current.focus({preventScroll: true});
+        buttonRef.current.focus({ preventScroll: true });
       } catch {
         buttonRef.current.focus();
       }
@@ -212,7 +214,7 @@ export default function DropDown({
     const dropDown = dropDownRef.current;
     const zoom = calculateZoomLevel(dropDown, true);
     if (showDropDown && button !== null && dropDown !== null) {
-      const {top, left} = button.getBoundingClientRect();
+      const { top, left } = button.getBoundingClientRect();
       dropDown.style.top = `${top / zoom + button.offsetHeight + dropDownPadding}px`;
       dropDown.style.left = `${
         Math.min(left, window.innerWidth - dropDown.offsetWidth - 20) / zoom
@@ -244,10 +246,10 @@ export default function DropDown({
           }
         }
       };
-      document.addEventListener('click', handle);
+      document.addEventListener("click", handle);
 
       return () => {
-        document.removeEventListener('click', handle);
+        document.removeEventListener("click", handle);
       };
     }
   }, [dropDownRef, buttonRef, showDropDown, stopCloseOnClickSelf]);
@@ -258,7 +260,7 @@ export default function DropDown({
         const button = buttonRef.current;
         const dropDown = dropDownRef.current;
         if (button !== null && dropDown !== null) {
-          const {top} = button.getBoundingClientRect();
+          const { top } = button.getBoundingClientRect();
           const newPosition = top + button.offsetHeight + dropDownPadding;
           if (newPosition !== dropDown.getBoundingClientRect().top) {
             dropDown.style.top = `${newPosition}px`;
@@ -267,10 +269,10 @@ export default function DropDown({
       }
     };
 
-    document.addEventListener('scroll', handleButtonPositionUpdate);
+    document.addEventListener("scroll", handleButtonPositionUpdate);
 
     return () => {
-      document.removeEventListener('scroll', handleButtonPositionUpdate);
+      document.removeEventListener("scroll", handleButtonPositionUpdate);
     };
   }, [buttonRef, dropDownRef, showDropDown]);
 
@@ -287,7 +289,8 @@ export default function DropDown({
         aria-label={buttonAriaLabel || buttonLabel}
         className={buttonClassName}
         onClick={handleOnClick}
-        ref={buttonRef}>
+        ref={buttonRef}
+      >
         {buttonIconClassName && <span className={buttonIconClassName} />}
         {buttonLabel && (
           <span className="text dropdown-button-text">{buttonLabel}</span>
@@ -302,7 +305,8 @@ export default function DropDown({
               dropDownRef={dropDownRef}
               onClose={handleClose}
               autofocus={shouldAutofocus}
-              className={dropDownClassName}>
+              className={dropDownClassName}
+            >
               {children}
             </DropDownItems>
           </div>,

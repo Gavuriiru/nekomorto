@@ -1,7 +1,7 @@
+import Team from "@/pages/Team";
 import { render, screen, waitFor, within } from "@testing-library/react";
 import { MemoryRouter } from "react-router-dom";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import Team from "@/pages/Team";
 
 const apiFetchMock = vi.hoisted(() => vi.fn());
 const supportsMock = vi.hoisted(() => vi.fn());

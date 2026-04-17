@@ -6,17 +6,17 @@
  *
  */
 
-import type {ElementFormatType, NodeKey} from 'lexical';
+import type { ElementFormatType, NodeKey } from "lexical";
 
-import {BlockWithAlignableContents} from '@lexical/react/LexicalBlockWithAlignableContents';
-import {useThemeMode} from '@/hooks/use-theme-mode';
-import {useEffect, useRef, useState} from 'react';
+import { useThemeMode } from "@/hooks/use-theme-mode";
+import { BlockWithAlignableContents } from "@lexical/react/LexicalBlockWithAlignableContents";
+import { useEffect, useRef, useState } from "react";
 
-const WIDGET_SCRIPT_URL = 'https://platform.twitter.com/widgets.js';
+const WIDGET_SCRIPT_URL = "https://platform.twitter.com/widgets.js";
 const TWEET_CROSSFADE_DURATION_MS = 220;
-const TWITTER_SCRIPT_LOADED_ATTRIBUTE = 'data-lexical-twitter-widgets-loaded';
+const TWITTER_SCRIPT_LOADED_ATTRIBUTE = "data-lexical-twitter-widgets-loaded";
 
-type TwitterWidgetTheme = 'light' | 'dark';
+type TwitterWidgetTheme = "light" | "dark";
 type TwitterWidgets = Readonly<{
   createTweet: (
     tweetID: string,
@@ -44,7 +44,7 @@ export type TweetComponentProps = Readonly<{
 }>;
 
 const getTwitterWidgets = (): TwitterWidgets | null => {
-  if (typeof window === 'undefined') {
+  if (typeof window === "undefined") {
     return null;
   }
   const twitterWindow = window as TwitterWindow;
@@ -54,10 +54,10 @@ const getTwitterWidgets = (): TwitterWidgets | null => {
 let twitterScriptLoadPromise: Promise<void> | null = null;
 
 const loadTwitterScript = (): Promise<void> => {
-  if (typeof window === 'undefined' || typeof document === 'undefined') {
-    return Promise.reject(new Error('twitter_widgets_requires_browser'));
+  if (typeof window === "undefined" || typeof document === "undefined") {
+    return Promise.reject(new Error("twitter_widgets_requires_browser"));
   }
-  if (typeof getTwitterWidgets()?.createTweet === 'function') {
+  if (typeof getTwitterWidgets()?.createTweet === "function") {
     return Promise.resolve();
   }
   if (twitterScriptLoadPromise) {
@@ -68,10 +68,10 @@ const loadTwitterScript = (): Promise<void> => {
     const existingScript = document.querySelector(
       `script[src="${WIDGET_SCRIPT_URL}"]`,
     ) as HTMLScriptElement | null;
-    const script = existingScript ?? document.createElement('script');
+    const script = existingScript ?? document.createElement("script");
     const cleanup = () => {
-      script.removeEventListener('load', handleLoad);
-      script.removeEventListener('error', handleError);
+      script.removeEventListener("load", handleLoad);
+      script.removeEventListener("error", handleError);
     };
     const finish = (callback: () => void) => {
       cleanup();
@@ -79,44 +79,42 @@ const loadTwitterScript = (): Promise<void> => {
       callback();
     };
     const handleLoad = () => {
-      script.setAttribute(TWITTER_SCRIPT_LOADED_ATTRIBUTE, 'true');
+      script.setAttribute(TWITTER_SCRIPT_LOADED_ATTRIBUTE, "true");
       const resolveOnNextTick =
-        typeof queueMicrotask === 'function'
+        typeof queueMicrotask === "function"
           ? queueMicrotask
           : (callback: () => void) => {
               void Promise.resolve().then(callback);
             };
       resolveOnNextTick(() => {
         finish(() => {
-          if (typeof getTwitterWidgets()?.createTweet === 'function') {
+          if (typeof getTwitterWidgets()?.createTweet === "function") {
             resolve();
             return;
           }
-          reject(new Error('twitter_widgets_unavailable'));
+          reject(new Error("twitter_widgets_unavailable"));
         });
       });
     };
     const handleError = () => {
       finish(() => {
-        reject(new Error('twitter_widgets_script_failed'));
+        reject(new Error("twitter_widgets_script_failed"));
       });
     };
 
-    script.addEventListener('load', handleLoad);
-    script.addEventListener('error', handleError);
+    script.addEventListener("load", handleLoad);
+    script.addEventListener("error", handleError);
 
     if (!existingScript) {
       script.src = WIDGET_SCRIPT_URL;
       script.async = true;
-      (
-        document.body ||
-        document.head ||
-        document.documentElement
-      ).appendChild(script);
+      (document.body || document.head || document.documentElement).appendChild(
+        script,
+      );
       return;
     }
 
-    if (script.getAttribute(TWITTER_SCRIPT_LOADED_ATTRIBUTE) === 'true') {
+    if (script.getAttribute(TWITTER_SCRIPT_LOADED_ATTRIBUTE) === "true") {
       handleLoad();
     }
   });
@@ -154,9 +152,9 @@ export default function TweetComponent({
   const renderTokenRef = useRef(0);
   const activeStageRef = useRef<HTMLDivElement | null>(null);
   const [isTweetLoading, setIsTweetLoading] = useState(false);
-  const {effectiveMode} = useThemeMode();
+  const { effectiveMode } = useThemeMode();
   const tweetTheme: TwitterWidgetTheme =
-    effectiveMode === 'light' ? 'light' : 'dark';
+    effectiveMode === "light" ? "light" : "dark";
 
   useEffect(() => {
     const targetHost = targetRef.current;
@@ -179,10 +177,14 @@ export default function TweetComponent({
 
     setIsTweetLoading(!currentStage);
 
-    const requestTarget = document.createElement('div');
-    requestTarget.className = 'lexical-tweet__stage lexical-tweet__stage--entering';
-    requestTarget.setAttribute('aria-hidden', 'true');
-    requestTarget.setAttribute('data-lexical-tweet-request', String(renderToken));
+    const requestTarget = document.createElement("div");
+    requestTarget.className =
+      "lexical-tweet__stage lexical-tweet__stage--entering";
+    requestTarget.setAttribute("aria-hidden", "true");
+    requestTarget.setAttribute(
+      "data-lexical-tweet-request",
+      String(renderToken),
+    );
     targetHost.appendChild(requestTarget);
 
     const renderTweet = async () => {
@@ -196,8 +198,8 @@ export default function TweetComponent({
         }
 
         const widgets = getTwitterWidgets();
-        if (!widgets || typeof widgets.createTweet !== 'function') {
-          throw new Error('twitter_widgets_unavailable');
+        if (!widgets || typeof widgets.createTweet !== "function") {
+          throw new Error("twitter_widgets_unavailable");
         }
 
         await widgets.createTweet(tweetID, requestTarget, {
@@ -214,10 +216,10 @@ export default function TweetComponent({
         }
 
         if (previousStage && previousStage !== requestTarget) {
-          previousStage.classList.remove('lexical-tweet__stage--active');
-          previousStage.classList.remove('lexical-tweet__stage--entering');
-          previousStage.classList.add('lexical-tweet__stage--fading-out');
-          previousStage.setAttribute('aria-hidden', 'true');
+          previousStage.classList.remove("lexical-tweet__stage--active");
+          previousStage.classList.remove("lexical-tweet__stage--entering");
+          previousStage.classList.add("lexical-tweet__stage--fading-out");
+          previousStage.setAttribute("aria-hidden", "true");
           window.setTimeout(() => {
             if (activeStageRef.current !== previousStage) {
               previousStage.remove();
@@ -225,10 +227,10 @@ export default function TweetComponent({
           }, TWEET_CROSSFADE_DURATION_MS);
         }
 
-        requestTarget.classList.remove('lexical-tweet__stage--entering');
-        requestTarget.classList.remove('lexical-tweet__stage--fading-out');
-        requestTarget.classList.add('lexical-tweet__stage--active');
-        requestTarget.removeAttribute('aria-hidden');
+        requestTarget.classList.remove("lexical-tweet__stage--entering");
+        requestTarget.classList.remove("lexical-tweet__stage--fading-out");
+        requestTarget.classList.add("lexical-tweet__stage--active");
+        requestTarget.removeAttribute("aria-hidden");
         activeStageRef.current = requestTarget;
         setIsTweetLoading(false);
       } catch (_error) {
@@ -251,7 +253,7 @@ export default function TweetComponent({
       renderTokenRef.current += 1;
       activeStageRef.current = null;
       if (targetRef.current) {
-        targetRef.current.innerHTML = '';
+        targetRef.current.innerHTML = "";
       }
     };
   }, []);
@@ -260,7 +262,8 @@ export default function TweetComponent({
     <BlockWithAlignableContents
       className={className}
       format={format}
-      nodeKey={nodeKey}>
+      nodeKey={nodeKey}
+    >
       <div className="lexical-tweet">
         {isTweetLoading ? <TweetLoadingSkeleton /> : null}
         <div className="lexical-tweet__target" ref={targetRef} />

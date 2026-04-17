@@ -22,7 +22,6 @@ import PublicProjectReader from "@/components/project-reader/PublicProjectReader
 import { useProjectReaderPreferences } from "@/components/project-reader/use-project-reader-preferences";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
-import "@/styles/project-reading.css";
 import type { Project } from "@/data/projects";
 import { useDeferredVisibility } from "@/hooks/use-deferred-visibility";
 import { usePageMeta } from "@/hooks/use-page-meta";
@@ -48,6 +47,7 @@ import { readWindowPublicBootstrap } from "@/lib/public-bootstrap-global";
 import { hasPublicEpisodeReadableContent } from "@/lib/public-project-episodes";
 import type { UploadMediaVariantsMap } from "@/lib/upload-variants";
 import { cn } from "@/lib/utils";
+import "@/styles/project-reading.css";
 import type { PublicBootstrapPayload, PublicBootstrapProject } from "@/types/public-bootstrap";
 import {
   normalizeProjectEpisodeContentFormat,

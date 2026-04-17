@@ -6,16 +6,16 @@
  *
  */
 
-import type {JSX} from 'react';
+import type { JSX } from "react";
 
 import {
   $isAutoLinkNode,
   $isLinkNode,
   LinkNode,
   TOGGLE_LINK_COMMAND,
-} from '@lexical/link';
-import {useLexicalComposerContext} from '@lexical/react/LexicalComposerContext';
-import {$findMatchingParent, mergeRegister} from '@lexical/utils';
+} from "@lexical/link";
+import { useLexicalComposerContext } from "@lexical/react/LexicalComposerContext";
+import { $findMatchingParent, mergeRegister } from "@lexical/utils";
 import {
   $createRangeSelection,
   $getSelection,
@@ -32,38 +32,35 @@ import {
   isHTMLElement,
   LexicalCommand,
   LexicalEditor,
-} from 'lexical';
-import {useEffect} from 'react';
-import * as React from 'react';
+} from "lexical";
+import * as React from "react";
+import { useEffect } from "react";
 
-import ImageLibraryDialog from '@/components/ImageLibraryDialog';
-import type {ImageLibraryOptions} from '@/components/ImageLibraryDialog';
-import {getApiBase} from '@/lib/api-base';
-import {
-  $isImageNode,
-  ImageNode,
-} from '../../nodes/ImageNode';
+import type { ImageLibraryOptions } from "@/components/ImageLibraryDialog";
+import ImageLibraryDialog from "@/components/ImageLibraryDialog";
+import { getApiBase } from "@/lib/api-base";
+import { $isImageNode, ImageNode } from "../../nodes/ImageNode";
 import {
   insertImagePayloadAtCurrentSelection,
   insertImagesIntoEditor,
   type InsertImagePayload,
-} from './imageInsertion';
-import type {RangeSelectionSnapshot} from './selectionSnapshot';
+} from "./imageInsertion";
+import type { RangeSelectionSnapshot } from "./selectionSnapshot";
 
 export const INSERT_IMAGE_COMMAND: LexicalCommand<InsertImagePayload> =
-  createCommand('INSERT_IMAGE_COMMAND');
+  createCommand("INSERT_IMAGE_COMMAND");
 
 const normalizeComparableUploadUrl = (value: string | null | undefined) => {
-  const trimmed = String(value || '').trim();
+  const trimmed = String(value || "").trim();
   if (!trimmed) {
-    return '';
+    return "";
   }
-  if (trimmed.startsWith('/uploads/')) {
-    return trimmed.split(/[?#]/)[0] || '';
+  if (trimmed.startsWith("/uploads/")) {
+    return trimmed.split(/[?#]/)[0] || "";
   }
   try {
     const parsed = new URL(trimmed);
-    if (parsed.pathname.startsWith('/uploads/')) {
+    if (parsed.pathname.startsWith("/uploads/")) {
       return parsed.pathname;
     }
   } catch {
@@ -107,16 +104,18 @@ export function InsertImageDialog({
       title="Inserir imagens"
       description="Selecione e confirme em Salvar para inserir no editor."
       uploadFolder={imageLibraryOptions?.uploadFolder}
-      listFolders={imageLibraryOptions?.listFolders ?? ['']}
+      listFolders={imageLibraryOptions?.listFolders ?? [""]}
       listAll={imageLibraryOptions?.listAll}
       includeProjectImages={imageLibraryOptions?.includeProjectImages}
       projectImageProjectIds={imageLibraryOptions?.projectImageProjectIds}
       projectImagesView={imageLibraryOptions?.projectImagesView}
       currentSelectionUrls={imageLibraryOptions?.currentSelectionUrls}
-      onRequestNavigateToUploads={imageLibraryOptions?.onRequestNavigateToUploads}
+      onRequestNavigateToUploads={
+        imageLibraryOptions?.onRequestNavigateToUploads
+      }
       mode="multiple"
       allowDeselect
-      onSave={({items}) => {
+      onSave={({ items }) => {
         const payloads = getNewImageInsertPayloads(
           items,
           initialSelectionComparableSet,
@@ -159,7 +158,7 @@ export const getNewImageInsertPayloads = (
 
     insertedComparableSet.add(comparable);
     payloads.push({
-      altText: String(item.name || item.label || item.url || 'Imagem'),
+      altText: String(item.name || item.label || item.url || "Imagem"),
       src: item.url,
     });
   });
@@ -178,7 +177,7 @@ export default function ImagesPlugin({
 
   useEffect(() => {
     if (!editor.hasNodes([ImageNode])) {
-      throw new Error('ImagesPlugin: ImageNode not registered on editor');
+      throw new Error("ImagesPlugin: ImageNode not registered on editor");
     }
 
     return mergeRegister(
@@ -218,8 +217,8 @@ export default function ImagesPlugin({
 }
 
 const TRANSPARENT_IMAGE =
-  'data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7';
-const img = document.createElement('img');
+  "data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7";
+const img = document.createElement("img");
 img.src = TRANSPARENT_IMAGE;
 
 function $onDragStart(event: DragEvent): boolean {
@@ -231,10 +230,10 @@ function $onDragStart(event: DragEvent): boolean {
   if (!dataTransfer) {
     return false;
   }
-  dataTransfer.setData('text/plain', '_');
+  dataTransfer.setData("text/plain", "_");
   dataTransfer.setDragImage(img, 0, 0);
   dataTransfer.setData(
-    'application/x-lexical-drag',
+    "application/x-lexical-drag",
     JSON.stringify({
       data: {
         altText: node.__altText,
@@ -246,7 +245,7 @@ function $onDragStart(event: DragEvent): boolean {
         src: node.__src,
         width: node.__width,
       },
-      type: 'image',
+      type: "image",
     }),
   );
 
@@ -306,12 +305,12 @@ function $getImageNodeInSelection(): ImageNode | null {
 }
 
 function getDragImageData(event: DragEvent): null | InsertImagePayload {
-  const dragData = event.dataTransfer?.getData('application/x-lexical-drag');
+  const dragData = event.dataTransfer?.getData("application/x-lexical-drag");
   if (!dragData) {
     return null;
   }
-  const {type, data} = JSON.parse(dragData);
-  if (type !== 'image') {
+  const { type, data } = JSON.parse(dragData);
+  if (type !== "image") {
     return null;
   }
 
@@ -329,9 +328,9 @@ function canDropImage(event: DragEvent): boolean {
   const target = event.target;
   return !!(
     isHTMLElement(target) &&
-    !target.closest('code, span.editor-image') &&
+    !target.closest("code, span.editor-image") &&
     isHTMLElement(target.parentElement) &&
-    target.parentElement.closest('div.ContentEditable__root')
+    target.parentElement.closest("div.ContentEditable__root")
   );
 }
 

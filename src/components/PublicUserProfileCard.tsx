@@ -28,9 +28,9 @@ import { PillButton } from "@/components/ui/pill-button";
 import { useSiteSettings } from "@/hooks/use-site-settings";
 import { resolveDiscordAvatarRenderUrl } from "@/lib/discord-avatar";
 import type { UploadMediaVariantsMap } from "@/lib/upload-variants";
-import "@/styles/public-user-profile-card.css";
 import { isIconUrlSource, sanitizeIconSource, sanitizePublicHref } from "@/lib/url-safety";
 import { cn } from "@/lib/utils";
+import "@/styles/public-user-profile-card.css";
 import type {
   FavoriteWorkCategory,
   FavoriteWorksByCategory,

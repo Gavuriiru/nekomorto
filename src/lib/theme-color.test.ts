@@ -1,5 +1,5 @@
-import { describe, expect, it } from "vitest";
 import { DEFAULT_THEME_COLOR, resolveThemeColor } from "@/lib/theme-color";
+import { describe, expect, it } from "vitest";
 
 describe("theme color resolver (client)", () => {
   it("expands shorthand hex values to six lowercase digits", () => {

@@ -1,3 +1,5 @@
+import { buttonVariants } from "@/components/ui/button-variants";
+import { floatingSurfaceShadowClassName } from "@/components/ui/floating-surface";
 import { parseColor } from "@react-stately/color";
 import React from "react";
 import {
@@ -16,8 +18,6 @@ import {
   Popover,
   SliderTrack,
 } from "react-aria-components";
-import { buttonVariants } from "@/components/ui/button-variants";
-import { floatingSurfaceShadowClassName } from "@/components/ui/floating-surface";
 import "./color-picker.css";
 
 export interface ColorPickerProps extends Omit<AriaColorPickerProps, "children"> {

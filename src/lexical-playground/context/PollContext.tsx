@@ -4,7 +4,12 @@ import * as React from "react";
 
 export type PollTarget =
   | { type: "post"; slug: string }
-  | { type: "chapter"; projectId: string; chapterNumber: number; volume?: number };
+  | {
+      type: "chapter";
+      projectId: string;
+      chapterNumber: number;
+      volume?: number;
+    };
 
 export type PersistPollVote = (payload: {
   question: string;
@@ -32,4 +37,3 @@ export const PollProvider = ({
 };
 
 export const usePollContext = () => React.useContext(PollContext);
-

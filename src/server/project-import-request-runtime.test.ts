@@ -3,9 +3,9 @@ import { describe, expect, it, vi } from "vitest";
 import { createProjectImportRequestRuntime } from "../../server/lib/project-import-request-runtime.js";
 
 const createDeps = (overrides = {}) => {
-  const singleMiddleware = vi.fn((req, res, next) => next());
-  const fieldsMiddleware = vi.fn((req, res, next) => next());
-  const rawMiddleware = vi.fn((req, res, next) => next());
+  const singleMiddleware = vi.fn((_req, _res, next) => next());
+  const fieldsMiddleware = vi.fn((_req, _res, next) => next());
+  const rawMiddleware = vi.fn((_req, _res, next) => next());
   const multerMock = Object.assign(
     vi.fn(() => ({
       single: vi.fn(() => singleMiddleware),
@@ -113,13 +113,13 @@ describe("project-import-request-runtime", () => {
 
     deps.multer.mockImplementationOnce(() => ({
       single: vi.fn(() =>
-        vi.fn((request, response, next) =>
+        vi.fn((_request, _response, next) =>
           next({
             code: "LIMIT_FILE_SIZE",
           }),
         ),
       ),
-      fields: vi.fn(() => vi.fn((request, response, next) => next())),
+      fields: vi.fn(() => vi.fn((_request, _response, next) => next())),
     }));
 
     const runtimeWithEpubError = createProjectImportRequestRuntime(deps);
@@ -131,9 +131,9 @@ describe("project-import-request-runtime", () => {
     const projectImageDeps = createDeps({
       multer: Object.assign(
         vi.fn(() => ({
-          single: vi.fn(() => vi.fn((request, response, next) => next())),
+          single: vi.fn(() => vi.fn((_request, _response, next) => next())),
           fields: vi.fn(() =>
-            vi.fn((request, response, next) =>
+            vi.fn((_request, _response, next) =>
               next({
                 code: "LIMIT_UNEXPECTED_FILE",
               }),

@@ -1,5 +1,3 @@
-import { Plus, Save, Trash2 } from "lucide-react";
-import { useCallback, useEffect, useMemo, useState } from "react";
 import DashboardActionButton from "@/components/dashboard/DashboardActionButton";
 import DashboardFieldStack from "@/components/dashboard/DashboardFieldStack";
 import { Input } from "@/components/dashboard/dashboard-form-controls";
@@ -15,6 +13,8 @@ import { getApiBase } from "@/lib/api-base";
 import { apiFetch } from "@/lib/api-client";
 import { applyBeforeUnloadCompatibility } from "@/lib/before-unload";
 import type { SiteSettings } from "@/types/site-settings";
+import { Plus, Save, Trash2 } from "lucide-react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 
 type SeoRedirectRule = SiteSettings["seo"]["redirects"][number];
 

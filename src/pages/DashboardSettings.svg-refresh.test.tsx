@@ -1,9 +1,9 @@
-﻿import { fireEvent, render, screen, waitFor } from "@testing-library/react";
+﻿import { defaultSettings } from "@/hooks/site-settings-context";
+import DashboardSettings from "@/pages/DashboardSettings";
+import { fireEvent, render, screen, waitFor } from "@testing-library/react";
 import type { ReactNode } from "react";
 import { MemoryRouter } from "react-router-dom";
 import { beforeEach, describe, expect, it, vi } from "vitest";
-import { defaultSettings } from "@/hooks/site-settings-context";
-import DashboardSettings from "@/pages/DashboardSettings";
 
 const { apiFetchMock, navigateMock, refreshMock } = vi.hoisted(() => ({
   apiFetchMock: vi.fn(),

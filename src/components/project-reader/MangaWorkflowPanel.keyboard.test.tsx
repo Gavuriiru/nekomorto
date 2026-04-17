@@ -1,11 +1,11 @@
-import { fireEvent, render, screen, waitFor } from "@testing-library/react";
-import { useState } from "react";
-import { beforeEach, describe, expect, it, vi } from "vitest";
 import MangaWorkflowPanel, {
   type StageChapter,
 } from "@/components/project-reader/MangaWorkflowPanel";
 import type { Project, ProjectEpisode } from "@/data/projects";
 import { AccessibilityAnnouncerProvider } from "@/hooks/accessibility-announcer";
+import { fireEvent, render, screen, waitFor } from "@testing-library/react";
+import { useState } from "react";
+import { beforeEach, describe, expect, it, vi } from "vitest";
 
 vi.mock("@/components/UploadPicture", () => ({
   default: ({ src, alt }: { src: string; alt: string }) => (

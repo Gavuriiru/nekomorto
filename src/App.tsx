@@ -1,11 +1,11 @@
-import { lazy, Suspense, useEffect, useLayoutEffect, useState } from "react";
-import { BrowserRouter, Route, Routes, useLocation } from "react-router-dom";
 import { AccessibilityAnnouncerProvider } from "@/hooks/accessibility-announcer";
 import { GlobalShortcutsProvider } from "@/hooks/global-shortcuts-provider";
 import { SiteSettingsProvider } from "@/hooks/site-settings-provider";
 import { ThemeModeProvider } from "@/hooks/theme-mode-provider";
 import { useReveal } from "@/hooks/use-reveal";
 import { scheduleOnBrowserLoadIdle } from "@/lib/browser-idle";
+import { lazy, Suspense, useEffect, useLayoutEffect, useState } from "react";
+import { BrowserRouter, Route, Routes, useLocation } from "react-router-dom";
 
 import PublicRoutes from "./routes/PublicRoutes";
 

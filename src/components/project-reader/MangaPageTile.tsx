@@ -3,8 +3,8 @@ import { Columns2, Link2Off, Star, Trash2 } from "lucide-react";
 import {
   type FocusEvent,
   type KeyboardEvent,
-  type MouseEvent,
   memo,
+  type MouseEvent,
   type PointerEvent,
   useEffect,
   useRef,

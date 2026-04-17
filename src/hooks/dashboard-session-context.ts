@@ -1,8 +1,8 @@
-import { createContext } from "react";
 import {
   type PublicBootstrapCurrentUser,
   readWindowPublicBootstrapCurrentUser,
 } from "@/lib/public-bootstrap-global";
+import { createContext } from "react";
 
 export type DashboardSessionUser = PublicBootstrapCurrentUser & {
   email?: string | null;

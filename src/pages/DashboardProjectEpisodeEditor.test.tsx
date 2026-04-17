@@ -499,12 +499,7 @@ describe("DashboardProjectEpisodeEditor", () => {
     );
     expect(sidebarPanel).not.toHaveClass("h-[var(--dedicated-editor-sidebar-height,34rem)]");
     expect(sidebarPanel).not.toHaveClass("max-h-[calc(100dvh-9rem)]");
-    expect(scrollRegion).toHaveClass(
-      "no-scrollbar",
-      "min-h-0",
-      "flex-1",
-      "overflow-y-auto",
-    );
+    expect(scrollRegion).toHaveClass("no-scrollbar", "min-h-0", "flex-1", "overflow-y-auto");
     expect(scrollRegion).not.toHaveClass("overscroll-contain");
   });
 

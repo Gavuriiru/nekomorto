@@ -1,4 +1,3 @@
-import { useCallback, useEffect, useMemo, useRef } from "react";
 import { toast } from "@/components/ui/use-toast";
 import {
   autosaveRuntimeConfig,
@@ -12,12 +11,13 @@ import { apiFetch } from "@/lib/api-client";
 import { applyBeforeUnloadCompatibility } from "@/lib/before-unload";
 import { writeDashboardSettingsCache } from "@/lib/dashboard-settings-cache";
 import type { SiteSettings } from "@/types/site-settings";
+import { useCallback, useEffect, useMemo, useRef } from "react";
 import {
   type LinkTypeItem,
   normalizeDefaultShareImageSettings,
   normalizeLinkTypeId,
-  type SettingsTabKey,
   sanitizeReaderProjectTypesForDashboardSave,
+  type SettingsTabKey,
   type TranslationsPayload,
 } from "./shared";
 

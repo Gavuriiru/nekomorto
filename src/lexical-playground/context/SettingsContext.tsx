@@ -6,10 +6,10 @@
  *
  */
 
-import type {SettingName} from '../appSettings';
-import type {JSX} from 'react';
+import type { JSX } from "react";
+import type { SettingName } from "../appSettings";
 
-import * as React from 'react';
+import * as React from "react";
 import {
   createContext,
   ReactNode,
@@ -17,9 +17,9 @@ import {
   useContext,
   useMemo,
   useState,
-} from 'react';
+} from "react";
 
-import {DEFAULT_SETTINGS, INITIAL_SETTINGS} from '../appSettings';
+import { DEFAULT_SETTINGS, INITIAL_SETTINGS } from "../appSettings";
 
 type SettingsContextShape = {
   setOption: (name: SettingName, value: boolean) => void;
@@ -27,7 +27,7 @@ type SettingsContextShape = {
 };
 
 const Context: React.Context<SettingsContextShape> = createContext({
-  setOption: (name: SettingName, value: boolean) => {
+  setOption: (_name: SettingName, _value: boolean) => {
     return;
   },
   settings: INITIAL_SETTINGS,
@@ -49,7 +49,7 @@ export const SettingsContext = ({
   }, []);
 
   const contextValue = useMemo(() => {
-    return {setOption, settings};
+    return { setOption, settings };
   }, [setOption, settings]);
 
   return <Context.Provider value={contextValue}>{children}</Context.Provider>;
@@ -68,5 +68,5 @@ function setURLParam(param: SettingName, value: null | boolean) {
     params.delete(param);
   }
   url.search = params.toString();
-  window.history.pushState(null, '', url.toString());
+  window.history.pushState(null, "", url.toString());
 }

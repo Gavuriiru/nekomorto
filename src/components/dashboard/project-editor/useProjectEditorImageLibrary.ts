@@ -1,5 +1,3 @@
-import type { Dispatch, SetStateAction } from "react";
-import { useCallback, useEffect, useMemo, useState } from "react";
 import type { ImageLibraryOptions, ImageLibrarySavePayload } from "@/components/ImageLibraryDialog";
 import type { ProjectEpisode, ProjectVolumeEntry } from "@/data/projects";
 import {
@@ -12,6 +10,8 @@ import {
 } from "@/lib/dashboard-image-library";
 import { resolveProjectImageFolders } from "@/lib/project-image-folders";
 import { isChapterBasedType } from "@/lib/project-utils";
+import type { Dispatch, SetStateAction } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import { resolveProjectVolumeEntryIndexByVolume } from "./project-editor-form";
 
 type ProjectImageLibraryTarget = "cover" | "banner" | "hero" | "episode-cover" | "volume-cover";

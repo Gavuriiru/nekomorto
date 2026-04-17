@@ -1,8 +1,8 @@
-import { render } from "@testing-library/react";
-import { beforeEach, describe, expect, it, vi } from "vitest";
 import { usePageMeta } from "@/hooks/use-page-meta";
 import { resolveThemeColor } from "@/lib/theme-color";
 import type { UploadMediaVariantsMap } from "@/lib/upload-variants";
+import { render } from "@testing-library/react";
+import { beforeEach, describe, expect, it, vi } from "vitest";
 
 const mockSiteSettings = {
   site: {

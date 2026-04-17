@@ -1,5 +1,5 @@
-import { useMemo } from "react";
 import { isIconUrlSource, sanitizeIconSource } from "@/lib/url-safety";
+import { useMemo } from "react";
 
 type ThemedSvgLogoProps = {
   url: string;

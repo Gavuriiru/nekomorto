@@ -1,5 +1,3 @@
-import { HelpCircle, Info, Rocket, Shield, Sparkles, Users } from "lucide-react";
-import { useMemo } from "react";
 import PublicPageHero from "@/components/PublicPageHero";
 import {
   publicInteractiveStackedSurfaceClassName,
@@ -10,6 +8,8 @@ import { Card, CardContent } from "@/components/ui/card";
 import { Separator } from "@/components/ui/separator";
 import { usePageMeta } from "@/hooks/use-page-meta";
 import { readWindowPublicBootstrap } from "@/lib/public-bootstrap-global";
+import { HelpCircle, Info, Rocket, Shield, Sparkles, Users } from "lucide-react";
+import { useMemo } from "react";
 import {
   buildInstitutionalOgImageAlt,
   buildInstitutionalOgRevision,

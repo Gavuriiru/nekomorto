@@ -1,20 +1,3 @@
-import { unzipSync } from "fflate";
-import { LayoutGroup, useReducedMotion } from "framer-motion";
-import { FileArchive, FolderOpen, ImagePlus, Loader2, Plus, Trash2, Upload } from "lucide-react";
-import {
-  type Dispatch,
-  forwardRef,
-  type KeyboardEvent,
-  type MouseEvent,
-  memo,
-  type SetStateAction,
-  useCallback,
-  useEffect,
-  useImperativeHandle,
-  useMemo,
-  useRef,
-  useState,
-} from "react";
 import MangaPageTile from "@/components/project-reader/MangaPageTile";
 import ProjectEditorSectionCard from "@/components/project-reader/ProjectEditorSectionCard";
 import {
@@ -44,6 +27,23 @@ import { buildChapterFolder, resolveProjectImageFolders } from "@/lib/project-im
 import { mergeImportedImageChaptersIntoProject } from "@/lib/project-manga";
 import { getProjectProgressState, syncProjectProgress } from "@/lib/project-progress";
 import { cn } from "@/lib/utils";
+import { unzipSync } from "fflate";
+import { LayoutGroup, useReducedMotion } from "framer-motion";
+import { FileArchive, FolderOpen, ImagePlus, Loader2, Plus, Trash2, Upload } from "lucide-react";
+import {
+  type Dispatch,
+  forwardRef,
+  type KeyboardEvent,
+  memo,
+  type MouseEvent,
+  type SetStateAction,
+  useCallback,
+  useEffect,
+  useImperativeHandle,
+  useMemo,
+  useRef,
+  useState,
+} from "react";
 
 type ProjectRecord = Project & { revision?: string };
 type ChapterFilterMode = "all" | "draft" | "published" | "with-content" | "without-content";
@@ -572,11 +572,8 @@ const MangaWorkflowPanel = forwardRef<MangaWorkflowPanelHandle, MangaWorkflowPan
   (
     {
       apiBase,
-      project,
       projectSnapshot,
       selectedVolume,
-      filterMode,
-      filteredChapters,
       stagedChapters,
       setStagedChapters,
       selectedStageChapterId,

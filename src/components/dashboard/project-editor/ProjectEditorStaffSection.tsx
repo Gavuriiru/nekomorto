@@ -1,11 +1,11 @@
-import { type Dispatch, memo, type SetStateAction } from "react";
-import DashboardActionButton from "@/components/dashboard/DashboardActionButton";
 import { Combobox, Input } from "@/components/dashboard/dashboard-form-controls";
+import DashboardActionButton from "@/components/dashboard/DashboardActionButton";
 import ProjectMemberCombobox from "@/components/dashboard/ProjectMemberCombobox";
 import ReorderControls from "@/components/ReorderControls";
 import { AccordionContent, AccordionItem, AccordionTrigger } from "@/components/ui/accordion";
 import { Badge } from "@/components/ui/badge";
 import { translateAnilistRole } from "@/lib/project-taxonomy";
+import { type Dispatch, memo, type SetStateAction } from "react";
 
 import type { ProjectForm, ProjectStaff } from "./dashboard-projects-editor-types";
 import ProjectEditorAccordionHeader from "./ProjectEditorAccordionHeader";

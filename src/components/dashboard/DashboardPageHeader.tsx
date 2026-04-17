@@ -1,4 +1,3 @@
-import type { ComponentPropsWithoutRef, CSSProperties, ReactNode } from "react";
 import DashboardPageBadge from "@/components/dashboard/DashboardPageBadge";
 import {
   dashboardAnimationDelay,
@@ -6,6 +5,7 @@ import {
 } from "@/components/dashboard/dashboard-motion";
 import { dashboardPageLayoutTokens } from "@/components/dashboard/dashboard-page-tokens";
 import { cn } from "@/lib/utils";
+import type { ComponentPropsWithoutRef, CSSProperties, ReactNode } from "react";
 
 type DashboardPageHeaderProps = {
   badge: string;

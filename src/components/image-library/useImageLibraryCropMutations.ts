@@ -1,6 +1,5 @@
 import { type Dispatch, type SetStateAction, useCallback, useState } from "react";
 
-import { isAvatarSlotSelection } from "@/components/image-library/avatar-selection";
 import { getUploadPermissionToastTitle } from "@/components/image-library/messages";
 import type { LibraryImageItem } from "@/components/image-library/types";
 import { toast } from "@/components/ui/use-toast";

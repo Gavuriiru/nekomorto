@@ -1,6 +1,6 @@
+import ThemedSvgMaskIcon from "@/components/ThemedSvgMaskIcon";
 import { render, screen, waitFor } from "@testing-library/react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import ThemedSvgMaskIcon from "@/components/ThemedSvgMaskIcon";
 
 const supportsMock = vi.hoisted(() => vi.fn());
 const imageState = vi.hoisted(() => ({ shouldFail: false }));

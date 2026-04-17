@@ -1,4 +1,3 @@
-import { type Dispatch, type DragEvent, type SetStateAction, useEffect, useRef } from "react";
 import {
   resolveUploadFolderFilterValue,
   shouldFallbackUploadFolderFilterToAll,
@@ -12,6 +11,7 @@ import useImageLibraryBrowserDerivedState from "@/components/image-library/useIm
 import useImageLibraryBrowserInteractions from "@/components/image-library/useImageLibraryBrowserInteractions";
 import useImageLibraryRevealOrchestration from "@/components/image-library/useImageLibraryRevealOrchestration";
 import useImageLibrarySelectionLifecycle from "@/components/image-library/useImageLibrarySelectionLifecycle";
+import { type Dispatch, type DragEvent, type SetStateAction, useEffect, useRef } from "react";
 
 type PendingRevealRequest = {
   url: string;

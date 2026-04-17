@@ -1,5 +1,5 @@
-import { createContext } from "react";
 import type { SiteSettings } from "@/types/site-settings";
+import { createContext } from "react";
 import { getProjectReaderPresetByType } from "../../shared/project-reader.js";
 
 export const defaultSettings: SiteSettings = {

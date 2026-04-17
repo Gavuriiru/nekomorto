@@ -10,7 +10,7 @@ export const findFirstFocusableDescendant = (
   startElement: HTMLElement,
 ): HTMLElement | null => {
   const focusableSelector =
-    'button, a[href], input, select, textarea, details, summary [tabindex], [contenteditable]';
+    "button, a[href], input, select, textarea, details, summary [tabindex], [contenteditable]";
 
   const focusableDescendants = startElement.querySelector(
     focusableSelector,
@@ -25,7 +25,7 @@ export const focusNearestDescendant = (
   const el = findFirstFocusableDescendant(startElement);
   if (el) {
     try {
-      el.focus({preventScroll: true});
+      el.focus({ preventScroll: true });
     } catch {
       el.focus();
     }
@@ -36,8 +36,8 @@ export const focusNearestDescendant = (
 export const isKeyboardInput = (
   event: MouseEvent | PointerEvent | React.MouseEvent,
 ): boolean => {
-  if ('pointerId' in event && 'pointerType' in event) {
-    return event.pointerId === -1 && event.pointerType === '';
+  if ("pointerId" in event && "pointerType" in event) {
+    return event.pointerId === -1 && event.pointerType === "";
   }
 
   return event?.detail === 0;

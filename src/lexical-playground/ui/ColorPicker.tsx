@@ -6,9 +6,9 @@
  *
  */
 
-import type {JSX} from 'react';
+import type { JSX } from "react";
 
-import {ColorPicker as AriaColorPicker} from '@/components/ui/color-picker';
+import { ColorPicker as AriaColorPicker } from "@/components/ui/color-picker";
 
 interface ColorPickerProps {
   color: string;
@@ -29,9 +29,11 @@ export default function ColorPicker({
     }
 
     const next =
-      typeof (nextColor as {toString?: (format?: string) => string})
-        ?.toString === 'function'
-        ? (nextColor as {toString: (format?: string) => string}).toString('hex')
+      typeof (nextColor as { toString?: (format?: string) => string })
+        ?.toString === "function"
+        ? (nextColor as { toString: (format?: string) => string }).toString(
+            "hex",
+          )
         : String(nextColor);
 
     onChange(next, false, true);
@@ -42,7 +44,7 @@ export default function ColorPicker({
       <AriaColorPicker
         inline
         showSwatch={false}
-        value={color || '#000000'}
+        value={color || "#000000"}
         onChange={handleChange}
       />
     </div>

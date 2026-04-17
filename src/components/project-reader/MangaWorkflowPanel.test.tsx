@@ -1,12 +1,12 @@
-import { act, fireEvent, render, screen, waitFor, within } from "@testing-library/react";
-import { useState } from "react";
-import { beforeEach, describe, expect, it, vi } from "vitest";
 import MangaWorkflowPanel, {
   type MangaWorkflowPanelHandle,
   type StageChapter,
 } from "@/components/project-reader/MangaWorkflowPanel";
 import type { Project, ProjectEpisode } from "@/data/projects";
 import { AccessibilityAnnouncerProvider } from "@/hooks/accessibility-announcer";
+import { act, fireEvent, render, screen, waitFor, within } from "@testing-library/react";
+import { useState } from "react";
+import { beforeEach, describe, expect, it, vi } from "vitest";
 
 const { apiFetchMock, toastMock, downloadBinaryResponseMock } = vi.hoisted(() => ({
   apiFetchMock: vi.fn(),

@@ -1,15 +1,3 @@
-import { unzipSync } from "fflate";
-import { LayoutGroup, useReducedMotion } from "framer-motion";
-import { FileArchive, FolderOpen, ImagePlus, Loader2, Plus } from "lucide-react";
-import {
-  type KeyboardEvent,
-  type MouseEvent,
-  memo,
-  useCallback,
-  useMemo,
-  useRef,
-  useState,
-} from "react";
 import DownloadSourceSelect from "@/components/project-reader/DownloadSourceSelect";
 import MangaPageTile from "@/components/project-reader/MangaPageTile";
 import { exportMangaChapter } from "@/components/project-reader/manga-chapter-export";
@@ -31,6 +19,10 @@ import type { Project, ProjectEpisode, ProjectEpisodePage } from "@/data/project
 import { useAccessibilityAnnouncer } from "@/hooks/accessibility-announcer";
 import { apiFetch } from "@/lib/api-client";
 import { fileToDataUrl } from "@/lib/file-data-url";
+import { unzipSync } from "fflate";
+import { LayoutGroup, useReducedMotion } from "framer-motion";
+import { FileArchive, FolderOpen, ImagePlus, Loader2, Plus } from "lucide-react";
+import { type KeyboardEvent, type MouseEvent, memo, useMemo, useRef, useState } from "react";
 import { normalizeProjectEpisodePages } from "../../../shared/project-reader.js";
 
 type MangaChapterPagesEditorProps = {
@@ -160,11 +152,7 @@ const MangaChapterPagesGrid = memo(
     onRemove,
   }: MangaChapterPagesGridProps) => {
     const gridRef = useRef<HTMLDivElement | null>(null);
-    const {
-      cancelPointerReorder,
-      pointerDragState,
-      startPointerReorder,
-    } = usePointerReorder({
+    const { cancelPointerReorder, pointerDragState, startPointerReorder } = usePointerReorder({
       containerRef: gridRef,
       disabled: isUploading,
       itemCount: pages.length,
