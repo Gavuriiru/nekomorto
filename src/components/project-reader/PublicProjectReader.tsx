@@ -494,6 +494,21 @@ const getProgressOverlayContainerStyle = (position: ReaderProgressPosition): CSS
 };
 
 const clampProgressRatio = (value: number) => Math.min(Math.max(value, 0), 1);
+const getProgressAxisRatio = ({
+  ratio,
+  position,
+  direction,
+}: {
+  ratio: number;
+  position: ReaderProgressPosition;
+  direction: "rtl" | "ltr";
+}) => {
+  const clampedRatio = clampProgressRatio(ratio);
+  if (position === "bottom" && direction === "rtl") {
+    return 1 - clampedRatio;
+  }
+  return clampedRatio;
+};
 const easeContinuousPageStep = (value: number) => {
   const clampedValue = clampProgressRatio(value);
   return clampedValue < 0.5
@@ -3821,6 +3836,11 @@ const PublicProjectReaderContent = ({
     !paginated && progressPosition !== "bottom"
       ? continuousProgressVisualRatio
       : progressPositionRatio;
+  const progressTrackRatio = getProgressAxisRatio({
+    ratio: progressVisualRatio,
+    position: progressPosition,
+    direction,
+  });
   const isViewportBoundedReader = usesViewportBoundedHeight(effectiveImageFit);
   const shouldUseFixedViewportHeight = viewportMode === "viewport";
   const horizontalScrollbarSpacerWidth = Math.max(
@@ -4047,12 +4067,12 @@ const PublicProjectReaderContent = ({
     );
     const rootFontSizePx = getRootFontSizePx();
     const indicatorOffsetPx = getSafeCenteredProgressOffsetPx({
-      ratio: progressVisualRatio,
+      ratio: progressTrackRatio,
       edgeInsetPx: rootFontSizePx * (progressPosition === "bottom" ? 3 : 2.25),
       containerLength,
     });
     const labelOffsetPx = getSafeCenteredProgressOffsetPx({
-      ratio: progressVisualRatio,
+      ratio: progressTrackRatio,
       edgeInsetPx: Math.max(
         progressPosition === "bottom" ? progressLabelSize.width / 2 : progressLabelSize.height / 2,
         progressPosition === "bottom"
@@ -4089,14 +4109,19 @@ const PublicProjectReaderContent = ({
       }
 
       const rect = getProgressInteractionRect();
-      const ratio =
+      const interactionRatio =
         progressPosition === "bottom"
           ? clampProgressRatio((clientX - rect.left) / Math.max(rect.width, 1))
           : clampProgressRatio((clientY - rect.top) / Math.max(rect.height, 1));
+      const ratio = getProgressAxisRatio({
+        ratio: interactionRatio,
+        position: progressPosition,
+        direction,
+      });
 
       return Math.round(ratio * (originalPages.length - 1));
     },
-    [getProgressInteractionRect, originalPages.length, progressPosition],
+    [direction, getProgressInteractionRect, originalPages.length, progressPosition],
   );
 
   const scrubToProgressClientPosition = useCallback(
@@ -4289,7 +4314,7 @@ const PublicProjectReaderContent = ({
         data-testid="project-reader-progress-overlay"
         data-state={isProgressOverlayVisible ? "visible" : "hidden"}
         className={cn(
-          "pointer-events-none absolute z-10 transition-[opacity,transform] ease-out",
+          "pointer-events-none absolute z-30 transition-[opacity,transform] ease-out",
           getProgressOverlayMotionClassName({
             position: progressPosition,
             isVisible: isProgressOverlayVisible,
@@ -4403,7 +4428,7 @@ const PublicProjectReaderContent = ({
 
   const renderProgressViewport = () => {
     return (
-      <div className="pointer-events-none sticky top-0 z-10 h-0 overflow-visible">
+      <div className="pointer-events-none sticky top-0 z-30 h-0 overflow-visible">
         <div
           ref={progressViewportRef}
           data-testid="project-reader-progress-viewport"
