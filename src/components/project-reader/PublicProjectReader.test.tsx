@@ -3663,11 +3663,10 @@ describe("PublicProjectReader", () => {
 
     const indicator = await screen.findByTestId("project-reader-progress-indicator");
     const label = screen.getByTestId("project-reader-progress-label");
-    const expectedClassName =
-      progressPosition === "bottom" ? "-translate-x-1/2" : "-translate-y-1/2";
-    const styleKey = progressPosition === "bottom" ? "left" : "top";
+    const expectedClassName = "-translate-y-1/2";
+    const styleKey = "top";
     const rootFontSizePx = getRootFontSizePx();
-    const indicatorInsetPx = rootFontSizePx * (progressPosition === "bottom" ? 3 : 2.25);
+    const indicatorInsetPx = rootFontSizePx * 2.25;
     const labelInsetPx = getProgressLabelInsetPx(progressPosition);
     const containerLength = getProgressContainerLength(progressPosition);
 
@@ -3678,10 +3677,8 @@ describe("PublicProjectReader", () => {
     );
     expect(label).toHaveClass(expectedClassName);
     expect(Number.parseFloat(label.style[styleKey as "left" | "top"])).toBeCloseTo(labelInsetPx, 4);
-    if (progressPosition !== "bottom") {
-      expect(indicator.style.bottom).toBe("");
-      expect(label.style.bottom).toBe("");
-    }
+    expect(indicator.style.bottom).toBe("");
+    expect(label.style.bottom).toBe("");
 
     goToLastPaginatedPage();
 
@@ -3782,24 +3779,14 @@ describe("PublicProjectReader", () => {
     fireEvent.pointerDown(hitArea, {
       pointerId: 1,
       pointerType: "mouse",
-      clientX:
-        progressPosition === "bottom"
-          ? window.innerWidth - 40
-          : progressPosition === "left"
-            ? 24
-            : window.innerWidth - 24,
-      clientY: progressPosition === "bottom" ? window.innerHeight - 24 : window.innerHeight - 24,
+      clientX: progressPosition === "left" ? 24 : window.innerWidth - 24,
+      clientY: window.innerHeight - 24,
     });
     fireEvent.pointerUp(hitArea, {
       pointerId: 1,
       pointerType: "mouse",
-      clientX:
-        progressPosition === "bottom"
-          ? window.innerWidth - 40
-          : progressPosition === "left"
-            ? 24
-            : window.innerWidth - 24,
-      clientY: progressPosition === "bottom" ? window.innerHeight - 24 : window.innerHeight - 24,
+      clientX: progressPosition === "left" ? 24 : window.innerWidth - 24,
+      clientY: window.innerHeight - 24,
     });
 
     await waitFor(() => {
