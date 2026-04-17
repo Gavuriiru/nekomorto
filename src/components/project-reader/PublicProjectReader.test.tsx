@@ -4888,7 +4888,7 @@ describe("PublicProjectReader", () => {
           },
           {
             value: "2",
-            label: "Capitulo 2",
+            label: "Capítulo 2",
             href: "/projeto/projeto-teste/leitura/2",
           },
           {
