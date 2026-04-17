@@ -321,7 +321,7 @@ validate_env_placeholders() {
   postgres_db="${postgres_db:-nekomorto}"
 
   if [[ "${database_url}" != *"@postgres:"* && "${database_url}" != *"@postgres/"* ]]; then
-    fail "DATABASE_URL nao aponta para o servico interno postgres." \
+    fail "DATABASE_URL não aponta para o servico interno postgres." \
       "Use o hostname postgres dentro do Docker Compose." \
       "DATABASE_URL=postgresql://${postgres_user}:<senha>@postgres:5432/${postgres_db}"
   fi
