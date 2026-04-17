@@ -262,8 +262,9 @@ describe("Projects query sync", () => {
     fireEvent.click(formatTrigger);
 
     const formatListbox = await screen.findByRole("listbox", { name: "Formato" });
+    expect(formatListbox).toHaveAttribute("aria-label", "Formato");
     expect(screen.queryByLabelText(/Buscar em formato/i)).not.toBeInTheDocument();
-    const animeOption = within(formatListbox).getByRole("option", { name: "Anime" });
+    const animeOption = await screen.findByRole("option", { name: "Anime" });
     expect(animeOption).toBeInTheDocument();
 
     fireEvent.click(animeOption);
