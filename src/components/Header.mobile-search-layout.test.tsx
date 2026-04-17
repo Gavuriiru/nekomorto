@@ -318,7 +318,7 @@ describe("Header mobile search layout", () => {
     });
   });
 
-  it("nao aplica gradiente quando o header fixo desabilita a sombra inferior", async () => {
+  it("não aplica gradiente quando o header fixo desabilita a sombra inferior", async () => {
     render(
       <MemoryRouter initialEntries={["/"]}>
         <Header showBottomGradient={false} />
