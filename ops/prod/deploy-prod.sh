@@ -271,7 +271,7 @@ check_gitignore_env_rules() {
     fail ".gitignore nao encontrado no deploy path." "Mantenha .env e .env.* fora do Git antes de criar secrets."
   fi
 
-  git check-ignore -q .env || fail ".env nao esta ignorado pelo Git." \
+  git check-ignore -q .env || fail ".env não esta ignorado pelo Git." \
     "Adicione .env ao .gitignore antes de criar arquivos com secrets."
 
   git check-ignore -q .env.prod || fail ".env.prod nao esta ignorado pelo Git." \
