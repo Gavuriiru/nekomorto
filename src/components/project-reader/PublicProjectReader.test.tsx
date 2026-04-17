@@ -135,7 +135,7 @@ const baseProps = {
   chapterOptions: [
     {
       value: "1",
-      label: "Capitulo 1",
+      label: "Capítulo 1",
       href: "/projeto/projeto-teste/leitura/1",
     },
     {
