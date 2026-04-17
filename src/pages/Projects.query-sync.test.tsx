@@ -536,7 +536,7 @@ describe("Projects query sync", () => {
     );
     expect(within(pagination).getByRole("link", { name: "6" })).toBeInTheDocument();
     expect(within(pagination).getByRole("link", { name: "10" })).toBeInTheDocument();
-    expect(within(pagination).getAllByText("Mais p\u00E1ginas")).toHaveLength(2);
+    expect(within(pagination).getAllByText("Mais páginas")).toHaveLength(2);
     expect(within(pagination).queryByRole("link", { name: "2" })).not.toBeInTheDocument();
     expect(within(pagination).queryByRole("link", { name: "8" })).not.toBeInTheDocument();
 

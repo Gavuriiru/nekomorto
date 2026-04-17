@@ -235,7 +235,7 @@ is_placeholder_value() {
 require_command() {
   local name="$1"
   local fix="$2"
-  command -v "${name}" >/dev/null 2>&1 || fail "${name} nao esta instalado ou nao esta no PATH." "${fix}"
+  command -v "${name}" >/dev/null 2>&1 || fail "${name} não está instalado ou não está no PATH." "${fix}"
 }
 
 require_non_empty() {
@@ -268,10 +268,10 @@ validate_image_tag_for_rollback() {
 
 check_gitignore_env_rules() {
   if [[ ! -f ".gitignore" ]]; then
-    fail ".gitignore nao encontrado no deploy path." "Mantenha .env e .env.* fora do Git antes de criar secrets."
+    fail ".gitignore não encontrado no deploy path." "Mantenha .env e .env.* fora do Git antes de criar secrets."
   fi
 
-  git check-ignore -q .env || fail ".env nao esta ignorado pelo Git." \
+  git check-ignore -q .env || fail ".env não esta ignorado pelo Git." \
     "Adicione .env ao .gitignore antes de criar arquivos com secrets."
 
   git check-ignore -q .env.prod || fail ".env.prod nao esta ignorado pelo Git." \
@@ -321,7 +321,7 @@ validate_env_placeholders() {
   postgres_db="${postgres_db:-nekomorto}"
 
   if [[ "${database_url}" != *"@postgres:"* && "${database_url}" != *"@postgres/"* ]]; then
-    fail "DATABASE_URL nao aponta para o servico interno postgres." \
+    fail "DATABASE_URL não aponta para o servico interno postgres." \
       "Use o hostname postgres dentro do Docker Compose." \
       "DATABASE_URL=postgresql://${postgres_user}:<senha>@postgres:5432/${postgres_db}"
   fi
