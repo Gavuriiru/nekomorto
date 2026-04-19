@@ -76,6 +76,15 @@ import { type DragEvent, useCallback, useEffect, useMemo, useState } from "react
 import { useNavigate, useSearchParams } from "react-router-dom";
 
 const FAVORITE_WORK_CATEGORIES = ["manga", "anime"] as const;
+const DEFAULT_ADMIN_PERMISSIONS: ReadonlyArray<(typeof permissionIds)[number]> = [
+  "posts",
+  "projetos",
+  "comentarios",
+  "paginas",
+  "uploads",
+  "analytics",
+  "usuarios_basico",
+];
 type FavoriteWorkCategory = (typeof FAVORITE_WORK_CATEGORIES)[number];
 type FavoriteWorksByCategory = Record<FavoriteWorkCategory, string[]>;
 type FavoriteWorksDraft = Record<FavoriteWorkCategory, [string, string, string]>;
@@ -113,7 +122,6 @@ type SecuritySessionRow = {
   lastIp: string;
   userAgent: string;
   current?: boolean;
-  isCurrent?: boolean;
   isPendingMfa?: boolean;
 };
 
@@ -371,8 +379,7 @@ const didUserOrderChange = (before: UserRecord[], after: UserRecord[]) => {
   return beforeBuckets.retiredIds.some((id, index) => id !== afterBuckets.retiredIds[index]);
 };
 
-const isCurrentSecuritySession = (session: SecuritySessionRow) =>
-  session.current === true || session.isCurrent === true;
+const isCurrentSecuritySession = (session: SecuritySessionRow) => session.current === true;
 
 const formatSecurityDateTime = (value: string | null | undefined) => {
   if (!value) {
@@ -593,7 +600,7 @@ const DashboardUsers = () => {
         status: user.status,
         accessRole: userAccessRole === "admin" ? "admin" : "normal",
         permissions: normalizedPermissions,
-        roles: normalizedRoles ? [...normalizedRoles] : [],
+        roles: [...normalizedRoles],
       });
       setEditorAvatarPreviewRevision(user.revision || null);
       setOwnerToggle(isOwnerUser(user));
@@ -1471,13 +1478,19 @@ const DashboardUsers = () => {
     const visibleRoles = ownerIds.includes(user.id)
       ? user.roles || []
       : stripOwnerRole(user.roles || []);
+    const userCardClassName = [
+      `relative min-w-0 overflow-hidden ${dashboardPageLayoutTokens.surfaceSolid} p-5 animate-slide-up opacity-0`,
+      !isRetired ? `transition ${dashboardStrongSurfaceHoverClassName} hover:bg-primary/5` : "",
+      isLoneLastCard ? "lg:col-span-2 lg:mx-auto lg:w-[calc(50%-0.5rem)]" : "",
+    ]
+      .filter(Boolean)
+      .join(" ");
 
     return (
       <div
         key={user.id}
         data-testid={`dashboard-user-card-${user.id}`}
-        className={`relative min-w-0 overflow-hidden ${dashboardPageLayoutTokens.surfaceSolid} p-5 animate-slide-up opacity-0 ${!isRetired ? `transition ${dashboardStrongSurfaceHoverClassName} hover:bg-primary/5` : ""
-          } ${isLoneLastCard ? "lg:col-span-2 lg:mx-auto lg:w-[calc(50%-0.5rem)]" : ""}`}
+        className={userCardClassName}
         style={dashboardAnimationDelay(dashboardClampedStaggerMs(index))}
         draggable={canManageUsers}
         onDragStart={() => {
@@ -2456,15 +2469,7 @@ const DashboardUsers = () => {
                                   value === "admin"
                                     ? permissionOptions
                                       .filter((option) =>
-                                        [
-                                          "posts",
-                                          "projetos",
-                                          "comentarios",
-                                          "paginas",
-                                          "uploads",
-                                          "analytics",
-                                          "usuarios_basico",
-                                        ].includes(option.id),
+                                        DEFAULT_ADMIN_PERMISSIONS.includes(option.id),
                                       )
                                       .map((option) => option.id)
                                     : prev.permissions,
