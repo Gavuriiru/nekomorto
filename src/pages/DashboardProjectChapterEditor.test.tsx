@@ -10,6 +10,7 @@ const originalScrollIntoView = window.HTMLElement.prototype.scrollIntoView;
 const originalHasPointerCapture = window.HTMLElement.prototype.hasPointerCapture;
 const originalSetPointerCapture = window.HTMLElement.prototype.setPointerCapture;
 const originalReleasePointerCapture = window.HTMLElement.prototype.releasePointerCapture;
+const originalAnchorClick = window.HTMLAnchorElement.prototype.click;
 
 const {
   apiFetchMock,
@@ -1052,6 +1053,10 @@ describe("DashboardProjectChapterEditor", () => {
       configurable: true,
       value: vi.fn(),
     });
+    Object.defineProperty(window.HTMLAnchorElement.prototype, "click", {
+      configurable: true,
+      value: vi.fn(),
+    });
   });
 
   afterEach(() => {
@@ -1070,6 +1075,10 @@ describe("DashboardProjectChapterEditor", () => {
     Object.defineProperty(window.HTMLElement.prototype, "releasePointerCapture", {
       configurable: true,
       value: originalReleasePointerCapture,
+    });
+    Object.defineProperty(window.HTMLAnchorElement.prototype, "click", {
+      configurable: true,
+      value: originalAnchorClick,
     });
   });
 

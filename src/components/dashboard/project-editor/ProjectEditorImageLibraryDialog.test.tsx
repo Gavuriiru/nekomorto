@@ -110,7 +110,17 @@ describe("ProjectEditorImageLibraryDialog", () => {
       />,
     );
 
-    await screen.findByPlaceholderText("Pesquisar por nome, projeto ou URL...");
+    await waitFor(
+      () => {
+        expect(screen.queryByTestId("image-library-loading-fallback-grid")).not.toBeInTheDocument();
+      },
+      { timeout: 5000 },
+    );
+    await screen.findByPlaceholderText(
+      "Pesquisar por nome, projeto ou URL...",
+      {},
+      { timeout: 5000 },
+    );
 
     const fileInput = document.querySelector('input[type="file"]') as HTMLInputElement | null;
     expect(fileInput).toBeTruthy();
