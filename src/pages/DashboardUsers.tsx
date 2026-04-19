@@ -653,22 +653,22 @@ const DashboardUsers = () => {
   const canEditBasicFields = !editingUser
     ? canCreateUsers
     : isEditingSelf ||
-      (actorCanUsersBasic &&
-        (isPrimaryOwnerActor ||
-          (isSecondaryOwnerActor && !isOwnerRecord) ||
-          (isAdminActor && !isOwnerRecord)));
+    (actorCanUsersBasic &&
+      (isPrimaryOwnerActor ||
+        (isSecondaryOwnerActor && !isOwnerRecord) ||
+        (isAdminActor && !isOwnerRecord)));
   const canEditRoles = !editingUser
     ? canCreateUsers
     : actorCanUsersAccess &&
-      (isPrimaryOwnerActor ||
-        (isSecondaryOwnerActor && !isOwnerRecord) ||
-        (isAdminActor && !isOwnerRecord));
+    (isPrimaryOwnerActor ||
+      (isSecondaryOwnerActor && !isOwnerRecord) ||
+      (isAdminActor && !isOwnerRecord));
   const canEditAccessControls = !editingUser
     ? canCreateUsers
     : actorCanUsersAccess &&
-      (isPrimaryOwnerActor ||
-        (isSecondaryOwnerActor && !isOwnerRecord) ||
-        (isAdminActor && !isOwnerRecord));
+    (isPrimaryOwnerActor ||
+      (isSecondaryOwnerActor && !isOwnerRecord) ||
+      (isAdminActor && !isOwnerRecord));
   const canEditStatus = canEditAccessControls && !isEditingSelf && !isPrimaryOwnerRecord;
   const basicProfileOnlyEdit = Boolean(editingUser && canEditBasicFields && !canEditAccessControls);
   const canResetManagedUserTotp = Boolean(
@@ -1134,10 +1134,10 @@ const DashboardUsers = () => {
         setCurrentUser((prev) =>
           prev
             ? {
-                ...prev,
-                ...data.user,
-                username: prev.username,
-              }
+              ...prev,
+              ...data.user,
+              username: prev.username,
+            }
             : prev,
         );
       }
@@ -1476,9 +1476,8 @@ const DashboardUsers = () => {
       <div
         key={user.id}
         data-testid={`dashboard-user-card-${user.id}`}
-        className={`relative min-w-0 overflow-hidden ${dashboardPageLayoutTokens.surfaceSolid} p-5 animate-slide-up opacity-0 ${
-          !isRetired ? `transition ${dashboardStrongSurfaceHoverClassName} hover:bg-primary/5` : ""
-        } ${isLoneLastCard ? "lg:col-span-2 lg:mx-auto lg:w-[calc(50%-0.5rem)]" : ""}`}
+        className={`relative min-w-0 overflow-hidden ${dashboardPageLayoutTokens.surfaceSolid} p-5 animate-slide-up opacity-0 ${!isRetired ? `transition ${dashboardStrongSurfaceHoverClassName} hover:bg-primary/5` : ""
+          } ${isLoneLastCard ? "lg:col-span-2 lg:mx-auto lg:w-[calc(50%-0.5rem)]" : ""}`}
         style={dashboardAnimationDelay(dashboardClampedStaggerMs(index))}
         draggable={canManageUsers}
         onDragStart={() => {
@@ -1748,9 +1747,8 @@ const DashboardUsers = () => {
       <Dialog open={isDialogOpen} onOpenChange={handleEditorOpenChange} modal={false}>
         {isDialogOpen ? <DashboardEditorBackdrop /> : null}
         <DialogContent
-          className={`project-editor-dialog ${dashboardEditorDialogWidthClassName} gap-0 p-0 ${
-            isEditorDialogScrolled ? "editor-modal-scrolled" : ""
-          }`}
+          className={`project-editor-dialog ${dashboardEditorDialogWidthClassName} gap-0 p-0 ${isEditorDialogScrolled ? "editor-modal-scrolled" : ""
+            }`}
           onPointerDownOutside={(event) => {
             if (isLibraryOpen) {
               event.preventDefault();
@@ -2010,11 +2008,10 @@ const DashboardUsers = () => {
                               <div
                                 key={`${social.label}-${index}`}
                                 data-testid={`user-social-row-${index}`}
-                                className={`overflow-x-auto rounded-xl p-2 ${
-                                  socialDragOverIndex === index
+                                className={`overflow-x-auto rounded-xl p-2 ${socialDragOverIndex === index
                                     ? `${subtleSurfaceClassName} border-primary/40 bg-primary/5`
                                     : subtleSurfaceClassName
-                                }`}
+                                  }`}
                                 onDragOver={(event) => handleSocialDragOver(event, index)}
                                 onDrop={(event) => handleSocialDrop(event, index)}
                               >
@@ -2179,7 +2176,7 @@ const DashboardUsers = () => {
                                   {securityEnrollment.iconUrl ? (
                                     <img
                                       src={securityEnrollment.iconUrl}
-                                      alt="Icone da conta"
+                                      alt="Ícone da conta"
                                       className="h-9 w-9 rounded-full border border-border/60 object-cover"
                                       referrerPolicy="no-referrer"
                                     />
@@ -2406,9 +2403,8 @@ const DashboardUsers = () => {
                   <AccordionTrigger className={editorSectionTriggerClassName}>
                     <ProjectEditorAccordionHeader
                       title="Acesso e permissões"
-                      subtitle={`${editorAccessRoleLabel} • ${
-                        stripOwnerRole(formState.roles).length
-                      } funções`}
+                      subtitle={`${editorAccessRoleLabel} • ${stripOwnerRole(formState.roles).length
+                        } funções`}
                     />
                   </AccordionTrigger>
                   <AccordionContent className={editorSectionContentClassName}>
@@ -2459,18 +2455,18 @@ const DashboardUsers = () => {
                                 permissions:
                                   value === "admin"
                                     ? permissionOptions
-                                        .filter((option) =>
-                                          [
-                                            "posts",
-                                            "projetos",
-                                            "comentarios",
-                                            "paginas",
-                                            "uploads",
-                                            "analytics",
-                                            "usuarios_basico",
-                                          ].includes(option.id),
-                                        )
-                                        .map((option) => option.id)
+                                      .filter((option) =>
+                                        [
+                                          "posts",
+                                          "projetos",
+                                          "comentarios",
+                                          "paginas",
+                                          "uploads",
+                                          "analytics",
+                                          "usuarios_basico",
+                                        ].includes(option.id),
+                                      )
+                                      .map((option) => option.id)
                                     : prev.permissions,
                               }))
                             }
