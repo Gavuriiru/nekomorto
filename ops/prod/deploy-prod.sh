@@ -261,8 +261,8 @@ validate_image_tag_for_rollback() {
   if [[ "${APP_IMAGE_TAG}" =~ ^sha-[0-9a-f]{40}$ ]]; then
     return 0
   fi
-  fail "Rollback exige uma tag imutavel sha-<40hex>; recebido: ${APP_IMAGE_TAG}" \
-    "Informe uma imagem ja publicada no GHCR." \
+  fail "Rollback exige uma tag imutável sha-<40hex>; recebido: ${APP_IMAGE_TAG}" \
+    "Informe uma imagem já publicada no GHCR." \
     "bash ops/deploy.sh prod rollback --tag sha-0000000000000000000000000000000000000000"
 }
 
@@ -271,10 +271,10 @@ check_gitignore_env_rules() {
     fail ".gitignore não encontrado no deploy path." "Mantenha .env e .env.* fora do Git antes de criar secrets."
   fi
 
-  git check-ignore -q .env || fail ".env não esta ignorado pelo Git." \
+  git check-ignore -q .env || fail ".env não está ignorado pelo Git." \
     "Adicione .env ao .gitignore antes de criar arquivos com secrets."
 
-  git check-ignore -q .env.prod || fail ".env.prod nao esta ignorado pelo Git." \
+  git check-ignore -q .env.prod || fail ".env.prod não está ignorado pelo Git." \
     "A regra .env.* deve ignorar .env.prod. Preserve apenas exemplos versionados."
 }
 

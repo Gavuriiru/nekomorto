@@ -61,7 +61,7 @@ const createProject = (
   status: "Em andamento",
   year: "2026",
   studio: "Studio Teste",
-  episodes: "12 episodios",
+  episodes: "12 episódios",
   tags: overrides.tags ?? ["acao"],
   genres: overrides.genres ?? ["drama"],
   cover: "/placeholder.svg",

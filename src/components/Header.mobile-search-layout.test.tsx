@@ -1,6 +1,6 @@
 import { act, fireEvent, render, screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
-import { MemoryRouter } from "react-router-dom";
+import { MemoryRouter, useLocation } from "react-router-dom";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 import Header from "@/components/Header";
@@ -141,6 +141,11 @@ const getScheduleOnBrowserLoadIdleCallsByDelay = (delayMs: number) =>
     const options = (call[1] || {}) as { delayMs?: number };
     return Number(options.delayMs || 0) === delayMs;
   });
+
+const LocationProbe = () => {
+  const location = useLocation();
+  return <div data-testid="location-pathname">{location.pathname}</div>;
+};
 
 describe("Header mobile search layout", () => {
   beforeEach(() => {
@@ -353,7 +358,7 @@ describe("Header mobile search layout", () => {
     });
   });
 
-  it("nao dispara fetch de perfil quando a revalidacao idle nao executa", async () => {
+  it("não dispara fetch de perfil quando a revalidação idle não executa", async () => {
     scheduleOnBrowserLoadIdleMock.mockImplementation(() => () => undefined);
     useIsMobileMock.mockReturnValue(true);
     (window as Window & { __BOOTSTRAP_PUBLIC_ME__?: unknown }).__BOOTSTRAP_PUBLIC_ME__ = {
@@ -1009,33 +1014,42 @@ describe("Header mobile search layout", () => {
   it("não redireciona e exibe toast quando logout falha", async () => {
     const user = userEvent.setup();
     setupApiMock({ logoutOk: false });
+    const consoleErrorSpy = vi.spyOn(console, "error").mockImplementation(() => undefined);
 
-    render(
-      <MemoryRouter initialEntries={["/"]}>
-        <Header />
-      </MemoryRouter>,
-    );
-
-    await waitFor(() => {
-      expect(apiFetchMock).toHaveBeenCalledTimes(1);
-    });
-
-    const profileButton = screen.getByText("Admin").closest("button");
-    expect(profileButton).toBeTruthy();
-    await user.click(profileButton as HTMLButtonElement);
-    const profileMenu = await screen.findByRole("menu");
-    expect(classTokens(profileMenu)).toContain("shadow-floating-soft");
-    expect(classTokens(profileMenu)).not.toContain("shadow-xl");
-    await user.click(await screen.findByRole("menuitem", { name: /Sair/i }));
-
-    await waitFor(() => {
-      expect(toastMock).toHaveBeenCalledWith(
-        expect.objectContaining({
-          title: expect.stringMatching(/sair/i),
-          variant: "destructive",
-        }),
+    try {
+      render(
+        <MemoryRouter initialEntries={["/sobre"]}>
+          <Header />
+          <LocationProbe />
+        </MemoryRouter>,
       );
-    });
+
+      await waitFor(() => {
+        expect(apiFetchMock).toHaveBeenCalledTimes(1);
+      });
+
+      const profileButton = screen.getByText("Admin").closest("button");
+      expect(profileButton).toBeTruthy();
+      await user.click(profileButton as HTMLButtonElement);
+      const profileMenu = await screen.findByRole("menu");
+      expect(classTokens(profileMenu)).toContain("shadow-floating-soft");
+      expect(classTokens(profileMenu)).not.toContain("shadow-xl");
+      await user.click(await screen.findByRole("menuitem", { name: /Sair/i }));
+
+      await waitFor(() => {
+        expect(toastMock).toHaveBeenCalledWith(
+          expect.objectContaining({
+            title: expect.stringMatching(/sair/i),
+            variant: "destructive",
+          }),
+        );
+      });
+
+      expect(screen.getByTestId("location-pathname")).toHaveTextContent("/sobre");
+      expect(consoleErrorSpy).not.toHaveBeenCalled();
+    } finally {
+      consoleErrorSpy.mockRestore();
+    }
   });
 
   it("renderiza poster otimizado para thumbnails remotos da busca", async () => {

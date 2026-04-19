@@ -1041,11 +1041,8 @@ const DashboardUsers = () => {
       return;
     }
     const normalizedPermissions = Array.from(new Set(formState.permissions));
-    const normalizedAccessRole: AccessRole = ownerToggle
-      ? "owner_secondary"
-      : formState.accessRole === "admin"
-        ? "admin"
-        : "normal";
+    const normalizedAccessRole: AccessRole =
+      formState.accessRole === "admin" ? "admin" : "normal";
     const basePayload = {
       id: formState.id.trim(),
       name: formState.name.trim(),
@@ -1155,6 +1152,22 @@ const DashboardUsers = () => {
         title: editingUser ? "Usuário atualizado" : "Usuário criado",
         description: "As alterações foram salvas com sucesso.",
         intent: "success",
+      });
+      return;
+    }
+    let errorCode = "";
+    try {
+      const errorPayload = await response.json();
+      errorCode = String(errorPayload?.error || "").trim();
+    } catch {
+      errorCode = "";
+    }
+    if (errorCode === "owner_role_requires_owner_governance") {
+      toast({
+        title: "A promoção para dono é aplicada separadamente",
+        description:
+          "Os dados do usuário são salvos primeiro e a governança de owners é atualizada em seguida.",
+        variant: "destructive",
       });
       return;
     }

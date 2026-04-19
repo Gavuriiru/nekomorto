@@ -50,8 +50,7 @@ const bootSmoke = vi.hoisted(() => {
 
 vi.mock("connect-pg-simple", () => {
   class FakePgSessionStore {
-    // eslint-disable-next-line @typescript-eslint/no-unused-vars
-    constructor(options: unknown) {}
+    constructor(_options: unknown) {}
     get() {}
     set() {}
     destroy() {}
