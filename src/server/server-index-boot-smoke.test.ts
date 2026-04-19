@@ -110,7 +110,7 @@ describe.sequential("server/index boot smoke", () => {
   it("imports the real composition root without binding a live port", async () => {
     process.env = {
       ...originalEnv,
-      DATABASE_URL: "postgres://neko:test@localhost:5432/nekomorto",
+      DATABASE_URL: "postgres://testuser:testpass@localhost:5432/testdb",
       DISCORD_CLIENT_ID: "discord-client",
       DISCORD_CLIENT_SECRET: "discord-secret",
       NODE_ENV: "test",

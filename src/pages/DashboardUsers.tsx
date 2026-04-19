@@ -2629,12 +2629,12 @@ const DashboardUsers = () => {
             <DialogTitle>Resetar 2FA?</DialogTitle>
             <DialogDescription>
               {resetMfaTarget
-                ? `Resetar o 2FA de "${resetMfaTarget.name}" para ajudar na recuperacao de acesso?`
+                ? `Resetar o 2FA de "${resetMfaTarget.name}" para ajudar na recuperação de acesso?`
                 : ""}
             </DialogDescription>
           </DialogHeader>
           <p className="text-sm text-muted-foreground">
-            Essa acao remove o TOTP atual. Se a pessoa estiver presa na etapa de MFA, ela precisara
+            Essa ação remove o TOTP atual. Se a pessoa estiver presa na etapa de MFA, ela precisará
             cancelar o login atual e entrar novamente.
           </p>
           <div className="flex justify-end gap-3">
