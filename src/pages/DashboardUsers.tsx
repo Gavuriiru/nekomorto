@@ -1230,7 +1230,7 @@ const DashboardUsers = () => {
     );
     if (!response.ok) {
       setIsResettingMfa(false);
-      toast({ title: "Nao foi possivel resetar o 2FA", variant: "destructive" });
+      toast({ title: "Não foi possível resetar o 2FA", variant: "destructive" });
       return;
     }
     setResetMfaTarget(null);

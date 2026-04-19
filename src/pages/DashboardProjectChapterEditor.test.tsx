@@ -2216,18 +2216,18 @@ describe("DashboardProjectChapterEditor", () => {
 
   it("mede a coluna principal de imagem para definir a altura da sidebar", async () => {
     const imageProject = buildProject({
-      type: "MangÃ¡",
+      type: "Mangá",
       episodeDownloads: [
         {
           ...baseProject.episodeDownloads[0],
           number: 3,
           volume: 1,
-          title: "CapÃ­tulo em imagem",
+          title: "Capítulo em imagem",
           content: "",
           contentFormat: "images",
           publicationStatus: "draft",
           coverImageUrl: "https://cdn.test/page-1.jpg",
-          coverImageAlt: "Capa do capÃ­tulo em imagem",
+          coverImageAlt: "Capa do capítulo em imagem",
           pages: [
             { position: 1, imageUrl: "https://cdn.test/page-1.jpg" },
             { position: 2, imageUrl: "https://cdn.test/page-2.jpg" },
