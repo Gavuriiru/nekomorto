@@ -1,3 +1,4 @@
+import DOMPurify from "dompurify";
 import katex from "katex";
 import {
   $applyNodeReplacement,
@@ -31,7 +32,10 @@ const renderEquationMarkup = (equation: string, inline: boolean) =>
   });
 
 const ViewerEquation = ({ equation, inline }: { equation: string; inline: boolean }) => {
-  const html = React.useMemo(() => renderEquationMarkup(equation, inline), [equation, inline]);
+  const html = React.useMemo(() => {
+    const rawHtml = renderEquationMarkup(equation, inline);
+    return DOMPurify.sanitize(rawHtml, { USE_PROFILES: { html: true, mathMl: true } });
+  }, [equation, inline]);
   const TagName = inline ? "span" : "div";
 
   return <TagName dangerouslySetInnerHTML={{ __html: html }} aria-label="Formula matematica" />;
@@ -105,7 +109,8 @@ export class ViewerEquationNode extends DecoratorNode<JSX.Element> {
     const element = document.createElement(this.__inline ? "span" : "div");
     element.setAttribute("data-lexical-equation", btoa(this.__equation));
     element.setAttribute("data-lexical-inline", String(this.__inline));
-    element.innerHTML = renderEquationMarkup(this.__equation, this.__inline);
+    const rawHtml = renderEquationMarkup(this.__equation, this.__inline);
+    element.innerHTML = DOMPurify.sanitize(rawHtml, { USE_PROFILES: { html: true, mathMl: true } });
     return { element };
   }
 
