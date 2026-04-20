@@ -65,27 +65,59 @@ export const useImageLibraryUploadMutations = ({
       try {
         const uploadedUrls: string[] = [];
         const dedupedHitUrls: string[] = [];
-        for (const file of list) {
-          const dataUrl = await fileToDataUrl(file);
-          const response = await apiFetch(apiBase, "/api/uploads/image", {
-            method: "POST",
-            headers: { "Content-Type": "application/json" },
-            auth: true,
-            body: JSON.stringify({
-              dataUrl,
-              filename: file.name,
-              folder: uploadFolder || undefined,
-              scopeUserId: scopeUserId || undefined,
-            }),
-          });
-          if (!response.ok) {
-            if (response.status === 403) {
-              toast({ title: getUploadPermissionToastTitle() });
-              return;
+
+        const results: any[] = new Array(list.length);
+        const queue = [...list.keys()];
+        let forbidden = false;
+
+        const worker = async () => {
+          while (queue.length > 0 && !forbidden) {
+            const index = queue.shift();
+            if (index === undefined) {
+              break;
             }
-            throw new Error("upload_failed");
+
+            const file = list[index];
+            if (!file) {
+              continue;
+            }
+
+            const dataUrl = await fileToDataUrl(file);
+            const response = await apiFetch(apiBase, "/api/uploads/image", {
+              method: "POST",
+              headers: { "Content-Type": "application/json" },
+              auth: true,
+              body: JSON.stringify({
+                dataUrl,
+                filename: file.name,
+                folder: uploadFolder || undefined,
+                scopeUserId: scopeUserId || undefined,
+              }),
+            });
+
+            if (!response.ok) {
+              if (response.status === 403) {
+                forbidden = true;
+                return;
+              }
+              throw new Error("upload_failed");
+            }
+            results[index] = await response.json();
           }
-          const data = await response.json();
+        };
+
+        // Process up to 3 uploads concurrently
+        await Promise.all(Array.from({ length: Math.min(list.length, 3) }, worker));
+
+        if (forbidden) {
+          toast({ title: getUploadPermissionToastTitle() });
+          return;
+        }
+
+        for (const data of results) {
+          if (!data) {
+            continue;
+          }
           const url = normalizeComparableUploadUrl(String(data.url || ""));
           if (url.startsWith("/uploads/")) {
             uploadedUrls.push(url);
