@@ -71,19 +71,38 @@ export const proxyDiscordAvatarRequest = async ({
     };
   }
 
-  const upstreamUrl = buildDiscordAvatarUpstreamUrl({
+  const upstreamUrlString = buildDiscordAvatarUpstreamUrl({
     userId: normalized.userId,
     avatarFile: normalized.avatarFile,
     size,
   });
 
+  let upstreamUrl;
+  try {
+    upstreamUrl = new URL(upstreamUrlString);
+  } catch {
+    return {
+      ok: false,
+      status: 400,
+      error: "invalid_discord_avatar_url",
+    };
+  }
+
+  if (upstreamUrl.protocol !== "https:" || upstreamUrl.host !== DISCORD_AVATAR_HOST) {
+    return {
+      ok: false,
+      status: 400,
+      error: "invalid_discord_avatar_host",
+    };
+  }
+
   let upstreamResponse;
   try {
-    upstreamResponse = await fetchImpl(upstreamUrl, {
+    upstreamResponse = await fetchImpl(upstreamUrl.toString(), {
       headers: {
         accept: "image/avif,image/webp,image/png,image/jpeg,image/gif,*/*",
       },
-      redirect: "follow",
+      redirect: "error",
     });
   } catch {
     return {
