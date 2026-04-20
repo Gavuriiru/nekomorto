@@ -19,7 +19,7 @@ import { getApiBase } from "@/lib/api-base";
 import { apiFetch } from "@/lib/api-client";
 import { formatDateTime } from "@/lib/date";
 import { MessageSquare, Reply } from "lucide-react";
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { memo, useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useLocation } from "react-router-dom";
 
 type CommentTargetType = "post" | "project" | "chapter";
@@ -254,9 +254,9 @@ const CommentsSection = ({ targetType, targetId, chapterNumber, volume }: Commen
     }
   };
 
-  const handleDelete = (comment: PublicComment) => {
+  const handleDelete = useCallback((comment: PublicComment) => {
     setDeleteTarget(comment);
-  };
+  }, []);
 
   const handleConfirmDelete = async () => {
     if (!deleteTarget || isDeleting) {
@@ -292,56 +292,6 @@ const CommentsSection = ({ targetType, targetId, chapterNumber, volume }: Commen
       setIsDeleting(false);
     }
   };
-
-  const renderComment = (comment: CommentNode, depth = 0) => (
-    <div
-      key={comment.id}
-      id={`comment-${comment.id}`}
-      className={depth > 0 ? "pl-6 border-l border-border/40" : ""}
-    >
-      <div className="flex gap-3">
-        <Avatar className="h-10 w-10">
-          {comment.avatarUrl ? <AvatarImage src={comment.avatarUrl} alt={comment.name} /> : null}
-          <AvatarFallback>{initialsFromName(comment.name)}</AvatarFallback>
-        </Avatar>
-        <div className="flex-1 space-y-1">
-          <div className="flex flex-wrap items-center gap-3 text-xs text-muted-foreground">
-            <span className="text-sm font-semibold text-foreground">{comment.name}</span>
-            <span>{formatDateTime(comment.createdAt)}</span>
-          </div>
-          <p className="text-sm text-muted-foreground whitespace-pre-line">{comment.content}</p>
-          <div className="flex flex-wrap items-center gap-2">
-            <Button
-              type="button"
-              variant="ghost"
-              size="sm"
-              className="h-auto px-2 text-xs"
-              onClick={() => setReplyTo(comment)}
-            >
-              <Reply className="mr-1 h-3 w-3" />
-              Responder
-            </Button>
-            {canModerate ? (
-              <Button
-                type="button"
-                variant="ghost"
-                size="sm"
-                className="h-auto px-2 text-xs text-red-400"
-                onClick={() => handleDelete(comment)}
-              >
-                Excluir
-              </Button>
-            ) : null}
-          </div>
-        </div>
-      </div>
-      {comment.replies.length > 0 ? (
-        <div className="mt-4 space-y-4">
-          {comment.replies.map((reply) => renderComment(reply, depth + 1))}
-        </div>
-      ) : null}
-    </div>
-  );
 
   return (
     <>
@@ -422,7 +372,18 @@ const CommentsSection = ({ targetType, targetId, chapterNumber, volume }: Commen
               Ainda não há comentários aprovados.
             </div>
           ) : (
-            <div className="space-y-6">{commentTree.map((comment) => renderComment(comment))}</div>
+            <div className="space-y-6">
+              {commentTree.map((comment) => (
+                <CommentItem
+                  key={comment.id}
+                  comment={comment}
+                  depth={0}
+                  canModerate={canModerate}
+                  setReplyTo={setReplyTo}
+                  handleDelete={handleDelete}
+                />
+              ))}
+            </div>
           )}
         </CardContent>
       </Card>
@@ -459,5 +420,76 @@ const CommentsSection = ({ targetType, targetId, chapterNumber, volume }: Commen
     </>
   );
 };
+
+type CommentItemProps = {
+  comment: CommentNode;
+  depth: number;
+  canModerate: boolean;
+  setReplyTo: (comment: PublicComment) => void;
+  handleDelete: (comment: PublicComment) => void;
+};
+
+const CommentItem = memo(
+  ({ comment, depth, canModerate, setReplyTo, handleDelete }: CommentItemProps) => {
+    return (
+      <div
+        id={`comment-${comment.id}`}
+        className={depth > 0 ? "pl-6 border-l border-border/40" : ""}
+      >
+        <div className="flex gap-3">
+          <Avatar className="h-10 w-10">
+            {comment.avatarUrl ? <AvatarImage src={comment.avatarUrl} alt={comment.name} /> : null}
+            <AvatarFallback>{initialsFromName(comment.name)}</AvatarFallback>
+          </Avatar>
+          <div className="flex-1 space-y-1">
+            <div className="flex flex-wrap items-center gap-3 text-xs text-muted-foreground">
+              <span className="text-sm font-semibold text-foreground">{comment.name}</span>
+              <span>{formatDateTime(comment.createdAt)}</span>
+            </div>
+            <p className="text-sm text-muted-foreground whitespace-pre-line">{comment.content}</p>
+            <div className="flex flex-wrap items-center gap-2">
+              <Button
+                type="button"
+                variant="ghost"
+                size="sm"
+                className="h-auto px-2 text-xs"
+                onClick={() => setReplyTo(comment)}
+              >
+                <Reply className="mr-1 h-3 w-3" />
+                Responder
+              </Button>
+              {canModerate ? (
+                <Button
+                  type="button"
+                  variant="ghost"
+                  size="sm"
+                  className="h-auto px-2 text-xs text-red-400"
+                  onClick={() => handleDelete(comment)}
+                >
+                  Excluir
+                </Button>
+              ) : null}
+            </div>
+          </div>
+        </div>
+        {comment.replies.length > 0 ? (
+          <div className="mt-4 space-y-4">
+            {comment.replies.map((reply) => (
+              <CommentItem
+                key={reply.id}
+                comment={reply}
+                depth={depth + 1}
+                canModerate={canModerate}
+                setReplyTo={setReplyTo}
+                handleDelete={handleDelete}
+              />
+            ))}
+          </div>
+        ) : null}
+      </div>
+    );
+  },
+);
+CommentItem.displayName = "CommentItem";
 
 export default CommentsSection;

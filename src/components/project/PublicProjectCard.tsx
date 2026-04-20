@@ -1,5 +1,5 @@
 import { Eye, Hash } from "lucide-react";
-import type { CSSProperties, MouseEvent, Ref } from "react";
+import { memo, type CSSProperties, type MouseEvent, type Ref } from "react";
 import { Link } from "react-router-dom";
 
 import PublicInteractiveCardShell from "@/components/PublicInteractiveCardShell";
@@ -752,4 +752,4 @@ const PublicProjectCard = ({
   );
 };
 
-export default PublicProjectCard;
+export default memo(PublicProjectCard);
