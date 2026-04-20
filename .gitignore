@@ -53,6 +53,9 @@ backups/
 ops/postgres/backups/
 
 # Local tooling / generated assets
+.claude/settings.local.json
+.claude/scheduled_tasks.json
+.claude/worktrees/
 scratch-*
 temp_block.txt
 dev-dist/sw.js
