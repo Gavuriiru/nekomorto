@@ -589,7 +589,7 @@ Comandos do dia a dia:
 
 O modo seguro (`--checks safe`) e o padrao: aplica migrations, valida uploads em modo `fast`, roda healthcheck interno/externo e smoke PWA/publico. Para janelas em que voce precisa reduzir tempo de validacao, use `--checks minimal`; para forcar a validacao mais completa disponivel, use `--checks full`.
 
-Esse fluxo pressupoe que a imagem ja foi publicada no GHCR (via `push` em `main` ou `workflow_dispatch`). Para usar uma imagem especifica:
+Esse fluxo pressupoe que a imagem ja foi publicada no GHCR pelo pipeline de `push` em `main`. Para usar uma imagem especifica:
 
 ```bash
 bash ops/deploy.sh prod deploy --image-tag sha-<40hex>
@@ -661,7 +661,7 @@ docker compose --env-file .env.prod -f docker-compose.prod.yml --profile "${PROX
 docker compose --env-file .env.prod -f docker-compose.prod.yml --profile "${PROXY_PROVIDER:-caddy}" logs -f app
 ```
 
-## 9. Deploy Automatico com GitHub Actions
+## 9. Build e Publicacao de Imagem com GitHub Actions
 
 Pacote oficial no GHCR:
 
@@ -676,33 +676,24 @@ Workflow:
 Triggers:
 
 - `push` para `main`
-- `workflow_dispatch` (com input opcional `image_tag`)
 
-Secrets necessarios no ambiente `Production` do GitHub (`Settings > Environments > Production > Environment secrets`):
+Permissoes usadas no workflow:
 
-- `PROD_HOST`
-- `PROD_USER`
-- `PROD_SSH_KEY`
-- `PROD_DEPLOY_PATH` (exemplo: `/srv/nekomorto`)
-- `PROD_PORT` (opcional, default `22`)
+- `contents: read`
+- `packages: write`
 
-Verificacao rapida dos nomes configurados, sem expor valores:
+Fluxo CI:
 
-```bash
-gh secret list --repo NekomataSub/nekomorto --env Production
-```
-
-Fluxo CI/CD:
-
-1. Sem `image_tag`, o job `quality` roda `npm run typecheck` e `npm run test:a11y`.
+1. O job `quality` roda `npm run typecheck` e `npm run test:a11y`.
 2. Em paralelo, o job `ts7_preview` roda `npm run typecheck:ts7-preview` com `continue-on-error` para observabilidade do preview nativo.
-3. Sem `image_tag`, o job `build_and_push` publica `ghcr.io/nekomatasub/nekomorto` com tags `latest` e `sha-<commit>`.
-4. O job `deploy` resolve a tag:
-   - sem `image_tag`: usa `sha-<commit_atual>`;
-   - com `image_tag`: valida `latest` ou `sha-[0-9a-f]{40}` e usa a tag informada, sem rebuild.
-5. Via SSH, sincroniza o repositorio no host e chama `ops/prod/deploy-prod.sh` com `SKIP_GIT_SYNC=true`, `APP_IMAGE_REPO` e `APP_IMAGE_TAG`. O script e a base do comando amigavel `ops/deploy.sh prod deploy`, resolve `PROXY_PROVIDER` e `APP_DOMAIN` a partir do `.env.prod` e ativa o profile correspondente do compose.
+3. O job `build_and_push` publica `ghcr.io/nekomatasub/nekomorto` com tags `latest` e `sha-<commit>`.
 
-Comportamento do deploy remoto (`ops/prod/deploy-prod.sh`):
+Deploy:
+
+- O GitHub Actions nao executa mais deploy remoto por SSH.
+- Depois da imagem ser publicada, o deploy continua local/manual via `ops/deploy.sh` ou `ops/prod/deploy-prod.sh`.
+
+Comportamento do deploy local/manual (`ops/prod/deploy-prod.sh`):
 
 1. Quando executado sem `SKIP_GIT_SYNC=true`, sincroniza a branch de deploy no host.
 2. Resolve `PROXY_PROVIDER`, dominios e ativa o profile correspondente (`--profile caddy/nginx/traefik`). Para standalone, gera um override temporario com a porta.
@@ -715,40 +706,13 @@ Comportamento do deploy remoto (`ops/prod/deploy-prod.sh`):
 
 ### 9.2 Desenvolvimento / staging publicado
 
-Workflow:
-
-- `.github/workflows/deploy-dev.yml`
-
-Trigger:
-
-- `workflow_dispatch` (com input opcional `image_tag`)
-
-Secrets necessarios no repositorio:
-
-- `DEV_HOST`
-- `DEV_PORT` (opcional, default `22`)
-- `DEV_USER`
-- `DEV_SSH_KEY`
-- `DEV_DEPLOY_PATH` (exemplo: `/srv/nekomorto-dev`)
-
-Fluxo:
-
-1. Sem `image_tag`, o workflow gera e publica `ghcr.io/nekomatasub/nekomorto:sha-<commit>`.
-2. Com `image_tag`, ele reutiliza uma imagem `sha-<commit>` ja publicada.
-3. O deploy remoto chama `ops/dev/deploy-dev.sh`, que reaproveita o fluxo de producao com `ENV_FILE=.env.dev` e `HEALTHCHECK_BASE_URL=https://dev.nekomata.moe`.
-
-Como esse deploy e manual, rode os checks base (`npm run lint`, `npm run typecheck`, `npm run test` e `npm run test:a11y`) antes do dispatch quando a imagem ainda nao tiver sido validada em outro fluxo.
-
-Diferenca pratica entre os dois workflows:
-
-- producao publica `latest` e `sha-<commit>` e pode disparar automaticamente a cada push em `main`
-- dev/staging e manual e trabalha apenas com tags `sha-<commit>`
-- ambos aplicam migracoes, validam uploads e executam healthchecks no ambiente remoto
+- Nao ha mais workflow de GitHub Actions para dev/staging.
+- O deploy de dev continua local/manual via `ops/dev/deploy-dev.sh` ou `ops/deploy.sh dev ...`.
+- Se quiser validar uma imagem especifica no ambiente, publique-a primeiro no GHCR a partir de `main` e depois informe a tag `sha-<commit>` ao comando local de deploy.
 
 Importante:
 
-- Mudancas locais nao commitadas no host de deploy serao descartadas pelo `reset --hard`.
-- Rollback/redeploy manual: execute `workflow_dispatch` e preencha `image_tag` com uma tag `sha-<commit>` ja publicada no GHCR.
+- Rollback/redeploy manual continua disponivel via scripts locais apontando para uma tag `sha-<commit>` ja publicada no GHCR.
 
 ## 10. Backup e Restore
 

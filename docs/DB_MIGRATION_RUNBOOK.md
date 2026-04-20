@@ -3,7 +3,7 @@
 Este runbook define o fluxo oficial para a stack publicada em topologia de host unico:
 
 - `app` + `postgres` + `edge` no mesmo servidor Ubuntu
-- deploy automatico por GitHub Actions + SSH
+- publicacao automatica da imagem no GHCR por GitHub Actions
 - runtime DB-only, sem fallback JSON
 
 ## 1. Premissas e arquivos oficiais
@@ -130,7 +130,7 @@ docker compose --env-file .env.prod -f docker-compose.prod.yml --profile "${PROX
 
 6. Reabrir escrita (`MAINTENANCE_MODE=false`) apos health/smoke ok.
 
-## 5. Deploy automatico por GitHub Actions
+## 5. Publicacao da imagem por GitHub Actions
 
 Workflow:
 
@@ -140,33 +140,22 @@ Trigger:
 
 - push em `main`
 
-Secrets obrigatorios no ambiente `Production` do GitHub:
+Permissoes usadas no workflow:
 
-- `PROD_HOST`
-- `PROD_USER`
-- `PROD_SSH_KEY`
-- `PROD_DEPLOY_PATH` (ex.: `/srv/nekomorto`)
+- `contents: read`
+- `packages: write`
 
-- `PROD_PORT` e opcional; quando ausente, o workflow usa `22`.
-- Verifique os nomes configurados, sem expor valores:
+Fluxo do pipeline:
 
-```bash
-gh secret list --repo NekomataSub/nekomorto --env Production
-```
+1. o workflow roda `npm run typecheck` e `npm run test:a11y`
+2. o job de preview roda `npm run typecheck:ts7-preview` com `continue-on-error`
+3. o job de build publica `ghcr.io/nekomatasub/nekomorto` com tags `latest` e `sha-<commit>`
 
-Fluxo remoto:
+Deploy depois da publicacao:
 
-1. o workflow sincroniza `origin/main` no host
-2. `ops/prod/deploy-prod.sh` resolve `PROXY_PROVIDER` e ativa o profile correspondente
-3. `docker compose pull app`
-4. `docker compose run --rm app npm run prisma:migrate:deploy`
-5. `docker compose run --rm app npm run uploads:check-integrity -- --mode=fast`
-6. `docker compose up -d` (com `--profile <provider>`)
-7. health check e smoke interno/externo
-
-Recomendacao:
-
-- manter `environment: Production` com aprovacao manual nas primeiras semanas
+- o GitHub Actions nao faz mais SSH nem deploy remoto
+- apos a publicacao da imagem, execute o deploy local/manual com `bash ops/deploy.sh prod deploy`
+- o deploy local continua aplicando migrations, validando uploads e executando health/smoke no host
 
 ## 6. Backup e restore continuo
 
