@@ -3722,10 +3722,12 @@ describe("PublicProjectReader", () => {
     clickPaginatedTarget({ clientX: 900 });
 
     await waitFor(() => {
-      expect(Number.parseFloat(screen.getByTestId("project-reader-progress-indicator").style.left))
-        .toBeCloseTo(containerLength - indicatorInsetPx, 4);
-      expect(Number.parseFloat(screen.getByTestId("project-reader-progress-label").style.left))
-        .toBeCloseTo(containerLength - labelInsetPx, 4);
+      expect(
+        Number.parseFloat(screen.getByTestId("project-reader-progress-indicator").style.left),
+      ).toBeCloseTo(containerLength - indicatorInsetPx, 4);
+      expect(
+        Number.parseFloat(screen.getByTestId("project-reader-progress-label").style.left),
+      ).toBeCloseTo(containerLength - labelInsetPx, 4);
     });
   });
 
@@ -3750,10 +3752,12 @@ describe("PublicProjectReader", () => {
     goToLastPaginatedPage();
 
     await waitFor(() => {
-      expect(Number.parseFloat(screen.getByTestId("project-reader-progress-indicator").style.left))
-        .toBeCloseTo(indicatorInsetPx, 4);
-      expect(Number.parseFloat(screen.getByTestId("project-reader-progress-label").style.left))
-        .toBeCloseTo(labelInsetPx, 4);
+      expect(
+        Number.parseFloat(screen.getByTestId("project-reader-progress-indicator").style.left),
+      ).toBeCloseTo(indicatorInsetPx, 4);
+      expect(
+        Number.parseFloat(screen.getByTestId("project-reader-progress-label").style.left),
+      ).toBeCloseTo(labelInsetPx, 4);
     });
   });
 
