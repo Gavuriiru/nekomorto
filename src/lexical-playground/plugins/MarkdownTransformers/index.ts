@@ -65,16 +65,9 @@ export const HR: ElementTransformer = {
     return $isHorizontalRuleNode(node) ? "***" : null;
   },
   regExp: /^(---|\*\*\*|___)\s?$/,
-  replace: (parentNode, _1, _2, isImport) => {
+  replace: (parentNode) => {
     const line = $createHorizontalRuleNode();
-
-    // TODO: Get rid of isImport flag
-    if (isImport || parentNode.getNextSibling() != null) {
-      parentNode.replace(line);
-    } else {
-      parentNode.insertBefore(line);
-    }
-
+    parentNode.replace(line);
     line.selectNext();
   },
   type: "element",
