@@ -1,113 +1,210 @@
 # CLAUDE.md
 
-This file provides guidance to Claude Code (claude.ai/code) and Antigravity when working with code in this repository.
+This file provides guidance to Claude Code (claude.ai/code) when working with code in this repository.
 
-## Project Overview
+## Project summary
 
-Nekomorto is a web platform for Nekomata with a public area (home, posts, pages, projects catalog, chapter/episode reading) and an authenticated dashboard for internal operations. It is a **DB-only** application where PostgreSQL is the single source of truth.
+Nekomorto is a DB-only editorial and reading platform for Nekomata.
 
-**Tech Stack**: React 19 + Vite + TypeScript + Tailwind CSS 4 (frontend), Node.js/Express (backend), PostgreSQL + Prisma ORM (database), Discord OAuth (auth), connect-pg-simple (sessions).
+- Public surface: home, posts, institutional pages, projects catalog, and chapter/episode reading.
+- Authenticated surface: internal dashboard for content, users, uploads, analytics, redirects, webhooks, security, and audit log.
+- PostgreSQL is the runtime source of truth. Do not introduce parallel authoritative storage.
+- Auth and sessions are server-side; sessions are persisted in PostgreSQL via `connect-pg-simple`.
+- Uploads may be local or object-storage-backed, but the public contract stays under `/uploads/...`.
 
-> [!IMPORTANT]
-> **No Redis**: This project intentionally does not use Redis. Rate limiting and caching are handled in-memory (optimized for single-instance deployments).
+Read `AGENTS.md` before making changes that affect security, auth, persistence, performance, uploads, or operations. It is the project’s operational contract.
 
-## Development Commands
+## Environment and toolchain
 
-### Setup and Development
+- Node.js: `24.14.x`
+- npm: `11.x`
+- TypeScript: `6.0.2`
+- Vite: `8`
+- React: `19`
+- Prisma: `7`
+
+## Common commands
+
+### Install and first-time setup
 ```bash
-npm install                      # Install dependencies
-npm run setup:dev                # First-time setup (Docker Postgres + .env + migrations + dev)
-npm run dev                      # Integrated mode: backend + frontend on port 8080
-npm run dev:server               # Backend only on port 8080
-npm run dev:client               # Frontend only on port 5173
-npm run dev:client:local-api     # Frontend on 5173 with API pointing to localhost:8080
+npm install
+npm run setup:dev
 ```
 
-### Build and Production
+`npm run setup:dev` is the preferred first run. It validates Docker/Node/npm, prepares `ops/postgres/.env.staging`, starts local PostgreSQL, ensures `.env`, runs Prisma generate + migrate deploy, and then starts dev mode.
+
+### Local development
 ```bash
-npm run build                    # Production build (includes PWA + chunk validation)
-npm run start                    # Production server (requires NODE_ENV=production + built dist/)
-npm run preview                  # Preview Vite build locally
+npm run dev                      # integrated app on http://localhost:8080
+npm run dev:server               # backend on 8080
+npm run dev:client               # frontend only on 5173
+npm run dev:client:local-api     # frontend on 5173 against local backend on 8080
 ```
 
-### Quality and Maintenance
+Prefer `npm run dev`. In dev, the Express server injects Vite middleware, so frontend and API share the same origin on `localhost:8080`.
+
+### Build and production simulation
 ```bash
-npm run lint                     # Biome linter (formatter disabled in this command)
-npm run format                   # Biome format --write
-npm run format:check             # Biome format check only
-npm run typecheck                # TypeScript 6 (tsc -b)
-npm run typecheck:ts7-preview    # TypeScript 7 native preview (non-blocking)
-npm run test                     # Vitest unit tests
-npm run test:a11y                # Accessibility tests (axe-core)
-npm run test:watch               # Vitest watch mode
-npm run staging:parity:check     # Check configuration parity with staging
+npm run build
+npm run start
+npm run preview
 ```
 
-### Database and Backfill
+`npm run build` is not a plain Vite build: it also builds the PWA bundle, validates chunking, and runs the home-page build guard.
+
+### Quality gates
 ```bash
-npm run prisma:generate          # Generate Prisma client
-npm run prisma:migrate:deploy    # Apply migrations
-npm run db:backup                # Snapshot database to backups/
-npm run db:backfill:normalized   # Normalize runtime data in database
-npm run projects:backfill:anilist # Sync project metadata with AniList
+npm run lint
+npm run format
+npm run format:check
+npm run typecheck
+npm run typecheck:ts7-preview
+npm run test
+npm run test:a11y
 ```
 
-### Uploads and Assets
+### Running a single test
 ```bash
-npm run uploads:check-integrity              # Validate uploads (default: fast mode)
-npm run uploads:check-integrity -- --mode=deep # Deep validation with remote checks
-npm run uploads:reorganize                   # Organize upload folders
-npm run uploads:sync-to-object-storage       # Sync local uploads to S3/R2
-npm run uploads:localize-project-images      # Download remote images to local/S3 storage
+npm run test -- src/path/to/file.test.tsx
+npm run test:a11y -- src/path/to/file.a11y.test.tsx
 ```
 
-### Performance and Lighthouse
+If you need direct Vitest filtering, use:
 ```bash
+npx vitest run src/path/to/file.test.tsx
+```
+
+### Database and runtime validation
+```bash
+npm run prisma:generate
+npm run prisma:migrate:deploy
+npm run api:health:check -- --base=http://localhost:8080 --expect-source=db --expect-maintenance=false
+npm run api:smoke -- --base=http://localhost:8080
+```
+
+### Performance and regression checks
+```bash
+npm run build:audit
 npm run lighthouse:home:mobile
-npm run lighthouse:public-surface            # Complete scan of all public pages
-npm run lighthouse:public-surface:compare    # Compare current performance with baseline
-npm run lighthouse:public-surface:accept     # Accept current performance as new baseline
+npm run lighthouse:projects:mobile
+npm run lighthouse:projects:desktop
+npm run lighthouse:reader-pages:mobile
+npm run lighthouse:dashboard:desktop
+npm run lighthouse:public-surface
+npm run lighthouse:public-surface:compare
 ```
 
-## Architecture
+Use the Lighthouse scripts when touching public performance, bundle loading, the reader, or the dashboard.
 
-### The "Hero Shell" Pattern
-A critical part of the UX is the **Hero Shell**. A minimal, server-injected HTML shell is served immediately to prevent layout shifts (CLS) and "black flashes" before React hydrates.
-- Logic is in `src/lib/home-hero.ts`.
-- Transitions must be seamless and flicker-free.
+### Upload and media maintenance
+```bash
+npm run uploads:check-integrity
+npm run uploads:check-integrity -- --mode=deep
+npm run uploads:reorganize
+npm run uploads:sync-to-object-storage
+npm run uploads:localize-project-images
+```
 
-### Directory Structure
-- `src/` - React frontend (pages, components, hooks, routes, lib, styles)
-- `server/` - Express backend (`index.js` entry + `routes/` + `lib/`)
-- `shared/` - Utilities shared between frontend and backend runtime
-- `prisma/` - Prisma schema and migrations
-- `ops/` - Docker compose files, deployment scripts, runbooks
-- `docs/` - Schema docs, migration runbooks, audit reports
-- `scripts/` - Build, deployment, and maintenance scripts
+## Big-picture architecture
 
-### Path Aliases
-- `@/` maps to `src/`
+### Runtime model
 
-## Key Conventions
+The app is not split into an independent SPA frontend and separate API deployment. The primary runtime is Express in `server/index.js`, which serves the app, owns auth/session state, exposes API and operational endpoints, and in development injects Vite middleware.
 
-### Security Guardrails
-> [!CAUTION]
-> All code MUST adhere to the operational guardrails defined in [AGENTS.md](file:///d:/dev/nekomorto/AGENTS.md), especially the mandatory security section.
-> - No secrets in frontend.
-> - Parameterized queries always.
-> - Auth middleware before handlers.
+That means:
+- same-origin behavior matters in development and production;
+- server rendering/bootstrap decisions directly affect frontend perceived performance;
+- auth, permissions, uploads, health, metrics, and webhooks live in the backend runtime, not in a separate service.
 
-### Operational Scripts
-When performing maintenance or one-off tasks, look into `scripts/` for inspiration or use a `scratch-*.mjs` file in the root for temporary debugging (automatically ignored by most linting/build tools).
+### Frontend structure
 
-### Biome Configuration
-- Formatter: 2-space indent, 100 char line width, double quotes, semicolons always.
-- Excludes: `backups/`, `dev-dist/`, `dist/`, `node_modules/`, `public/uploads/`.
+Frontend entry is `src/main.tsx`, and the app shell is composed in `src/App.tsx`.
 
-## Testing
-- Vitest with jsdom environment.
-- Setup file: `src/test/setup.ts`.
-- a11y tests run separately via `test:a11y`.
+Key route split:
+- `src/routes/PublicRoutes.tsx`: public product routes
+- `src/routes/DashboardRoutes.tsx`: authenticated dashboard routes
 
-## Deployment
-Managed via `ops/prod/deploy-prod.sh` and GitHub Actions. Uses Caddy/Traefik as reverse proxies by default.
+The dashboard bundle is lazy-loaded from `App.tsx`, while public routes are the default path. Dashboard pages are wrapped in client-side auth guards, but protected data must still be enforced on the server.
+
+Shared frontend providers in `App.tsx` handle site settings, theme mode, accessibility announcements, and global shortcuts.
+
+### Bootstrap and public rendering flow
+
+Public rendering is optimized around fast first paint:
+- `src/main.tsx` mounts React immediately;
+- server-injected bootstrap data can be consumed synchronously when present;
+- missing bootstrap data falls back to a background fetch from `/api/public/bootstrap`;
+- the home page uses the hero-shell flow from `src/lib/home-hero.ts` to avoid layout shift and startup flicker.
+
+When changing home-page rendering, initial loading, or public bootstrapping, preserve the hero-shell and bootstrap behavior. Regressions here will show up as CLS/flicker/perceived-load regressions even if React logic is otherwise correct.
+
+### Backend composition pattern
+
+`server/index.js` is the runtime assembly point, not just a flat route file. It wires together runtime bundles and registrations such as:
+- boot config and platform runtime
+- public/content/project/user/webhook runtimes
+- operational monitoring and admin export runtimes
+- root route registration via `server/bootstrap/register-root-server-routes.js`
+
+A useful mental model is:
+1. build runtime dependencies/bundles,
+2. group them into route runtime contexts,
+3. register direct routes and server routes.
+
+When adding backend behavior, look for the relevant runtime/builder in `server/bootstrap/` or `server/lib/` before expanding `server/index.js` directly.
+
+### Data boundaries
+
+- `server/`: Express runtime, auth, API, uploads, operational endpoints, OG image delivery, webhooks, metrics.
+- `src/`: React UI, routes, hooks, styles, client bootstrapping, tests.
+- `shared/`: logic shared across server and client runtimes.
+- `prisma/`: schema and migrations.
+- `scripts/`: setup, audit, smoke, Lighthouse, upload, and backfill tooling.
+- `ops/`: Docker, deploy, backup, restore, and operational runbooks.
+
+If logic is needed by both client and server, prefer `shared/` over duplication.
+
+## Project-specific constraints
+
+- PostgreSQL is the only source of truth at runtime.
+- Do not introduce Redis or other extra infrastructure without an explicit requirement.
+- Keep changes compatible with single-instance deployment assumptions.
+- Preserve health/readiness/liveness and existing operational telemetry.
+- Public-surface optimizations must not degrade accessibility, observability, or UX stability.
+
+## Code conventions worth remembering
+
+From `CODE_STYLE.md` and current configs:
+- formatting is Biome-enforced: 2 spaces, semicolons, double quotes, 100-char line width;
+- use the `@/` alias for imports inside `src/`;
+- React components use PascalCase filenames;
+- hooks use `use-kebab-case.ts` filenames;
+- prefer interfaces for object-shaped TypeScript types;
+- keep database access through Prisma.
+
+## Testing notes
+
+- Test setup file: `src/test/setup.ts`
+- Default Vitest config: `vitest.config.ts`
+- Separate accessibility config: `vitest.a11y.config.ts`
+
+Use `npm run test:a11y` whenever changing interaction, focus handling, semantics, keyboard behavior, or contrast-sensitive UI.
+
+## Practical file starting points
+
+When exploring unfamiliar work, start here first:
+- `server/index.js` — backend runtime assembly
+- `server/bootstrap/register-root-server-routes.js` — route registration entry
+- `src/main.tsx` — client bootstrap flow
+- `src/App.tsx` — global providers and route split
+- `src/routes/PublicRoutes.tsx` — public route map
+- `src/routes/DashboardRoutes.tsx` — dashboard route map
+- `vite.config.ts` — aliasing, dev host policy, and build chunking config
+- `package.json` — canonical scripts
+
+## Additional repo guidance
+
+There is no `.cursor/rules/`, `.cursorrules`, or `.github/copilot-instructions.md` in this repository at the time of writing, so the main repo-specific guidance sources are:
+- `AGENTS.md`
+- `README.md`
+- `CODE_STYLE.md`

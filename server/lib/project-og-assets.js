@@ -213,8 +213,17 @@ const loadRemoteArtworkAsset = async (artworkUrl) => {
   if (!normalized) {
     return null;
   }
+  let url;
   try {
-    const response = await fetch(normalized);
+    url = new URL(normalized);
+  } catch {
+    return null;
+  }
+  if (url.protocol !== "https:" && url.protocol !== "http:") {
+    return null;
+  }
+  try {
+    const response = await fetch(url.toString(), { redirect: "error" });
     if (!response.ok) {
       return null;
     }

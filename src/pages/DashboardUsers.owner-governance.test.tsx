@@ -133,7 +133,9 @@ const openNewUserDialog = async () => {
 };
 
 const openUserDialog = async (name: string) => {
-  fireEvent.click(await screen.findByRole("button", { name: new RegExp(`Abrir usuário ${name}`, "i") }));
+  fireEvent.click(
+    await screen.findByRole("button", { name: new RegExp(`Abrir usuário ${name}`, "i") }),
+  );
   return screen.findByRole("dialog", { name: /Editar usuário/i });
 };
 
@@ -165,12 +167,16 @@ describe("DashboardUsers owner governance", () => {
       ownerIds: ["owner-1"],
       handlers: {
         "POST /api/users": ({ options }) =>
-          mockJsonResponse(true, {
-            user: {
-              ...buildUser({ id: "user-2", name: "LuckShiba", order: 1 }),
-              ...(options?.json || {}),
+          mockJsonResponse(
+            true,
+            {
+              user: {
+                ...buildUser({ id: "user-2", name: "LuckShiba", order: 1 }),
+                ...(options?.json || {}),
+              },
             },
-          }, 201),
+            201,
+          ),
         "PUT /api/owners": ({ options }) =>
           mockJsonResponse(true, {
             ownerIds: ["owner-1", "user-2"],
@@ -217,7 +223,9 @@ describe("DashboardUsers owner governance", () => {
         return path === "/api/owners" && method === "PUT";
       });
       expect(ownersCall).toBeTruthy();
-      expect(JSON.parse(String((ownersCall?.[2] as RequestInit | undefined)?.body || "{}"))).toEqual({
+      expect(
+        JSON.parse(String((ownersCall?.[2] as RequestInit | undefined)?.body || "{}")),
+      ).toEqual({
         ownerIds: ["owner-1", "user-2"],
       });
     });
@@ -286,7 +294,9 @@ describe("DashboardUsers owner governance", () => {
         return path === "/api/owners" && method === "PUT";
       });
       expect(ownersCall).toBeTruthy();
-      expect(JSON.parse(String((ownersCall?.[2] as RequestInit | undefined)?.body || "{}"))).toEqual({
+      expect(
+        JSON.parse(String((ownersCall?.[2] as RequestInit | undefined)?.body || "{}")),
+      ).toEqual({
         ownerIds: ["owner-1", "user-2"],
       });
     });
@@ -357,7 +367,9 @@ describe("DashboardUsers owner governance", () => {
         return path === "/api/owners" && method === "PUT";
       });
       expect(ownersCall).toBeTruthy();
-      expect(JSON.parse(String((ownersCall?.[2] as RequestInit | undefined)?.body || "{}"))).toEqual({
+      expect(
+        JSON.parse(String((ownersCall?.[2] as RequestInit | undefined)?.body || "{}")),
+      ).toEqual({
         ownerIds: ["owner-1"],
       });
     });

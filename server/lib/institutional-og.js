@@ -158,9 +158,12 @@ export const loadInstitutionalOgBackgroundDataUrl = async ({ backgroundUrl, orig
   let inputBuffer = decodeDataUrlBuffer(rawDataUrl);
   if (inputBuffer.length === 0 && /^https?:\/\//i.test(normalizedBackgroundUrl)) {
     try {
-      const response = await fetch(normalizedBackgroundUrl);
-      if (response.ok) {
-        inputBuffer = Buffer.from(await response.arrayBuffer());
+      const url = new URL(normalizedBackgroundUrl);
+      if (url.protocol === "https:" || url.protocol === "http:") {
+        const response = await fetch(url.toString(), { redirect: "error" });
+        if (response.ok) {
+          inputBuffer = Buffer.from(await response.arrayBuffer());
+        }
       }
     } catch {
       inputBuffer = Buffer.alloc(0);

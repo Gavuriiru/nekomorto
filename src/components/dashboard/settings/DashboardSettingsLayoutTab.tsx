@@ -152,6 +152,7 @@ export const DashboardSettingsLayoutTab = () => {
                   type="button"
                   size="icon"
                   className={responsiveCompactRowDeleteButtonClass}
+                  aria-label="Remover link da navbar"
                   onClick={() =>
                     setSettings((prev) => ({
                       ...prev,
@@ -251,6 +252,7 @@ export const DashboardSettingsLayoutTab = () => {
                     type="button"
                     size="icon"
                     className={responsiveCompactSelfEndDeleteButtonClass}
+                    aria-label="Remover coluna do footer"
                     onClick={() =>
                       setSettings((prev) => ({
                         ...prev,
@@ -318,6 +320,7 @@ export const DashboardSettingsLayoutTab = () => {
                         type="button"
                         size="icon"
                         className={responsiveCompactRowDeleteButtonClass}
+                        aria-label="Remover link da coluna do footer"
                         onClick={() =>
                           setSettings((prev) => {
                             const nextColumns = [...prev.footer.columns];
@@ -547,6 +550,7 @@ export const DashboardSettingsLayoutTab = () => {
                       type="button"
                       size="icon"
                       className={responsiveCompactRowDeleteButtonClass}
+                      aria-label="Remover parágrafo do aviso legal"
                       onClick={() =>
                         setSettings((prev) => ({
                           ...prev,
