@@ -1,3 +1,4 @@
+import DOMPurify from "dompurify";
 import katex from "katex";
 import {
   $applyNodeReplacement,
@@ -31,7 +32,10 @@ const renderEquationMarkup = (equation: string, inline: boolean) =>
   });
 
 const ViewerEquation = ({ equation, inline }: { equation: string; inline: boolean }) => {
-  const html = React.useMemo(() => renderEquationMarkup(equation, inline), [equation, inline]);
+  const html = React.useMemo(() => {
+    const raw = renderEquationMarkup(equation, inline);
+    return DOMPurify.sanitize(raw, { USE_PROFILES: { html: true, mathMl: true } });
+  }, [equation, inline]);
   const TagName = inline ? "span" : "div";
 
   return <TagName dangerouslySetInnerHTML={{ __html: html }} aria-label="Formula matematica" />;
