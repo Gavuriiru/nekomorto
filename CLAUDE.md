@@ -92,7 +92,7 @@ A critical part of the UX is the **Hero Shell**. A minimal, server-injected HTML
 
 ### Security Guardrails
 > [!CAUTION]
-> All code MUST adhere to the security rules defined in [AGENTS.md](file:///d:/dev/nekomorto/AGENTS.md).
+> All code MUST adhere to the operational guardrails defined in [AGENTS.md](file:///d:/dev/nekomorto/AGENTS.md), especially the mandatory security section.
 > - No secrets in frontend.
 > - Parameterized queries always.
 > - Auth middleware before handlers.

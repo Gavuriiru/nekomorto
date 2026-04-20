@@ -4,7 +4,7 @@ A segurança do Nekomorto é uma prioridade. Se você descobrir uma vulnerabilid
 
 ## Regras de Segurança
 
-Todas as contribuições e alterações no código devem seguir rigorosamente as diretrizes de segurança definidas no arquivo [AGENTS.md](AGENTS.md). 
+Todas as contribuições e alterações no código devem seguir rigorosamente a carta operacional definida em [AGENTS.md](AGENTS.md), com atenção obrigatória à seção de segurança.
 
 Principais áreas de atenção:
 - Gestão de segredos e variáveis de ambiente.

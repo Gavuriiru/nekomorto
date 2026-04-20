@@ -58,7 +58,7 @@ Estes padrões são validados automaticamente pelo **Biome**.
 - **Tratamento de Erros**:
   - Utilize blocos `try/catch` em todas as rotas e repasse os erros para o middleware de erro.
   - Jamais exponha stack traces ou detalhes do banco em respostas de produção.
-- **Segurança**: Siga rigorosamente as diretrizes em [AGENTS.md](AGENTS.md).
+- **Governança e Segurança**: Siga rigorosamente a carta operacional em [AGENTS.md](AGENTS.md), com atenção especial à seção de segurança obrigatória.
 
 ---
 
