@@ -52,6 +52,10 @@ type SearchPromise = {
 
 export const uuid = createRandomId("autocomplete");
 
+export type AutocompleteSearchFn = (
+  selection: null | BaseSelection,
+) => [boolean, string];
+
 // TODO lookup should be custom
 function $search(selection: null | BaseSelection): [boolean, string] {
   if (!$isRangeSelection(selection) || !selection.isCollapsed()) {
@@ -94,7 +98,11 @@ function formatSuggestionText(suggestion: string): string {
   return `${suggestion} ${isMobile ? "(SWIPE \u2B95)" : "(TAB)"}`;
 }
 
-export default function AutocompletePlugin(): JSX.Element | null {
+export default function AutocompletePlugin({
+  onSearch,
+}: {
+  onSearch?: AutocompleteSearchFn;
+}): JSX.Element | null {
   const [editor] = useLexicalComposerContext();
   const query = useQuery();
   const { toolbarState } = useToolbarState();
@@ -132,7 +140,9 @@ export default function AutocompletePlugin(): JSX.Element | null {
       }
       editor.update(() => {
         const selection = $getSelection();
-        const [hasMatch, match] = $search(selection);
+        const [hasMatch, match] = onSearch
+          ? onSearch(selection)
+          : $search(selection);
         if (!hasMatch || match !== lastMatch || !$isRangeSelection(selection)) {
           // Outdated
           return;
@@ -163,7 +173,9 @@ export default function AutocompletePlugin(): JSX.Element | null {
     function handleUpdate() {
       editor.update(() => {
         const selection = $getSelection();
-        const [hasMatch, match] = $search(selection);
+        const [hasMatch, match] = onSearch
+          ? onSearch(selection)
+          : $search(selection);
         if (!hasMatch) {
           $clearSuggestion();
           return;
@@ -248,7 +260,7 @@ export default function AutocompletePlugin(): JSX.Element | null {
         : []),
       unmountSuggestion,
     );
-  }, [editor, query, toolbarState.fontSize]);
+  }, [editor, onSearch, query, toolbarState.fontSize]);
 
   return null;
 }
