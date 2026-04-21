@@ -247,6 +247,67 @@ describe("public bootstrap payload", () => {
     });
   });
 
+  it("preserva currentPostDetail isolado sem inflar posts resumidos", () => {
+    const payload = buildPublicBootstrapPayload({
+      settings: {},
+      pages: {},
+      projects: [],
+      inProgressItems: [],
+      posts: [
+        {
+          id: "post-1",
+          slug: "post-teste",
+          title: "Post Resumido",
+          excerpt: "Resumo",
+          author: "Equipe",
+          publishedAt: "2026-02-01T00:00:00.000Z",
+          coverImageUrl: "/uploads/post.jpg",
+          coverAlt: "Capa",
+          projectId: "project-1",
+          tags: ["acao"],
+        },
+      ],
+      updates: [],
+      teamMembers: [],
+      teamLinkTypes: [],
+      tagTranslations: {},
+      currentPostDetail: {
+        id: "post-1",
+        slug: "post-teste",
+        title: "Post Completo",
+        excerpt: "Resumo completo",
+        author: "Equipe",
+        publishedAt: "2026-02-01T00:00:00.000Z",
+        coverImageUrl: "/uploads/post.jpg",
+        coverAlt: "Capa",
+        projectId: "project-1",
+        tags: ["acao"],
+        views: 15,
+        commentsCount: 4,
+        content: "<p>Conteudo completo</p>",
+        contentFormat: "lexical",
+        seoTitle: "SEO completo",
+        seoDescription: "Descricao completa",
+      },
+      generatedAt: "2026-02-10T10:00:00.000Z",
+    });
+
+    expect(payload.posts[0]).toEqual(
+      expect.objectContaining({
+        title: "Post Resumido",
+      }),
+    );
+    expect(payload.posts[0]).not.toHaveProperty("content");
+    expect(payload.currentPostDetail).toEqual(
+      expect.objectContaining({
+        title: "Post Completo",
+        content: "<p>Conteudo completo</p>",
+        views: 15,
+        commentsCount: 4,
+      }),
+    );
+  });
+
   it("preserves lightweight image chapter metadata for public bootstrap consumers", () => {
     const payload = buildPublicBootstrapPayload({
       settings: {},

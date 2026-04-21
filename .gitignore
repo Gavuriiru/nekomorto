@@ -56,6 +56,13 @@ ops/postgres/backups/
 .claude/settings.local.json
 .claude/scheduled_tasks.json
 .claude/worktrees/
+.claude/agent-memory/
+.claude/agents/
+.claude/skills/
+.openclaude/
+.kiro/
+.agents/
+skills-lock.json
 scratch-*
 temp_block.txt
 dev-dist/sw.js

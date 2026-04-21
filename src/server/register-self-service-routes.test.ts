@@ -82,17 +82,23 @@ const createDependencies = (overrides: Record<string, unknown> = {}) => {
     buildMySecuritySummary: vi.fn(() => ({})),
     canManageMfa: vi.fn(async () => true),
     clearEnrollmentFromSession: vi.fn(),
+    clearPendingMfaEnrollmentFromSession: vi.fn(),
+    clearPendingMfaEnrollmentRedirectTarget: vi.fn(),
+    completeRequiredMfaEnrollmentForSession: vi.fn(() => ({ id: "user-1" })),
     dataEncryptionKeyring: { activeKeyId: "key-1" },
     deleteUserMfaTotpRecord: vi.fn(),
     encryptStringWithKeyring: vi.fn(() => "encrypted"),
     generateRecoveryCodes: vi.fn(() => ["code-1"]),
+    getPendingMfaEnrollmentRedirectTarget: vi.fn(() => "/dashboard"),
+    getPendingMfaEnrollmentState: vi.fn(() => ({ pending: false, user: null, redirectTarget: "/dashboard" })),
     getRequestIp: vi.fn(() => "198.51.100.40"),
     handleMfaFailureSecuritySignals: vi.fn(),
     hashRecoveryCode: vi.fn(({ code }) => `hash:${code}`),
     isPlainObject: vi.fn((value) => value && typeof value === "object" && !Array.isArray(value)),
+    isPendingMfaEnrollmentRequiredForUser: vi.fn(() => false),
     isTotpEnabledForUser: vi.fn(() => true),
     listActiveSessionsForUser: vi.fn(() => []),
-    metricsRegistry,
+    metricsRegistry: { ...metricsRegistry, setGauge: vi.fn() },
     mfaRecoveryCodePepper: "pepper",
     normalizeUserPreferences: vi.fn((value) => value || {}),
     requireAuth,
@@ -140,10 +146,9 @@ describe("registerSelfServiceRoutes", () => {
     );
     const handlers = getRouteHandlers(routeLayer);
     expect(handlers[0]?.name || "<anonymous>").toBe("<anonymous>");
-    expect(handlers[1]).toBe(dependencies.requireAuth);
-    expect(handlers[2]?.name).toBe("requireAuthenticatedUserId");
-    expect(handlers[3]?.name || "<anonymous>").toBe("<anonymous>");
-    expect(handlers[4]?.name).toBe("handleTotpEnrollConfirm");
+    expect(handlers[1]?.name).toBe("requireAuthenticatedUserIdOrPendingEnrollment");
+    expect(handlers[2]?.name || "<anonymous>").toBe("<anonymous>");
+    expect(handlers[3]?.name).toBe("handleTotpEnrollConfirm");
 
     const res = await invokeRoute(routeLayer, {
       body: {
@@ -179,8 +184,9 @@ describe("registerSelfServiceRoutes", () => {
     expect(handlers[0]?.name || "<anonymous>").toBe("<anonymous>");
     expect(handlers[1]).toBe(dependencies.requireAuth);
     expect(handlers[2]?.name).toBe("requireAuthenticatedUserId");
-    expect(handlers[3]?.name || "<anonymous>").toBe("<anonymous>");
-    expect(handlers[4]?.name).toBe("handleTotpDisable");
+    expect(handlers[3]?.name).toBe("requireNoPendingMfaEnrollment");
+    expect(handlers[4]?.name || "<anonymous>").toBe("<anonymous>");
+    expect(handlers[5]?.name).toBe("handleTotpDisable");
 
     const res = await invokeRoute(routeLayer, {
       body: {

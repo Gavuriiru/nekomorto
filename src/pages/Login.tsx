@@ -9,6 +9,8 @@ import "@/styles/login.css";
 import { useEffect, useMemo, useState } from "react";
 import { Link, useLocation, useNavigate } from "react-router-dom";
 
+type SessionCheckState = "default" | "mfa" | "mfa_enrollment";
+
 const Login = () => {
   usePageMeta({ title: "Login", noIndex: true });
 
@@ -18,10 +20,22 @@ const Login = () => {
   const error = params.get("error");
   const next = params.get("next");
   const mfa = params.get("mfa");
+  const [identifier, setIdentifier] = useState("");
+  const [password, setPassword] = useState("");
+  const [passwordError, setPasswordError] = useState("");
+  const [isSubmittingPassword, setIsSubmittingPassword] = useState(false);
   const [mfaCode, setMfaCode] = useState("");
   const [isVerifyingMfa, setIsVerifyingMfa] = useState(false);
   const [isCancellingMfa, setIsCancellingMfa] = useState(false);
-  const [showMfaForm, setShowMfaForm] = useState(mfa === "required");
+  const [sessionState, setSessionState] = useState<SessionCheckState>(() => {
+    if (mfa === "required") {
+      return "mfa";
+    }
+    if (mfa === "enrollment_required") {
+      return "mfa_enrollment";
+    }
+    return "default";
+  });
   const [mfaError, setMfaError] = useState("");
   const apiBase = getApiBase();
 
@@ -35,7 +49,10 @@ const Login = () => {
             try {
               const body = await response.json();
               if (body?.error === "mfa_required" && isActive) {
-                setShowMfaForm(true);
+                setSessionState("mfa");
+              }
+              if (body?.error === "mfa_enrollment_required" && isActive) {
+                setSessionState("mfa_enrollment");
               }
             } catch {
               // ignore parse errors
@@ -58,7 +75,11 @@ const Login = () => {
 
   useEffect(() => {
     if (mfa === "required") {
-      setShowMfaForm(true);
+      setSessionState("mfa");
+      return;
+    }
+    if (mfa === "enrollment_required") {
+      setSessionState("mfa_enrollment");
     }
   }, [mfa]);
 
@@ -80,6 +101,59 @@ const Login = () => {
         return null;
     }
   })();
+
+  const handlePasswordLogin = async () => {
+    const normalizedIdentifier = identifier.trim();
+    if (!normalizedIdentifier || !password || isSubmittingPassword) {
+      return;
+    }
+    setIsSubmittingPassword(true);
+    setPasswordError("");
+    try {
+      const response = await apiFetch(apiBase, "/auth/password/login", {
+        method: "POST",
+        json: {
+          identifier: normalizedIdentifier,
+          password,
+          next,
+        },
+      });
+      if (!response.ok) {
+        let errorCode = "";
+        try {
+          const body = await response.json();
+          errorCode = String(body?.error || "").trim();
+        } catch {
+          errorCode = "";
+        }
+        if (errorCode === "invalid_credentials") {
+          setPasswordError("Identificador ou senha inválidos.");
+          return;
+        }
+        if (errorCode === "identifier_and_password_required") {
+          setPasswordError("Informe seu identificador e sua senha.");
+          return;
+        }
+        setPasswordError("Não foi possível iniciar o login com senha.");
+        return;
+      }
+      const body = await response.json();
+      if (body?.mfaRequired) {
+        setSessionState("mfa");
+        return;
+      }
+      if (body?.mfaEnrollmentRequired) {
+        setSessionState("mfa_enrollment");
+        return;
+      }
+      const redirect = typeof body?.redirect === "string" && body.redirect ? body.redirect : "/dashboard";
+      window.location.href = redirect;
+    } catch {
+      setPasswordError("Não foi possível iniciar o login com senha.");
+    } finally {
+      setIsSubmittingPassword(false);
+    }
+  };
 
   const handleMfaVerify = async () => {
     const normalizedCode = mfaCode.trim();
@@ -107,7 +181,7 @@ const Login = () => {
           return;
         }
         if (errorCode === "mfa_not_pending" || errorCode === "unauthorized") {
-          setMfaError("Sessão de login expirou. Entre com Discord novamente.");
+          setMfaError("Sessão de login expirou. Entre novamente.");
           return;
         }
         if (errorCode === "mfa_required") {
@@ -145,6 +219,10 @@ const Login = () => {
     }
   };
 
+  const isPasswordLoginVisible = sessionState === "default";
+  const isMfaVisible = sessionState === "mfa";
+  const isMfaEnrollmentVisible = sessionState === "mfa_enrollment";
+
   return (
     <div className="login-shell text-foreground">
       <div aria-hidden className="login-backdrop" />
@@ -157,7 +235,7 @@ const Login = () => {
                   Acesso restrito
                 </Badge>
                 <Badge className="border border-primary/30 bg-primary/18 text-primary">
-                  Discord
+                  Dashboard
                 </Badge>
               </div>
               <div className="space-y-2">
@@ -173,7 +251,38 @@ const Login = () => {
                 </div>
               )}
 
-              {showMfaForm && (
+              {isPasswordLoginVisible ? (
+                <div className="space-y-3 rounded-2xl border border-border/65 bg-card/70 p-4">
+                  <p className="text-sm text-muted-foreground">
+                    Entre com seu e-mail ou username e sua senha.
+                  </p>
+                  <Input
+                    value={identifier}
+                    onChange={(event) => setIdentifier(event.target.value)}
+                    placeholder="E-mail ou username"
+                    className="w-full rounded-xl border-border/65 bg-background/70 text-sm text-foreground"
+                    aria-label="Identificador"
+                  />
+                  <Input
+                    type="password"
+                    value={password}
+                    onChange={(event) => setPassword(event.target.value)}
+                    placeholder="Senha"
+                    className="w-full rounded-xl border-border/65 bg-background/70 text-sm text-foreground"
+                    aria-label="Senha"
+                  />
+                  {passwordError ? <p className="text-xs text-red-300">{passwordError}</p> : null}
+                  <Button
+                    className="w-full"
+                    disabled={isSubmittingPassword || !identifier.trim() || !password}
+                    onClick={handlePasswordLogin}
+                  >
+                    {isSubmittingPassword ? "Entrando..." : "Entrar com senha"}
+                  </Button>
+                </div>
+              ) : null}
+
+              {isMfaVisible ? (
                 <div className="space-y-3 rounded-2xl border border-border/65 bg-card/70 p-4">
                   <p className="text-sm text-muted-foreground">
                     Digite seu código TOTP ou recovery code para concluir o login.
@@ -202,26 +311,50 @@ const Login = () => {
                     {isCancellingMfa ? "Cancelando..." : "Cancelar login"}
                   </Button>
                 </div>
-              )}
+              ) : null}
 
-              <div className={`login-actions ${showMfaForm ? "justify-end" : ""}`}>
-                {!showMfaForm ? (
-                  <Button
-                    className="w-full sm:w-auto"
-                    onClick={() => {
-                      const target = next
-                        ? `${apiBase}/auth/discord?next=${encodeURIComponent(next)}`
-                        : `${apiBase}/auth/discord`;
-                      window.location.href = target;
-                    }}
-                  >
-                    Entrar com Discord
+              {isMfaEnrollmentVisible ? (
+                <div className="space-y-3 rounded-2xl border border-border/65 bg-card/70 p-4">
+                  <p className="text-sm text-muted-foreground">
+                    Seu primeiro login com senha exige a configuração do autenticador TOTP antes de liberar o painel.
+                  </p>
+                  <Button asChild className="w-full">
+                    <Link to={next ? `/dashboard/seguranca?next=${encodeURIComponent(next)}` : "/dashboard/seguranca"}>
+                      Configurar autenticador
+                    </Link>
                   </Button>
-                ) : null}
-                {!showMfaForm ? (
-                  <Link to="/" className="text-sm text-muted-foreground hover:text-foreground">
-                    Voltar
-                  </Link>
+                  <Button
+                    type="button"
+                    variant="outline"
+                    className="w-full"
+                    disabled={isCancellingMfa}
+                    onClick={handleCancelMfaLogin}
+                  >
+                    {isCancellingMfa ? "Cancelando..." : "Cancelar login"}
+                  </Button>
+                </div>
+              ) : null}
+
+              <div className={`login-actions ${(isMfaVisible || isMfaEnrollmentVisible) ? "justify-end" : ""}`}>
+                {isPasswordLoginVisible ? (
+                  <>
+                    <Button
+                      type="button"
+                      variant="outline"
+                      className="w-full sm:w-auto"
+                      onClick={() => {
+                        const target = next
+                          ? `${apiBase}/auth/discord?next=${encodeURIComponent(next)}`
+                          : `${apiBase}/auth/discord`;
+                        window.location.href = target;
+                      }}
+                    >
+                      Entrar com Discord
+                    </Button>
+                    <Link to="/" className="text-sm text-muted-foreground hover:text-foreground">
+                      Voltar
+                    </Link>
+                  </>
                 ) : null}
               </div>
             </div>

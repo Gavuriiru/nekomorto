@@ -6,6 +6,7 @@ export const registerAuthRoutes = ({
   app,
   appendAuditLog,
   buildAuthRedirectUrl,
+  buildPasswordAuditMeta,
   canAttemptAuth,
   canVerifyMfa,
   createDiscordAvatarUrl,
@@ -14,12 +15,15 @@ export const registerAuthRoutes = ({
   discordClientSecret,
   ensureOwnerUser,
   establishAuthenticatedSession,
+  findUserLocalAuthRecordByIdentifier,
   getRequestIp,
   handleAuthFailureSecuritySignals,
   handleMfaFailureSecuritySignals,
   isAllowedOrigin,
   isTotpEnabledForUser,
   loadAllowedUsers,
+  loadUsers,
+  markMfaEnrollmentRequiredForSession,
   metricsRegistry,
   maybeEmitExcessiveSessionsEvent,
   maybeEmitNewNetworkLoginEvent,
@@ -31,8 +35,10 @@ export const registerAuthRoutes = ({
   scopes,
   sessionCookieConfig,
   sessionIndexTouchTsBySid,
+  shouldRequireTotpEnrollmentForPasswordLogin,
   syncPersistedDiscordAvatarForLogin,
   updateSessionIndexFromRequest,
+  verifyLocalPassword,
   verifyTotpOrRecoveryCode,
 }) => {
   const router = Router();
@@ -161,6 +167,118 @@ export const registerAuthRoutes = ({
     }
     res.setHeader("Cache-Control", "no-store");
     return res.status(401).json({ error: "mfa_not_pending" });
+  };
+
+  const finalizeAuthenticatedLogin = async ({
+    req,
+    res,
+    user,
+    loginAppOrigin,
+    nextPath,
+    mfaAuditAction = "auth.login.mfa_required",
+    enrollmentAuditAction = "auth.login.mfa_enrollment_required",
+    successAuditAction = "auth.login.success",
+    responseMode = "redirect",
+  }) => {
+    const requiresMfa = isTotpEnabledForUser(user.id);
+    const requiresEnrollment =
+      typeof shouldRequireTotpEnrollmentForPasswordLogin === "function"
+        ? shouldRequireTotpEnrollmentForPasswordLogin(user.id)
+        : false;
+
+    if (requiresMfa && req.session) {
+      req.session.pendingMfaUser = user;
+      req.session.user = null;
+      req.session.mfaVerifiedAt = null;
+      try {
+        await saveSessionState(req);
+      } catch {
+        metricsRegistry.inc("auth_login_total", { status: "failed" });
+        handleAuthFailureSecuritySignals({ req, error: "session_persist_failed" });
+        appendAuditLog(req, "auth.login.failed", "auth", { error: "session_persist_failed" });
+        return false;
+      }
+      updateSessionIndexFromRequest(req, { force: true });
+      appendAuditLog(req, mfaAuditAction, "auth", { userId: user.id });
+      metricsRegistry.inc("auth_login_total", { status: "mfa_required" });
+      const redirect = buildAuthRedirectUrl({
+        appOrigin: loginAppOrigin,
+        path: "/login",
+        searchParams: {
+          mfa: "required",
+          next: nextPath || undefined,
+        },
+      });
+      if (responseMode === "json") {
+        res.status(200).json({ ok: true, mfaRequired: true, redirect });
+        return true;
+      }
+      res.redirect(redirect);
+      return true;
+    }
+
+    if (requiresEnrollment && req.session && typeof markMfaEnrollmentRequiredForSession === "function") {
+      markMfaEnrollmentRequiredForSession({
+        req,
+        user,
+        loginAppOrigin,
+        loginNext: nextPath || null,
+      });
+      try {
+        await saveSessionState(req);
+      } catch {
+        metricsRegistry.inc("auth_login_total", { status: "failed" });
+        handleAuthFailureSecuritySignals({ req, error: "session_persist_failed" });
+        appendAuditLog(req, "auth.login.failed", "auth", { error: "session_persist_failed" });
+        return false;
+      }
+      updateSessionIndexFromRequest(req, { force: true });
+      appendAuditLog(req, enrollmentAuditAction, "auth", { userId: user.id });
+      metricsRegistry.inc("auth_login_total", { status: "mfa_enrollment_required" });
+      const redirect = buildAuthRedirectUrl({
+        appOrigin: loginAppOrigin,
+        path: "/login",
+        searchParams: {
+          mfa: "enrollment_required",
+          next: nextPath || undefined,
+        },
+      });
+      if (responseMode === "json") {
+        res.status(200).json({ ok: true, mfaEnrollmentRequired: true, redirect });
+        return true;
+      }
+      res.redirect(redirect);
+      return true;
+    }
+
+    if (req.session) {
+      req.session.loginNext = null;
+      req.session.loginAppOrigin = null;
+      req.session.mfaVerifiedAt = new Date().toISOString();
+    }
+    try {
+      await saveSessionState(req);
+    } catch {
+      metricsRegistry.inc("auth_login_total", { status: "failed" });
+      handleAuthFailureSecuritySignals({ req, error: "session_persist_failed" });
+      appendAuditLog(req, "auth.login.failed", "auth", { error: "session_persist_failed" });
+      return false;
+    }
+    updateSessionIndexFromRequest(req, { force: true });
+    maybeEmitNewNetworkLoginEvent({ req, userId: user.id });
+    maybeEmitExcessiveSessionsEvent({ req, userId: user.id });
+    appendAuditLog(req, successAuditAction, "auth", { userId: user.id });
+    metricsRegistry.inc("auth_login_total", { status: "success" });
+    const redirect = buildAuthRedirectUrl({
+      appOrigin: loginAppOrigin,
+      path: nextPath || "/dashboard",
+    });
+    if (responseMode === "json") {
+      res.status(200).json({ ok: true, redirect });
+      return true;
+    }
+    res.redirect(redirect);
+    return true;
   };
 
   const handleDiscordAuthStart = async (req, res) => {
@@ -353,7 +471,6 @@ export const registerAuthRoutes = ({
         discordAvatarUrl: authenticatedUser.avatarUrl,
       });
       ensureOwnerUser(authenticatedUser);
-      const requiresMfa = isTotpEnabledForUser(authenticatedUser.id);
       try {
         await establishAuthenticatedSession({
           req,
@@ -374,57 +491,17 @@ export const registerAuthRoutes = ({
         req.session.discordRedirectUri = null;
       }
 
-      if (requiresMfa && req.session) {
-        req.session.pendingMfaUser = authenticatedUser;
-        req.session.user = null;
-        req.session.mfaVerifiedAt = null;
-        try {
-          await saveSessionState(req);
-        } catch {
-          metricsRegistry.inc("auth_login_total", { status: "failed" });
-          handleAuthFailureSecuritySignals({ req, error: "session_persist_failed" });
-          appendAuditLog(req, "auth.login.failed", "auth", { error: "session_persist_failed" });
-          return redirectToLoginServerError();
-        }
-        updateSessionIndexFromRequest(req, { force: true });
-        appendAuditLog(req, "auth.login.mfa_required", "auth", { userId: discordUser.id });
-        metricsRegistry.inc("auth_login_total", { status: "mfa_required" });
-        return res.redirect(
-          buildAuthRedirectUrl({
-            appOrigin: loginAppOrigin,
-            path: "/login",
-            searchParams: {
-              mfa: "required",
-              next: nextPath || undefined,
-            },
-          }),
-        );
-      }
-
-      if (req.session) {
-        req.session.loginNext = null;
-        req.session.loginAppOrigin = null;
-        req.session.mfaVerifiedAt = new Date().toISOString();
-      }
-      try {
-        await saveSessionState(req);
-      } catch {
-        metricsRegistry.inc("auth_login_total", { status: "failed" });
-        handleAuthFailureSecuritySignals({ req, error: "session_persist_failed" });
-        appendAuditLog(req, "auth.login.failed", "auth", { error: "session_persist_failed" });
+      const finalized = await finalizeAuthenticatedLogin({
+        req,
+        res,
+        user: authenticatedUser,
+        loginAppOrigin,
+        nextPath,
+      });
+      if (!finalized) {
         return redirectToLoginServerError();
       }
-      updateSessionIndexFromRequest(req, { force: true });
-      maybeEmitNewNetworkLoginEvent({ req, userId: authenticatedUser.id });
-      maybeEmitExcessiveSessionsEvent({ req, userId: authenticatedUser.id });
-      appendAuditLog(req, "auth.login.success", "auth", { userId: discordUser.id });
-      metricsRegistry.inc("auth_login_total", { status: "success" });
-      return res.redirect(
-        buildAuthRedirectUrl({
-          appOrigin: loginAppOrigin,
-          path: nextPath || "/dashboard",
-        }),
-      );
+      return;
     } catch {
       metricsRegistry.inc("auth_login_total", { status: "failed" });
       handleAuthFailureSecuritySignals({ req, error: "server_error" });
@@ -533,6 +610,129 @@ export const registerAuthRoutes = ({
     attachPendingMfaUser,
     enforcePendingMfaVerifyRateLimit,
     handlePendingMfaVerification,
+  );
+  router.post(
+    "/auth/password/login",
+    codeQlVisibleAuthAttemptRateLimit,
+    async (req, res, next) => {
+      res.setHeader("Cache-Control", "no-store");
+      const ip = getRequestIp(req);
+      if (!(await canAttemptAuth(ip))) {
+        metricsRegistry.inc("auth_login_total", { status: "rate_limited" });
+        appendAuditLog(req, "auth.password.rate_limited", "auth", {});
+        return res.status(429).json({ error: "rate_limited" });
+      }
+      return next();
+    },
+    async (req, res) => {
+      res.setHeader("Cache-Control", "no-store");
+      const identifier = String(req.body?.identifier || req.body?.email || req.body?.username || "").trim();
+      const password = String(req.body?.password || "");
+      if (!identifier || !password) {
+        return res.status(400).json({ error: "identifier_and_password_required" });
+      }
+
+      const localAuthRecord =
+        typeof findUserLocalAuthRecordByIdentifier === "function"
+          ? findUserLocalAuthRecordByIdentifier(identifier)
+          : null;
+      if (!localAuthRecord?.userId || localAuthRecord?.disabledAt) {
+        metricsRegistry.inc("auth_login_total", { status: "failed" });
+        handleAuthFailureSecuritySignals({ req, error: "invalid_credentials" });
+        appendAuditLog(req, "auth.password.failed", "auth", {
+          ...(typeof buildPasswordAuditMeta === "function" ? buildPasswordAuditMeta(identifier) : {}),
+          error: "invalid_credentials",
+        });
+        return res.status(401).json({ error: "invalid_credentials" });
+      }
+
+      const passwordMatches = await verifyLocalPassword(password, localAuthRecord.passwordHash);
+      if (!passwordMatches) {
+        metricsRegistry.inc("auth_login_total", { status: "failed" });
+        handleAuthFailureSecuritySignals({ req, error: "invalid_credentials" });
+        appendAuditLog(req, "auth.password.failed", "auth", {
+          userId: localAuthRecord.userId,
+          ...(typeof buildPasswordAuditMeta === "function" ? buildPasswordAuditMeta(identifier) : {}),
+          error: "invalid_credentials",
+        });
+        return res.status(401).json({ error: "invalid_credentials" });
+      }
+
+      const allowedUsers = loadAllowedUsers();
+      if (!allowedUsers.includes(localAuthRecord.userId)) {
+        metricsRegistry.inc("auth_login_total", { status: "failed" });
+        handleAuthFailureSecuritySignals({ req, error: "unauthorized" });
+        appendAuditLog(req, "auth.password.failed", "auth", {
+          userId: localAuthRecord.userId,
+          error: "unauthorized",
+        });
+        return res.status(401).json({ error: "invalid_credentials" });
+      }
+
+      const users = Array.isArray(loadUsers?.()) ? loadUsers() : [];
+      const matchedUser = users.find((user) => String(user?.id || "") === String(localAuthRecord.userId));
+      if (!matchedUser) {
+        metricsRegistry.inc("auth_login_total", { status: "failed" });
+        handleAuthFailureSecuritySignals({ req, error: "user_not_found" });
+        appendAuditLog(req, "auth.password.failed", "auth", {
+          userId: localAuthRecord.userId,
+          error: "user_not_found",
+        });
+        return res.status(401).json({ error: "invalid_credentials" });
+      }
+
+      const authenticatedUser = {
+        id: String(matchedUser.id || localAuthRecord.userId),
+        name: String(matchedUser?.name || matchedUser?.username || localAuthRecord.userId),
+        username: String(matchedUser?.username || matchedUser?.name || localAuthRecord.userId),
+        email: localAuthRecord.emailNormalized || matchedUser?.email || null,
+        avatarUrl: matchedUser?.avatarUrl ? String(matchedUser.avatarUrl) : null,
+      };
+      const loginAppOrigin = resolveAuthAppOrigin({
+        req,
+        sessionOrigin: null,
+        primaryAppOrigin,
+        isAllowedOriginFn: isAllowedOrigin,
+      });
+      const nextPath =
+        typeof req.body?.next === "string" && req.body.next.trim() ? String(req.body.next).trim() : null;
+
+      ensureOwnerUser(authenticatedUser);
+      try {
+        await establishAuthenticatedSession({
+          req,
+          user: authenticatedUser,
+          preserved: {
+            loginAppOrigin,
+            loginNext: nextPath || null,
+          },
+        });
+      } catch {
+        metricsRegistry.inc("auth_login_total", { status: "failed" });
+        handleAuthFailureSecuritySignals({ req, error: "session_regenerate_failed" });
+        appendAuditLog(req, "auth.password.failed", "auth", {
+          userId: authenticatedUser.id,
+          error: "session_regenerate_failed",
+        });
+        return res.status(500).json({ error: "server_error" });
+      }
+
+      const finalized = await finalizeAuthenticatedLogin({
+        req,
+        res,
+        user: authenticatedUser,
+        loginAppOrigin,
+        nextPath,
+        mfaAuditAction: "auth.password.mfa_required",
+        enrollmentAuditAction: "auth.password.mfa_enrollment_required",
+        successAuditAction: "auth.password.success",
+        responseMode: "json",
+      });
+      if (!finalized) {
+        return res.status(500).json({ error: "server_error" });
+      }
+      return undefined;
+    },
   );
 
   router.post("/api/logout", (req, res) => {

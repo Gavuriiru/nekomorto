@@ -66,7 +66,7 @@ describe("discord avatar proxy", () => {
     expect(fetchMock).toHaveBeenCalledWith(
       "https://cdn.discordapp.com/avatars/123456789/avatar_hash.png?size=64",
       expect.objectContaining({
-        redirect: "follow",
+        redirect: "error",
       }),
     );
     expect(result).toMatchObject({

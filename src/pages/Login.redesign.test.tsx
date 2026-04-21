@@ -88,6 +88,51 @@ describe("Login redesign", () => {
       "w-full",
       "sm:w-auto",
     );
+    expect(screen.getByRole("button", { name: "Entrar com senha" })).toBeInTheDocument();
+    expect(screen.getByLabelText("Identificador")).toBeInTheDocument();
+    expect(screen.getByLabelText("Senha")).toBeInTheDocument();
+  });
+
+  it("envia login por senha e redireciona no sucesso", async () => {
+    apiFetchMock
+      .mockResolvedValueOnce(mockResponse(false))
+      .mockResolvedValueOnce({
+        ok: true,
+        json: async () => ({ redirect: "/dashboard" }),
+      } as Response);
+
+    renderLogin("/login?next=/dashboard/posts");
+
+    fireEvent.change(screen.getByLabelText("Identificador"), {
+      target: { value: "user@example.com" },
+    });
+    fireEvent.change(screen.getByLabelText("Senha"), {
+      target: { value: "secret" },
+    });
+    fireEvent.click(screen.getByRole("button", { name: "Entrar com senha" }));
+
+    await waitFor(() => {
+      expect(apiFetchMock).toHaveBeenNthCalledWith(2, "http://api.local", "/auth/password/login", {
+        method: "POST",
+        json: {
+          identifier: "user@example.com",
+          password: "secret",
+          next: "/dashboard/posts",
+        },
+      });
+    });
+    await waitFor(() => {
+      expect(locationHref).toBe("/dashboard");
+    });
+  });
+
+  it("mostra estado de enrollment obrigatorio de TOTP", () => {
+    renderLogin("/login?mfa=enrollment_required");
+
+    expect(
+      screen.getByText(/primeiro login com senha exige a configuração do autenticador TOTP/i),
+    ).toBeInTheDocument();
+    expect(screen.getByRole("link", { name: "Configurar autenticador" })).toBeInTheDocument();
   });
 
   it("exibe mensagem de erro e atributos de acessibilidade quando error existe", () => {

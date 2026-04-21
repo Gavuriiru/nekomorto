@@ -11,16 +11,23 @@ export const registerSelfServiceRoutes = ({
   buildMySecuritySummary,
   canManageMfa,
   clearEnrollmentFromSession,
+  clearPendingMfaEnrollmentFromSession,
+  clearPendingMfaEnrollmentRedirectTarget,
+  completeRequiredMfaEnrollmentForSession,
   dataEncryptionKeyring,
   deleteUserMfaTotpRecord,
   encryptStringWithKeyring,
   generateRecoveryCodes,
+  getPendingMfaEnrollmentRedirectTarget,
+  getPendingMfaEnrollmentState,
   getRequestIp,
   handleMfaFailureSecuritySignals,
   hashRecoveryCode,
   isPlainObject,
+  isPendingMfaEnrollmentRequiredForUser,
   isTotpEnabledForUser,
   listActiveSessionsForUser,
+  loadUserPreferences,
   metricsRegistry,
   mfaRecoveryCodePepper,
   normalizeUserPreferences,
@@ -30,10 +37,9 @@ export const registerSelfServiceRoutes = ({
   revokeSessionBySid,
   saveSessionState,
   startTotpEnrollment,
+  userPreferencesMaxBytes,
   verifyTotpCode,
   verifyTotpOrRecoveryCode,
-  userPreferencesMaxBytes,
-  loadUserPreferences,
   writeUserMfaTotpRecord,
   writeUserPreferences,
 }) => {
@@ -60,9 +66,11 @@ export const registerSelfServiceRoutes = ({
     }
     return next();
   };
+
   const enforceTotpEnrollStartRateLimit = createManageMfaRateLimitMiddleware("enroll_start");
   const enforceTotpEnrollConfirmRateLimit = createManageMfaRateLimitMiddleware("enroll_confirm");
   const enforceTotpDisableRateLimit = createManageMfaRateLimitMiddleware("disable");
+
   const codeQlVisibleMfaRateLimit = rateLimit({
     windowMs: 60 * 1000,
     limit: 60,
@@ -82,12 +90,90 @@ export const registerSelfServiceRoutes = ({
       return res.status(401).json({ error: "unauthorized" });
     }
     res.locals.authenticatedUserId = userId;
+    res.locals.pendingMfaEnrollmentRequired = false;
     return next();
+  };
+
+  const requireAuthenticatedUserIdOrPendingEnrollment = (req, res, next) => {
+    setNoStore(res);
+    const userId = String(
+      req.session?.user?.id || req.session?.pendingMfaEnrollmentUser?.id || "",
+    ).trim();
+    if (!userId) {
+      return res.status(401).json({ error: "unauthorized" });
+    }
+    res.locals.authenticatedUserId = userId;
+    res.locals.pendingMfaEnrollmentRequired = isPendingMfaEnrollmentRequiredForUser(req, userId);
+    return next();
+  };
+
+  const requireNoPendingMfaEnrollment = (req, res, next) => {
+    if (!getPendingMfaEnrollmentState(req)?.pending) {
+      return next();
+    }
+    setNoStore(res);
+    return res.status(403).json({ error: "mfa_enrollment_required" });
+  };
+
+  const resolveEnrollmentUserDisplayName = (req, fallbackUserId) =>
+    req.session?.user?.username ||
+    req.session?.user?.name ||
+    req.session?.pendingMfaEnrollmentUser?.username ||
+    req.session?.pendingMfaEnrollmentUser?.name ||
+    fallbackUserId;
+
+  const saveEnrollmentState = async (req, userId, errorCode) => {
+    try {
+      await saveSessionState(req);
+      return true;
+    } catch {
+      clearEnrollmentFromSession(req);
+      appendAuditLog(req, "auth.mfa.enroll.failed", "auth", {
+        userId,
+        error: errorCode,
+      });
+      return false;
+    }
+  };
+
+  const finalizePendingMfaEnrollmentIfNeeded = async (req) => {
+    if (!getPendingMfaEnrollmentState(req)?.pending) {
+      return null;
+    }
+    const completedUser = completeRequiredMfaEnrollmentForSession({ req });
+    if (!completedUser?.id) {
+      return null;
+    }
+    clearPendingMfaEnrollmentRedirectTarget(req);
+    try {
+      await saveSessionState(req);
+    } catch {
+      return null;
+    }
+    return completedUser;
+  };
+
+  const buildEnrollConfirmResponse = ({ req, recoveryCodes }) => {
+    const pendingState = getPendingMfaEnrollmentState(req);
+    if (!pendingState.pending) {
+      return {
+        ok: true,
+        recoveryCodes,
+        recoveryCodesRemaining: recoveryCodes.length,
+      };
+    }
+    return {
+      ok: true,
+      recoveryCodes,
+      recoveryCodesRemaining: recoveryCodes.length,
+      completedRequiredEnrollment: true,
+      redirect: getPendingMfaEnrollmentRedirectTarget(req),
+    };
   };
 
   const handleTotpEnrollConfirm = async (req, res) => {
     setNoStore(res);
-    const userId = res.locals.authenticatedUserId;
+    const userId = String(res.locals.authenticatedUserId || "").trim();
     const enrollmentToken = String(req.body?.enrollmentToken || req.body?.token || "").trim();
     const code = String(req.body?.code || req.body?.codeOrRecoveryCode || "")
       .trim()
@@ -99,6 +185,7 @@ export const registerSelfServiceRoutes = ({
       });
       return res.status(400).json({ error: "enrollment_token_and_code_required" });
     }
+
     const enrollment = resolveEnrollmentFromSession({ req, enrollmentToken, userId });
     if (!enrollment) {
       appendAuditLog(req, "auth.mfa.enroll.failed", "auth", {
@@ -107,6 +194,7 @@ export const registerSelfServiceRoutes = ({
       });
       return res.status(400).json({ error: "invalid_or_expired_enrollment" });
     }
+
     if (!verifyTotpCode({ secret: enrollment.secret, code })) {
       handleMfaFailureSecuritySignals({
         req,
@@ -119,6 +207,7 @@ export const registerSelfServiceRoutes = ({
       });
       return res.status(401).json({ error: "invalid_totp_code" });
     }
+
     const recoveryCodes = generateRecoveryCodes({ count: 8 });
     const recoveryCodesHashed = recoveryCodes.map((entry) =>
       hashRecoveryCode({ code: entry, pepper: mfaRecoveryCodePepper }),
@@ -127,6 +216,7 @@ export const registerSelfServiceRoutes = ({
       keyring: dataEncryptionKeyring,
       plaintext: JSON.stringify({ secret: enrollment.secret }),
     });
+
     writeUserMfaTotpRecord(userId, {
       userId,
       secretEncrypted: encryptedSecret,
@@ -136,18 +226,44 @@ export const registerSelfServiceRoutes = ({
       recoveryCodesHashed,
     });
     clearEnrollmentFromSession(req);
+
+    const pendingState = getPendingMfaEnrollmentState(req);
+    if (pendingState.pending) {
+      const completedUser = await finalizePendingMfaEnrollmentIfNeeded(req);
+      if (!completedUser?.id) {
+        return res.status(500).json({ error: "session_regenerate_failed" });
+      }
+    }
+
     appendAuditLog(req, "auth.mfa.enroll.success", "auth", { userId });
     metricsRegistry.inc("auth_mfa_verify_total", { status: "configured" });
-    return res.json({
-      ok: true,
-      recoveryCodes,
-      recoveryCodesRemaining: recoveryCodes.length,
+    return res.json(buildEnrollConfirmResponse({ req, recoveryCodes }));
+  };
+
+  const handleCancelRequiredTotpEnrollment = async (req, res) => {
+    setNoStore(res);
+    const state = getPendingMfaEnrollmentState(req);
+    if (!state.pending) {
+      return res.status(409).json({ error: "mfa_enrollment_not_pending" });
+    }
+    const userId = String(state.user?.id || "").trim();
+    clearEnrollmentFromSession(req);
+    clearPendingMfaEnrollmentFromSession(req);
+    clearPendingMfaEnrollmentRedirectTarget(req);
+    try {
+      await saveSessionState(req);
+    } catch {
+      return res.status(500).json({ error: "session_regenerate_failed" });
+    }
+    appendAuditLog(req, "auth.mfa.enroll.cancel_required", "auth", {
+      userId: userId || null,
     });
+    return res.json({ ok: true });
   };
 
   const handleTotpDisable = async (req, res) => {
     setNoStore(res);
-    const userId = res.locals.authenticatedUserId;
+    const userId = String(res.locals.authenticatedUserId || "").trim();
     if (!isTotpEnabledForUser(userId)) {
       return res.status(409).json({ error: "totp_not_enabled" });
     }
@@ -171,7 +287,7 @@ export const registerSelfServiceRoutes = ({
     return res.json({ ok: true });
   };
 
-  router.get("/api/me/preferences", requireAuth, (req, res) => {
+  router.get("/api/me/preferences", requireAuth, requireNoPendingMfaEnrollment, (req, res) => {
     setNoStore(res);
     const userId = String(req.session?.user?.id || "").trim();
     if (!userId) {
@@ -180,7 +296,7 @@ export const registerSelfServiceRoutes = ({
     return res.json({ preferences: loadUserPreferences(userId) });
   });
 
-  router.put("/api/me/preferences", requireAuth, (req, res) => {
+  router.put("/api/me/preferences", requireAuth, requireNoPendingMfaEnrollment, (req, res) => {
     setNoStore(res);
     const userId = String(req.session?.user?.id || "").trim();
     if (!userId) {
@@ -200,7 +316,7 @@ export const registerSelfServiceRoutes = ({
     return res.json({ ok: true, preferences: saved });
   });
 
-  router.get("/api/me/security", requireAuth, (req, res) => {
+  router.get("/api/me/security", requireAuth, requireNoPendingMfaEnrollment, (req, res) => {
     setNoStore(res);
     const userId = String(req.session?.user?.id || "").trim();
     if (!userId) {
@@ -212,8 +328,7 @@ export const registerSelfServiceRoutes = ({
   router.post(
     "/api/me/security/totp/enroll/start",
     codeQlVisibleMfaRateLimit,
-    requireAuth,
-    requireAuthenticatedUserId,
+    requireAuthenticatedUserIdOrPendingEnrollment,
     enforceTotpEnrollStartRateLimit,
     async (req, res) => {
       setNoStore(res);
@@ -227,7 +342,7 @@ export const registerSelfServiceRoutes = ({
       const metadata = resolveMfaMetadata({
         req,
         userId,
-        accountName: req.session?.user?.username || req.session?.user?.name || userId,
+        accountName: resolveEnrollmentUserDisplayName(req, userId),
       });
       const enrollment = startTotpEnrollment({
         req,
@@ -239,14 +354,8 @@ export const registerSelfServiceRoutes = ({
       if (!enrollment) {
         return res.status(500).json({ error: "enrollment_unavailable" });
       }
-      try {
-        await saveSessionState(req);
-      } catch {
-        clearEnrollmentFromSession(req);
-        appendAuditLog(req, "auth.mfa.enroll.failed", "auth", {
-          userId,
-          error: "enrollment_persist_failed",
-        });
+      const saved = await saveEnrollmentState(req, userId, "enrollment_persist_failed");
+      if (!saved) {
         return res.status(500).json({ error: "enrollment_persist_failed" });
       }
       appendAuditLog(req, "auth.mfa.enroll.start", "auth", { userId });
@@ -257,6 +366,7 @@ export const registerSelfServiceRoutes = ({
         issuer: metadata.issuer,
         accountLabel: metadata.accountLabel,
         iconUrl: metadata.iconUrl,
+        pendingMfaEnrollment: Boolean(res.locals.pendingMfaEnrollmentRequired),
       });
     },
   );
@@ -264,10 +374,16 @@ export const registerSelfServiceRoutes = ({
   router.post(
     "/api/me/security/totp/enroll/confirm",
     codeQlVisibleMfaRateLimit,
-    requireAuth,
-    requireAuthenticatedUserId,
+    requireAuthenticatedUserIdOrPendingEnrollment,
     enforceTotpEnrollConfirmRateLimit,
     handleTotpEnrollConfirm,
+  );
+
+  router.post(
+    "/api/me/security/totp/enroll/cancel",
+    codeQlVisibleMfaRateLimit,
+    requireAuthenticatedUserIdOrPendingEnrollment,
+    handleCancelRequiredTotpEnrollment,
   );
 
   router.post(
@@ -275,11 +391,12 @@ export const registerSelfServiceRoutes = ({
     codeQlVisibleMfaRateLimit,
     requireAuth,
     requireAuthenticatedUserId,
+    requireNoPendingMfaEnrollment,
     enforceTotpDisableRateLimit,
     handleTotpDisable,
   );
 
-  router.get("/api/me/sessions", requireAuth, (req, res) => {
+  router.get("/api/me/sessions", requireAuth, requireNoPendingMfaEnrollment, (req, res) => {
     setNoStore(res);
     const userId = String(req.session?.user?.id || "").trim();
     if (!userId) {
@@ -301,57 +418,69 @@ export const registerSelfServiceRoutes = ({
     return res.json({ sessions });
   });
 
-  router.delete("/api/me/sessions/others", requireAuth, async (req, res) => {
-    setNoStore(res);
-    const userId = String(req.session?.user?.id || "").trim();
-    const currentSid = String(req.sessionID || "");
-    const sessions = listActiveSessionsForUser(userId).filter(
-      (entry) => String(entry.sid || "") !== currentSid,
-    );
-    await Promise.all(
-      sessions.map((entry) =>
-        revokeSessionBySid({
-          sid: entry.sid,
-          revokedBy: userId,
-          revokeReason: "self_revoke_others",
-        }),
-      ),
-    );
-    appendAuditLog(req, "auth.sessions.revoke_others", "auth", {
-      userId,
-      count: sessions.length,
-    });
-    return res.json({ ok: true, revokedCount: sessions.length });
-  });
+  router.delete(
+    "/api/me/sessions/others",
+    requireAuth,
+    requireNoPendingMfaEnrollment,
+    async (req, res) => {
+      setNoStore(res);
+      const userId = String(req.session?.user?.id || "").trim();
+      const currentSid = String(req.sessionID || "");
+      const sessions = listActiveSessionsForUser(userId).filter(
+        (entry) => String(entry.sid || "") !== currentSid,
+      );
+      await Promise.all(
+        sessions.map((entry) =>
+          revokeSessionBySid({
+            sid: entry.sid,
+            revokedBy: userId,
+            revokeReason: "self_revoke_others",
+          }),
+        ),
+      );
+      appendAuditLog(req, "auth.sessions.revoke_others", "auth", {
+        userId,
+        count: sessions.length,
+      });
+      return res.json({ ok: true, revokedCount: sessions.length });
+    },
+  );
 
-  router.delete("/api/me/sessions/:sid", requireAuth, async (req, res) => {
-    setNoStore(res);
-    const userId = String(req.session?.user?.id || "").trim();
-    const targetSid = String(req.params.sid || "").trim();
-    const currentSid = String(req.sessionID || "");
-    if (!targetSid) {
-      return res.status(400).json({ error: "invalid_sid" });
-    }
-    if (targetSid === currentSid) {
-      return res.status(400).json({ error: "cannot_revoke_current_session" });
-    }
-    const target = listActiveSessionsForUser(userId).find(
-      (entry) => String(entry.sid || "") === targetSid,
-    );
-    if (!target) {
-      return res.status(404).json({ error: "session_not_found" });
-    }
-    await revokeSessionBySid({
-      sid: targetSid,
-      revokedBy: userId,
-      revokeReason: "self_revoke_single",
-    });
-    appendAuditLog(req, "auth.sessions.revoke_single", "auth", {
-      userId,
-      sid: targetSid,
-    });
-    return res.json({ ok: true });
-  });
+  router.delete(
+    "/api/me/sessions/:sid",
+    requireAuth,
+    requireNoPendingMfaEnrollment,
+    async (req, res) => {
+      setNoStore(res);
+      const userId = String(req.session?.user?.id || "").trim();
+      const targetSid = String(req.params.sid || "").trim();
+      const currentSid = String(req.sessionID || "");
+      if (!targetSid) {
+        return res.status(400).json({ error: "invalid_sid" });
+      }
+      if (targetSid === currentSid) {
+        return res.status(400).json({ error: "cannot_revoke_current_session" });
+      }
+      const target = listActiveSessionsForUser(userId).find(
+        (entry) => String(entry.sid || "") === targetSid,
+      );
+      if (!target) {
+        return res.status(404).json({ error: "session_not_found" });
+      }
+      await revokeSessionBySid({
+        sid: targetSid,
+        revokedBy: userId,
+        revokeReason: "self_revoke_single",
+      });
+      appendAuditLog(req, "auth.sessions.revoke_single", "auth", {
+        userId,
+        sid: targetSid,
+      });
+      return res.json({ ok: true });
+    },
+  );
 
   app.use(router);
 };
+
+export default registerSelfServiceRoutes;

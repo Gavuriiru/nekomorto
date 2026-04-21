@@ -36,7 +36,15 @@ describe("SiteSettingsProvider initiallyLoaded", () => {
     apiFetchMock.mockReset();
   });
 
-  it("nao dispara refresh imediato quando initiallyLoaded=true", async () => {
+  it("revalida via /api/public/bootstrap quando initiallyLoaded=true", async () => {
+    apiFetchMock.mockResolvedValue(
+      mockJsonResponse(true, {
+        settings: {
+          site: { name: "Nekomata API" },
+        },
+      }),
+    );
+
     render(
       <SiteSettingsProvider initialSettings={{ site: { name: "Nekomata" } } as any} initiallyLoaded>
         <Consumer />
@@ -46,11 +54,13 @@ describe("SiteSettingsProvider initiallyLoaded", () => {
     await waitFor(() => {
       expect(screen.getByTestId("loading-state")).toHaveTextContent("idle");
     });
+    await waitFor(() => {
+      expect(apiFetchMock).toHaveBeenCalledWith("", "/api/public/bootstrap");
+    });
     expect(screen.getByTestId("site-name")).toHaveTextContent("Nekomata");
-    expect(apiFetchMock).not.toHaveBeenCalled();
   });
 
-  it("faz fetch de /api/public/settings quando inicialmente nao carregado", async () => {
+  it("carrega configuracoes quando inicialmente nao carregado", async () => {
     apiFetchMock.mockResolvedValue(
       mockJsonResponse(true, {
         settings: {
@@ -65,9 +75,6 @@ describe("SiteSettingsProvider initiallyLoaded", () => {
       </SiteSettingsProvider>,
     );
 
-    await waitFor(() => {
-      expect(apiFetchMock).toHaveBeenCalledWith("", "/api/public/settings");
-    });
     await waitFor(() => {
       expect(screen.getByTestId("site-name")).toHaveTextContent("Nekomata API");
     });

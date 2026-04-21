@@ -419,17 +419,23 @@ const Dashboard = () => {
 
   useEffect(() => {
     let isActive = true;
-    const loadOverview = async () => {
+    const loadDashboardData = async () => {
       setIsLoadingOverview(true);
       setHasOverviewError(false);
+      setIsLoadingOperationalAlerts(true);
+      setOperationalAlertsError("");
       try {
-        const overviewResponse = await apiFetch(apiBase, "/api/dashboard/overview", {
-          auth: true,
-          cache: "no-store",
-        });
+        const [overviewResponse, operationalResponse] = await Promise.all([
+          apiFetch(apiBase, "/api/dashboard/overview", {
+            auth: true,
+            cache: "no-store",
+          }),
+          apiFetch(apiBase, "/api/admin/operational-alerts", { auth: true }),
+        ]);
         if (!isActive) {
           return;
         }
+
         if (!overviewResponse.ok) {
           throw new Error("dashboard_overview_load_failed");
         }
@@ -438,62 +444,42 @@ const Dashboard = () => {
           return;
         }
         setOverview(normalizeDashboardOverview(overviewPayload));
+
+        if (operationalResponse.status === 403 || operationalResponse.status === 401) {
+          setHideOperationalAlertsCard(true);
+          setOperationalAlerts(null);
+        } else {
+          setHideOperationalAlertsCard(false);
+          if (!operationalResponse.ok) {
+            setOperationalAlertsError("Não foi possível carregar o status operacional.");
+            setOperationalAlerts(null);
+          } else {
+            const operationalPayload =
+              (await operationalResponse.json()) as OperationalAlertsResponse;
+            if (!isActive) {
+              return;
+            }
+            setOperationalAlerts(operationalPayload);
+          }
+        }
       } catch {
         if (!isActive) {
           return;
         }
         setHasOverviewError(true);
         setOverview(EMPTY_DASHBOARD_OVERVIEW);
-      } finally {
-        if (isActive) {
-          setIsLoadingOverview(false);
-        }
-      }
-    };
-
-    void loadOverview();
-    return () => {
-      isActive = false;
-    };
-  }, [apiBase, reloadTick]);
-
-  useEffect(() => {
-    let isActive = true;
-    const loadOperationalAlerts = async () => {
-      setIsLoadingOperationalAlerts(true);
-      setOperationalAlertsError("");
-      try {
-        const response = await apiFetch(apiBase, "/api/admin/operational-alerts", { auth: true });
-        if (!isActive) {
-          return;
-        }
-        if (response.status === 403 || response.status === 401) {
-          setHideOperationalAlertsCard(true);
-          setOperationalAlerts(null);
-          return;
-        }
-        setHideOperationalAlertsCard(false);
-        if (!response.ok) {
-          setOperationalAlertsError("Não foi possível carregar o status operacional.");
-          setOperationalAlerts(null);
-          return;
-        }
-        const data = (await response.json()) as OperationalAlertsResponse;
-        setOperationalAlerts(data);
-      } catch {
-        if (!isActive) {
-          return;
-        }
         setHideOperationalAlertsCard(false);
         setOperationalAlertsError("Erro ao consultar alertas operacionais.");
         setOperationalAlerts(null);
       } finally {
         if (isActive) {
+          setIsLoadingOverview(false);
           setIsLoadingOperationalAlerts(false);
         }
       }
     };
-    void loadOperationalAlerts();
+
+    void loadDashboardData();
     return () => {
       isActive = false;
     };

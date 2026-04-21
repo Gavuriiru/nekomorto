@@ -2,6 +2,7 @@ export const buildPublicRuntimeDependencies = (dependencies = {}) => ({
   bootstrapPwaEnabled: dependencies.bootstrapPwaEnabled ?? dependencies.BOOTSTRAP_PWA_ENABLED,
   buildPublicBootstrapPayload: dependencies.buildPublicBootstrapPayload,
   buildPublicMediaVariants: dependencies.buildPublicMediaVariants,
+  buildPublicPostDetail: dependencies.buildPublicPostDetail,
   buildPublicReadableProjects: dependencies.buildPublicReadableProjects,
   buildPublicTeamMembers: dependencies.buildPublicTeamMembers,
   buildPublicVisibleProjects: dependencies.buildPublicVisibleProjects,

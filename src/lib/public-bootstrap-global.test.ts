@@ -59,6 +59,50 @@ describe("public bootstrap global parser", () => {
     expect(parsed?.payloadMode).toBe("full");
   });
 
+  it("preserva e normaliza currentPostDetail quando informado", () => {
+    const parsed = asPublicBootstrapPayload({
+      settings: {},
+      pages: {},
+      projects: [],
+      inProgressItems: [],
+      posts: [],
+      updates: [],
+      tagTranslations: {
+        tags: {},
+        genres: {},
+        staffRoles: {},
+      },
+      currentPostDetail: {
+        id: "post-1",
+        slug: "post-teste",
+        title: "Postagem",
+        excerpt: "Resumo",
+        author: "Equipe",
+        publishedAt: "2026-03-05T00:00:00.000Z",
+        coverImageUrl: "/uploads/post.jpg",
+        coverAlt: "Capa",
+        projectId: "project-1",
+        tags: ["acao"],
+        views: 7,
+        commentsCount: 3,
+        content: "<p>Conteúdo</p>",
+        contentFormat: "lexical",
+        seoTitle: "SEO",
+        seoDescription: "Descricao SEO",
+      },
+      generatedAt: "2026-03-05T00:00:00.000Z",
+    });
+
+    expect(parsed?.currentPostDetail).toEqual(
+      expect.objectContaining({
+        slug: "post-teste",
+        content: "<p>Conteúdo</p>",
+        views: 7,
+        commentsCount: 3,
+      }),
+    );
+  });
+
   it("preserva e normaliza o payload canônico da home hero", () => {
     const parsed = asPublicBootstrapPayload({
       settings: {},

@@ -70,6 +70,61 @@ model UserRecord {
   @@map("users")
 }
 
+model UserIdentityRecord {
+  id              String   @id
+  userId          String
+  provider        String
+  providerSubject String
+  emailNormalized String?
+  emailVerified   Boolean?
+  displayName     String?
+  avatarUrl       String?
+  linkedAt        DateTime @default(now())
+  lastUsedAt      DateTime?
+  disabledAt      DateTime?
+  data            Json
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  @@unique([provider, providerSubject], map: "user_identities_provider_providerSubject_key")
+  @@unique([userId, provider], map: "user_identities_userId_provider_key")
+  @@index([userId], map: "user_identities_userId_idx")
+  @@index([emailNormalized], map: "user_identities_emailNormalized_idx")
+  @@map("user_identities")
+}
+
+model UserLocalAuthRecord {
+  userId             String   @id
+  emailNormalized    String?  @unique(map: "user_local_auth_emailNormalized_key")
+  usernameNormalized String?  @unique(map: "user_local_auth_usernameNormalized_key")
+  passwordHash       String
+  passwordUpdatedAt  DateTime
+  disabledAt         DateTime?
+  createdAt          DateTime @default(now())
+  updatedAt          DateTime @updatedAt
+
+  @@map("user_local_auth")
+}
+
+model UserWebAuthnCredentialRecord {
+  id           String   @id
+  userId       String
+  credentialId String   @unique(map: "user_webauthn_credentials_credentialId_key")
+  publicKey    String
+  counter      Int      @default(0)
+  transports   Json?
+  backedUp     Boolean?
+  deviceLabel  String?
+  lastUsedAt   DateTime?
+  revokedAt    DateTime?
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  @@index([userId], map: "user_webauthn_credentials_userId_idx")
+  @@index([revokedAt], map: "user_webauthn_credentials_revokedAt_idx")
+  @@map("user_webauthn_credentials")
+}
+
 model CommentRecord {
   id         String    @id
   position   Int       @default(0)

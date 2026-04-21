@@ -116,7 +116,7 @@ describe("ImageLibraryDialog project image scope", () => {
     });
 
     expect(screen.getByText("Imagens dos projetos")).toBeInTheDocument();
-    expect(screen.getByText("Nenhuma imagem de projeto encontrada.")).toBeInTheDocument();
+    expect(screen.getByText(/Nenhuma imagem de projeto encontrada/i)).toBeInTheDocument();
   });
 
   it("ignora itens de projeto fora de /uploads/projects/", async () => {

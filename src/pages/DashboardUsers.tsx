@@ -683,10 +683,14 @@ const DashboardUsers = () => {
   );
 
   useEffect(() => {
+    let isActive = true;
+    const hasWarmState = users.length > 0 || ownerIds.length > 0 || linkTypes.length > 0;
     const load = async () => {
       try {
-        setIsLoading(true);
-        setHasLoadError(false);
+        if (isActive) {
+          setIsLoading(true);
+          setHasLoadError(false);
+        }
         const [usersRes, linkTypesRes] = await Promise.all([
           apiFetch(apiBase, "/api/users", { auth: true }),
           apiFetch(apiBase, "/api/link-types"),
@@ -696,26 +700,40 @@ const DashboardUsers = () => {
           throw new Error("users_load_failed");
         }
         const data = await usersRes.json();
+        if (!isActive) {
+          return;
+        }
         setUsers(data.users || []);
         setOwnerIds(Array.isArray(data.ownerIds) ? data.ownerIds : []);
 
         if (linkTypesRes.ok) {
           const linkTypePayload = await linkTypesRes.json();
+          if (!isActive) {
+            return;
+          }
           setLinkTypes(Array.isArray(linkTypePayload.items) ? linkTypePayload.items : []);
-        } else {
-          setLinkTypes([]);
         }
       } catch {
-        setUsers([]);
-        setOwnerIds([]);
+        if (!isActive) {
+          return;
+        }
+        if (!hasWarmState) {
+          setUsers([]);
+          setOwnerIds([]);
+        }
         setHasLoadError(true);
       } finally {
-        setIsLoading(false);
+        if (isActive) {
+          setIsLoading(false);
+        }
       }
     };
 
-    load();
-  }, [apiBase, loadVersion]);
+    void load();
+    return () => {
+      isActive = false;
+    };
+  }, [apiBase, linkTypes.length, loadVersion, ownerIds.length, users.length]);
 
   useEffect(() => {
     if (searchParams.get("edit") !== "me") {

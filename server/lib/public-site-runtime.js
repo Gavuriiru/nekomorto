@@ -4,6 +4,7 @@ export const PUBLIC_BOOTSTRAP_MODE_CRITICAL_HOME = "critical-home";
 const REQUIRED_DEPENDENCY_KEYS = [
   "buildPublicBootstrapPayload",
   "buildPublicMediaVariants",
+  "buildPublicPostDetail",
   "buildPublicTeamMembers",
   "buildUserPayload",
   "createGuid",
@@ -47,6 +48,7 @@ export const createPublicSiteRuntime = (dependencies = {}) => {
   const {
     buildPublicBootstrapPayload,
     buildPublicMediaVariants,
+    buildPublicPostDetail,
     buildPublicTeamMembers,
     buildUserPayload,
     createGuid,
@@ -424,6 +426,7 @@ export const createPublicSiteRuntime = (dependencies = {}) => {
     pages = loadPages(),
     generatedAt = new Date().toISOString(),
     payloadMode = PUBLIC_BOOTSTRAP_MODE_FULL,
+    currentPostDetail = null,
   } = {}) => {
     const projects = getPublicVisibleProjects();
     const inProgressItems = getPublicInProgressItems();
@@ -471,6 +474,7 @@ export const createPublicSiteRuntime = (dependencies = {}) => {
       teamMembers,
       teamLinkTypes,
       tagTranslations: loadTagTranslations(),
+      currentPostDetail,
       generatedAt,
       payloadMode: PUBLIC_BOOTSTRAP_MODE_FULL,
     });
@@ -774,10 +778,24 @@ export const createPublicSiteRuntime = (dependencies = {}) => {
     bootstrapMode = PUBLIC_BOOTSTRAP_MODE_FULL,
     includeHomeHeroShell = false,
   }) => {
+    const routeCurrentPostDetail =
+      req?.path?.startsWith("/postagem/") && bootstrapMode === PUBLIC_BOOTSTRAP_MODE_FULL
+        ? (() => {
+            const routeSlug = String(req?.params?.slug || "").trim();
+            if (!routeSlug) {
+              return null;
+            }
+            const routePost = getPublicVisiblePosts().find(
+              (candidate) => String(candidate?.slug || "").trim() === routeSlug,
+            );
+            return routePost ? buildPublicPostDetail({ post: routePost, resolvePostCover }) : null;
+          })()
+        : null;
     const publicBootstrap = buildPublicBootstrapResponsePayload({
       settings,
       pages,
       payloadMode: bootstrapMode,
+      currentPostDetail: routeCurrentPostDetail,
     });
     const publicMe = req?.session?.user ? buildUserPayload(req.session.user) : null;
     let nextHtml = injectBootstrapGlobals({

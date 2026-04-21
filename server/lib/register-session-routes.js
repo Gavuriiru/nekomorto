@@ -4,8 +4,8 @@ const setNoStore = (res) => {
   res.setHeader("Cache-Control", "no-store");
 };
 
-const requireUserSessionOrPendingMfa = (req, res, next) => {
-  if (req.session?.user || req.session?.pendingMfaUser?.id) {
+const requireUserSessionOrPendingAuth = (req, res, next) => {
+  if (req.session?.user || req.session?.pendingMfaUser?.id || req.session?.pendingMfaEnrollmentUser?.id) {
     return next();
   }
   setNoStore(res);
@@ -22,7 +22,7 @@ export const registerSessionRoutes = ({
 }) => {
   const router = Router();
 
-  router.get("/api/me", requireUserSessionOrPendingMfa, (req, res) => {
+  router.get("/api/me", requireUserSessionOrPendingAuth, (req, res) => {
     setNoStore(res);
     if (!req.session?.user && req.session?.pendingMfaUser?.id) {
       return res.status(401).json({
@@ -36,6 +36,18 @@ export const registerSessionRoutes = ({
         },
       });
     }
+    if (!req.session?.user && req.session?.pendingMfaEnrollmentUser?.id) {
+      return res.status(401).json({
+        error: "mfa_enrollment_required",
+        pendingMfaEnrollment: true,
+        user: {
+          id: req.session.pendingMfaEnrollmentUser.id,
+          name: req.session.pendingMfaEnrollmentUser.name || "",
+          username: req.session.pendingMfaEnrollmentUser.username || "",
+          avatarUrl: req.session.pendingMfaEnrollmentUser.avatarUrl || null,
+        },
+      });
+    }
 
     return res.json(buildUserPayload(req.session.user));
   });
@@ -46,6 +58,7 @@ export const registerSessionRoutes = ({
       return res.json({
         user: null,
         pendingMfa: Boolean(req.session?.pendingMfaUser?.id),
+        pendingMfaEnrollment: Boolean(req.session?.pendingMfaEnrollmentUser?.id),
       });
     }
 

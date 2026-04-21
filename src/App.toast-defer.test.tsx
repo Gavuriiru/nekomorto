@@ -24,6 +24,22 @@ vi.mock("@/hooks/use-reveal", () => ({
   useReveal: () => undefined,
 }));
 
+vi.mock("@/hooks/site-settings-provider", () => ({
+  SiteSettingsProvider: ({ children }: { children: unknown }) => <>{children}</>,
+}));
+
+vi.mock("@/hooks/theme-mode-provider", () => ({
+  ThemeModeProvider: ({ children }: { children: unknown }) => <>{children}</>,
+}));
+
+vi.mock("@/hooks/accessibility-announcer", () => ({
+  AccessibilityAnnouncerProvider: ({ children }: { children: unknown }) => <>{children}</>,
+}));
+
+vi.mock("@/hooks/global-shortcuts-provider", () => ({
+  GlobalShortcutsProvider: ({ children }: { children: unknown }) => <>{children}</>,
+}));
+
 describe("App toast defer", () => {
   beforeEach(() => {
     scheduleOnBrowserLoadIdleMock.mockReset();

@@ -4,6 +4,8 @@ import { cleanup, render, waitFor } from "@testing-library/react";
 import { createEditor } from "lexical";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
+const consoleWarnSpy = vi.spyOn(console, "warn").mockImplementation(() => undefined);
+
 const useThemeModeMock = vi.hoisted(() => vi.fn());
 
 vi.mock("@lexical/react/LexicalBlockWithAlignableContents", () => ({
@@ -98,6 +100,7 @@ const setTwitterWidgets = (createTweet: CreateTweetMock) => {
 
 describe("TweetNode", () => {
   beforeEach(() => {
+    consoleWarnSpy.mockClear();
     useThemeModeMock.mockReset();
     useThemeModeMock.mockReturnValue(createThemeState("dark"));
     delete (window as TwitterWindow).twttr;
@@ -313,5 +316,28 @@ describe("TweetNode", () => {
     expect(
       view.container.querySelectorAll(".twitter-tweet-rendered"),
     ).toHaveLength(2);
+  });
+
+  it("reaproveita o script ja presente no DOM quando os widgets ja estao prontos", async () => {
+    const widgetMock = createTweetMock();
+    const existingScript = document.createElement("script");
+    existingScript.src = WIDGET_SCRIPT_URL;
+    document.body.appendChild(existingScript);
+    setTwitterWidgets(widgetMock);
+
+    render(decorateTweetNode("tweet-existing-script"));
+
+    await waitFor(() => {
+      expect(widgetMock).toHaveBeenCalledTimes(1);
+    });
+    expect(widgetMock).toHaveBeenCalledWith(
+      "tweet-existing-script",
+      expect.any(HTMLElement),
+      { theme: "dark" },
+    );
+    expect(
+      document.querySelectorAll(`script[src="${WIDGET_SCRIPT_URL}"]`),
+    ).toHaveLength(1);
+    expect(consoleWarnSpy).not.toHaveBeenCalled();
   });
 });

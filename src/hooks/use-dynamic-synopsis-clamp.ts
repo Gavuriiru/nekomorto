@@ -62,6 +62,7 @@ export const useDynamicSynopsisClamp = <T extends HTMLElement = HTMLDivElement>(
   const internalRef = useRef<T | null>(null);
   const rootRef = scopeRef ?? internalRef;
   const frameRef = useRef<number | null>(null);
+  const resizeFrameRef = useRef<number | null>(null);
   const [lineByKey, setLineByKey] = useState<Record<string, number>>({});
   const keysHash = useMemo(() => keys.join("||"), [keys]);
   const resolvedSelectors = useMemo(
@@ -165,11 +166,20 @@ export const useDynamicSynopsisClamp = <T extends HTMLElement = HTMLDivElement>(
     }
 
     let timeoutId: number | null = null;
+    const scheduleRecalculate = () => {
+      if (resizeFrameRef.current !== null) {
+        window.cancelAnimationFrame(resizeFrameRef.current);
+      }
+      resizeFrameRef.current = window.requestAnimationFrame(() => {
+        resizeFrameRef.current = null;
+        recalculate();
+      });
+    };
     const handleResize = () => {
       if (timeoutId !== null) {
         window.clearTimeout(timeoutId);
       }
-      timeoutId = window.setTimeout(recalculate, resizeDebounceMs);
+      timeoutId = window.setTimeout(scheduleRecalculate, resizeDebounceMs);
     };
     window.addEventListener("resize", handleResize, { passive: true });
 
@@ -182,6 +192,10 @@ export const useDynamicSynopsisClamp = <T extends HTMLElement = HTMLDivElement>(
     return () => {
       if (timeoutId !== null) {
         window.clearTimeout(timeoutId);
+      }
+      if (resizeFrameRef.current !== null) {
+        window.cancelAnimationFrame(resizeFrameRef.current);
+        resizeFrameRef.current = null;
       }
       window.removeEventListener("resize", handleResize);
       observer.disconnect();

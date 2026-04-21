@@ -266,14 +266,14 @@ describe("Projects query sync", () => {
     const formatListbox = await screen.findByRole("listbox", { name: "Formato" });
     expect(formatListbox).toHaveAttribute("aria-label", "Formato");
     expect(screen.queryByLabelText(/Buscar em formato/i)).not.toBeInTheDocument();
-    const animeOption = await within(formatListbox).findByRole("option", { name: "Anime" });
-    expect(animeOption).toBeInTheDocument();
+    const animeOption = within(formatListbox).getByRole("option", { name: /Anime/i });
 
     fireEvent.click(animeOption);
 
     await waitFor(() => {
-      expect(getSearchParams().get("type")).toBe("Anime");
+      expect(formatTrigger).toHaveTextContent(/Anime/i);
     });
+    expect(getSearchParams().get("type")).toBe("Anime");
   });
 
   it("sincroniza q da URL com o campo de busca", async () => {

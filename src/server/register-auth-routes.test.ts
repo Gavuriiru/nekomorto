@@ -98,6 +98,7 @@ const createDependencies = (overrides: Record<string, unknown> = {}) => {
     app,
     appendAuditLog,
     buildAuthRedirectUrl: vi.fn(({ appOrigin, path }) => `${appOrigin}${path}`),
+    buildPasswordAuditMeta: vi.fn(() => ({ identifierType: "email" })),
     canAttemptAuth: vi.fn(async () => true),
     canVerifyMfa: vi.fn(async () => true),
     createDiscordAvatarUrl: vi.fn(() => "https://cdn.discordapp.com/avatars/user/hash.png"),
@@ -106,12 +107,15 @@ const createDependencies = (overrides: Record<string, unknown> = {}) => {
     discordClientSecret: "client-secret",
     ensureOwnerUser: vi.fn(),
     establishAuthenticatedSession: vi.fn(async () => undefined),
+    findUserLocalAuthRecordByIdentifier: vi.fn(() => null),
     getRequestIp: vi.fn(() => "203.0.113.5"),
     handleAuthFailureSecuritySignals: vi.fn(),
     handleMfaFailureSecuritySignals: vi.fn(),
     isAllowedOrigin: vi.fn(() => true),
     isTotpEnabledForUser: vi.fn(() => false),
     loadAllowedUsers: vi.fn(() => ["user-1"]),
+    loadUsers: vi.fn(() => []),
+    markMfaEnrollmentRequiredForSession: vi.fn(),
     metricsRegistry,
     maybeEmitExcessiveSessionsEvent: vi.fn(),
     maybeEmitNewNetworkLoginEvent: vi.fn(),
@@ -133,8 +137,10 @@ const createDependencies = (overrides: Record<string, unknown> = {}) => {
       },
     },
     sessionIndexTouchTsBySid,
+    shouldRequireTotpEnrollmentForPasswordLogin: vi.fn(() => false),
     syncPersistedDiscordAvatarForLogin: vi.fn(),
     updateSessionIndexFromRequest: vi.fn(),
+    verifyLocalPassword: vi.fn(async () => false),
     verifyTotpOrRecoveryCode: vi.fn(() => ({ method: "totp", ok: true })),
     ...overrides,
   });
@@ -293,6 +299,35 @@ describe("registerAuthRoutes", () => {
     expect(res.body).toEqual({ error: "mfa_not_pending" });
     expect(canVerifyMfa).not.toHaveBeenCalled();
     expect(verifyTotpOrRecoveryCode).not.toHaveBeenCalled();
+  });
+
+  it("rejects password login with invalid credentials", async () => {
+    const findUserLocalAuthRecordByIdentifier = vi.fn(() => ({
+      userId: "user-1",
+      emailNormalized: "user@example.com",
+      passwordHash: "stored-hash",
+      disabledAt: null,
+    }));
+    const verifyLocalPassword = vi.fn(async () => false);
+    const dependencies = createDependencies({
+      findUserLocalAuthRecordByIdentifier,
+      verifyLocalPassword,
+    });
+    const routeLayer = getRouteLayer(dependencies.router, "post", "/auth/password/login");
+    expect(routeLayer).toBeTruthy();
+
+    const res = await invokeRoute(routeLayer, {
+      body: {
+        identifier: "user@example.com",
+        password: "wrong-password",
+      },
+      session: {},
+    });
+
+    expect(res.statusCode).toBe(401);
+    expect(res.body).toEqual({ error: "invalid_credentials" });
+    expect(findUserLocalAuthRecordByIdentifier).toHaveBeenCalledWith("user@example.com");
+    expect(verifyLocalPassword).toHaveBeenCalledWith("wrong-password", "stored-hash");
   });
 
   it("clears the session cookie with the same secure attributes on logout", async () => {

@@ -13,6 +13,7 @@ export type PublicBootstrapEpisode = {
   readingOrder?: number;
   displayLabel?: string;
   synopsis?: string;
+  content?: string;
   releaseDate: string;
   duration: string;
   coverImageUrl: string;
@@ -118,6 +119,15 @@ export type PublicBootstrapPost = {
   tags: string[];
 };
 
+export type PublicBootstrapPostDetail = PublicBootstrapPost & {
+  views: number;
+  commentsCount: number;
+  content: string;
+  contentFormat?: "lexical";
+  seoTitle?: string | null;
+  seoDescription?: string | null;
+};
+
 export type PublicBootstrapUpdate = {
   id: string;
   projectId: string;
@@ -168,6 +178,7 @@ export type PublicBootstrapPayload = {
     staffRoles: Record<string, string>;
   };
   homeHero?: PublicBootstrapHomeHero | null;
+  currentPostDetail?: PublicBootstrapPostDetail | null;
   generatedAt: string;
   payloadMode?: PublicBootstrapPayloadMode;
 };
@@ -188,6 +199,7 @@ export const emptyPublicBootstrapPayload: PublicBootstrapPayload = {
     staffRoles: {},
   },
   homeHero: null,
+  currentPostDetail: null,
   generatedAt: "",
   payloadMode: "full",
 };

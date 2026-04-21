@@ -1,6 +1,6 @@
 import { useReveal } from "@/hooks/use-reveal";
 import { act, render, screen, waitFor } from "@testing-library/react";
-import { MemoryRouter } from "react-router-dom";
+import { MemoryRouter, Route, Routes } from "react-router-dom";
 import { afterEach, describe, expect, it, vi } from "vitest";
 
 const originalMatchMedia = window.matchMedia;
@@ -210,5 +210,23 @@ describe("useReveal", () => {
       expect(target).toHaveClass("reveal-visible");
     });
     expect(getBoundingClientRectSpy).not.toHaveBeenCalled();
+  });
+
+  it("nao registra reveal em rotas de post", () => {
+    setReducedMotion(false);
+    const observer = installIntersectionObserver();
+
+    render(
+      <MemoryRouter initialEntries={["/postagem/post-teste"]}>
+        <Routes>
+          <Route path="/postagem/:slug" element={<RevealHarness />} />
+        </Routes>
+      </MemoryRouter>,
+    );
+
+    const target = screen.getByTestId("reveal-target");
+    expect(observer.observe).not.toHaveBeenCalled();
+    expect(target).not.toHaveClass("reveal-hidden");
+    expect(target).not.toHaveClass("reveal-visible");
   });
 });

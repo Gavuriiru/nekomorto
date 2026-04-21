@@ -186,6 +186,7 @@ const normalizePublicBootstrapPayload = (value: unknown): PublicBootstrapPayload
       staffRoles: data?.tagTranslations?.staffRoles || {},
     },
     homeHero: normalizePublicBootstrapHomeHero(data?.homeHero),
+    currentPostDetail: data?.currentPostDetail || null,
     generatedAt: String(data?.generatedAt || ""),
     payloadMode: data?.payloadMode === "critical-home" ? "critical-home" : "full",
   };

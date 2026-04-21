@@ -6,6 +6,7 @@ import {
   type PublicBootstrapHomeHeroSlide,
   type PublicBootstrapPayload,
   type PublicBootstrapPayloadMode,
+  type PublicBootstrapPostDetail,
 } from "@/types/public-bootstrap";
 import type { PublicTeamLinkType, PublicTeamMember } from "@/types/public-team";
 
@@ -25,6 +26,38 @@ export type PublicBootstrapCurrentUser = {
 
 const normalizePublicBootstrapPayloadMode = (value: unknown): PublicBootstrapPayloadMode =>
   String(value || "").trim() === "critical-home" ? "critical-home" : "full";
+
+const normalizePublicBootstrapPostDetail = (value: unknown): PublicBootstrapPostDetail | null => {
+  if (!value || typeof value !== "object") {
+    return null;
+  }
+  const candidate = value as Partial<PublicBootstrapPostDetail>;
+  const id = String(candidate.id || "").trim();
+  const slug = String(candidate.slug || "").trim();
+  if (!id || !slug) {
+    return null;
+  }
+  return {
+    id,
+    slug,
+    title: String(candidate.title || ""),
+    excerpt: String(candidate.excerpt || ""),
+    author: String(candidate.author || ""),
+    publishedAt: String(candidate.publishedAt || ""),
+    coverImageUrl: String(candidate.coverImageUrl || ""),
+    coverAlt: String(candidate.coverAlt || ""),
+    projectId: String(candidate.projectId || ""),
+    tags: Array.isArray(candidate.tags)
+      ? candidate.tags.map((tag) => String(tag || "").trim()).filter(Boolean)
+      : [],
+    views: Number.isFinite(Number(candidate.views)) ? Number(candidate.views) : 0,
+    commentsCount: Number.isFinite(Number(candidate.commentsCount)) ? Number(candidate.commentsCount) : 0,
+    content: String(candidate.content || ""),
+    contentFormat: candidate.contentFormat === "lexical" ? "lexical" : undefined,
+    seoTitle: candidate.seoTitle ? String(candidate.seoTitle) : null,
+    seoDescription: candidate.seoDescription ? String(candidate.seoDescription) : null,
+  };
+};
 
 const normalizePublicBootstrapHomeHero = (value: unknown): PublicBootstrapHomeHero | null => {
   if (!value || typeof value !== "object") {
@@ -107,6 +140,7 @@ export const asPublicBootstrapPayload = (value: unknown): PublicBootstrapPayload
       staffRoles: candidate.tagTranslations?.staffRoles || {},
     },
     homeHero: normalizePublicBootstrapHomeHero(candidate.homeHero),
+    currentPostDetail: normalizePublicBootstrapPostDetail(candidate.currentPostDetail),
     generatedAt: String(candidate.generatedAt || ""),
     payloadMode: normalizePublicBootstrapPayloadMode(candidate.payloadMode),
   };

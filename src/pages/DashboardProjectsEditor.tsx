@@ -2926,52 +2926,58 @@ const DashboardProjectsEditor = () => {
         </ProjectEditorDialogShell>
       ) : null}
 
-      <ProjectEditorConfirmDialog
-        open={confirmOpen}
-        onOpenChange={setConfirmOpen}
-        title={confirmTitle}
-        description={confirmDescription}
-        onCancel={() => {
-          confirmCancelRef.current?.();
-          setConfirmOpen(false);
-        }}
-        onConfirm={() => {
-          confirmActionRef.current?.();
-          setConfirmOpen(false);
-        }}
-      />
+      {confirmOpen ? (
+        <ProjectEditorConfirmDialog
+          open={confirmOpen}
+          onOpenChange={setConfirmOpen}
+          title={confirmTitle}
+          description={confirmDescription}
+          onCancel={() => {
+            confirmCancelRef.current?.();
+            setConfirmOpen(false);
+          }}
+          onConfirm={() => {
+            confirmActionRef.current?.();
+            setConfirmOpen(false);
+          }}
+        />
+      ) : null}
 
-      <ProjectEditorAnimeBatchDialog
-        open={animeBatchCreateOpen}
-        onOpenChange={setAnimeBatchCreateOpen}
-        startNumber={animeBatchStartNumber}
-        onStartNumberChange={setAnimeBatchStartNumber}
-        quantity={animeBatchQuantity}
-        onQuantityChange={setAnimeBatchQuantity}
-        cadenceDays={animeBatchCadenceDays}
-        onCadenceDaysChange={setAnimeBatchCadenceDays}
-        durationInput={animeBatchDurationInput}
-        onDurationInputChange={(nextValue) =>
-          setAnimeBatchDurationInput(formatTimeDigitsToDisplay(nextValue))
-        }
-        sourceType={animeBatchSourceType}
-        onSourceTypeChange={(nextValue) => setAnimeBatchSourceType(nextValue)}
-        publicationStatus={animeBatchPublicationStatus}
-        onPublicationStatusChange={setAnimeBatchPublicationStatus}
-        onCreate={createAnimeEpisodeBatch}
-      />
-
-      <ProjectEditorDeleteDialog
-        open={Boolean(deleteTarget)}
-        onOpenChange={(open) => {
-          if (!open) {
-            setDeleteTarget(null);
+      {animeBatchCreateOpen ? (
+        <ProjectEditorAnimeBatchDialog
+          open={animeBatchCreateOpen}
+          onOpenChange={setAnimeBatchCreateOpen}
+          startNumber={animeBatchStartNumber}
+          onStartNumberChange={setAnimeBatchStartNumber}
+          quantity={animeBatchQuantity}
+          onQuantityChange={setAnimeBatchQuantity}
+          cadenceDays={animeBatchCadenceDays}
+          onCadenceDaysChange={setAnimeBatchCadenceDays}
+          durationInput={animeBatchDurationInput}
+          onDurationInputChange={(nextValue) =>
+            setAnimeBatchDurationInput(formatTimeDigitsToDisplay(nextValue))
           }
-        }}
-        targetTitle={deleteTarget?.title}
-        onCancel={() => setDeleteTarget(null)}
-        onConfirm={handleDelete}
-      />
+          sourceType={animeBatchSourceType}
+          onSourceTypeChange={(nextValue) => setAnimeBatchSourceType(nextValue)}
+          publicationStatus={animeBatchPublicationStatus}
+          onPublicationStatusChange={setAnimeBatchPublicationStatus}
+          onCreate={createAnimeEpisodeBatch}
+        />
+      ) : null}
+
+      {deleteTarget ? (
+        <ProjectEditorDeleteDialog
+          open={Boolean(deleteTarget)}
+          onOpenChange={(open) => {
+            if (!open) {
+              setDeleteTarget(null);
+            }
+          }}
+          targetTitle={deleteTarget?.title}
+          onCancel={() => setDeleteTarget(null)}
+          onConfirm={handleDelete}
+        />
+      ) : null}
 
       {isLibraryOpen ? (
         <ProjectEditorImageLibraryDialog

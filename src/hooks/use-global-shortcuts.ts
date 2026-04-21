@@ -13,6 +13,9 @@ export const useGlobalShortcuts = ({
   const { setDashboardHrefResolver, setOpenSearchAction } = useContext(GlobalShortcutsContext);
 
   useEffect(() => {
+    if (!onOpenSearch) {
+      return;
+    }
     setOpenSearchAction(onOpenSearch);
     return () => {
       setOpenSearchAction(null);
@@ -20,6 +23,9 @@ export const useGlobalShortcuts = ({
   }, [onOpenSearch, setOpenSearchAction]);
 
   useEffect(() => {
+    if (!getDashboardHref) {
+      return;
+    }
     setDashboardHrefResolver(getDashboardHref);
     return () => {
       setDashboardHrefResolver(null);

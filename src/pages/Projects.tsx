@@ -676,8 +676,6 @@ const Projects = () => {
         const response = await apiFetch(apiBase, "/api/public/projects");
         if (!response.ok) {
           if (isActive) {
-            setProjects([]);
-            setProjectsMediaVariants({});
             setHasProjectsLoadError(true);
           }
           return;
@@ -693,8 +691,6 @@ const Projects = () => {
         setHasProjectsLoadError(false);
       } catch {
         if (isActive) {
-          setProjects([]);
-          setProjectsMediaVariants({});
           setHasProjectsLoadError(true);
         }
       } finally {
@@ -732,8 +728,7 @@ const Projects = () => {
         setGenreTranslations(data.genres || {});
       } catch {
         if (isActive) {
-          setTagTranslations({});
-          setGenreTranslations({});
+          // Preserve the last successful translation snapshot to avoid UI churn.
         }
       }
     };

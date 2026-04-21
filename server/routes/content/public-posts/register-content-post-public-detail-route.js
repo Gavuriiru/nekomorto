@@ -8,7 +8,7 @@ export const registerContentPostPublicDetailRoute = ({
   resolvePostCover,
 } = {}) => {
   app.get("/api/public/posts/:slug", (req, res) => {
-    res.setHeader("Cache-Control", "no-store");
+    res.setHeader("Cache-Control", "public, max-age=60, stale-while-revalidate=300");
     const slug = String(req.params.slug || "");
     const post = findPublishedPublicPostBySlug({
       loadPosts,

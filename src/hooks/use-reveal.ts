@@ -3,10 +3,26 @@ import { useLocation } from "react-router-dom";
 
 const DEFAULT_SELECTOR = "[data-reveal]";
 
+const shouldRunRevealForPath = (pathname: string) => {
+  const currentPath = String(pathname || "").trim() || "/";
+  if (/^\/postagem\//.test(currentPath)) {
+    return false;
+  }
+  if (/^\/projeto(?:s)?\/.+\/leitura\//.test(currentPath)) {
+    return false;
+  }
+  return true;
+};
+
 export const useReveal = (selector = DEFAULT_SELECTOR) => {
   const location = useLocation();
+  const shouldRunReveal = shouldRunRevealForPath(location.pathname);
 
   useEffect(() => {
+    if (!shouldRunReveal) {
+      return;
+    }
+
     const prefersReducedMotion = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
     const tracked = new Set<HTMLElement>();
     const fallbackTimers = new Map<HTMLElement, number>();
@@ -104,5 +120,5 @@ export const useReveal = (selector = DEFAULT_SELECTOR) => {
       mutationObserver.disconnect();
       observer?.disconnect();
     };
-  }, [location.pathname, selector]);
+  }, [location.pathname, selector, shouldRunReveal]);
 };

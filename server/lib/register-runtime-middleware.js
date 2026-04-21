@@ -9,7 +9,7 @@ import fs from "fs";
 import path from "path";
 import { buildCorsOptionsForRequest } from "./cors-policy.js";
 import { createIdempotencyFingerprint } from "./idempotency-store.js";
-import { canAccessApiDuringPendingMfa } from "./pending-mfa-guard.js";
+import { canAccessApiDuringPendingAuth, resolvePendingAuthStage } from "./pending-mfa-guard.js";
 import { applySecurityHeaders } from "./security-headers.js";
 import { createUploadsDeliveryMiddleware } from "./uploads-delivery.js";
 
@@ -341,7 +341,11 @@ export const registerRuntimeMiddleware = ({
           msg: "http_request",
           ts: new Date().toISOString(),
           requestId: req.requestId || null,
-          userId: req.session?.user?.id || req.session?.pendingMfaUser?.id || null,
+          userId:
+            req.session?.user?.id ||
+            req.session?.pendingMfaUser?.id ||
+            req.session?.pendingMfaEnrollmentUser?.id ||
+            null,
           method: String(req.method || "").toUpperCase(),
           route: String(req.path || ""),
           statusCode: Number(res.statusCode || 0),
@@ -362,14 +366,16 @@ export const registerRuntimeMiddleware = ({
     return next();
   });
   app.use("/api", (req, res, next) => {
-    const hasPendingMfa = Boolean(req.session?.pendingMfaUser?.id && !req.session?.user?.id);
-    if (!hasPendingMfa) {
+    const pendingAuthStage = resolvePendingAuthStage(req.session);
+    if (!pendingAuthStage) {
       return next();
     }
-    if (canAccessApiDuringPendingMfa(req.path)) {
+    if (canAccessApiDuringPendingAuth(pendingAuthStage, req.path)) {
       return next();
     }
-    return res.status(401).json({ error: "mfa_required" });
+    return res.status(401).json({
+      error: pendingAuthStage === "mfa_enrollment" ? "mfa_enrollment_required" : "mfa_required",
+    });
   });
   app.use("/api", (req, _res, next) => {
     maybeEmitAdminActionFromNewNetwork(req);

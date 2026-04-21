@@ -18,12 +18,15 @@ import { getApiBase } from "@/lib/api-base";
 import { apiFetch, apiFetchBestEffort } from "@/lib/api-client";
 import { normalizeAssetUrl } from "@/lib/asset-url";
 import { formatDateTime } from "@/lib/date";
-import { prepareLexicalViewerState } from "@/lib/lexical/viewer";
 import { estimateReadTime } from "@/lib/post-content";
 import { extractFirstImageFromPostContent } from "@/lib/post-cover";
 import { readWindowPublicBootstrap } from "@/lib/public-bootstrap-global";
 import type { UploadMediaVariantsMap } from "@/lib/upload-variants";
-import type { PublicBootstrapPayload, PublicBootstrapPost } from "@/types/public-bootstrap";
+import type {
+  PublicBootstrapPayload,
+  PublicBootstrapPost,
+  PublicBootstrapPostDetail,
+} from "@/types/public-bootstrap";
 import type { PublicTeamLinkType, PublicTeamMember } from "@/types/public-team";
 import {
   buildPostOgImageAlt,
@@ -103,6 +106,45 @@ const resolveBootstrapPost = (
   );
 };
 
+const toBootstrapPostDetailRecord = (post: PublicBootstrapPostDetail | null): PostRecord | null => {
+  if (!post) {
+    return null;
+  }
+  return {
+    id: post.id,
+    title: post.title,
+    slug: post.slug,
+    coverImageUrl: post.coverImageUrl || null,
+    coverAlt: post.coverAlt || null,
+    seoImageUrl: null,
+    excerpt: post.excerpt,
+    content: post.content,
+    contentFormat: post.contentFormat,
+    author: post.author,
+    publishedAt: post.publishedAt,
+    views: post.views,
+    commentsCount: post.commentsCount,
+    seoTitle: post.seoTitle || null,
+    seoDescription: post.seoDescription || null,
+    projectId: post.projectId || null,
+  };
+};
+
+const resolveBootstrapPostDetail = (
+  bootstrapData: PublicBootstrapPayload | null,
+  slug: string | undefined,
+) => {
+  const slugKey = normalizePostSlug(slug);
+  if (!slugKey) {
+    return null;
+  }
+  const currentPostDetail = bootstrapData?.currentPostDetail || null;
+  if (normalizePostSlug(currentPostDetail?.slug) !== slugKey) {
+    return null;
+  }
+  return currentPostDetail;
+};
+
 const resolveBootstrapAuthorCard = (
   bootstrapData: PublicBootstrapPayload | null,
   authorName: string | undefined,
@@ -145,15 +187,19 @@ const Post = () => {
     () => resolveBootstrapPost(bootstrapData, slug),
     [bootstrapData, slug],
   );
-  const bootstrapPostRecord = useMemo(() => toBootstrapPostRecord(bootstrapPost), [bootstrapPost]);
+  const bootstrapPostDetail = useMemo(
+    () => resolveBootstrapPostDetail(bootstrapData, slug),
+    [bootstrapData, slug],
+  );
+  const bootstrapPostRecord = useMemo(
+    () => toBootstrapPostDetailRecord(bootstrapPostDetail) || toBootstrapPostRecord(bootstrapPost),
+    [bootstrapPost, bootstrapPostDetail],
+  );
   const [post, setPost] = useState<PostRecord | null>(bootstrapPostRecord);
   const [hasLoaded, setHasLoaded] = useState(Boolean(bootstrapPostRecord));
   const [loadError, setLoadError] = useState(false);
   const [mediaVariants, setMediaVariants] = useState<UploadMediaVariantsMap>(
     () => bootstrapData?.mediaVariants || {},
-  );
-  const [preparedPostEditorState, setPreparedPostEditorState] = useState(() =>
-    bootstrapPostRecord?.content ? prepareLexicalViewerState(bootstrapPostRecord.content) : "",
   );
   const trackedViewsRef = useRef<Set<string>>(new Set());
   const { settings } = useSiteSettings();
@@ -168,22 +214,7 @@ const Post = () => {
     setHasLoaded(Boolean(bootstrapPostRecord));
     setLoadError(false);
     setMediaVariants(bootstrapData?.mediaVariants || {});
-    setPreparedPostEditorState(
-      bootstrapPostRecord?.content ? prepareLexicalViewerState(bootstrapPostRecord.content) : "",
-    );
   }, [bootstrapData, bootstrapPostRecord]);
-
-  useEffect(() => {
-    const content = String(post?.content || "");
-    if (!content) {
-      setPreparedPostEditorState("");
-      return;
-    }
-    setPreparedPostEditorState((current) => {
-      const nextValue = prepareLexicalViewerState(content);
-      return current === nextValue ? current : nextValue;
-    });
-  }, [post?.content]);
 
   useEffect(() => {
     if (!post?.content) {
@@ -191,6 +222,8 @@ const Post = () => {
     }
     void import("@/components/lexical/LexicalViewer");
   }, [post?.content]);
+
+  const shouldHydratePostFromApi = Boolean(slug);
 
   useEffect(() => {
     let isActive = true;
@@ -200,6 +233,12 @@ const Post = () => {
         if (isActive) {
           setPost(null);
           setHasLoaded(true);
+        }
+        return;
+      }
+      if (!shouldHydratePostFromApi) {
+        if (isActive) {
+          setHasLoaded(Boolean(bootstrapPostRecord));
         }
         return;
       }
@@ -256,7 +295,7 @@ const Post = () => {
     return () => {
       isActive = false;
     };
-  }, [apiBase, bootstrapData?.mediaVariants, bootstrapPostRecord, slug]);
+  }, [apiBase, bootstrapData?.mediaVariants, bootstrapPostRecord, shouldHydratePostFromApi, slug]);
 
   useEffect(() => {
     if (!post?.slug) {
@@ -456,7 +495,6 @@ const Post = () => {
                           <Suspense fallback={<LexicalViewerFallback />}>
                             <LexicalViewer
                               value={post.content}
-                              editorStateJson={preparedPostEditorState || undefined}
                               ariaLabel={`Conteúdo da postagem ${post.title}`}
                               className="post-content reader-content min-w-0 w-full text-muted-foreground"
                               pollTarget={post.slug ? { type: "post", slug: post.slug } : undefined}

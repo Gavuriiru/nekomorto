@@ -108,6 +108,53 @@ export const createDataRepositoryBasicRuntime = (dependencies = {}) => {
     return normalized;
   };
 
+  const loadUserLocalAuthRecord = (userId) => {
+    if (!hasMethod("loadUserLocalAuthRecord")) {
+      return null;
+    }
+    return dataRepository.loadUserLocalAuthRecord(userId);
+  };
+
+  const findUserLocalAuthRecordByIdentifier = (identifier) => {
+    if (!hasMethod("findUserLocalAuthRecordByIdentifier")) {
+      return null;
+    }
+    return dataRepository.findUserLocalAuthRecordByIdentifier(identifier);
+  };
+
+  const writeUserLocalAuthRecord = (userId, record) => {
+    if (!hasMethod("writeUserLocalAuthRecord")) {
+      return;
+    }
+    dataRepository.writeUserLocalAuthRecord(userId, record);
+  };
+
+  const deleteUserLocalAuthRecord = (userId) => {
+    if (!hasMethod("deleteUserLocalAuthRecord")) {
+      return;
+    }
+    dataRepository.deleteUserLocalAuthRecord(userId);
+  };
+
+  const hasUserLocalAuthRecord = (userId) => Boolean(loadUserLocalAuthRecord(userId));
+
+  const loadAllUserLocalAuthRecords = () => {
+    if (!hasMethod("loadAllUserLocalAuthRecords")) {
+      return [];
+    }
+    return dataRepository.loadAllUserLocalAuthRecords();
+  };
+
+  const countActiveUserLocalAuthRecords = () => {
+    const records = loadAllUserLocalAuthRecords();
+    return Array.isArray(records)
+      ? records.filter((record) => record && !record.disabledAt && record.passwordHash).length
+      : 0;
+  };
+
+  void hasUserLocalAuthRecord;
+  void countActiveUserLocalAuthRecords;
+
   const normalizeLinkTypes = (items) => {
     const source = Array.isArray(items) ? items : [];
     const dedupe = new Set();
@@ -147,17 +194,22 @@ export const createDataRepositoryBasicRuntime = (dependencies = {}) => {
   };
 
   return {
+    deleteUserLocalAuthRecord,
+    findUserLocalAuthRecordByIdentifier,
     getPrimaryOwnerId,
     isOwner,
     isPrimaryOwner,
     loadAllowedUsers,
+    loadAllUserLocalAuthRecords,
     loadLinkTypes,
     loadOwnerIds,
+    loadUserLocalAuthRecord,
     loadUsers,
     normalizeLinkTypes,
     writeAllowedUsers,
     writeLinkTypes,
     writeOwnerIds,
+    writeUserLocalAuthRecord,
     writeUsers,
   };
 };

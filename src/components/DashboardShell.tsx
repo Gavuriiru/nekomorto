@@ -35,10 +35,12 @@ import { readWindowPublicBootstrapCurrentUser } from "@/lib/public-bootstrap-glo
 import { uiCopy } from "@/lib/ui-copy";
 import { Home } from "lucide-react";
 import {
+  createContext,
   type CSSProperties,
   memo,
   type MouseEvent,
   type ReactNode,
+  useContext,
   useEffect,
   useMemo,
 } from "react";
@@ -69,6 +71,7 @@ type DashboardShellProps = {
 };
 
 const DASHBOARD_SCROLLBAR_GUTTER_CLASS = "dashboard-scrollbar-gutter-stable";
+const DashboardShellPresenceContext = createContext(false);
 
 let lastResolvedDashboardUser: DashboardUser | null = readWindowPublicBootstrapCurrentUser();
 
@@ -126,7 +129,7 @@ const DashboardSidebarMenuSection = memo(
 
 DashboardSidebarMenuSection.displayName = "DashboardSidebarMenuSection";
 
-const DashboardShell = ({
+const DashboardShellFrame = ({
   children,
   currentUser,
   isLoadingUser = false,
@@ -337,6 +340,18 @@ const DashboardShell = ({
         </SidebarInset>
       </SidebarProvider>
     </div>
+  );
+};
+
+const DashboardShell = (props: DashboardShellProps) => {
+  const hasPersistentShell = useContext(DashboardShellPresenceContext);
+  if (hasPersistentShell) {
+    return <>{props.children}</>;
+  }
+  return (
+    <DashboardShellPresenceContext.Provider value>
+      <DashboardShellFrame {...props} />
+    </DashboardShellPresenceContext.Provider>
   );
 };
 

@@ -11,6 +11,24 @@ const createDeps = (overrides = {}) => ({
   bootstrapPwaEnabled: true,
   buildPublicBootstrapPayload: (payload) => ({ ...payload }),
   buildPublicMediaVariants: () => ({ variants: true }),
+  buildPublicPostDetail: ({ post, resolvePostCover }) => ({
+    id: post.id,
+    slug: post.slug,
+    title: post.title,
+    excerpt: post.excerpt,
+    author: post.author,
+    publishedAt: post.publishedAt,
+    coverImageUrl: resolvePostCover(post).coverImageUrl,
+    coverAlt: resolvePostCover(post).coverAlt,
+    projectId: post.projectId || "",
+    tags: Array.isArray(post.tags) ? post.tags : [],
+    views: Number(post.views || 0),
+    commentsCount: Number(post.commentsCount || 0),
+    content: post.content || "",
+    contentFormat: post.contentFormat,
+    seoTitle: post.seoTitle || null,
+    seoDescription: post.seoDescription || null,
+  }),
   buildPublicTeamMembers: () => [{ id: "team-1", avatarUrl: "/uploads/team-1.png" }],
   buildUserPayload: (user) => ({ ...user, built: true }),
   createGuid: () => "uuid-1",
@@ -40,10 +58,16 @@ const createDeps = (overrides = {}) => ({
       title: "Hello",
       excerpt: "Resumo",
       content: "<p>Conteudo</p>",
+      contentFormat: "lexical",
       author: "Equipe",
       publishedAt: "2026-03-28T10:00:00.000Z",
       tags: ["noticia"],
       coverImageUrl: "/uploads/post.jpg",
+      projectId: "project-1",
+      views: 5,
+      commentsCount: 2,
+      seoTitle: "SEO Hello",
+      seoDescription: "Resumo SEO",
     },
   ],
   getPublicVisibleProjects: () => [
@@ -171,6 +195,7 @@ describe("public-site-runtime", () => {
         volume: 0,
       }),
     ]);
+    expect(fullPayload.currentPostDetail).toBeNull();
     expect(criticalPayload.payloadMode).toBe("critical-home");
     expect(Array.isArray(criticalPayload.projects)).toBe(true);
     expect(criticalPayload.inProgressItems).toEqual(fullPayload.inProgressItems);
@@ -208,6 +233,58 @@ describe("public-site-runtime", () => {
     expect(dashboardHtml).toContain("bootstrap:no");
     expect(dashboardHtml).toContain("pwa:no");
     expect(dashboardHtml).toContain("skip:yes");
+  });
+
+  it("inclui currentPostDetail apenas na rota pública de post", () => {
+    let capturedPublicBootstrap: { currentPostDetail?: unknown } | null = null;
+    const runtime = createPublicSiteRuntime(
+      createDeps({
+        injectBootstrapGlobals: ({ html, publicBootstrap }) => {
+          capturedPublicBootstrap =
+            (publicBootstrap as { currentPostDetail?: unknown } | null | undefined) || null;
+          return html;
+        },
+      }),
+    );
+
+    runtime.injectPublicBootstrapHtml({
+      html: "<html></html>",
+      req: {
+        path: "/postagem/hello-world",
+        params: { slug: "hello-world" },
+      },
+      settings: {},
+      pages: {},
+      bootstrapMode: PUBLIC_BOOTSTRAP_MODE_FULL,
+    });
+
+    const routePostBootstrap = capturedPublicBootstrap as unknown as {
+      currentPostDetail?: unknown;
+    };
+    expect(routePostBootstrap).not.toBeNull();
+    expect(routePostBootstrap.currentPostDetail).toEqual(
+      expect.objectContaining({
+        slug: "hello-world",
+        content: "<p>Conteudo</p>",
+        seoTitle: "SEO Hello",
+      }),
+    );
+
+    runtime.injectPublicBootstrapHtml({
+      html: "<html></html>",
+      req: {
+        path: "/projetos",
+      },
+      settings: {},
+      pages: {},
+      bootstrapMode: PUBLIC_BOOTSTRAP_MODE_FULL,
+    });
+
+    const projectsBootstrap = capturedPublicBootstrap as unknown as {
+      currentPostDetail?: unknown;
+    };
+    expect(projectsBootstrap).not.toBeNull();
+    expect(projectsBootstrap.currentPostDetail).toBeNull();
   });
 
   it("skips home hero preload when the static home hero shell is enabled", () => {

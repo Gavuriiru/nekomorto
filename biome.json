@@ -3,6 +3,7 @@
   "files": {
     "includes": [
       "**",
+      "!**/.claude/worktrees/**",
       "!**/.codex-test-hidden/**",
       "!**/.vscode/**",
       "!**/.lighthouse/**",

@@ -21,6 +21,7 @@ import {
   buildPostOgRevision,
   buildVersionedPostOgImagePath,
 } from "../shared/post-og-seo.js";
+import { buildPublicPostDetail } from "./routes/content/public-posts/shared.js";
 import {
   getProjectEpisodePageCount,
   hasProjectEpisodePages,
@@ -117,6 +118,7 @@ import {
   getInstitutionalOgCachedRender,
 } from "./lib/institutional-og-delivery.js";
 import { createJobQueue } from "./lib/job-queue.js";
+import { buildPasswordAuditMeta, verifyLocalPassword } from "./lib/local-password-auth.js";
 import { updateLexicalPollVotes } from "./lib/lexical-poll-votes.js";
 import { truncateMetaDescription } from "./lib/meta-description.js";
 import { createMetricsRegistry } from "./lib/metrics.js";
@@ -260,6 +262,7 @@ import { injectNonceIntoHtmlScripts } from "./lib/security-headers.js";
 import {
   buildAuthRedirectUrl,
   establishAuthenticatedSession,
+  establishPendingMfaEnrollmentSession,
   saveSessionState,
 } from "./lib/session-auth.js";
 import { stripHtml } from "./lib/site-meta-builders.js";
@@ -871,6 +874,7 @@ const dataRepositoryAdaptersRuntime = createDataRepositoryAdaptersRuntime({
 
 const {
   claimWebhookDelivery,
+  findUserLocalAuthRecordByIdentifier,
   isEpubImportJobStorageAvailable,
   isProjectImageImportJobStorageAvailable,
   loadAdminExportJobs,
@@ -1385,7 +1389,15 @@ const {
   buildPublicTeamMembers,
   buildUserPayload,
   clearEnrollmentFromSession,
+  clearPendingMfaEnrollmentFromSession,
+  clearPendingMfaEnrollmentRedirectTarget,
+  completeRequiredMfaEnrollmentForSession,
   deleteUserMfaTotpRecord,
+  getPendingMfaEnrollmentRedirectTarget,
+  getPendingMfaEnrollmentState,
+  isPendingMfaEnrollmentRequiredForUser,
+  markMfaEnrollmentRequiredForSession,
+  shouldRequireTotpEnrollmentForPasswordLogin,
   ensureOwnerUser,
   handleAuthFailureSecuritySignals,
   handleMfaFailureSecuritySignals,
@@ -1587,6 +1599,7 @@ const publicRuntime = createPublicRuntimeBundle(
     SITEMAP_STATIC_PUBLIC_PATHS,
     buildPublicBootstrapPayload,
     buildPublicMediaVariants,
+    buildPublicPostDetail,
     buildPublicReadableProjects,
     buildPublicTeamMembers,
     buildPublicVisibleProjects,
@@ -1678,6 +1691,7 @@ const rootRouteRegistrationDependencies = buildRootServerRegistrationSource({
   buildInstitutionalPageMeta,
   buildManagedStorageAreaSummary,
   buildMySecuritySummary,
+  buildPasswordAuditMeta,
   buildOperationalWebhookTestTransition,
   buildPostMeta,
   buildProjectMeta,
@@ -1703,7 +1717,10 @@ const rootRouteRegistrationDependencies = buildRootServerRegistrationSource({
   cleanupProjectEpubImportTempUploads,
   cleanupUploadStagingWorkspace,
   clearEnrollmentFromSession,
+  clearPendingMfaEnrollmentFromSession,
+  clearPendingMfaEnrollmentRedirectTarget,
   collectEpisodeUpdatesByVisibility,
+  completeRequiredMfaEnrollmentForSession,
   computeBufferSha256,
   createDiscordAvatarUrl,
   createGravatarHash,
@@ -1727,6 +1744,9 @@ const rootRouteRegistrationDependencies = buildRootServerRegistrationSource({
   ensureWebhookSettingsNoConflict,
   establishAuthenticatedSession,
   evaluateOperationalMonitoring,
+  findUserLocalAuthRecordByIdentifier,
+  loadUsers,
+  verifyLocalPassword,
   exportProjectEpub,
   exportProjectImageChapter,
   extractFirstImageFromPostContent,
@@ -1748,6 +1768,8 @@ const rootRouteRegistrationDependencies = buildRootServerRegistrationSource({
   getProjectEpisodePageCount,
   getProjectOgCachedRender,
   getProjectReadingOgCachedRender,
+  getPendingMfaEnrollmentRedirectTarget,
+  getPendingMfaEnrollmentState,
   getRequestIp,
   getUploadExtFromMime,
   getUploadFolderFromUrlValue,
@@ -1756,6 +1778,9 @@ const rootRouteRegistrationDependencies = buildRootServerRegistrationSource({
   handleAuthFailureSecuritySignals,
   handleMfaFailureSecuritySignals,
   hashRecoveryCode,
+  isPendingMfaEnrollmentRequiredForUser,
+  markMfaEnrollmentRequiredForSession,
+  shouldRequireTotpEnrollmentForPasswordLogin,
   hasOwnField,
   hasProjectEpisodePages,
   importProjectEpub,

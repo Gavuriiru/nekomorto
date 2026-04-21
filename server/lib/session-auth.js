@@ -67,9 +67,39 @@ export const establishAuthenticatedSession = async ({ req, user, preserved = {} 
   }
   req.session.user = user;
   req.session.pendingMfaUser = null;
+  req.session.pendingMfaEnrollmentUser = null;
   req.session.createdAt = req.session.createdAt || new Date().toISOString();
   Object.entries(preserved).forEach(([key, value]) => {
     req.session[key] = value;
   });
   return req.session;
+};
+
+export const establishPendingMfaEnrollmentSession = async ({
+  req,
+  user,
+  preserved = {},
+} = {}) => {
+  if (!req || !req.session) {
+    throw new Error("session_unavailable");
+  }
+  await regenerateSession(req.session);
+  if (!req.session) {
+    throw new Error("session_unavailable");
+  }
+  req.session.user = null;
+  req.session.pendingMfaUser = null;
+  req.session.pendingMfaEnrollmentUser = user;
+  req.session.createdAt = req.session.createdAt || new Date().toISOString();
+  Object.entries(preserved).forEach(([key, value]) => {
+    req.session[key] = value;
+  });
+  return req.session;
+};
+
+export default {
+  buildAuthRedirectUrl,
+  establishAuthenticatedSession,
+  establishPendingMfaEnrollmentSession,
+  saveSessionState,
 };

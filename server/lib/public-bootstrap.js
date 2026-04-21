@@ -194,6 +194,16 @@ export const toPublicBootstrapPost = (post) => ({
   tags: safeStringArray(post?.tags),
 });
 
+export const toPublicBootstrapPostDetail = (post) => ({
+  ...toPublicBootstrapPost(post),
+  views: toSafeNonNegativeInt(post?.views),
+  commentsCount: toSafeNonNegativeInt(post?.commentsCount),
+  content: safeString(post?.content),
+  contentFormat: String(post?.contentFormat || "").trim() === "lexical" ? "lexical" : undefined,
+  seoTitle: post?.seoTitle ? safeString(post?.seoTitle) : null,
+  seoDescription: post?.seoDescription ? safeString(post?.seoDescription) : null,
+});
+
 export const toPublicBootstrapUpdate = (update) => ({
   id: safeString(update?.id),
   projectId: safeString(update?.projectId),
@@ -269,6 +279,7 @@ export const buildPublicBootstrapPayload = ({
   teamMembers,
   teamLinkTypes,
   tagTranslations,
+  currentPostDetail,
   generatedAt,
   payloadMode = "full",
 }) => ({
@@ -283,6 +294,7 @@ export const buildPublicBootstrapPayload = ({
     ? teamLinkTypes.map(toPublicBootstrapTeamLinkType)
     : [],
   tagTranslations: normalizePublicTagTranslations(tagTranslations),
+  currentPostDetail: currentPostDetail ? toPublicBootstrapPostDetail(currentPostDetail) : null,
   generatedAt: safeString(generatedAt || new Date().toISOString()),
   payloadMode: normalizePublicBootstrapPayloadMode(payloadMode),
 });

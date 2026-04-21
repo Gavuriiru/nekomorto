@@ -24,9 +24,12 @@ type PublicCurrentUserCache = {
   hasFetched: boolean;
   inFlightPromise: Promise<PublicBootstrapCurrentUser | null> | null;
   status: PublicCurrentUserStatus;
+  lastFetchedAt: number;
 };
 
 const listeners = new Set<() => void>();
+
+const PUBLIC_CURRENT_USER_STALE_TIME_MS = 60_000;
 
 const createPublicCurrentUserCache = (): PublicCurrentUserCache => {
   const bootstrapUser = readWindowPublicBootstrapCurrentUser();
@@ -36,6 +39,7 @@ const createPublicCurrentUserCache = (): PublicCurrentUserCache => {
     hasFetched: false,
     inFlightPromise: null,
     status: bootstrapUser ? "success" : "idle",
+    lastFetchedAt: bootstrapUser ? Date.now() : 0,
   };
 };
 
@@ -95,7 +99,10 @@ const shouldFetchPublicCurrentUser = (force = false) => {
   if (publicCurrentUserCache.inFlightPromise) {
     return false;
   }
-  return !publicCurrentUserCache.hasFetched;
+  if (!publicCurrentUserCache.hasFetched) {
+    return true;
+  }
+  return Date.now() - publicCurrentUserCache.lastFetchedAt > PUBLIC_CURRENT_USER_STALE_TIME_MS;
 };
 
 const requestPublicCurrentUser = async (apiBase: string, options: { force?: boolean } = {}) => {
@@ -117,6 +124,7 @@ const requestPublicCurrentUser = async (apiBase: string, options: { force?: bool
       publicCurrentUserCache.error = null;
       publicCurrentUserCache.status = "success";
       publicCurrentUserCache.hasFetched = true;
+      publicCurrentUserCache.lastFetchedAt = Date.now();
       emitSnapshot();
       return currentUser;
     })

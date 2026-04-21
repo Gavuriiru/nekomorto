@@ -5,6 +5,7 @@ import { assertRequiredDependencies } from "./assert-required-dependencies.js";
 const PUBLIC_RUNTIME_DEPENDENCY_KEYS = [
   "buildPublicBootstrapPayload",
   "buildPublicMediaVariants",
+  "buildPublicPostDetail",
   "buildPublicReadableProjects",
   "buildPublicTeamMembers",
   "buildPublicVisibleProjects",
@@ -69,6 +70,7 @@ export const createPublicRuntimeBundle = (dependencies = {}) => {
     bootstrapPwaEnabled: dependencies.bootstrapPwaEnabled,
     buildPublicBootstrapPayload: dependencies.buildPublicBootstrapPayload,
     buildPublicMediaVariants: dependencies.buildPublicMediaVariants,
+    buildPublicPostDetail: dependencies.buildPublicPostDetail,
     buildPublicTeamMembers: dependencies.buildPublicTeamMembers,
     buildUserPayload: dependencies.buildUserPayload,
     createGuid: dependencies.createGuid,

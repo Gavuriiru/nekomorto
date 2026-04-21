@@ -156,7 +156,8 @@ export const createAuthSecurityRuntime = (dependencies = {}) => {
 
   const resolveMfaMetadata = ({ req, userId, accountName } = {}) => {
     const normalizedUserId = String(userId || "").trim();
-    const sessionUser = req?.session?.user || req?.session?.pendingMfaUser || null;
+    const sessionUser =
+      req?.session?.user || req?.session?.pendingMfaUser || req?.session?.pendingMfaEnrollmentUser || null;
     const issuer = String(mfaIssuer || "Nekomata").trim() || "Nekomata";
     const accountLabel =
       String(
@@ -242,8 +243,11 @@ export const createAuthSecurityRuntime = (dependencies = {}) => {
   const updateSessionIndexFromRequest = (req, { force = false } = {}) => {
     const sid = String(req?.sessionID || "").trim();
     const userId = String(req?.session?.user?.id || "").trim();
-    const isPendingMfa = Boolean(req?.session?.pendingMfaUser?.id && !req?.session?.user?.id);
-    if (!sid || (!userId && !isPendingMfa)) {
+    const pendingMfaUserId = String(req?.session?.pendingMfaUser?.id || "").trim();
+    const pendingMfaEnrollmentUserId = String(req?.session?.pendingMfaEnrollmentUser?.id || "").trim();
+    const isPendingMfa = Boolean(pendingMfaUserId && !userId);
+    const isPendingMfaEnrollment = Boolean(pendingMfaEnrollmentUserId && !userId);
+    if (!sid || (!userId && !isPendingMfa && !isPendingMfaEnrollment)) {
       return;
     }
     const nowTs = Date.now();
@@ -258,7 +262,7 @@ export const createAuthSecurityRuntime = (dependencies = {}) => {
     sessionIndexTouchTsBySid.set(sid, nowTs);
     upsertUserSessionIndexRecord({
       sid,
-      userId: userId || String(req?.session?.pendingMfaUser?.id || ""),
+      userId: userId || pendingMfaUserId || pendingMfaEnrollmentUserId,
       createdAt: req?.session?.createdAt || new Date(nowTs).toISOString(),
       lastSeenAt: new Date(nowTs).toISOString(),
       lastIp: getRequestIp(req) || "",
@@ -269,6 +273,88 @@ export const createAuthSecurityRuntime = (dependencies = {}) => {
       isPendingMfa,
     });
   };
+
+  const resolvePendingMfaEnrollmentUser = (req) => req?.session?.pendingMfaEnrollmentUser || null;
+
+  const isPendingMfaEnrollmentRequiredForUser = (req, userId) => {
+    const pendingUser = resolvePendingMfaEnrollmentUser(req);
+    return String(pendingUser?.id || "") === String(userId || "").trim();
+  };
+
+  const clearPendingMfaEnrollmentFromSession = (req) => {
+    if (!req?.session) {
+      return;
+    }
+    req.session.pendingMfaEnrollmentUser = null;
+  };
+
+  const promotePendingMfaEnrollmentToAuthenticatedSession = ({ req, preserved = {} } = {}) => {
+    const pendingUser = resolvePendingMfaEnrollmentUser(req);
+    if (!pendingUser?.id) {
+      return null;
+    }
+    req.session.user = pendingUser;
+    req.session.pendingMfaEnrollmentUser = null;
+    Object.entries(preserved).forEach(([key, value]) => {
+      req.session[key] = value;
+    });
+    return pendingUser;
+  };
+
+  const getPendingMfaEnrollmentUserId = (req) =>
+    String(resolvePendingMfaEnrollmentUser(req)?.id || "").trim() || null;
+
+  const getPendingMfaEnrollmentRedirectTarget = (req, fallback = "/dashboard") => {
+    const value = String(req?.session?.loginNext || "").trim();
+    return value || fallback;
+  };
+
+  const clearPendingMfaEnrollmentRedirectTarget = (req) => {
+    if (!req?.session) {
+      return;
+    }
+    req.session.loginNext = null;
+    req.session.loginAppOrigin = null;
+  };
+
+  const markMfaEnrollmentRequiredForSession = ({ req, user, loginAppOrigin = null, loginNext = null } = {}) => {
+    if (!req?.session || !user?.id) {
+      return null;
+    }
+    req.session.user = null;
+    req.session.pendingMfaUser = null;
+    req.session.pendingMfaEnrollmentUser = user;
+    req.session.mfaVerifiedAt = null;
+    req.session.loginAppOrigin = loginAppOrigin;
+    req.session.loginNext = loginNext;
+    return req.session.pendingMfaEnrollmentUser;
+  };
+
+  const shouldRequireTotpEnrollmentForPasswordLogin = (userId) => {
+    const normalizedUserId = String(userId || "").trim();
+    if (!normalizedUserId) {
+      return false;
+    }
+    return !Boolean(loadUserMfaTotpRecord(normalizedUserId)?.enabledAt);
+  };
+
+  const completeRequiredMfaEnrollmentForSession = ({ req } = {}) => {
+    const pendingUser = resolvePendingMfaEnrollmentUser(req);
+    if (!pendingUser?.id) {
+      return null;
+    }
+    req.session.user = pendingUser;
+    req.session.pendingMfaEnrollmentUser = null;
+    req.session.mfaVerifiedAt = new Date().toISOString();
+    return pendingUser;
+  };
+
+  const getPendingMfaEnrollmentState = (req) => ({
+    pending: Boolean(resolvePendingMfaEnrollmentUser(req)?.id),
+    user: resolvePendingMfaEnrollmentUser(req),
+    redirectTarget: getPendingMfaEnrollmentRedirectTarget(req),
+  });
+
 
   const maybeEmitNewNetworkLoginEvent = ({ req, userId } = {}) => {
     const network = getIpv4Network24(getRequestIp(req));
@@ -405,13 +491,24 @@ export const createAuthSecurityRuntime = (dependencies = {}) => {
   return {
     buildMySecuritySummary,
     clearEnrollmentFromSession,
+    clearPendingMfaEnrollmentFromSession,
+    clearPendingMfaEnrollmentRedirectTarget,
+    completeRequiredMfaEnrollmentForSession,
+    getPendingMfaEnrollmentRedirectTarget,
+    getPendingMfaEnrollmentState,
+    getPendingMfaEnrollmentUserId,
     handleAuthFailureSecuritySignals,
     handleMfaFailureSecuritySignals,
+    isPendingMfaEnrollmentRequiredForUser,
+    markMfaEnrollmentRequiredForSession,
     maybeEmitExcessiveSessionsEvent,
     maybeEmitNewNetworkLoginEvent,
+    promotePendingMfaEnrollmentToAuthenticatedSession,
     resolveEnrollmentFromSession,
     resolveMfaMetadata,
+    resolvePendingMfaEnrollmentUser,
     resolveRecoveryCodesRemaining,
+    shouldRequireTotpEnrollmentForPasswordLogin,
     startTotpEnrollment,
     updateSessionIndexFromRequest,
     verifyTotpOrRecoveryCode,

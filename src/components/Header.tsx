@@ -26,7 +26,7 @@ import { cn } from "@/lib/utils";
 import type { SearchSuggestion } from "@/types/search-suggestion";
 import { Menu } from "lucide-react";
 import type { ReactNode } from "react";
-import { lazy, Suspense, useEffect, useMemo, useRef, useState } from "react";
+import { lazy, Suspense, useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { Link, useLocation } from "react-router-dom";
 
 type HeaderProps = {
@@ -342,22 +342,6 @@ const Header = ({
     };
   }, [shouldRenderActionMenus]);
 
-  useEffect(() => {
-    if (isMobile || isReaderAwareRoute || !currentUser || shouldRenderActionMenus) {
-      return;
-    }
-    let isActive = true;
-    void loadHeaderActionMenusModule()
-      .catch(() => undefined)
-      .finally(() => {
-        if (isActive) {
-          setShouldRenderActionMenus(true);
-        }
-      });
-    return () => {
-      isActive = false;
-    };
-  }, [currentUser, isMobile, isReaderAwareRoute, shouldRenderActionMenus]);
 
   useEffect(() => {
     const handleOutsideClick = (event: MouseEvent) => {
@@ -432,15 +416,17 @@ const Header = ({
     () => buildAvatarRenderUrl(currentUser?.avatarUrl, 64, currentUser?.revision),
     [currentUser?.avatarUrl, currentUser?.revision],
   );
+  const resolveDashboardHomeHref = useCallback(() => dashboardHomeHref, [dashboardHomeHref]);
+  const openSearchFromShortcut = useCallback(() => {
+    setIsSearchOpen(true);
+    window.requestAnimationFrame(() => {
+      searchInputRef.current?.focus();
+    });
+  }, []);
 
   useGlobalShortcuts({
-    getDashboardHref: () => dashboardHomeHref,
-    onOpenSearch: () => {
-      setIsSearchOpen(true);
-      window.requestAnimationFrame(() => {
-        searchInputRef.current?.focus();
-      });
-    },
+    getDashboardHref: resolveDashboardHomeHref,
+    onOpenSearch: openSearchFromShortcut,
   });
 
   const handleLogout = async () => {

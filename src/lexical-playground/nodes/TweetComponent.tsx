@@ -51,13 +51,23 @@ const getTwitterWidgets = (): TwitterWidgets | null => {
   return twitterWindow.twttr?.widgets ?? null;
 };
 
+const hasTwitterWidgetsReady = () =>
+  typeof getTwitterWidgets()?.createTweet === "function";
+
+const getScriptReadyState = (script: HTMLScriptElement) => {
+  const scriptWithReadyState = script as HTMLScriptElement & {
+    readyState?: string;
+  };
+  return scriptWithReadyState.readyState;
+};
+
 let twitterScriptLoadPromise: Promise<void> | null = null;
 
 const loadTwitterScript = (): Promise<void> => {
   if (typeof window === "undefined" || typeof document === "undefined") {
     return Promise.reject(new Error("twitter_widgets_requires_browser"));
   }
-  if (typeof getTwitterWidgets()?.createTweet === "function") {
+  if (hasTwitterWidgetsReady()) {
     return Promise.resolve();
   }
   if (twitterScriptLoadPromise) {
@@ -88,7 +98,7 @@ const loadTwitterScript = (): Promise<void> => {
             };
       resolveOnNextTick(() => {
         finish(() => {
-          if (typeof getTwitterWidgets()?.createTweet === "function") {
+          if (hasTwitterWidgetsReady()) {
             resolve();
             return;
           }
@@ -114,7 +124,13 @@ const loadTwitterScript = (): Promise<void> => {
       return;
     }
 
-    if (script.getAttribute(TWITTER_SCRIPT_LOADED_ATTRIBUTE) === "true") {
+    const scriptReadyState = getScriptReadyState(script);
+    if (
+      script.getAttribute(TWITTER_SCRIPT_LOADED_ATTRIBUTE) === "true" ||
+      scriptReadyState === "complete" ||
+      scriptReadyState === "loaded" ||
+      hasTwitterWidgetsReady()
+    ) {
       handleLoad();
     }
   });
@@ -233,13 +249,14 @@ export default function TweetComponent({
         requestTarget.removeAttribute("aria-hidden");
         activeStageRef.current = requestTarget;
         setIsTweetLoading(false);
-      } catch (_error) {
+      } catch (error) {
         if (
           renderTokenRef.current !== renderToken ||
           !requestTarget.isConnected
         ) {
           return;
         }
+        console.warn("tweet_embed_render_failed", error);
         requestTarget.remove();
         setIsTweetLoading(false);
       }

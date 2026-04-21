@@ -9,7 +9,7 @@ import {
 } from "@/lib/access-control";
 import { getApiBase } from "@/lib/api-base";
 import { apiFetch } from "@/lib/api-client";
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { useLocation, useNavigate } from "react-router-dom";
 
 type RequireAuthProps = {
@@ -19,9 +19,54 @@ type RequireAuthProps = {
 const RequireAuth = ({ children }: RequireAuthProps) => {
   const navigate = useNavigate();
   const location = useLocation();
-  const [isChecking, setIsChecking] = useState(true);
-  const apiBase = getApiBase();
   const dashboardSession = useDashboardSession();
+  const [isChecking, setIsChecking] = useState(!dashboardSession.hasResolved);
+  const apiBase = getApiBase();
+  const providerAccess = useMemo(() => {
+    if (!dashboardSession.hasProvider || !dashboardSession.hasResolved) {
+      return null;
+    }
+
+    const user = dashboardSession.currentUser;
+    if (!user) {
+      return { status: "unauthenticated" as const };
+    }
+
+    const grants = resolveGrants(user || null);
+    const accessRole = resolveAccessRole(user || null);
+    const isOwner = accessRole === "owner_primary" || accessRole === "owner_secondary";
+    if (location.pathname.startsWith("/dashboard/seguranca") && !isOwner) {
+      return {
+        status: "redirect" as const,
+        target: getFirstAllowedDashboardRoute(grants),
+        toast: {
+          title: "Acesso negado",
+          description: "A área de segurança é restrita aos donos.",
+        },
+      };
+    }
+    if (
+      isFrontendRbacV2Enabled &&
+      location.pathname.startsWith("/dashboard") &&
+      !isDashboardPathAllowed(location.pathname, grants)
+    ) {
+      return {
+        status: "redirect" as const,
+        target: getFirstAllowedDashboardRoute(grants),
+        toast: {
+          title: "Acesso negado",
+          description: "Você foi redirecionado para uma área permitida do painel.",
+        },
+      };
+    }
+
+    return { status: "authorized" as const };
+  }, [
+    dashboardSession.currentUser,
+    dashboardSession.hasProvider,
+    dashboardSession.hasResolved,
+    location.pathname,
+  ]);
 
   useEffect(() => {
     if (dashboardSession.hasProvider) {
@@ -30,38 +75,18 @@ const RequireAuth = ({ children }: RequireAuthProps) => {
         return;
       }
 
-      const user = dashboardSession.currentUser;
-      if (!user) {
+      if (providerAccess?.status === "unauthenticated") {
         const next = encodeURIComponent(`${location.pathname}${location.search || ""}`);
         navigate(`/login?next=${next}`);
         return;
       }
 
-      const grants = resolveGrants(user || null);
-      const accessRole = resolveAccessRole(user || null);
-      const isOwner = accessRole === "owner_primary" || accessRole === "owner_secondary";
-      if (location.pathname.startsWith("/dashboard/seguranca") && !isOwner) {
-        const target = getFirstAllowedDashboardRoute(grants);
-        toast({
-          title: "Acesso negado",
-          description: "A área de segurança é restrita aos donos.",
-        });
-        navigate(target, { replace: true });
+      if (providerAccess?.status === "redirect") {
+        toast(providerAccess.toast);
+        navigate(providerAccess.target, { replace: true });
         return;
       }
-      if (
-        isFrontendRbacV2Enabled &&
-        location.pathname.startsWith("/dashboard") &&
-        !isDashboardPathAllowed(location.pathname, grants)
-      ) {
-        const target = getFirstAllowedDashboardRoute(grants);
-        toast({
-          title: "Acesso negado",
-          description: "Você foi redirecionado para uma área permitida do painel.",
-        });
-        navigate(target, { replace: true });
-        return;
-      }
+
       setIsChecking(false);
       return;
     }
@@ -116,12 +141,12 @@ const RequireAuth = ({ children }: RequireAuthProps) => {
     };
   }, [
     apiBase,
-    dashboardSession.currentUser,
     dashboardSession.hasProvider,
     dashboardSession.hasResolved,
     location.pathname,
     location.search,
     navigate,
+    providerAccess,
   ]);
 
   if (isChecking) {

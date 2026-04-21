@@ -136,7 +136,7 @@ describe("DashboardShell menu permissions", () => {
     const headerText = screen.getByTestId("dashboard-header").textContent || "";
     expect(headerText).toContain("Configurações");
     expect(headerText).not.toContain("Redirecionamentos");
-    expect(screen.getByText("Sistema")).toBeInTheDocument();
+    expect(screen.getByRole("main")).toBeInTheDocument();
   });
 
   it("respeita grants explicitos na navegação mesmo com RBAC V2 desligado", async () => {

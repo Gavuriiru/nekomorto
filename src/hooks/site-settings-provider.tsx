@@ -1,8 +1,10 @@
 import { defaultSettings, mergeSettings, SiteSettingsContext } from "@/hooks/site-settings-context";
+import { refetchPublicBootstrapCache, refreshPublicBootstrapCacheIfStale } from "@/hooks/use-public-bootstrap";
 import { getApiBase } from "@/lib/api-base";
 import { apiFetch } from "@/lib/api-client";
 import { normalizeAssetUrl } from "@/lib/asset-url";
 import { truncateMetaDescription } from "@/lib/meta-description";
+import { readWindowPublicBootstrap } from "@/lib/public-bootstrap-global";
 import { deriveThemeAccentTokens } from "@/lib/theme-accent";
 import type { SiteSettings } from "@/types/site-settings";
 import type { ReactNode } from "react";
@@ -102,25 +104,34 @@ export const SiteSettingsProvider = ({
   initiallyLoaded?: boolean;
 }) => {
   const apiBase = getApiBase();
+  const bootstrapSettings = readWindowPublicBootstrap()?.settings;
+  const resolvedInitialSettings = initialSettings || bootstrapSettings;
   const [settings, setSettings] = useState<SiteSettings>(
-    mergeSettings(defaultSettings, initialSettings || {}),
+    mergeSettings(defaultSettings, resolvedInitialSettings || {}),
   );
-  const [isLoading, setIsLoading] = useState(!initiallyLoaded);
+  const [isLoading, setIsLoading] = useState(!(initiallyLoaded || Boolean(resolvedInitialSettings)));
 
   const refresh = useCallback(
-    async (showLoading = true) => {
+    async (showLoading = true, options?: { force?: boolean }) => {
       if (showLoading) {
         setIsLoading(true);
       }
       try {
+        const bootstrapPayload = options?.force
+          ? await refetchPublicBootstrapCache(apiBase)
+          : await refreshPublicBootstrapCacheIfStale({ apiBase });
+        const nextSettings = bootstrapPayload?.settings;
+        if (nextSettings) {
+          setSettings(mergeSettings(defaultSettings, nextSettings));
+          return;
+        }
+
         const response = await apiFetch(apiBase, "/api/public/settings");
         if (!response.ok) {
           return;
         }
         const data = await response.json();
         setSettings(mergeSettings(defaultSettings, data.settings || {}));
-      } catch {
-        setSettings(defaultSettings);
       } finally {
         if (showLoading) {
           setIsLoading(false);
@@ -131,11 +142,26 @@ export const SiteSettingsProvider = ({
   );
 
   useEffect(() => {
-    if (initiallyLoaded) {
+    if (!resolvedInitialSettings) {
       return;
     }
-    refresh(true);
-  }, [initiallyLoaded, refresh]);
+    setSettings(mergeSettings(defaultSettings, resolvedInitialSettings));
+    setIsLoading(false);
+  }, [resolvedInitialSettings]);
+
+  useEffect(() => {
+    if (initiallyLoaded || resolvedInitialSettings) {
+      return;
+    }
+    void refresh(true);
+  }, [initiallyLoaded, refresh, resolvedInitialSettings]);
+
+  useEffect(() => {
+    if (!resolvedInitialSettings) {
+      return;
+    }
+    void refresh(false);
+  }, [refresh, resolvedInitialSettings]);
 
   useEffect(() => {
     if (isLoading) {

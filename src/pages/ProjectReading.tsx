@@ -32,7 +32,6 @@ import { getApiBase } from "@/lib/api-base";
 import { apiFetch, apiFetchBestEffort } from "@/lib/api-client";
 import { normalizeAssetUrl } from "@/lib/asset-url";
 import { resolveEpubInternalProjectReadingHref } from "@/lib/epub-internal-links";
-import { prepareLexicalViewerState } from "@/lib/lexical/viewer";
 import { createSlug } from "@/lib/post-content";
 import {
   buildDashboardProjectChapterEditorHref,
@@ -216,6 +215,50 @@ const ProjectReading = () => {
     [bootstrapData, slug],
   );
   const [project, setProject] = useState<ReadingProject | null>(bootstrapProject);
+  const chapterNumber = Number(chapter);
+  const volumeParamRaw = searchParams.get("volume");
+  const parsedVolumeParam = Number(volumeParamRaw);
+  const volumeParam =
+    volumeParamRaw !== null && Number.isFinite(parsedVolumeParam) ? parsedVolumeParam : undefined;
+  const bootstrapChapterContent = useMemo(() => {
+    if (!bootstrapProject || !Number.isFinite(chapterNumber)) {
+      return null;
+    }
+    const lookupKey = buildEpisodeKey(chapterNumber, volumeParam);
+    return (
+      bootstrapProject.episodeDownloads.find((entry) => {
+        if (volumeParam === undefined) {
+          return entry.number === chapterNumber;
+        }
+        return buildEpisodeKey(entry.number, entry.volume) === lookupKey;
+      }) || null
+    );
+  }, [bootstrapProject, chapterNumber, volumeParam]);
+  const bootstrapHasChapterContent = Boolean(
+    bootstrapChapterContent &&
+      (String(bootstrapChapterContent.content || "").trim() ||
+        normalizeProjectEpisodePages(bootstrapChapterContent.pages).length > 0),
+  );
+  const bootstrapReadableEpisodes = useMemo(
+    () => getReadableProjectEpisodes(bootstrapProject),
+    [bootstrapProject],
+  );
+  const bootstrapHasRequestedChapter = useMemo(
+    () =>
+      hasProjectEpisodeForRoute({
+        chapterNumber,
+        episodes: bootstrapReadableEpisodes,
+        volume: volumeParam,
+      }),
+    [bootstrapReadableEpisodes, chapterNumber, volumeParam],
+  );
+  const shouldHydrateProjectFromApi =
+    Boolean(slug) &&
+    (!bootstrapProject ||
+      bootstrapData?.payloadMode === "critical-home" ||
+      bootstrapReadableEpisodes.length === 0 ||
+      !bootstrapHasRequestedChapter);
+  const shouldHydrateChapterFromApi = true;
   const [chapterContent, setChapterContent] = useState<{
     number: number;
     volume?: number;
@@ -238,13 +281,12 @@ const ProjectReading = () => {
     hasPages?: boolean;
     coverImageUrl?: string;
     coverImageAlt?: string;
-  } | null>(null);
+  } | null>(bootstrapHasChapterContent ? bootstrapChapterContent : null);
   const [chapterReaderConfig, setChapterReaderConfig] = useState<Record<string, unknown> | null>(
-    null,
+    bootstrapHasChapterContent ? project?.readerConfig || null : null,
   );
-  const [preparedChapterEditorState, setPreparedChapterEditorState] = useState("");
   const [hasLoadedProject, setHasLoadedProject] = useState(Boolean(bootstrapProject));
-  const [hasLoadedChapter, setHasLoadedChapter] = useState(false);
+  const [hasLoadedChapter, setHasLoadedChapter] = useState(bootstrapHasChapterContent);
   const [chapterLoadError, setChapterLoadError] = useState(false);
   const [mediaVariants, setMediaVariants] = useState<UploadMediaVariantsMap>(
     () => bootstrapData?.mediaVariants || {},
@@ -256,30 +298,6 @@ const ProjectReading = () => {
     initialVisible: location.hash.startsWith("#comment-"),
     rootMargin: "400px 0px",
   });
-  const chapterNumber = Number(chapter);
-  const volumeParamRaw = searchParams.get("volume");
-  const parsedVolumeParam = Number(volumeParamRaw);
-  const volumeParam =
-    volumeParamRaw !== null && Number.isFinite(parsedVolumeParam) ? parsedVolumeParam : undefined;
-  const bootstrapReadableEpisodes = useMemo(
-    () => getReadableProjectEpisodes(bootstrapProject),
-    [bootstrapProject],
-  );
-  const bootstrapHasRequestedChapter = useMemo(
-    () =>
-      hasProjectEpisodeForRoute({
-        chapterNumber,
-        episodes: bootstrapReadableEpisodes,
-        volume: volumeParam,
-      }),
-    [bootstrapReadableEpisodes, chapterNumber, volumeParam],
-  );
-  const shouldHydrateProjectFromApi =
-    Boolean(slug) &&
-    (!bootstrapProject ||
-      bootstrapData?.payloadMode === "critical-home" ||
-      bootstrapReadableEpisodes.length === 0 ||
-      !bootstrapHasRequestedChapter);
 
   useEffect(() => {
     setProject(bootstrapProject);
@@ -664,11 +682,18 @@ const ProjectReading = () => {
     let isActive = true;
 
     const loadChapter = async () => {
+      if (!shouldHydrateChapterFromApi) {
+        if (isActive) {
+          setHasLoadedChapter(true);
+          setChapterLoadError(false);
+        }
+        return;
+      }
+
       setHasLoadedChapter(false);
       setChapterLoadError(false);
       setChapterContent(null);
       setChapterReaderConfig(null);
-      setPreparedChapterEditorState("");
 
       if (!project?.id || !Number.isFinite(chapterNumber)) {
         if (isActive) {
@@ -717,19 +742,24 @@ const ProjectReading = () => {
     return () => {
       isActive = false;
     };
-  }, [apiBase, chapterNumber, project?.id, volumeParam]);
+  }, [apiBase, chapterNumber, project?.id, shouldHydrateChapterFromApi, volumeParam]);
 
   useEffect(() => {
-    const content = String(chapterContent?.content || "");
-    if (!content) {
-      setPreparedChapterEditorState("");
+    if (!bootstrapHasChapterContent || !bootstrapChapterContent) {
       return;
     }
-    setPreparedChapterEditorState((current) => {
-      const nextValue = prepareLexicalViewerState(content);
-      return current === nextValue ? current : nextValue;
-    });
-  }, [chapterContent?.content]);
+    setChapterContent(bootstrapChapterContent);
+    setChapterReaderConfig(project?.readerConfig || null);
+    setHasLoadedChapter(true);
+    setChapterLoadError(false);
+  }, [bootstrapChapterContent, bootstrapHasChapterContent, project?.readerConfig]);
+
+  useEffect(() => {
+    if (!bootstrapHasChapterContent || !bootstrapChapterContent?.content) {
+      return;
+    }
+    void import("@/components/lexical/LexicalViewer");
+  }, [bootstrapChapterContent, bootstrapHasChapterContent]);
 
   useEffect(() => {
     if (!chapterContent?.content) {
@@ -996,7 +1026,6 @@ const ProjectReading = () => {
                         <Suspense fallback={<LexicalViewerFallback />}>
                           <LexicalViewer
                             value={chapterLexical}
-                            editorStateJson={preparedChapterEditorState || undefined}
                             ariaLabel={`Conte\u00fado de leitura de ${pageTitle}`}
                             className="post-content reader-content min-w-0 w-full text-muted-foreground"
                             onInternalLinkNavigate={handleInternalChapterLinkNavigate}
@@ -1115,7 +1144,6 @@ const ProjectReading = () => {
                     <Suspense fallback={<LexicalViewerFallback />}>
                       <LexicalViewer
                         value={chapterLexical}
-                        editorStateJson={preparedChapterEditorState || undefined}
                         ariaLabel={`Conteúdo de leitura de ${pageTitle}`}
                         className="post-content reader-content min-w-0 w-full text-muted-foreground"
                         onInternalLinkNavigate={handleInternalChapterLinkNavigate}

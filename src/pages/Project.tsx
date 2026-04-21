@@ -44,6 +44,7 @@ import { formatBytesCompact } from "@/lib/file-size";
 import { PROJECT_COVER_ASPECT_RATIO } from "@/lib/project-card-layout";
 import { buildProjectPublicReadingHref } from "@/lib/project-editor-routes";
 import { buildEpisodeKey } from "@/lib/project-episode-key";
+import { readWindowPublicBootstrap } from "@/lib/public-bootstrap-global";
 import {
   buildTranslationMap,
   sortByTranslatedLabel,
@@ -61,6 +62,7 @@ import {
   hasPublicEpisodeReadableContent,
 } from "@/lib/public-project-episodes";
 import type { UploadMediaVariantsMap } from "@/lib/upload-variants";
+import type { PublicBootstrapPayload, PublicBootstrapProject } from "@/types/public-bootstrap";
 import NotFound from "./NotFound";
 
 type ProjectFilterPillTone = "secondary" | "outline";
@@ -80,16 +82,56 @@ const ProjectFilterPillLink = ({ label, to, tone }: ProjectFilterPillLinkProps) 
   </PillButton>
 );
 
+const normalizeProjectRouteKey = (value: unknown) =>
+  String(value || "")
+    .trim()
+    .toLowerCase();
+
+const resolveBootstrapProject = (
+  bootstrapData: PublicBootstrapPayload | null,
+  slug: string | undefined,
+): PublicBootstrapProject | null => {
+  const rawSlug = String(slug || "").trim();
+  const routeKey = normalizeProjectRouteKey(rawSlug);
+  if (!routeKey && !rawSlug) {
+    return null;
+  }
+
+  return (
+    bootstrapData?.projects.find((candidate) => {
+      const candidateId = String(candidate.id || "").trim();
+      return (
+        candidateId === rawSlug ||
+        normalizeProjectRouteKey(candidateId) === routeKey ||
+        normalizeProjectRouteKey(candidate.title) === routeKey
+      );
+    }) || null
+  );
+};
+
 const ProjectPage = () => {
   const { slug } = useParams<{ slug: string }>();
   const apiBase = getApiBase();
-  const [project, setProject] = useState<Project | null>(null);
+  const bootstrapData = readWindowPublicBootstrap();
+  const hasFullBootstrap = Boolean(bootstrapData && bootstrapData.payloadMode !== "critical-home");
+  const bootstrapProject = resolveBootstrapProject(bootstrapData, slug);
+  const [project, setProject] = useState<Project | null>(() => (bootstrapProject as Project | null) || null);
   const [projectRevision, setProjectRevision] = useState("");
-  const [hasLoaded, setHasLoaded] = useState(false);
-  const [projectDirectory, setProjectDirectory] = useState<Project[]>([]);
-  const [tagTranslations, setTagTranslations] = useState<Record<string, string>>({});
-  const [genreTranslations, setGenreTranslations] = useState<Record<string, string>>({});
-  const [staffRoleTranslations, setStaffRoleTranslations] = useState<Record<string, string>>({});
+  const [hasLoaded, setHasLoaded] = useState(Boolean(bootstrapProject));
+  const [projectDirectory, setProjectDirectory] = useState<Project[]>(() =>
+    hasFullBootstrap ? ((bootstrapData?.projects || []) as Project[]) : [],
+  );
+  const [tagTranslations, setTagTranslations] = useState<Record<string, string>>(
+    () => bootstrapData?.tagTranslations?.tags || {},
+  );
+  const [genreTranslations, setGenreTranslations] = useState<Record<string, string>>(
+    () => bootstrapData?.tagTranslations?.genres || {},
+  );
+  const [staffRoleTranslations, setStaffRoleTranslations] = useState<Record<string, string>>(
+    () => bootstrapData?.tagTranslations?.staffRoles || {},
+  );
+  const shouldHydrateProjectFromApi = !bootstrapProject || !hasFullBootstrap;
+  const shouldHydrateProjectMetaFromApi = !hasFullBootstrap;
   const { currentUser } = usePublicCurrentUser();
   const [episodePage, setEpisodePage] = useState(1);
   const [mediaVariants, setMediaVariants] = useState<UploadMediaVariantsMap>({});
@@ -124,6 +166,10 @@ const ProjectPage = () => {
     if (!slug) {
       return;
     }
+    if (!shouldHydrateProjectFromApi) {
+      setHasLoaded(true);
+      return;
+    }
     let isActive = true;
     const load = async () => {
       try {
@@ -156,11 +202,26 @@ const ProjectPage = () => {
         }
       }
     };
-    load();
+    void load();
     return () => {
       isActive = false;
     };
-  }, [apiBase, slug]);
+  }, [apiBase, shouldHydrateProjectFromApi, slug]);
+
+  useEffect(() => {
+    if (!bootstrapProject) {
+      return;
+    }
+    setProject((bootstrapProject as Project) || null);
+    setHasLoaded(true);
+    setMediaVariants(bootstrapData?.mediaVariants || {});
+  }, [bootstrapData?.mediaVariants, bootstrapProject]);
+
+  useEffect(() => {
+    if (!project && bootstrapProject) {
+      setProject(bootstrapProject as Project);
+    }
+  }, [bootstrapProject, project]);
 
   useEffect(() => {
     if (!project?.id) {
@@ -175,6 +236,9 @@ const ProjectPage = () => {
     });
   }, [apiBase, project?.id]);
   useEffect(() => {
+    if (!shouldHydrateProjectMetaFromApi) {
+      return;
+    }
     let isActive = true;
     const loadMeta = async () => {
       try {
@@ -208,11 +272,11 @@ const ProjectPage = () => {
       }
     };
 
-    loadMeta();
+    void loadMeta();
     return () => {
       isActive = false;
     };
-  }, [apiBase]);
+  }, [apiBase, shouldHydrateProjectMetaFromApi]);
 
   const projectDetails = useMemo(() => {
     if (!project) {

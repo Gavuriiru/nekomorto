@@ -28,6 +28,19 @@ export const createDataRepositoryAdaptersRuntime = (dependencies = {}) => {
   const loadSecurityEvents = () => callRepositoryMethod("loadSecurityEvents", [], []);
   const upsertSecurityEvent = (event) => callRepositoryMethod("upsertSecurityEvent", [event], null);
 
+  const loadUserLocalAuthRecord = (userId) =>
+    callRepositoryMethod("loadUserLocalAuthRecord", [userId], null);
+  const findUserLocalAuthRecordByIdentifier = (identifier) =>
+    callRepositoryMethod("findUserLocalAuthRecordByIdentifier", [identifier], null);
+  const writeUserLocalAuthRecord = (userId, record) =>
+    callRepositoryMethod("writeUserLocalAuthRecord", [userId, record], null);
+  const deleteUserLocalAuthRecord = (userId) =>
+    callRepositoryMethod("deleteUserLocalAuthRecord", [userId], null);
+  const loadAllUserLocalAuthRecords = () =>
+    callRepositoryMethod("loadAllUserLocalAuthRecords", [], []);
+
+  void loadAllUserLocalAuthRecords;
+
   const loadAdminExportJobs = () => callRepositoryMethod("loadAdminExportJobs", [], []);
   const upsertAdminExportJob = (job) => callRepositoryMethod("upsertAdminExportJob", [job], null);
 
@@ -67,6 +80,8 @@ export const createDataRepositoryAdaptersRuntime = (dependencies = {}) => {
   return {
     appendSecretRotation,
     claimWebhookDelivery,
+    deleteUserLocalAuthRecord,
+    findUserLocalAuthRecordByIdentifier,
     findWebhookDelivery,
     isEpubImportJobStorageAvailable,
     isProjectImageExportJobStorageAvailable,
@@ -77,6 +92,7 @@ export const createDataRepositoryAdaptersRuntime = (dependencies = {}) => {
     loadProjectImageImportJobs,
     loadSecretRotations,
     loadSecurityEvents,
+    loadUserLocalAuthRecord,
     loadWebhookDeliveries,
     loadWebhookState,
     upsertAdminExportJob,
@@ -85,8 +101,11 @@ export const createDataRepositoryAdaptersRuntime = (dependencies = {}) => {
     upsertProjectImageImportJob,
     upsertSecurityEvent,
     upsertWebhookDelivery,
+    writeUserLocalAuthRecord,
     writeWebhookState,
   };
+
+  void loadAllUserLocalAuthRecords;
 };
 
 export default createDataRepositoryAdaptersRuntime;

@@ -523,7 +523,7 @@ describe("Dashboard overview async states", () => {
     ).toBeInTheDocument();
   });
 
-  it("mantem placeholders operacionais sem expor badge OK durante o carregamento", async () => {
+  it("mantem o skeleton global sem expor badge OK durante o carregamento inicial", async () => {
     const operationalDeferred = createDeferredResponse();
     installDashboardApiMock({
       operationalAlertsResponse: operationalDeferred.promise,
@@ -536,15 +536,14 @@ describe("Dashboard overview async states", () => {
     );
 
     await screen.findByRole("heading", { name: /Painel de controle da comunidade/i });
-    expect(screen.getByTestId("dashboard-ops-loading-badge")).toBeInTheDocument();
-    expect(screen.getByTestId("dashboard-ops-loading")).toBeInTheDocument();
+    expect(screen.getByTestId("dashboard-loading-skeleton")).toBeInTheDocument();
     expect(screen.queryByText("OK")).not.toBeInTheDocument();
 
     operationalDeferred.resolve(mockJsonResponse(true, buildOperationalAlertsPayload()));
 
     expect(await screen.findByText("OK")).toBeInTheDocument();
     await waitFor(() => {
-      expect(screen.queryByTestId("dashboard-ops-loading")).not.toBeInTheDocument();
+      expect(screen.queryByTestId("dashboard-loading-skeleton")).not.toBeInTheDocument();
     });
   });
 

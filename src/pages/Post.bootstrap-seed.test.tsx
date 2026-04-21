@@ -96,6 +96,24 @@ describe("Post bootstrap-first", () => {
           tags: [],
         },
       ],
+      currentPostDetail: {
+        id: "post-1",
+        slug: "post-teste",
+        title: "Post Bootstrap",
+        excerpt: "Resumo inicial",
+        content: "<p>Conteúdo completo do bootstrap</p>",
+        contentFormat: "lexical",
+        author: "Admin",
+        publishedAt: "2026-02-10T12:00:00.000Z",
+        coverImageUrl: "/uploads/post-cover.jpg",
+        coverAlt: "Capa inicial",
+        projectId: "project-1",
+        tags: [],
+        views: 10,
+        commentsCount: 2,
+        seoTitle: "SEO Bootstrap",
+        seoDescription: "Descrição SEO bootstrap",
+      },
       updates: [],
       teamMembers: [
         {
@@ -141,7 +159,7 @@ describe("Post bootstrap-first", () => {
     });
   });
 
-  it("renderiza hero a partir do bootstrap antes do fetch completo e nao dispara chamadas redundantes", async () => {
+  it("renderiza conteudo completo do bootstrap no first paint e revalida em background", async () => {
     render(
       <MemoryRouter>
         <Post />
@@ -153,6 +171,7 @@ describe("Post bootstrap-first", () => {
       "href",
       "/dashboard/posts?edit=post-1",
     );
+    expect(await screen.findByTestId("lexical-viewer")).toBeInTheDocument();
 
     const calledEndpoints = apiFetchMock.mock.calls.map((call) => String(call[1] || ""));
     expect(calledEndpoints).toContain("/api/public/posts/post-teste");

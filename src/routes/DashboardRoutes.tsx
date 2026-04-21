@@ -1,3 +1,4 @@
+import DashboardShell from "@/components/DashboardShell";
 import { DashboardPreferencesProvider } from "@/hooks/dashboard-preferences-provider";
 import { DashboardSessionProvider } from "@/hooks/dashboard-session-provider";
 import "@/styles/project-editor.css";
@@ -27,47 +28,51 @@ const PageTransition = ({ children }: { children: ReactNode }) => (
   <div className="page-transition">{children}</div>
 );
 
-const withAuth = (page: ReactNode) => (
-  <PageTransition>
-    <RequireAuth>{page}</RequireAuth>
-  </PageTransition>
+const withPageTransition = (page: ReactNode) => <PageTransition>{page}</PageTransition>;
+
+const DashboardProtectedRoutes = () => (
+  <RequireAuth>
+    <DashboardShell>
+      <Routes>
+        <Route index element={withPageTransition(<Dashboard />)} />
+        <Route path="usuarios" element={withPageTransition(<DashboardUsers />)} />
+        <Route path="posts" element={withPageTransition(<DashboardPosts />)} />
+        <Route path="projetos" element={withPageTransition(<DashboardProjectsEditor />)} />
+        <Route
+          path="projetos/:projectId/episodios"
+          element={withPageTransition(<DashboardProjectEpisodeEditor />)}
+        />
+        <Route
+          path="projetos/:projectId/episodios/:episodeNumber"
+          element={withPageTransition(<DashboardProjectEpisodeEditor />)}
+        />
+        <Route
+          path="projetos/:projectId/capitulos"
+          element={withPageTransition(<DashboardProjectChapterEditor />)}
+        />
+        <Route
+          path="projetos/:projectId/capitulos/:chapterNumber"
+          element={withPageTransition(<DashboardProjectChapterEditor />)}
+        />
+        <Route path="comentarios" element={withPageTransition(<DashboardComments />)} />
+        <Route path="uploads" element={withPageTransition(<DashboardUploads />)} />
+        <Route path="analytics" element={withPageTransition(<DashboardAnalytics />)} />
+        <Route path="audit-log" element={withPageTransition(<DashboardAuditLog />)} />
+        <Route path="paginas" element={withPageTransition(<DashboardPages />)} />
+        <Route path="configuracoes" element={withPageTransition(<DashboardSettings />)} />
+        <Route path="redirecionamentos" element={withPageTransition(<DashboardRedirects />)} />
+        <Route path="webhooks" element={withPageTransition(<DashboardWebhooks />)} />
+        <Route path="seguranca" element={withPageTransition(<DashboardSecurity />)} />
+        <Route path="*" element={<NotFound />} />
+      </Routes>
+    </DashboardShell>
+  </RequireAuth>
 );
 
 const DashboardRoutes = () => (
   <DashboardSessionProvider>
     <DashboardPreferencesProvider>
-      <Routes>
-        <Route index element={withAuth(<Dashboard />)} />
-        <Route path="usuarios" element={withAuth(<DashboardUsers />)} />
-        <Route path="posts" element={withAuth(<DashboardPosts />)} />
-        <Route path="projetos" element={withAuth(<DashboardProjectsEditor />)} />
-        <Route
-          path="projetos/:projectId/episodios"
-          element={withAuth(<DashboardProjectEpisodeEditor />)}
-        />
-        <Route
-          path="projetos/:projectId/episodios/:episodeNumber"
-          element={withAuth(<DashboardProjectEpisodeEditor />)}
-        />
-        <Route
-          path="projetos/:projectId/capitulos"
-          element={withAuth(<DashboardProjectChapterEditor />)}
-        />
-        <Route
-          path="projetos/:projectId/capitulos/:chapterNumber"
-          element={withAuth(<DashboardProjectChapterEditor />)}
-        />
-        <Route path="comentarios" element={withAuth(<DashboardComments />)} />
-        <Route path="uploads" element={withAuth(<DashboardUploads />)} />
-        <Route path="analytics" element={withAuth(<DashboardAnalytics />)} />
-        <Route path="audit-log" element={withAuth(<DashboardAuditLog />)} />
-        <Route path="paginas" element={withAuth(<DashboardPages />)} />
-        <Route path="configuracoes" element={withAuth(<DashboardSettings />)} />
-        <Route path="redirecionamentos" element={withAuth(<DashboardRedirects />)} />
-        <Route path="webhooks" element={withAuth(<DashboardWebhooks />)} />
-        <Route path="seguranca" element={withAuth(<DashboardSecurity />)} />
-        <Route path="*" element={<NotFound />} />
-      </Routes>
+      <DashboardProtectedRoutes />
     </DashboardPreferencesProvider>
   </DashboardSessionProvider>
 );

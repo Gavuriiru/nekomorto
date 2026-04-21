@@ -15,7 +15,6 @@ describe("getPostStatusLabel", () => {
   });
 
   it("should return 'Rascunho' for any other status (default case)", () => {
-    // @ts-expect-error - testing invalid status
-    expect(getPostStatusLabel("invalid" as any)).toBe("Rascunho");
+    expect(getPostStatusLabel("invalid" as never)).toBe("Rascunho");
   });
 });
