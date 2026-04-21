@@ -1,4 +1,4 @@
-FROM node:24-alpine AS base
+FROM node:25-alpine AS base
 
 # Install essential runtime system dependencies
 RUN apk add --no-cache libc6-compat openssl libcrypto3 libssl3
