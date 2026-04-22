@@ -108,6 +108,13 @@ export const createDataRepositoryBasicRuntime = (dependencies = {}) => {
     return normalized;
   };
 
+  const loadUserIdentityRecords = (options = {}) => {
+    if (!hasMethod("loadUserIdentityRecords")) {
+      return [];
+    }
+    return dataRepository.loadUserIdentityRecords(options);
+  };
+
   const loadUserLocalAuthRecord = (userId) => {
     if (!hasMethod("loadUserLocalAuthRecord")) {
       return null;
@@ -203,6 +210,7 @@ export const createDataRepositoryBasicRuntime = (dependencies = {}) => {
     loadAllUserLocalAuthRecords,
     loadLinkTypes,
     loadOwnerIds,
+    loadUserIdentityRecords,
     loadUserLocalAuthRecord,
     loadUsers,
     normalizeLinkTypes,

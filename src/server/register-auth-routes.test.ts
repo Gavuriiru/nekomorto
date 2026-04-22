@@ -105,14 +105,31 @@ const createDependencies = (overrides: Record<string, unknown> = {}) => {
     discordApi: "https://discord.com/api",
     discordClientId: "client-id",
     discordClientSecret: "client-secret",
+    googleClientId: "google-client-id",
+    googleClientSecret: "google-client-secret",
+    googleTokenApi: "https://oauth2.googleapis.com/token",
+    googleUserinfoApi: "https://openidconnect.googleapis.com/v1/userinfo",
+    googleScopes: ["openid", "email", "profile"],
     ensureOwnerUser: vi.fn(),
     establishAuthenticatedSession: vi.fn(async () => undefined),
+    findUserIdentityRecord: vi.fn(() => null),
+    findUserIdentityRecordsByEmail: vi.fn(() => []),
     findUserLocalAuthRecordByIdentifier: vi.fn(() => null),
     getRequestIp: vi.fn(() => "203.0.113.5"),
+    loadOwnerIds: vi.fn(() => []),
+    loadUserIdentityRecords: vi.fn(() => []),
+    loadUserLocalAuthRecord: vi.fn(() => null),
+    revokeSessionBySid: vi.fn(async () => undefined),
+    writeAllowedUsers: vi.fn(),
+    writeOwnerIds: vi.fn(),
+    writeUserIdentityRecords: vi.fn(),
+    writeUserLocalAuthRecord: vi.fn(),
+    writeUsers: vi.fn(),
+    deleteUserLocalAuthRecord: vi.fn(),
+    isTotpEnabledForUser: vi.fn(() => false),
     handleAuthFailureSecuritySignals: vi.fn(),
     handleMfaFailureSecuritySignals: vi.fn(),
     isAllowedOrigin: vi.fn(() => true),
-    isTotpEnabledForUser: vi.fn(() => false),
     loadAllowedUsers: vi.fn(() => ["user-1"]),
     loadUsers: vi.fn(() => []),
     markMfaEnrollmentRequiredForSession: vi.fn(),
@@ -122,6 +139,7 @@ const createDependencies = (overrides: Record<string, unknown> = {}) => {
     primaryAppOrigin: "https://example.com",
     resolveAuthAppOrigin: vi.fn(() => "https://example.com"),
     resolveDiscordRedirectUri: vi.fn(() => "https://example.com/login"),
+    resolveGoogleRedirectUri: vi.fn(() => "https://example.com/auth/google/callback"),
     revokeUserSessionIndexRecord: vi.fn(),
     saveSessionState: vi.fn(async () => undefined),
     scopes: ["identify"],
@@ -139,6 +157,7 @@ const createDependencies = (overrides: Record<string, unknown> = {}) => {
     sessionIndexTouchTsBySid,
     shouldRequireTotpEnrollmentForPasswordLogin: vi.fn(() => false),
     syncPersistedDiscordAvatarForLogin: vi.fn(),
+    upsertUserIdentityRecord: vi.fn(),
     updateSessionIndexFromRequest: vi.fn(),
     verifyLocalPassword: vi.fn(async () => false),
     verifyTotpOrRecoveryCode: vi.fn(() => ({ method: "totp", ok: true })),
@@ -328,6 +347,423 @@ describe("registerAuthRoutes", () => {
     expect(res.body).toEqual({ error: "invalid_credentials" });
     expect(findUserLocalAuthRecordByIdentifier).toHaveBeenCalledWith("user@example.com");
     expect(verifyLocalPassword).toHaveBeenCalledWith("wrong-password", "stored-hash");
+  });
+
+  it("accepts password login using email identifier when local auth has email and username", async () => {
+    const findUserLocalAuthRecordByIdentifier = vi.fn(() => ({
+      userId: "user-1",
+      emailNormalized: "user@example.com",
+      usernameNormalized: "userone",
+      passwordHash: "stored-hash",
+      disabledAt: null,
+    }));
+    const verifyLocalPassword = vi.fn(async () => true);
+    const establishAuthenticatedSession = vi.fn(async () => undefined);
+    const dependencies = createDependencies({
+      establishAuthenticatedSession,
+      findUserLocalAuthRecordByIdentifier,
+      loadUsers: vi.fn(() => [
+        {
+          id: "user-1",
+          name: "User One",
+          username: "userone",
+          email: "user@example.com",
+        },
+      ]),
+      verifyLocalPassword,
+    });
+    const routeLayer = getRouteLayer(dependencies.router, "post", "/auth/password/login");
+
+    const res = await invokeRoute(routeLayer, {
+      body: {
+        identifier: "user@example.com",
+        password: "secret-123",
+      },
+      session: {},
+    });
+
+    expect(res.statusCode).toBe(200);
+    expect(findUserLocalAuthRecordByIdentifier).toHaveBeenCalledWith("user@example.com");
+  });
+
+  it("accepts password login using username identifier when local auth has email and username", async () => {
+    const findUserLocalAuthRecordByIdentifier = vi.fn(() => ({
+      userId: "user-1",
+      emailNormalized: "user@example.com",
+      usernameNormalized: "userone",
+      passwordHash: "stored-hash",
+      disabledAt: null,
+    }));
+    const verifyLocalPassword = vi.fn(async () => true);
+    const establishAuthenticatedSession = vi.fn(async () => undefined);
+    const dependencies = createDependencies({
+      establishAuthenticatedSession,
+      findUserLocalAuthRecordByIdentifier,
+      loadUsers: vi.fn(() => [
+        {
+          id: "user-1",
+          name: "User One",
+          username: "userone",
+          email: "user@example.com",
+        },
+      ]),
+      verifyLocalPassword,
+    });
+    const routeLayer = getRouteLayer(dependencies.router, "post", "/auth/password/login");
+
+    const res = await invokeRoute(routeLayer, {
+      body: {
+        identifier: "userone",
+        password: "secret-123",
+      },
+      session: {},
+    });
+
+    expect(res.statusCode).toBe(200);
+    expect(findUserLocalAuthRecordByIdentifier).toHaveBeenCalledWith("userone");
+  });
+
+  it("starts Google auth with the resolved callback URI", async () => {
+    const saveSessionState = vi.fn(async () => undefined);
+    const resolveGoogleRedirectUri = vi.fn(() => "https://example.com/auth/google/callback");
+    const dependencies = createDependencies({
+      resolveGoogleRedirectUri,
+      saveSessionState,
+    });
+    const routeLayer = getRouteLayer(dependencies.router, "get", "/auth/google");
+
+    const res = await invokeRoute(routeLayer, {
+      query: {
+        next: "/dashboard",
+      },
+      session: {},
+    });
+
+    expect(resolveGoogleRedirectUri).toHaveBeenCalled();
+    expect(saveSessionState).toHaveBeenCalled();
+    expect(res.redirectUrl).toContain("https://accounts.google.com/o/oauth2/v2/auth?");
+    expect(res.redirectUrl).toContain(
+      encodeURIComponent("https://example.com/auth/google/callback"),
+    );
+  });
+
+  it("persists the resolved Google redirect URI in session before redirecting", async () => {
+    const resolveGoogleRedirectUri = vi.fn(() => "https://example.com/auth/google/callback");
+    const dependencies = createDependencies({
+      resolveGoogleRedirectUri,
+      saveSessionState: vi.fn(async () => undefined),
+    });
+    const routeLayer = getRouteLayer(dependencies.router, "get", "/auth/google");
+    const req = {
+      query: {
+        next: "/dashboard",
+      },
+      session: {} as Record<string, unknown>,
+    };
+
+    const res = await invokeRoute(routeLayer, req);
+
+    expect(res.redirectUrl).toContain("https://accounts.google.com/o/oauth2/v2/auth?");
+    expect(req.session.googleRedirectUri).toBe("https://example.com/auth/google/callback");
+  });
+
+  it("uses the session Google redirect URI during token exchange", async () => {
+    const fetchMock = vi
+      .fn()
+      .mockResolvedValueOnce({
+        ok: true,
+        json: async () => ({ access_token: "google-token" }),
+      })
+      .mockResolvedValueOnce({
+        ok: true,
+        json: async () => ({
+          sub: "google-sub-1",
+          email: "user@example.com",
+          email_verified: true,
+          name: "User One",
+          picture: "https://example.com/avatar.png",
+        }),
+      });
+    const dependencies = createDependencies({
+      findUserIdentityRecord: vi.fn(() => ({
+        id: "google:google-sub-1",
+        userId: "user-1",
+        provider: "google",
+        providerSubject: "google-sub-1",
+        emailNormalized: "user@example.com",
+        data: {},
+        linkedAt: "2026-01-01T00:00:00.000Z",
+        createdAt: "2026-01-01T00:00:00.000Z",
+      })),
+      loadUsers: vi.fn(() => [
+        {
+          id: "user-1",
+          name: "User One",
+          username: "userone",
+          email: "user@example.com",
+        },
+      ]),
+      upsertUserIdentityRecord: vi.fn(),
+      resolveGoogleRedirectUri: vi.fn(() => "https://fallback.example.com/auth/google/callback"),
+    });
+    const routeLayer = getRouteLayer(dependencies.router, "get", "/auth/google/callback");
+
+    const originalFetch = globalThis.fetch;
+    Object.defineProperty(globalThis, "fetch", {
+      configurable: true,
+      value: fetchMock,
+    });
+
+    const res = await invokeRoute(routeLayer, {
+      query: { code: "google-code", state: "google-state" },
+      session: {
+        googleOauthState: "google-state",
+        googleRedirectUri: "https://example.com/auth/google/callback",
+        loginNext: "/dashboard",
+        loginAppOrigin: "https://example.com",
+      },
+    });
+
+    Object.defineProperty(globalThis, "fetch", {
+      configurable: true,
+      value: originalFetch,
+    });
+
+    expect(fetchMock.mock.calls[0]?.[1]?.body?.toString()).toContain(
+      "redirect_uri=https%3A%2F%2Fexample.com%2Fauth%2Fgoogle%2Fcallback",
+    );
+    expect(res.statusCode).toBe(200);
+  });
+
+  it("uses user_identities to resolve Google callback", async () => {
+    const fetchMock = vi
+      .fn()
+      .mockResolvedValueOnce({
+        ok: true,
+        json: async () => ({ access_token: "google-token" }),
+      })
+      .mockResolvedValueOnce({
+        ok: true,
+        json: async () => ({
+          sub: "google-sub-1",
+          email: "user@example.com",
+          email_verified: true,
+          name: "User One",
+          picture: "https://example.com/avatar.png",
+        }),
+      });
+    const findUserIdentityRecord = vi.fn(() => ({
+      id: "google:google-sub-1",
+      userId: "user-1",
+      provider: "google",
+      providerSubject: "google-sub-1",
+      emailNormalized: "user@example.com",
+      data: {},
+      linkedAt: "2026-01-01T00:00:00.000Z",
+      createdAt: "2026-01-01T00:00:00.000Z",
+    }));
+    const loadUsers = vi.fn(() => [
+      {
+        id: "user-1",
+        name: "User One",
+        username: "userone",
+        email: "user@example.com",
+      },
+    ]);
+    const upsertUserIdentityRecord = vi.fn();
+    const dependencies = createDependencies({
+      findUserIdentityRecord,
+      loadUsers,
+      upsertUserIdentityRecord,
+    });
+    const routeLayer = getRouteLayer(dependencies.router, "get", "/auth/google/callback");
+
+    const originalFetch = globalThis.fetch;
+    Object.defineProperty(globalThis, "fetch", {
+      configurable: true,
+      value: fetchMock,
+    });
+
+    const req = {
+      query: { code: "google-code", state: "google-state" },
+      session: {
+        googleOauthState: "google-state",
+        googleRedirectUri: "https://example.com/auth/google/callback",
+        loginNext: "/dashboard",
+        loginAppOrigin: "https://example.com",
+      },
+    };
+
+    const res = await invokeRoute(routeLayer, req as Record<string, unknown>);
+
+    Object.defineProperty(globalThis, "fetch", {
+      configurable: true,
+      value: originalFetch,
+    });
+
+    expect(findUserIdentityRecord).toHaveBeenCalledWith("google", "google-sub-1");
+    expect(upsertUserIdentityRecord).toHaveBeenCalled();
+    expect(res.statusCode).toBe(200);
+  });
+
+  it("rejects Google callback when email is not verified", async () => {
+    const fetchMock = vi
+      .fn()
+      .mockResolvedValueOnce({
+        ok: true,
+        json: async () => ({ access_token: "google-token" }),
+      })
+      .mockResolvedValueOnce({
+        ok: true,
+        json: async () => ({
+          sub: "google-sub-1",
+          email: "user@example.com",
+          email_verified: false,
+          name: "User One",
+        }),
+      });
+    const findUserIdentityRecord = vi.fn(() => ({
+      id: "google:google-sub-1",
+      userId: "user-1",
+      provider: "google",
+      providerSubject: "google-sub-1",
+    }));
+    const dependencies = createDependencies({
+      findUserIdentityRecord,
+    });
+    const routeLayer = getRouteLayer(dependencies.router, "get", "/auth/google/callback");
+
+    const originalFetch = globalThis.fetch;
+    Object.defineProperty(globalThis, "fetch", {
+      configurable: true,
+      value: fetchMock,
+    });
+
+    const res = await invokeRoute(routeLayer, {
+      query: { code: "google-code", state: "google-state" },
+      session: {
+        googleOauthState: "google-state",
+        googleRedirectUri: "https://example.com/auth/google/callback",
+        loginAppOrigin: "https://example.com",
+      },
+    });
+
+    Object.defineProperty(globalThis, "fetch", {
+      configurable: true,
+      value: originalFetch,
+    });
+
+    expect(res.redirectUrl).toBe("https://example.com/login");
+  });
+
+  it("uses user_identities to resolve Discord callback", async () => {
+    const fetchMock = vi
+      .fn()
+      .mockResolvedValueOnce({
+        ok: true,
+        json: async () => ({ token_type: "Bearer", access_token: "discord-token" }),
+      })
+      .mockResolvedValueOnce({
+        ok: true,
+        json: async () => ({
+          id: "discord-user-1",
+          username: "userone",
+          global_name: "User One",
+          email: "user@example.com",
+          verified: true,
+        }),
+      });
+    const findUserIdentityRecord = vi.fn(() => ({
+      id: "discord:discord-user-1",
+      userId: "user-1",
+      provider: "discord",
+      providerSubject: "discord-user-1",
+      emailNormalized: "user@example.com",
+      data: {},
+      linkedAt: "2026-01-01T00:00:00.000Z",
+      createdAt: "2026-01-01T00:00:00.000Z",
+    }));
+    const loadUsers = vi.fn(() => [
+      {
+        id: "user-1",
+        name: "User One",
+        username: "userone",
+        email: "user@example.com",
+      },
+    ]);
+    const upsertUserIdentityRecord = vi.fn();
+    const dependencies = createDependencies({
+      findUserIdentityRecord,
+      loadAllowedUsers: vi.fn(() => ["user-1"]),
+      loadUsers,
+      upsertUserIdentityRecord,
+    });
+    const routeLayer = getRouteLayer(dependencies.router, "get", "/login");
+
+    const originalFetch = globalThis.fetch;
+    Object.defineProperty(globalThis, "fetch", {
+      configurable: true,
+      value: fetchMock,
+    });
+
+    const res = await invokeRoute(routeLayer, {
+      query: { code: "discord-code", state: "oauth-state" },
+      session: {
+        oauthState: "oauth-state",
+        discordRedirectUri: "https://example.com/login",
+        loginNext: "/dashboard",
+        loginAppOrigin: "https://example.com",
+      },
+    });
+
+    Object.defineProperty(globalThis, "fetch", {
+      configurable: true,
+      value: originalFetch,
+    });
+
+    expect(findUserIdentityRecord).toHaveBeenCalledWith("discord", "discord-user-1");
+    expect(upsertUserIdentityRecord).toHaveBeenCalled();
+    expect(res.statusCode).toBe(200);
+  });
+
+  it("rejects Discord callback when identity is missing", async () => {
+    const fetchMock = vi
+      .fn()
+      .mockResolvedValueOnce({
+        ok: true,
+        json: async () => ({ token_type: "Bearer", access_token: "discord-token" }),
+      })
+      .mockResolvedValueOnce({
+        ok: true,
+        json: async () => ({ id: "discord-user-1", username: "userone" }),
+      });
+    const dependencies = createDependencies({
+      findUserIdentityRecord: vi.fn(() => null),
+    });
+    const routeLayer = getRouteLayer(dependencies.router, "get", "/login");
+
+    const originalFetch = globalThis.fetch;
+    Object.defineProperty(globalThis, "fetch", {
+      configurable: true,
+      value: fetchMock,
+    });
+
+    const res = await invokeRoute(routeLayer, {
+      query: { code: "discord-code", state: "oauth-state" },
+      session: {
+        oauthState: "oauth-state",
+        discordRedirectUri: "https://example.com/login",
+        loginAppOrigin: "https://example.com",
+        destroy: vi.fn((callback?: () => void) => callback?.()),
+      },
+    });
+
+    Object.defineProperty(globalThis, "fetch", {
+      configurable: true,
+      value: originalFetch,
+    });
+
+    expect(res.redirectUrl).toBe("https://example.com/login");
   });
 
   it("clears the session cookie with the same secure attributes on logout", async () => {

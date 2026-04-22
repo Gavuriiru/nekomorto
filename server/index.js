@@ -688,7 +688,10 @@ const { appendAuditLog, isAuditActionEnabled, loadAuditLog, parseAuditTs } = cre
 });
 
 const DISCORD_API = "https://discord.com/api/v10";
+const GOOGLE_TOKEN_API = "https://oauth2.googleapis.com/token";
+const GOOGLE_USERINFO_API = "https://openidconnect.googleapis.com/v1/userinfo";
 const SCOPES = ["identify", "email"];
+const GOOGLE_SCOPES = ["openid", "email", "profile"];
 
 const {
   ADMIN_EXPORT_TTL_HOURS,
@@ -699,9 +702,12 @@ const {
   ALLOWED_ORIGINS,
   BOOTSTRAP_TOKEN,
   CONFIGURED_DISCORD_REDIRECT_URI,
+  CONFIGURED_GOOGLE_REDIRECT_URI,
   DATABASE_URL,
   DISCORD_CLIENT_ID,
   DISCORD_CLIENT_SECRET,
+  GOOGLE_CLIENT_ID,
+  GOOGLE_CLIENT_SECRET,
   IDEMPOTENCY_TTL_MS,
   MFA_ENROLLMENT_TTL_MS,
   MFA_ICON_URL,
@@ -874,7 +880,10 @@ const dataRepositoryAdaptersRuntime = createDataRepositoryAdaptersRuntime({
 
 const {
   claimWebhookDelivery,
+  findUserIdentityRecord,
+  findUserIdentityRecordsByEmail,
   findUserLocalAuthRecordByIdentifier,
+  deleteUserLocalAuthRecord,
   isEpubImportJobStorageAvailable,
   isProjectImageImportJobStorageAvailable,
   loadAdminExportJobs,
@@ -888,7 +897,9 @@ const {
   upsertProjectImageExportJob,
   upsertProjectImageImportJob,
   upsertSecurityEvent,
+  upsertUserIdentityRecord,
   upsertWebhookDelivery,
+  writeUserIdentityRecords,
   writeWebhookState,
 } = dataRepositoryAdaptersRuntime;
 
@@ -899,11 +910,14 @@ const {
   loadAllowedUsers,
   loadLinkTypes,
   loadOwnerIds,
+  loadUserIdentityRecords,
+  loadUserLocalAuthRecord,
   loadUsers,
   normalizeLinkTypes,
   writeAllowedUsers,
   writeLinkTypes,
   writeOwnerIds,
+  writeUserLocalAuthRecord,
   writeUsers,
 } = createDataRepositoryBasicRuntime({
   dataRepository,
@@ -921,6 +935,7 @@ const {
   httpServer,
   isAllowedOrigin,
   resolveDiscordRedirectUri,
+  resolveGoogleRedirectUri,
   toAbsoluteUrl,
   viteDevServer,
 } = await createServerPlatformRuntime({
@@ -929,6 +944,7 @@ const {
   repoRootDir: REPO_ROOT_DIR,
   allowedOrigins: ALLOWED_ORIGINS,
   configuredDiscordRedirectUri: CONFIGURED_DISCORD_REDIRECT_URI,
+  configuredGoogleRedirectUri: CONFIGURED_GOOGLE_REDIRECT_URI,
   primaryAppOrigin: PRIMARY_APP_ORIGIN,
   isProduction,
 });
@@ -966,9 +982,19 @@ const {
   sessionSecret: SESSION_SECRET,
 });
 
-if (!DISCORD_CLIENT_ID || !DISCORD_CLIENT_SECRET || !SESSION_SECRET) {
-  if (process.env.NODE_ENV === "production") {
-    throw new Error("Missing DISCORD_CLIENT_ID, DISCORD_CLIENT_SECRET, or SESSION_SECRET in env.");
+if (!SESSION_SECRET && process.env.NODE_ENV === "production") {
+  throw new Error("Missing SESSION_SECRET in env.");
+}
+if ((!DISCORD_CLIENT_ID || !DISCORD_CLIENT_SECRET) && process.env.NODE_ENV === "production") {
+  throw new Error("Missing DISCORD_CLIENT_ID or DISCORD_CLIENT_SECRET in env.");
+}
+const isGoogleOAuthConfigured = Boolean(String(GOOGLE_CLIENT_ID || "").trim() || String(GOOGLE_CLIENT_SECRET || "").trim());
+if (isGoogleOAuthConfigured) {
+  if (!String(GOOGLE_CLIENT_ID || "").trim() || !String(GOOGLE_CLIENT_SECRET || "").trim()) {
+    throw new Error("Google OAuth requires both GOOGLE_CLIENT_ID and GOOGLE_CLIENT_SECRET.");
+  }
+  if (isProduction && !String(CONFIGURED_GOOGLE_REDIRECT_URI || "").trim()) {
+    throw new Error("Production Google OAuth requires an explicit GOOGLE_REDIRECT_URI.");
   }
 }
 if (isProduction && !OWNER_IDS.length && !BOOTSTRAP_TOKEN) {
@@ -1352,6 +1378,8 @@ const userRuntime = createUserRuntimeBundle(
     loadProjects,
     loadSecurityEvents,
     loadSiteSettings,
+    loadUserIdentityRecords,
+    loadUserLocalAuthRecord,
     loadUploads,
     loadUsers,
     metricsRegistry,
@@ -1380,6 +1408,7 @@ const userRuntime = createUserRuntimeBundle(
     upsertSecurityEvent,
     verifyTotpCode,
     writeAllowedUsers,
+    writeUserLocalAuthRecord,
     writeUsers,
   }),
 );
@@ -1655,6 +1684,11 @@ const rootRouteRegistrationDependencies = buildRootServerRegistrationSource({
   DISCORD_API,
   DISCORD_CLIENT_ID,
   DISCORD_CLIENT_SECRET,
+  GOOGLE_CLIENT_ID,
+  GOOGLE_CLIENT_SECRET,
+  GOOGLE_TOKEN_API,
+  GOOGLE_USERINFO_API,
+  GOOGLE_SCOPES,
   MAX_SVG_SIZE_BYTES,
   MAX_UPLOAD_SIZE_BYTES,
   METRICS_TOKEN_NORMALIZED,
@@ -1686,6 +1720,7 @@ const rootRouteRegistrationDependencies = buildRootServerRegistrationSource({
   buildAnalyticsRange,
   buildAuthRedirectUrl,
   buildEditorialCalendarItems,
+  buildPasswordAuditMeta,
   buildGravatarUrl,
   buildInstitutionalOgDeliveryHeaders,
   buildInstitutionalPageMeta,
@@ -1744,8 +1779,10 @@ const rootRouteRegistrationDependencies = buildRootServerRegistrationSource({
   ensureWebhookSettingsNoConflict,
   establishAuthenticatedSession,
   evaluateOperationalMonitoring,
+  findUserIdentityRecord,
   findUserLocalAuthRecordByIdentifier,
   loadUsers,
+  upsertUserIdentityRecord,
   verifyLocalPassword,
   exportProjectEpub,
   exportProjectImageChapter,
@@ -1771,6 +1808,7 @@ const rootRouteRegistrationDependencies = buildRootServerRegistrationSource({
   getPendingMfaEnrollmentRedirectTarget,
   getPendingMfaEnrollmentState,
   getRequestIp,
+  resolveGoogleRedirectUri,
   getUploadExtFromMime,
   getUploadFolderFromUrlValue,
   getUploadMimeFromExtension,
@@ -1778,6 +1816,9 @@ const rootRouteRegistrationDependencies = buildRootServerRegistrationSource({
   handleAuthFailureSecuritySignals,
   handleMfaFailureSecuritySignals,
   hashRecoveryCode,
+  findUserIdentityRecordsByEmail,
+  deleteUserLocalAuthRecord,
+  writeUserIdentityRecords,
   isPendingMfaEnrollmentRequiredForUser,
   markMfaEnrollmentRequiredForSession,
   shouldRequireTotpEnrollmentForPasswordLogin,
@@ -1816,6 +1857,7 @@ const rootRouteRegistrationDependencies = buildRootServerRegistrationSource({
   loadIntegrationSettingsSources,
   loadLinkTypes,
   loadOwnerIds,
+  loadUserIdentityRecords,
   loadPages,
   loadPostVersions,
   loadPosts,
@@ -1930,6 +1972,7 @@ const rootRouteRegistrationDependencies = buildRootServerRegistrationSource({
   verifyTotpOrRecoveryCode,
   writeComments,
   writeIntegrationSettings,
+  writeAllowedUsers,
   writeLinkTypes,
   writeOwnerIds,
   writePages,

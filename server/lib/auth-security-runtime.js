@@ -13,7 +13,10 @@ const REQUIRED_DEPENDENCY_KEYS = [
   "hashRecoveryCode",
   "listActiveSessionsForUser",
   "loadSiteSettings",
+  "loadUserIdentityRecords",
+  "loadUserLocalAuthRecord",
   "loadUserMfaTotpRecord",
+  "writeUserLocalAuthRecord",
   "loadUserSessionIndexRecords",
   "metricsRegistry",
   "mfaEnrollmentTtlMs",
@@ -60,6 +63,8 @@ export const createAuthSecurityRuntime = (dependencies = {}) => {
     hashRecoveryCode,
     listActiveSessionsForUser,
     loadSiteSettings,
+    loadUserIdentityRecords,
+    loadUserLocalAuthRecord,
     loadUserMfaTotpRecord,
     loadUserSessionIndexRecords,
     metricsRegistry,
@@ -230,6 +235,40 @@ export const createAuthSecurityRuntime = (dependencies = {}) => {
     const record = loadUserMfaTotpRecord(userId);
     const activeSessions = listActiveSessionsForUser(userId);
     const metadata = resolveMfaMetadata({ req, userId });
+    const localAuthRecord = loadUserLocalAuthRecord(userId);
+    const loadedIdentityRecords =
+      typeof loadUserIdentityRecords === "function" ? loadUserIdentityRecords({ userId }) : [];
+    const identityRecords = Array.isArray(loadedIdentityRecords) ? loadedIdentityRecords : [];
+    const oauthEmailSuggested = identityRecords
+      .filter((entry) => entry?.emailNormalized && !entry?.disabledAt)
+      .sort((left, right) => {
+        const leftVerified = left?.emailVerified === true ? 1 : 0;
+        const rightVerified = right?.emailVerified === true ? 1 : 0;
+        if (leftVerified !== rightVerified) {
+          return rightVerified - leftVerified;
+        }
+        const leftTsRaw = new Date(left?.lastUsedAt || left?.updatedAt || left?.linkedAt || 0).getTime();
+        const rightTsRaw = new Date(right?.lastUsedAt || right?.updatedAt || right?.linkedAt || 0).getTime();
+        const leftTs = Number.isFinite(leftTsRaw) ? leftTsRaw : 0;
+        const rightTs = Number.isFinite(rightTsRaw) ? rightTsRaw : 0;
+        return rightTs - leftTs;
+      })[0]?.emailNormalized || null;
+    const localAuthEmail = localAuthRecord?.emailNormalized || null;
+    const localAuthUsername = localAuthRecord?.usernameNormalized || null;
+    const identities = identityRecords
+      .filter((entry) => entry?.provider)
+      .map((entry) => ({
+        provider: String(entry.provider || "").trim(),
+        linked: !entry?.disabledAt,
+        emailNormalized: entry?.emailNormalized || null,
+        emailVerified: entry?.emailVerified === true,
+        displayName: entry?.displayName || null,
+        avatarUrl: entry?.avatarUrl || null,
+        linkedAt: entry?.linkedAt || null,
+        lastUsedAt: entry?.lastUsedAt || null,
+        disabledAt: entry?.disabledAt || null,
+      }))
+      .sort((left, right) => String(left.provider).localeCompare(String(right.provider)));
     return {
       totpEnabled: Boolean(record && record.enabledAt && !record.disabledAt),
       recoveryCodesRemaining: resolveRecoveryCodesRemaining(record),
@@ -237,6 +276,15 @@ export const createAuthSecurityRuntime = (dependencies = {}) => {
       issuer: metadata.issuer,
       accountLabel: metadata.accountLabel,
       iconUrl: metadata.iconUrl,
+      localAuthEnabled: Boolean(localAuthRecord?.passwordHash && !localAuthRecord?.disabledAt),
+      localAuthTotpPending: Boolean(
+        localAuthRecord?.totpEnrollmentRequiredAt && !(record && record.enabledAt && !record.disabledAt),
+      ),
+      localAuthIdentifier: localAuthEmail || localAuthUsername || null,
+      localAuthEmail,
+      localAuthUsername,
+      oauthEmailSuggested,
+      identities,
     };
   };
 
@@ -333,6 +381,10 @@ export const createAuthSecurityRuntime = (dependencies = {}) => {
   const shouldRequireTotpEnrollmentForPasswordLogin = (userId) => {
     const normalizedUserId = String(userId || "").trim();
     if (!normalizedUserId) {
+      return false;
+    }
+    const localAuthRecord = loadUserLocalAuthRecord(normalizedUserId);
+    if (!localAuthRecord?.totpEnrollmentRequiredAt) {
       return false;
     }
     return !Boolean(loadUserMfaTotpRecord(normalizedUserId)?.enabledAt);

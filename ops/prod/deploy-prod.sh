@@ -287,6 +287,8 @@ validate_env_placeholders() {
     APP_ORIGIN
     DISCORD_CLIENT_ID
     DISCORD_CLIENT_SECRET
+    GOOGLE_CLIENT_ID
+    GOOGLE_CLIENT_SECRET
   )
 
   local missing_owner

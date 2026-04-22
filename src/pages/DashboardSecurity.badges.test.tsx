@@ -103,7 +103,7 @@ describe("DashboardSecurity semantic badges", () => {
     });
   });
 
-  it("uses semantic variants for current-session and MFA badges", async () => {
+  it("uses semantic variants for current-session and V2F badges", async () => {
     render(<DashboardSecurity />);
 
     await screen.findByRole("heading", { name: /Ativas/i });
@@ -132,7 +132,7 @@ describe("DashboardSecurity semantic badges", () => {
       "bg-[hsl(var(--badge-success-bg))]",
       "text-[hsl(var(--badge-success-fg))]",
     );
-    expect(screen.getByText("Pendente MFA")).toHaveClass(
+    expect(screen.getByText("Pendente V2F")).toHaveClass(
       "border-[hsl(var(--badge-warning-border))]",
       "bg-[hsl(var(--badge-warning-bg))]",
       "text-[hsl(var(--badge-warning-fg))]",
@@ -149,7 +149,7 @@ describe("DashboardSecurity semantic badges", () => {
     const headerRow = revokeButton.parentElement as HTMLElement | null;
     const identityText = screen.getByText("Moderator").parentElement as HTMLElement | null;
     const identityRow = identityText?.parentElement as HTMLElement | null;
-    const badgesRow = screen.getByText("Pendente MFA").parentElement as HTMLElement | null;
+    const badgesRow = screen.getByText("Pendente V2F").parentElement as HTMLElement | null;
     const userId = screen.getByText("ID: 2");
     const desktopLabel = within(revokeButton).getByText("Encerrar");
     const revokeIcon = revokeButton.querySelector("svg");

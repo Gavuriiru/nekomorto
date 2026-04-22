@@ -153,6 +153,7 @@ export const normalizeStoredLocalAuthRecord = (record) => {
       : null,
     passwordHash: String(record?.passwordHash || ""),
     passwordUpdatedAt: String(record?.passwordUpdatedAt || "").trim() || null,
+    totpEnrollmentRequiredAt: String(record?.totpEnrollmentRequiredAt || "").trim() || null,
     disabledAt: record?.disabledAt ? String(record.disabledAt).trim() : null,
     createdAt: String(record?.createdAt || "").trim() || null,
     updatedAt: String(record?.updatedAt || "").trim() || null,
@@ -162,19 +163,30 @@ export const normalizeStoredLocalAuthRecord = (record) => {
 export const isActiveLocalAuthRecord = (record) =>
   Boolean(record?.userId && !record?.disabledAt && record?.passwordHash);
 
-export const buildStoredLocalAuthRecord = ({ userId, identifier, passwordHash, disabledAt = null } = {}) => {
-  const lookup = buildLocalAuthLookup(identifier);
+export const buildStoredLocalAuthRecord = ({
+  userId,
+  email,
+  username = null,
+  passwordHash,
+  disabledAt = null,
+} = {}) => {
   const normalizedUserId = String(userId || "").trim();
-  if (!normalizedUserId || !lookup || !String(passwordHash || "").trim()) {
+  const normalizedEmail = email ? normalizeEmailIdentifier(email) : "";
+  const normalizedUsername = username ? normalizeUsernameIdentifier(username) : null;
+  if (!normalizedUserId || !normalizedEmail || !String(passwordHash || "").trim()) {
+    return null;
+  }
+  if (normalizedUsername && isEmailLikeIdentifier(normalizedUsername)) {
     return null;
   }
   const now = new Date().toISOString();
   return {
     userId: normalizedUserId,
-    emailNormalized: lookup.emailNormalized,
-    usernameNormalized: lookup.usernameNormalized,
+    emailNormalized: normalizedEmail,
+    usernameNormalized: normalizedUsername || null,
     passwordHash: String(passwordHash || "").trim(),
     passwordUpdatedAt: now,
+    totpEnrollmentRequiredAt: null,
     disabledAt: disabledAt ? String(disabledAt).trim() : null,
     createdAt: now,
     updatedAt: now,

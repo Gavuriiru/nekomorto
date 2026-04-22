@@ -28,6 +28,15 @@ export const createDataRepositoryAdaptersRuntime = (dependencies = {}) => {
   const loadSecurityEvents = () => callRepositoryMethod("loadSecurityEvents", [], []);
   const upsertSecurityEvent = (event) => callRepositoryMethod("upsertSecurityEvent", [event], null);
 
+  const findUserIdentityRecord = (provider, providerSubject) =>
+    callRepositoryMethod("findUserIdentityRecord", [provider, providerSubject], null);
+  const findUserIdentityRecordsByEmail = (emailNormalized, options) =>
+    callRepositoryMethod("findUserIdentityRecordsByEmail", [emailNormalized, options], []);
+  const upsertUserIdentityRecord = (record) =>
+    callRepositoryMethod("upsertUserIdentityRecord", [record], null);
+  const writeUserIdentityRecords = (records) =>
+    callRepositoryMethod("writeUserIdentityRecords", [records], []);
+
   const loadUserLocalAuthRecord = (userId) =>
     callRepositoryMethod("loadUserLocalAuthRecord", [userId], null);
   const findUserLocalAuthRecordByIdentifier = (identifier) =>
@@ -36,10 +45,6 @@ export const createDataRepositoryAdaptersRuntime = (dependencies = {}) => {
     callRepositoryMethod("writeUserLocalAuthRecord", [userId, record], null);
   const deleteUserLocalAuthRecord = (userId) =>
     callRepositoryMethod("deleteUserLocalAuthRecord", [userId], null);
-  const loadAllUserLocalAuthRecords = () =>
-    callRepositoryMethod("loadAllUserLocalAuthRecords", [], []);
-
-  void loadAllUserLocalAuthRecords;
 
   const loadAdminExportJobs = () => callRepositoryMethod("loadAdminExportJobs", [], []);
   const upsertAdminExportJob = (job) => callRepositoryMethod("upsertAdminExportJob", [job], null);
@@ -81,6 +86,8 @@ export const createDataRepositoryAdaptersRuntime = (dependencies = {}) => {
     appendSecretRotation,
     claimWebhookDelivery,
     deleteUserLocalAuthRecord,
+    findUserIdentityRecord,
+    findUserIdentityRecordsByEmail,
     findUserLocalAuthRecordByIdentifier,
     findWebhookDelivery,
     isEpubImportJobStorageAvailable,
@@ -100,12 +107,12 @@ export const createDataRepositoryAdaptersRuntime = (dependencies = {}) => {
     upsertProjectImageExportJob,
     upsertProjectImageImportJob,
     upsertSecurityEvent,
+    upsertUserIdentityRecord,
     upsertWebhookDelivery,
+    writeUserIdentityRecords,
     writeUserLocalAuthRecord,
     writeWebhookState,
   };
-
-  void loadAllUserLocalAuthRecords;
 };
 
 export default createDataRepositoryAdaptersRuntime;

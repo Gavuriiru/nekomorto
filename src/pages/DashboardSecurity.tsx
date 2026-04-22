@@ -503,7 +503,7 @@ const DashboardSecurity = () => {
                             <Badge variant="success">Sua sessão atual</Badge>
                           ) : null}
                           {session.isPendingMfa ? (
-                            <Badge variant="warning">Pendente MFA</Badge>
+                            <Badge variant="warning">Pendente V2F</Badge>
                           ) : null}
                         </div>
                       </div>

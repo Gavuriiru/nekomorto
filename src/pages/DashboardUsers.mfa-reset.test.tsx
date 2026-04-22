@@ -107,7 +107,7 @@ const configureApiFetch = ({
   });
 };
 
-describe("DashboardUsers admin MFA reset", () => {
+describe("DashboardUsers admin V2F reset", () => {
   beforeEach(() => {
     apiFetchMock.mockReset();
     toastMock.mockReset();
@@ -142,10 +142,10 @@ describe("DashboardUsers admin MFA reset", () => {
     fireEvent.click(await screen.findByRole("button", { name: /Abrir usu.*rio Colaborador/i }));
 
     const editorDialog = await screen.findByRole("dialog", { name: /Editar usu.*rio/i });
-    fireEvent.click(within(editorDialog).getByRole("button", { name: "Resetar 2FA" }));
+    fireEvent.click(within(editorDialog).getByRole("button", { name: "Redefinir V2F" }));
 
     await screen.findByText(/cancelar o login atual e entrar novamente/i);
-    const resetButtons = screen.getAllByRole("button", { name: "Resetar 2FA" });
+    const resetButtons = screen.getAllByRole("button", { name: "Redefinir V2F" });
     fireEvent.click(resetButtons[resetButtons.length - 1]);
 
     await waitFor(() => {
@@ -162,7 +162,7 @@ describe("DashboardUsers admin MFA reset", () => {
     await waitFor(() => {
       expect(toastMock).toHaveBeenCalledWith(
         expect.objectContaining({
-          title: "2FA resetado",
+          title: "V2F redefinida",
         }),
       );
     });
@@ -201,7 +201,7 @@ describe("DashboardUsers admin MFA reset", () => {
     fireEvent.click(await screen.findByRole("button", { name: /Abrir usu.*rio Colaborador/i }));
 
     const editorDialog = await screen.findByRole("dialog", { name: /Editar usu.*rio/i });
-    expect(within(editorDialog).queryByRole("button", { name: "Resetar 2FA" })).toBeNull();
+    expect(within(editorDialog).queryByRole("button", { name: "Redefinir V2F" })).toBeNull();
   });
 
   it("does not show the reset action when editing the current user", async () => {
@@ -229,7 +229,7 @@ describe("DashboardUsers admin MFA reset", () => {
     fireEvent.click(await screen.findByRole("button", { name: /Abrir usu.*rio Dona/i }));
 
     const editorDialog = await screen.findByRole("dialog", { name: /Editar usu.*rio/i });
-    expect(within(editorDialog).queryByRole("button", { name: "Resetar 2FA" })).toBeNull();
+    expect(within(editorDialog).queryByRole("button", { name: "Redefinir V2F" })).toBeNull();
   });
 
   it("keeps the confirmation dialog open and shows an error toast when reset fails", async () => {
@@ -262,16 +262,16 @@ describe("DashboardUsers admin MFA reset", () => {
     fireEvent.click(await screen.findByRole("button", { name: /Abrir usu.*rio Colaborador/i }));
 
     const editorDialog = await screen.findByRole("dialog", { name: /Editar usu.*rio/i });
-    fireEvent.click(within(editorDialog).getByRole("button", { name: "Resetar 2FA" }));
+    fireEvent.click(within(editorDialog).getByRole("button", { name: "Redefinir V2F" }));
 
     await screen.findByText(/cancelar o login atual e entrar novamente/i);
-    const resetButtons = screen.getAllByRole("button", { name: "Resetar 2FA" });
+    const resetButtons = screen.getAllByRole("button", { name: "Redefinir V2F" });
     fireEvent.click(resetButtons[resetButtons.length - 1]);
 
     await waitFor(() => {
       expect(toastMock).toHaveBeenCalledWith(
         expect.objectContaining({
-          title: expect.stringMatching(/resetar o 2FA/i),
+          title: expect.stringMatching(/redefinir a V2F/i),
           variant: "destructive",
         }),
       );

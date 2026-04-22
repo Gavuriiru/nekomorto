@@ -1,3 +1,8 @@
+import {
+  hashLocalPassword,
+  buildStoredLocalAuthRecord,
+  normalizeUsernameIdentifier,
+} from "./local-password-auth.js";
 import { Router } from "express";
 import { ipKeyGenerator, rateLimit } from "express-rate-limit";
 
@@ -16,7 +21,9 @@ export const registerSelfServiceRoutes = ({
   completeRequiredMfaEnrollmentForSession,
   dataEncryptionKeyring,
   deleteUserMfaTotpRecord,
+  deleteUserLocalAuthRecord,
   encryptStringWithKeyring,
+  findUserLocalAuthRecordByIdentifier,
   generateRecoveryCodes,
   getPendingMfaEnrollmentRedirectTarget,
   getPendingMfaEnrollmentState,
@@ -27,8 +34,14 @@ export const registerSelfServiceRoutes = ({
   isPendingMfaEnrollmentRequiredForUser,
   isTotpEnabledForUser,
   listActiveSessionsForUser,
+  loadUserIdentityRecords,
+  loadUserLocalAuthRecord,
   loadUserPreferences,
   metricsRegistry,
+  markMfaEnrollmentRequiredForSession,
+  upsertUserIdentityRecord,
+  writeUserIdentityRecords,
+  writeUserLocalAuthRecord,
   mfaRecoveryCodePepper,
   normalizeUserPreferences,
   requireAuth,
@@ -225,6 +238,16 @@ export const registerSelfServiceRoutes = ({
       disabledAt: null,
       recoveryCodesHashed,
     });
+    if (typeof loadUserLocalAuthRecord === "function" && typeof writeUserLocalAuthRecord === "function") {
+      const localAuthRecord = loadUserLocalAuthRecord(userId);
+      if (localAuthRecord?.userId && localAuthRecord?.totpEnrollmentRequiredAt) {
+        writeUserLocalAuthRecord(userId, {
+          ...localAuthRecord,
+          totpEnrollmentRequiredAt: null,
+          updatedAt: new Date().toISOString(),
+        });
+      }
+    }
     clearEnrollmentFromSession(req);
 
     const pendingState = getPendingMfaEnrollmentState(req);
@@ -287,6 +310,172 @@ export const registerSelfServiceRoutes = ({
     return res.json({ ok: true });
   };
 
+  const selectPreferredIdentityEmail = (identityRecords) =>
+    (Array.isArray(identityRecords) ? identityRecords : [])
+      .filter((entry) => entry?.emailNormalized && !entry?.disabledAt)
+      .sort((left, right) => {
+        const leftVerified = left?.emailVerified === true ? 1 : 0;
+        const rightVerified = right?.emailVerified === true ? 1 : 0;
+        if (leftVerified !== rightVerified) {
+          return rightVerified - leftVerified;
+        }
+        const leftTsRaw = new Date(left?.lastUsedAt || left?.updatedAt || left?.linkedAt || 0).getTime();
+        const rightTsRaw = new Date(right?.lastUsedAt || right?.updatedAt || right?.linkedAt || 0).getTime();
+        const leftTs = Number.isFinite(leftTsRaw) ? leftTsRaw : 0;
+        const rightTs = Number.isFinite(rightTsRaw) ? rightTsRaw : 0;
+        return rightTs - leftTs;
+      })[0]?.emailNormalized || "";
+
+  const handleLocalPasswordSetup = async (req, res) => {
+    setNoStore(res);
+    const userId = String(req.session?.user?.id || "").trim();
+    if (!userId) {
+      return res.status(401).json({ error: "unauthorized" });
+    }
+
+    const password = String(req.body?.password || "");
+    const username = String(req.body?.username || "").trim();
+    const email = String(req.body?.email || "").trim();
+    if (!password) {
+      return res.status(400).json({ error: "password_required" });
+    }
+    if (username && normalizeUsernameIdentifier(username).includes("@")) {
+      return res.status(400).json({ error: "invalid_username" });
+    }
+    if (email && !email.includes("@")) {
+      return res.status(400).json({ error: "invalid_email" });
+    }
+
+    const currentRecord =
+      typeof loadUserLocalAuthRecord === "function" ? loadUserLocalAuthRecord(userId) : null;
+    if (currentRecord?.passwordHash && !currentRecord?.disabledAt) {
+      return res.status(409).json({ error: "local_auth_already_configured" });
+    }
+
+    const loadedIdentityRecords =
+      typeof loadUserIdentityRecords === "function" ? loadUserIdentityRecords({ userId }) : [];
+    const identityRecords = Array.isArray(loadedIdentityRecords) ? loadedIdentityRecords : [];
+    const oauthEmail = selectPreferredIdentityEmail(identityRecords);
+    const localEmail = email || oauthEmail;
+    if (!localEmail) {
+      return res.status(409).json({ error: "oauth_email_unavailable" });
+    }
+
+    let passwordHash = "";
+    try {
+      passwordHash = await hashLocalPassword(password);
+    } catch {
+      return res.status(400).json({ error: "password_required" });
+    }
+
+    const storedRecord = buildStoredLocalAuthRecord({
+      userId,
+      email: localEmail,
+      username,
+      passwordHash,
+      disabledAt: null,
+    });
+    if (!storedRecord) {
+      return res.status(400).json({ error: username ? "invalid_username" : "invalid_identifier" });
+    }
+
+    try {
+      writeUserLocalAuthRecord(userId, {
+        ...storedRecord,
+        totpEnrollmentRequiredAt: new Date().toISOString(),
+      });
+    } catch (error) {
+      if (error instanceof Error && error.message === "local_auth_email_conflict") {
+        return res.status(409).json({ error: "local_auth_email_conflict" });
+      }
+      if (error instanceof Error && error.message === "local_auth_username_conflict") {
+        return res.status(409).json({ error: "local_auth_username_conflict" });
+      }
+      throw error;
+    }
+
+    if (typeof markMfaEnrollmentRequiredForSession === "function") {
+      markMfaEnrollmentRequiredForSession({
+        req,
+        user: req.session.user,
+        loginAppOrigin: req.session?.loginAppOrigin || null,
+        loginNext: req.session?.loginNext || "/dashboard/seguranca",
+      });
+    }
+
+    try {
+      await saveSessionState(req);
+    } catch {
+      return res.status(500).json({ error: "session_regenerate_failed" });
+    }
+
+    appendAuditLog(req, "auth.local_password.setup", "auth", { userId });
+    return res.status(200).json({
+      ok: true,
+      mfaEnrollmentRequired: true,
+      redirect: "/dashboard/seguranca",
+    });
+  };
+
+  const handleIdentityUnlink = async (req, res) => {
+    setNoStore(res);
+    const userId = String(req.session?.user?.id || "").trim();
+    const provider = String(req.params?.provider || "").trim().toLowerCase();
+    if (!userId) {
+      return res.status(401).json({ error: "unauthorized" });
+    }
+    if (!provider) {
+      return res.status(400).json({ error: "invalid_provider" });
+    }
+    const identityRecords = Array.isArray(loadUserIdentityRecords?.({ userId, includeDisabled: true }))
+      ? loadUserIdentityRecords({ userId, includeDisabled: true })
+      : [];
+    const targetIdentity = identityRecords.find(
+      (entry) => String(entry?.provider || "").trim().toLowerCase() === provider,
+    );
+    if (!targetIdentity?.id || targetIdentity.disabledAt) {
+      return res.status(404).json({ error: "identity_not_found" });
+    }
+    const activeIdentityCount = identityRecords.filter((entry) => !entry?.disabledAt).length;
+    const localAuthRecord = typeof loadUserLocalAuthRecord === "function" ? loadUserLocalAuthRecord(userId) : null;
+    const hasLocalAuth = Boolean(localAuthRecord?.passwordHash && !localAuthRecord?.disabledAt);
+    if (activeIdentityCount <= 1 && !hasLocalAuth) {
+      return res.status(409).json({ error: "last_login_method" });
+    }
+    upsertUserIdentityRecord?.({
+      ...targetIdentity,
+      disabledAt: new Date().toISOString(),
+      updatedAt: new Date().toISOString(),
+    });
+    appendAuditLog(req, "auth.oauth.unlink", "auth", { userId, provider });
+    return res.json({ ok: true, provider });
+  };
+
+  const buildConnectedIdentitiesResponse = (req, res) => {
+    setNoStore(res);
+    const userId = String(req.session?.user?.id || "").trim();
+    if (!userId) {
+      return res.status(401).json({ error: "unauthorized" });
+    }
+    return res.json(buildMySecuritySummary({ req, userId }));
+  };
+
+  const handleIdentityLinkStart = (req, res) => {
+    setNoStore(res);
+    const provider = String(req.params?.provider || "").trim().toLowerCase();
+    const next =
+      typeof req.query?.next === "string" && req.query.next.trim()
+        ? req.query.next.trim()
+        : "/dashboard/usuarios?edit=me";
+    if (provider === "google") {
+      return res.redirect(`/auth/google?intent=link&next=${encodeURIComponent(next)}`);
+    }
+    if (provider === "discord") {
+      return res.redirect(`/auth/discord?intent=link&next=${encodeURIComponent(next)}`);
+    }
+    return res.status(400).json({ error: "invalid_provider" });
+  };
+
   router.get("/api/me/preferences", requireAuth, requireNoPendingMfaEnrollment, (req, res) => {
     setNoStore(res);
     const userId = String(req.session?.user?.id || "").trim();
@@ -324,6 +513,27 @@ export const registerSelfServiceRoutes = ({
     }
     return res.json(buildMySecuritySummary({ req, userId }));
   });
+
+  router.get(
+    "/api/me/security/identities",
+    requireAuth,
+    requireNoPendingMfaEnrollment,
+    buildConnectedIdentitiesResponse,
+  );
+
+  router.get(
+    "/api/me/security/identities/:provider/link/start",
+    requireAuth,
+    requireNoPendingMfaEnrollment,
+    handleIdentityLinkStart,
+  );
+
+  router.delete(
+    "/api/me/security/identities/:provider",
+    requireAuth,
+    requireNoPendingMfaEnrollment,
+    handleIdentityUnlink,
+  );
 
   router.post(
     "/api/me/security/totp/enroll/start",
@@ -394,6 +604,16 @@ export const registerSelfServiceRoutes = ({
     requireNoPendingMfaEnrollment,
     enforceTotpDisableRateLimit,
     handleTotpDisable,
+  );
+
+  router.post(
+    "/api/me/security/local-auth",
+    codeQlVisibleMfaRateLimit,
+    requireAuth,
+    requireAuthenticatedUserId,
+    requireNoPendingMfaEnrollment,
+    enforceTotpEnrollStartRateLimit,
+    handleLocalPasswordSetup,
   );
 
   router.get("/api/me/sessions", requireAuth, requireNoPendingMfaEnrollment, (req, res) => {

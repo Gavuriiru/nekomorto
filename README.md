@@ -10,7 +10,7 @@ O Nekomorto e uma plataforma editorial e de leitura da Nekomata, com area public
 
 - Area publica com home, posts, paginas institucionais, equipe, FAQ, doacoes, recrutamento, catalogo de projetos e leitura de capitulos/episodios.
 - Dashboard autenticado para usuarios, posts, paginas, projetos, capitulos, episodios, comentarios, uploads, analytics, redirects, webhooks, seguranca e audit log.
-- Login via Discord, bootstrap inicial de owner e trilhas operacionais para manutencao, backup, restore e deploy.
+- Login via Discord, Google e senha interna, bootstrap inicial de owner e trilhas operacionais para manutencao, backup, restore e deploy.
 
 As principais superficies do produto aparecem diretamente nas rotas do frontend:
 
@@ -211,7 +211,9 @@ npm run dev
 - Para acesso por tunel/dominio publico, mantenha `VITE_API_BASE` vazio para usar same-origin.
 - O HMR do modo integrado usa a mesma origem da pagina. Nao publique nem encaminhe a porta `24678`.
 - Para cloudflared, aponte o tunel inteiro para `http://127.0.0.1:8080`.
-- O OAuth do Discord retorna para a mesma origem que iniciou o login nesse modo.
+- O OAuth do Discord e do Google retorna para a mesma origem que iniciou o login nesse modo.
+- O callback esperado do Google e `/auth/google/callback`.
+- O login com Google exige uma identity previamente vinculada/autorizada no backend; nao existe cadastro publico nem auto-signup.
 
 ### 6.2 Modo separado (backend e frontend em portas diferentes)
 
@@ -532,6 +534,9 @@ Edite `.env.prod` com valores reais, incluindo:
 - `APP_ORIGIN`
 - `DISCORD_CLIENT_ID`
 - `DISCORD_CLIENT_SECRET`
+- `GOOGLE_CLIENT_ID`
+- `GOOGLE_CLIENT_SECRET`
+- `GOOGLE_REDIRECT_URI`
 - `OWNER_IDS` ou `BOOTSTRAP_TOKEN`
 - `APP_IMAGE_REPO` e `APP_IMAGE_TAG` (opcionais; defaults para GHCR + `latest`)
 - `TRAEFIK_ACME_EMAIL` quando `PROXY_PROVIDER=traefik`
@@ -543,6 +548,19 @@ No Discord Developer Portal, confirme as redirect URIs:
 
 - `https://<APP_DOMAIN>/login` (obrigatoria)
 - `https://<APP_WWW_DOMAIN>/login` (recomendada)
+
+No Google Cloud Console, confirme as redirect URIs autorizadas:
+
+- `https://<APP_DOMAIN>/auth/google/callback` (obrigatoria)
+- `https://<APP_WWW_DOMAIN>/auth/google/callback` (recomendada, se esse host for usado)
+
+Para Google em producao, prefira sempre `GOOGLE_REDIRECT_URI` explicita com um dominio canônico. Nao use `/login` no Google por analogia ao Discord; a callback correta do Google neste projeto e `/auth/google/callback`.
+
+Para desenvolvimento local, o valor esperado e:
+
+- `GOOGLE_REDIRECT_URI=http://127.0.0.1:8080/auth/google/callback`
+
+Esse valor precisa bater exatamente com o que estiver cadastrado no Google Cloud Console; qualquer diferenca de host, schema ou path causa `redirect_uri_mismatch`.
 
 ### 8.4 DNS, dominio e escolha do proxy
 

@@ -113,6 +113,23 @@ type SecuritySummary = {
   issuer?: string;
   accountLabel?: string;
   iconUrl?: string;
+  localAuthEnabled?: boolean;
+  localAuthTotpPending?: boolean;
+  localAuthIdentifier?: string | null;
+  localAuthEmail?: string | null;
+  localAuthUsername?: string | null;
+  oauthEmailSuggested?: string | null;
+  identities?: Array<{
+    provider: string;
+    linked: boolean;
+    emailNormalized?: string | null;
+    emailVerified?: boolean;
+    displayName?: string | null;
+    avatarUrl?: string | null;
+    linkedAt?: string | null;
+    lastUsedAt?: string | null;
+    disabledAt?: string | null;
+  }>;
 };
 
 type SecuritySessionRow = {
@@ -476,7 +493,11 @@ const DashboardUsers = () => {
   const [securityQrDataUrl, setSecurityQrDataUrl] = useState("");
   const [securityEnrollCode, setSecurityEnrollCode] = useState("");
   const [securityDisableCode, setSecurityDisableCode] = useState("");
+  const [securityLocalAuthEmail, setSecurityLocalAuthEmail] = useState("");
+  const [securityLocalAuthIdentifier, setSecurityLocalAuthIdentifier] = useState("");
+  const [securityLocalAuthPassword, setSecurityLocalAuthPassword] = useState("");
   const [securityRecoveryCodes, setSecurityRecoveryCodes] = useState<string[]>([]);
+  const [isDisconnectingIdentityProvider, setIsDisconnectingIdentityProvider] = useState<string | null>(null);
   const fallbackLinkTypes = useMemo(
     () => [
       { id: "instagram", label: "Instagram", icon: "instagram" },
@@ -660,22 +681,22 @@ const DashboardUsers = () => {
   const canEditBasicFields = !editingUser
     ? canCreateUsers
     : isEditingSelf ||
-      (actorCanUsersBasic &&
-        (isPrimaryOwnerActor ||
-          (isSecondaryOwnerActor && !isOwnerRecord) ||
-          (isAdminActor && !isOwnerRecord)));
+    (actorCanUsersBasic &&
+      (isPrimaryOwnerActor ||
+        (isSecondaryOwnerActor && !isOwnerRecord) ||
+        (isAdminActor && !isOwnerRecord)));
   const canEditRoles = !editingUser
     ? canCreateUsers
     : actorCanUsersAccess &&
-      (isPrimaryOwnerActor ||
-        (isSecondaryOwnerActor && !isOwnerRecord) ||
-        (isAdminActor && !isOwnerRecord));
+    (isPrimaryOwnerActor ||
+      (isSecondaryOwnerActor && !isOwnerRecord) ||
+      (isAdminActor && !isOwnerRecord));
   const canEditAccessControls = !editingUser
     ? canCreateUsers
     : actorCanUsersAccess &&
-      (isPrimaryOwnerActor ||
-        (isSecondaryOwnerActor && !isOwnerRecord) ||
-        (isAdminActor && !isOwnerRecord));
+    (isPrimaryOwnerActor ||
+      (isSecondaryOwnerActor && !isOwnerRecord) ||
+      (isAdminActor && !isOwnerRecord));
   const canEditStatus = canEditAccessControls && !isEditingSelf && !isPrimaryOwnerRecord;
   const basicProfileOnlyEdit = Boolean(editingUser && canEditBasicFields && !canEditAccessControls);
   const canResetManagedUserTotp = Boolean(
@@ -782,7 +803,11 @@ const DashboardUsers = () => {
       setSecurityQrDataUrl("");
       setSecurityEnrollCode("");
       setSecurityDisableCode("");
+      setSecurityLocalAuthEmail("");
+      setSecurityLocalAuthIdentifier("");
+      setSecurityLocalAuthPassword("");
       setSecurityRecoveryCodes([]);
+      setIsDisconnectingIdentityProvider(null);
       return;
     }
 
@@ -803,6 +828,7 @@ const DashboardUsers = () => {
             return;
           }
           setSecuritySummary(body);
+          setSecurityLocalAuthEmail(String(body?.oauthEmailSuggested || body?.localAuthEmail || ""));
         } else {
           setSecuritySummary(null);
         }
@@ -872,7 +898,9 @@ const DashboardUsers = () => {
         apiFetch(apiBase, "/api/me/sessions", { auth: true }),
       ]);
       if (securityRes.ok) {
-        setSecuritySummary(await securityRes.json());
+        const body = await securityRes.json();
+        setSecuritySummary(body);
+        setSecurityLocalAuthEmail(String(body?.oauthEmailSuggested || body?.localAuthEmail || ""));
       }
       if (sessionsRes.ok) {
         const body = await sessionsRes.json();
@@ -889,7 +917,7 @@ const DashboardUsers = () => {
       auth: true,
     });
     if (!response.ok) {
-      toast({ title: "Falha ao iniciar 2FA", variant: "destructive" });
+      toast({ title: "Falha ao iniciar V2F", variant: "destructive" });
       return;
     }
     const body = await response.json();
@@ -897,7 +925,7 @@ const DashboardUsers = () => {
     if (!enrollmentToken) {
       setSecurityEnrollment(null);
       toast({
-        title: "Falha ao iniciar 2FA",
+        title: "Falha ao iniciar V2F",
         description: "Token de ativação ausente.",
         variant: "destructive",
       });
@@ -924,7 +952,7 @@ const DashboardUsers = () => {
       if (!enrollmentToken) {
         toast({
           title: "Sessão de ativação expirada",
-          description: "Inicie novamente para confirmar o 2FA.",
+          description: "Inicie novamente para confirmar a V2F.",
           variant: "destructive",
         });
       }
@@ -951,7 +979,7 @@ const DashboardUsers = () => {
         setSecurityEnrollment(null);
         toast({
           title: "Sessão de ativação expirada",
-          description: "Inicie novamente para confirmar o 2FA.",
+          description: "Inicie novamente para confirmar a V2F.",
           variant: "destructive",
         });
         return;
@@ -964,18 +992,16 @@ const DashboardUsers = () => {
         return;
       }
       if (errorCode === "invalid_totp_code") {
-        toast({ title: "Código TOTP inválido", variant: "destructive" });
+        toast({ title: "Código da V2F inválido", variant: "destructive" });
         return;
       }
-      toast({ title: "Não foi possível confirmar 2FA", variant: "destructive" });
-      return;
+      toast({ title: "Não foi possível confirmar a V2F", variant: "destructive" });      return;
     }
     const body = await response.json();
     setSecurityRecoveryCodes(Array.isArray(body.recoveryCodes) ? body.recoveryCodes : []);
     setSecurityEnrollment(null);
     setSecurityEnrollCode("");
-    toast({ title: "2FA ativado" });
-    await refreshSelfSecurity();
+    toast({ title: "V2F ativada" });    await refreshSelfSecurity();
   };
 
   const disableSelfTotp = async () => {
@@ -993,7 +1019,72 @@ const DashboardUsers = () => {
     }
     setSecurityDisableCode("");
     setSecurityEnrollment(null);
-    toast({ title: "2FA desativado" });
+    toast({ title: "V2F desativada" });    await refreshSelfSecurity();
+  };
+
+  const configureLocalPassword = async () => {
+    const email = securityLocalAuthEmail.trim();
+    const username = securityLocalAuthIdentifier.trim();
+    const password = securityLocalAuthPassword;
+    if (!email || !password) {
+      return;
+    }
+    const response = await apiFetch(apiBase, "/api/me/security/local-auth", {
+      method: "POST",
+      auth: true,
+      json: {
+        email,
+        password,
+        ...(username ? { username } : {}),
+      },
+    });
+    if (!response.ok) {
+      let errorCode = "";
+      try {
+        const payload = await response.json();
+        errorCode = String(payload?.error || "").trim();
+      } catch {
+        errorCode = "";
+      }
+      if (errorCode === "local_auth_already_configured") {
+        toast({ title: "Login com senha já configurado", variant: "destructive" });
+        return;
+      }
+      if (errorCode === "password_required") {
+        toast({ title: "Informe uma senha", variant: "destructive" });
+        return;
+      }
+      if (errorCode === "invalid_email") {
+        toast({ title: "E-mail inválido", variant: "destructive" });
+        return;
+      }
+      if (errorCode === "invalid_username") {
+        toast({ title: "Username inválido", variant: "destructive" });
+        return;
+      }
+      if (errorCode === "oauth_email_unavailable") {
+        toast({ title: "Conta OAuth sem e-mail disponível", variant: "destructive" });
+        return;
+      }
+      if (errorCode === "local_auth_email_conflict") {
+        toast({ title: "E-mail já em uso no login local", variant: "destructive" });
+        return;
+      }
+      if (errorCode === "local_auth_username_conflict") {
+        toast({ title: "Username já em uso", variant: "destructive" });
+        return;
+      }
+      toast({ title: "Não foi possível configurar login com senha", variant: "destructive" });
+      return;
+    }
+    const body = await response.json();
+    setSecurityLocalAuthIdentifier("");
+    setSecurityLocalAuthPassword("");
+    toast({ title: "Login com senha configurado" });
+    if (body?.mfaEnrollmentRequired && typeof body?.redirect === "string" && body.redirect) {
+      window.location.href = body.redirect;
+      return;
+    }
     await refreshSelfSecurity();
   };
 
@@ -1020,6 +1111,146 @@ const DashboardUsers = () => {
     }
     await refreshSelfSecurity();
   };
+
+  const connectIdentityProvider = (provider: "google" | "discord") => {
+    const next = "/dashboard/usuarios?edit=me";
+    window.location.href = `${apiBase}/api/me/security/identities/${provider}/link/start?next=${encodeURIComponent(next)}`;
+  };
+
+  const disconnectIdentityProvider = async (provider: string) => {
+    if (isDisconnectingIdentityProvider) {
+      return;
+    }
+    setIsDisconnectingIdentityProvider(provider);
+    try {
+      const response = await apiFetch(
+        apiBase,
+        `/api/me/security/identities/${encodeURIComponent(provider)}`,
+        {
+          method: "DELETE",
+          auth: true,
+        },
+      );
+      if (!response.ok) {
+        let errorCode = "";
+        try {
+          const payload = await response.json();
+          errorCode = String(payload?.error || "").trim();
+        } catch {
+          errorCode = "";
+        }
+        if (errorCode === "last_login_method") {
+          toast({ title: "Não é possível desconectar o último login", variant: "destructive" });
+          return;
+        }
+        toast({ title: "Não foi possível desconectar a conta", variant: "destructive" });
+        return;
+      }
+      toast({ title: `Conta ${provider} desconectada` });
+      await refreshSelfSecurity();
+    } finally {
+      setIsDisconnectingIdentityProvider(null);
+    }
+  };
+
+  const identityRows = useMemo(() => {
+    const byProvider = new Map(
+      (Array.isArray(securitySummary?.identities) ? securitySummary.identities : []).map((entry) => [
+        String(entry.provider || "").trim().toLowerCase(),
+        entry,
+      ]),
+    );
+    return ["discord", "google"].map((provider) => ({
+      provider,
+      identity: byProvider.get(provider) || null,
+    }));
+  }, [securitySummary?.identities]);
+
+  const linkedProvider = useMemo(
+    () => String(searchParams.get("linked") || "").trim().toLowerCase(),
+    [searchParams],
+  );
+
+  useEffect(() => {
+    if (!linkedProvider || !showSelfSecuritySection) {
+      return;
+    }
+    toast({ title: `Conta ${linkedProvider} conectada` });
+    const nextParams = new URLSearchParams(searchParams);
+    nextParams.delete("linked");
+    setSearchParams(nextParams, { replace: true });
+    void refreshSelfSecurity();
+  }, [linkedProvider, refreshSelfSecurity, searchParams, setSearchParams, showSelfSecuritySection]);
+
+  const formatIdentityProviderLabel = (provider: string) =>
+    provider === "google" ? "Google" : provider === "discord" ? "Discord" : provider;
+
+  const formatIdentityStatusLabel = (identity?: { linked?: boolean } | null) =>
+    identity?.linked ? "Conectada" : "Não conectada";
+
+  const formatIdentityLastUsed = (value: string | null | undefined) => formatSecurityDateTime(value);
+
+  const formatIdentityLinkedAt = (value: string | null | undefined) => formatSecurityDateTime(value);
+
+  const renderConnectedAccountsCard = () => (
+    <div className={`space-y-3 rounded-2xl p-3 ${subtleInsetSurfaceClassName}`}>
+      <div className="space-y-1">
+        <p className="text-sm font-medium">Contas conectadas</p>
+        <p className="text-xs text-muted-foreground">
+          Conecte Google e Discord à sua conta para usar ambos como login.
+        </p>
+      </div>
+      <div className="space-y-2">
+        {identityRows.map(({ provider, identity }) => {
+          const providerLabel = formatIdentityProviderLabel(provider);
+          const isLinked = identity?.linked === true;
+          const isDisconnecting = isDisconnectingIdentityProvider === provider;
+          return (
+            <div
+              key={provider}
+              className={`flex flex-wrap items-center justify-between gap-3 rounded-xl p-3 ${subtleMutedSurfaceClassName}`}
+            >
+              <div className="space-y-1">
+                <div className="flex items-center gap-2">
+                  <p className="text-sm font-medium">{providerLabel}</p>
+                  <Badge className="bg-card/80 text-muted-foreground">
+                    {formatIdentityStatusLabel(identity || { linked: false, provider })}
+                  </Badge>
+                </div>
+                <p className="text-xs text-muted-foreground">
+                  E-mail: {identity?.emailNormalized || "-"}
+                </p>
+                <p className="text-xs text-muted-foreground">
+                  Vinculada em: {formatIdentityLinkedAt(identity?.linkedAt)}
+                </p>
+                <p className="text-xs text-muted-foreground">
+                  Último uso: {formatIdentityLastUsed(identity?.lastUsedAt)}
+                </p>
+              </div>
+              {isLinked ? (
+                <DashboardActionButton
+                  size="sm"
+                  tone="destructive"
+                  onClick={() => void disconnectIdentityProvider(provider)}
+                  disabled={Boolean(isDisconnectingIdentityProvider)}
+                >
+                  {isDisconnecting ? "Desconectando..." : "Desconectar"}
+                </DashboardActionButton>
+              ) : (
+                <DashboardActionButton
+                  size="sm"
+                  tone="primary"
+                  onClick={() => connectIdentityProvider(provider as "google" | "discord")}
+                >
+                  Conectar
+                </DashboardActionButton>
+              )}
+            </div>
+          );
+        })}
+      </div>
+    </div>
+  );
 
   const openNewDialog = () => {
     setEditingUser(null);
@@ -1158,10 +1389,10 @@ const DashboardUsers = () => {
         setCurrentUser((prev) =>
           prev
             ? {
-                ...prev,
-                ...data.user,
-                username: prev.username,
-              }
+              ...prev,
+              ...data.user,
+              username: prev.username,
+            }
             : prev,
         );
       }
@@ -1254,16 +1485,14 @@ const DashboardUsers = () => {
     );
     if (!response.ok) {
       setIsResettingMfa(false);
-      toast({ title: "Não foi possível resetar o 2FA", variant: "destructive" });
-      return;
+      toast({ title: "Não foi possível redefinir a V2F", variant: "destructive" });      return;
     }
     setResetMfaTarget(null);
     setIsResettingMfa(false);
     toast({
-      title: "2FA resetado",
+      title: "V2F redefinida",
       description: `${targetName} pode entrar novamente sem o dispositivo anterior.`,
-    });
-  };
+    });  };
 
   const toggleRole = (role: string) => {
     if (!canEditRoles) {
@@ -1777,9 +2006,8 @@ const DashboardUsers = () => {
       <Dialog open={isDialogOpen} onOpenChange={handleEditorOpenChange} modal={false}>
         {isDialogOpen ? <DashboardEditorBackdrop /> : null}
         <DialogContent
-          className={`project-editor-dialog ${dashboardEditorDialogWidthClassName} gap-0 p-0 ${
-            isEditorDialogScrolled ? "editor-modal-scrolled" : ""
-          }`}
+          className={`project-editor-dialog ${dashboardEditorDialogWidthClassName} gap-0 p-0 ${isEditorDialogScrolled ? "editor-modal-scrolled" : ""
+            }`}
           onPointerDownOutside={(event) => {
             if (isLibraryOpen) {
               event.preventDefault();
@@ -2039,11 +2267,10 @@ const DashboardUsers = () => {
                               <div
                                 key={`${social.label}-${index}`}
                                 data-testid={`user-social-row-${index}`}
-                                className={`overflow-x-auto rounded-xl p-2 ${
-                                  socialDragOverIndex === index
+                                className={`overflow-x-auto rounded-xl p-2 ${socialDragOverIndex === index
                                     ? `${subtleSurfaceClassName} border-primary/40 bg-primary/5`
                                     : subtleSurfaceClassName
-                                }`}
+                                  }`}
                                 onDragOver={(event) => handleSocialDragOver(event, index)}
                                 onDrop={(event) => handleSocialDrop(event, index)}
                               >
@@ -2159,7 +2386,7 @@ const DashboardUsers = () => {
                     <AccordionTrigger className={editorSectionTriggerClassName}>
                       <ProjectEditorAccordionHeader
                         title="Segurança"
-                        subtitle={`2FA ${securitySummary?.totpEnabled ? "ativo" : "inativo"}`}
+                        subtitle={`V2F ${securitySummary?.totpEnabled ? "ativa" : "inativa"}`}
                       />
                     </AccordionTrigger>
                     <AccordionContent className={editorSectionContentClassName}>
@@ -2168,7 +2395,7 @@ const DashboardUsers = () => {
                           <div className="space-y-1">
                             <Label className="text-sm font-medium">Segurança da conta</Label>
                             <p className="text-xs text-muted-foreground">
-                              Configure 2FA opcional e gerencie suas sessões ativas.
+                              Configure a V2F e gerencie suas sessões ativas.
                             </p>
                           </div>
                           <DashboardActionButton
@@ -2181,15 +2408,76 @@ const DashboardUsers = () => {
 
                         <div className="flex flex-wrap items-center gap-2">
                           <Badge className="bg-card/80 text-muted-foreground">
-                            2FA {securitySummary?.totpEnabled ? "Ativo" : "Inativo"}
+                            V2F {securitySummary?.totpEnabled ? "Ativa" : "Inativa"}
                           </Badge>
                           <Badge className="bg-card/80 text-muted-foreground">
-                            Recovery: {securitySummary?.recoveryCodesRemaining ?? 0}
+                            Senha {securitySummary?.localAuthEnabled ? "Ativa" : "Inativa"}
+                          </Badge>
+                          <Badge className="bg-card/80 text-muted-foreground">
+                            Recuperação: {securitySummary?.recoveryCodesRemaining ?? 0}
                           </Badge>
                           <Badge className="bg-card/80 text-muted-foreground">
                             Sessões: {securitySummary?.activeSessionsCount ?? 0}
                           </Badge>
                         </div>
+
+                        {!securitySummary?.localAuthEnabled ? (
+                          <div className={`space-y-3 rounded-2xl p-3 ${subtleInsetSurfaceClassName}`}>
+                            <div className="space-y-1">
+                              <p className="text-sm font-medium">Configurar login com senha</p>
+                              <p className="text-xs text-muted-foreground">
+                                O e-mail virá da conta usada para logar pela primeira vez. Você também pode adicionar um nome de usuário. Ao concluir, a V2F será obrigatória.
+                              </p>
+                            </div>
+                            <div className="space-y-1">
+                              <Label className="text-xs text-muted-foreground">E-mail para login</Label>
+                              <Input
+                                value={securityLocalAuthEmail}
+                                onChange={(event) => setSecurityLocalAuthEmail(event.target.value)}
+                                placeholder="voce@exemplo.com"
+                              />
+                              <p className="text-[11px] text-muted-foreground">
+                                Sugestão do OAuth: {securitySummary?.oauthEmailSuggested || "Nenhum e-mail OAuth disponível"}
+                              </p>
+                            </div>
+                            <Input
+                              value={securityLocalAuthIdentifier}
+                              onChange={(event) => setSecurityLocalAuthIdentifier(event.target.value)}
+                              placeholder="Username (opcional)"
+                            />
+                            <Input
+                              type="password"
+                              value={securityLocalAuthPassword}
+                              onChange={(event) => setSecurityLocalAuthPassword(event.target.value)}
+                              placeholder="Nova senha"
+                            />
+                            <DashboardActionButton
+                              size="sm"
+                              tone="primary"
+                              onClick={configureLocalPassword}
+                              disabled={!securityLocalAuthEmail.trim() || !securityLocalAuthPassword}
+                            >
+                              Configurar login com senha
+                            </DashboardActionButton>
+                          </div>
+                        ) : (
+                          <div className={`space-y-2 rounded-2xl p-3 ${subtleInsetSurfaceClassName}`}>
+                            <p className="text-sm font-medium">Login com senha configurado</p>
+                            <p className="text-xs text-muted-foreground">
+                              E-mail local: {securitySummary?.localAuthEmail || "-"}
+                            </p>
+                            <p className="text-xs text-muted-foreground">
+                              Username local: {securitySummary?.localAuthUsername || "Não configurado"}
+                            </p>
+                            {securitySummary?.localAuthTotpPending ? (
+                              <p className="text-xs text-amber-300">
+                                Esta conta ainda precisa concluir a configuração da V2F para liberar o uso do login com senha.
+                              </p>
+                            ) : null}
+                          </div>
+                        )}
+
+                        {renderConnectedAccountsCard()}
 
                         {!securitySummary?.totpEnabled ? (
                           <div
@@ -2200,7 +2488,7 @@ const DashboardUsers = () => {
                               tone="primary"
                               onClick={startSelfEnrollment}
                             >
-                              Ativar 2FA (TOTP)
+                              Ativar V2F
                             </DashboardActionButton>
                             {securityEnrollment ? (
                               <div className="space-y-3">
@@ -2229,7 +2517,7 @@ const DashboardUsers = () => {
                                   {securityQrDataUrl ? (
                                     <img
                                       src={securityQrDataUrl}
-                                      alt="QR code para configurar TOTP"
+                                      alt="QR code para configurar V2F"
                                       className="h-48 w-48 rounded-xl border border-border/60 bg-white p-2"
                                     />
                                   ) : (
@@ -2267,7 +2555,7 @@ const DashboardUsers = () => {
                                             await navigator.clipboard.writeText(
                                               securityEnrollment.otpauthUrl,
                                             );
-                                            toast({ title: "URL OTP copiada" });
+                                            toast({ title: "URL de V2F copiada" });
                                           } catch {
                                             toast({
                                               title: "Não foi possível copiar",
@@ -2276,7 +2564,7 @@ const DashboardUsers = () => {
                                           }
                                         }}
                                       >
-                                        Copiar URL OTP
+                                        Copiar URL de V2F
                                       </DashboardActionButton>
                                       <DashboardActionButton
                                         size="sm"
@@ -2290,7 +2578,7 @@ const DashboardUsers = () => {
                                       onChange={(event) =>
                                         setSecurityEnrollCode(event.target.value)
                                       }
-                                      placeholder="Código de 6 dígitos"
+                                      placeholder="Código da V2F"
                                     />
                                     <DashboardActionButton
                                       size="sm"
@@ -2315,7 +2603,7 @@ const DashboardUsers = () => {
                             <Input
                               value={securityDisableCode}
                               onChange={(event) => setSecurityDisableCode(event.target.value)}
-                              placeholder="Código TOTP ou código de recuperação"
+                              placeholder="Código da V2F ou código de recuperação"
                             />
                             <DashboardActionButton
                               size="sm"
@@ -2323,14 +2611,14 @@ const DashboardUsers = () => {
                               onClick={disableSelfTotp}
                               disabled={!securityDisableCode.trim()}
                             >
-                              Desativar 2FA
+                              Desativar V2F
                             </DashboardActionButton>
                           </div>
                         )}
 
                         {securityRecoveryCodes.length > 0 ? (
                           <div className="space-y-2 rounded-2xl border border-amber-500/30 bg-amber-500/10 p-3">
-                            <p className="text-xs font-medium">Salve estes recovery codes agora:</p>
+                            <p className="text-xs font-medium">Salve estes códigos de recuperação agora:</p>
                             <div className="grid gap-1 md:grid-cols-2">
                               {securityRecoveryCodes.map((code) => (
                                 <code key={code} className="rounded bg-card px-2 py-1 text-xs">
@@ -2397,7 +2685,7 @@ const DashboardUsers = () => {
                                         <Badge variant="accent">Atual</Badge>
                                       ) : null}
                                       {session.isPendingMfa ? (
-                                        <Badge variant="warning">Pendente MFA</Badge>
+                                        <Badge variant="warning">Pendente V2F</Badge>
                                       ) : null}
                                     </div>
                                     <p className="text-[11px] text-muted-foreground">
@@ -2435,9 +2723,8 @@ const DashboardUsers = () => {
                   <AccordionTrigger className={editorSectionTriggerClassName}>
                     <ProjectEditorAccordionHeader
                       title="Acesso e permissões"
-                      subtitle={`${editorAccessRoleLabel} • ${
-                        stripOwnerRole(formState.roles).length
-                      } funções`}
+                      subtitle={`${editorAccessRoleLabel} • ${stripOwnerRole(formState.roles).length
+                        } funções`}
                     />
                   </AccordionTrigger>
                   <AccordionContent className={editorSectionContentClassName}>
@@ -2488,10 +2775,10 @@ const DashboardUsers = () => {
                                 permissions:
                                   value === "admin"
                                     ? permissionOptions
-                                        .filter((option) =>
-                                          DEFAULT_ADMIN_PERMISSIONS.includes(option.id),
-                                        )
-                                        .map((option) => option.id)
+                                      .filter((option) =>
+                                        DEFAULT_ADMIN_PERMISSIONS.includes(option.id),
+                                      )
+                                      .map((option) => option.id)
                                     : prev.permissions,
                               }))
                             }
@@ -2606,7 +2893,7 @@ const DashboardUsers = () => {
                     onClick={() => setResetMfaTarget(editingUser)}
                     disabled={isResettingMfa}
                   >
-                    Resetar 2FA
+                    Redefinir V2F
                   </DashboardActionButton>
                 ) : null}
                 {editingUser ? (
@@ -2647,15 +2934,15 @@ const DashboardUsers = () => {
       >
         <DialogContent className="max-w-md">
           <DialogHeader>
-            <DialogTitle>Resetar 2FA?</DialogTitle>
+            <DialogTitle>Redefinir V2F?</DialogTitle>
             <DialogDescription>
               {resetMfaTarget
-                ? `Resetar o 2FA de "${resetMfaTarget.name}" para ajudar na recuperação de acesso?`
+                ? `Redefinir a V2F de "${resetMfaTarget.name}" para ajudar na recuperação de acesso?`
                 : ""}
             </DialogDescription>
           </DialogHeader>
           <p className="text-sm text-muted-foreground">
-            Essa ação remove o TOTP atual. Se a pessoa estiver presa na etapa de MFA, ela precisará
+            Essa ação remove a V2F atual. Se a pessoa estiver presa na etapa de V2F, ela precisará
             cancelar o login atual e entrar novamente.
           </p>
           <div className="flex justify-end gap-3">
@@ -2672,7 +2959,7 @@ const DashboardUsers = () => {
               onClick={handleResetUserTotp}
               disabled={isResettingMfa}
             >
-              {isResettingMfa ? "Resetando..." : "Resetar 2FA"}
+              {isResettingMfa ? "Redefinindo..." : "Redefinir V2F"}
             </DashboardActionButton>
           </div>
         </DialogContent>

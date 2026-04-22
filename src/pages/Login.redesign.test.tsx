@@ -88,6 +88,7 @@ describe("Login redesign", () => {
       "w-full",
       "sm:w-auto",
     );
+    expect(screen.getByRole("button", { name: "Entrar com Google" })).toBeInTheDocument();
     expect(screen.getByRole("button", { name: "Entrar com senha" })).toBeInTheDocument();
     expect(screen.getByLabelText("Identificador")).toBeInTheDocument();
     expect(screen.getByLabelText("Senha")).toBeInTheDocument();
@@ -126,11 +127,11 @@ describe("Login redesign", () => {
     });
   });
 
-  it("mostra estado de enrollment obrigatorio de TOTP", () => {
+  it("mostra estado de enrollment obrigatorio da V2F", () => {
     renderLogin("/login?mfa=enrollment_required");
 
     expect(
-      screen.getByText(/primeiro login com senha exige a configuração do autenticador TOTP/i),
+      screen.getByText(/esta conta configurou login com senha e precisa concluir a configuração da V2F/i),
     ).toBeInTheDocument();
     expect(screen.getByRole("link", { name: "Configurar autenticador" })).toBeInTheDocument();
   });
@@ -160,7 +161,15 @@ describe("Login redesign", () => {
     expect(locationHref).toBe("http://api.local/auth/discord");
   });
 
-  it("aplica foco forte fino ao campo MFA publico", () => {
+  it("monta URL de autenticacao do Google com next", () => {
+    renderLogin("/login?next=/dashboard/posts");
+
+    fireEvent.click(screen.getByRole("button", { name: "Entrar com Google" }));
+
+    expect(locationHref).toBe("http://api.local/auth/google?next=%2Fdashboard%2Fposts");
+  });
+
+  it("aplica foco forte fino ao campo de V2F publico", () => {
     renderLogin("/login?mfa=required");
 
     expect(screen.getByPlaceholderText("000000 ou ABCDE-12345")).toHaveClass(
@@ -171,7 +180,7 @@ describe("Login redesign", () => {
     );
   });
 
-  it("cancela login MFA com logout explicito e redireciona para home", async () => {
+  it("cancela login de V2F com logout explicito e redireciona para home", async () => {
     apiFetchMock
       .mockResolvedValueOnce(mockResponse(false))
       .mockResolvedValueOnce(mockResponse(true));

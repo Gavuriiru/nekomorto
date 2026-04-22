@@ -185,6 +185,80 @@ const normalizeWebhookStateRecord = (value) => {
   };
 };
 
+const normalizeUserIdentityRecord = (record) => {
+  const normalized = {
+    id: String(record?.id || "").trim(),
+    userId: String(record?.userId || "").trim(),
+    provider: String(record?.provider || "").trim(),
+    providerSubject: String(record?.providerSubject || "").trim(),
+    emailNormalized: record?.emailNormalized ? String(record.emailNormalized).trim().toLowerCase() : null,
+    emailVerified: typeof record?.emailVerified === "boolean" ? record.emailVerified : null,
+    displayName: record?.displayName ? String(record.displayName).trim() : null,
+    avatarUrl: record?.avatarUrl ? String(record.avatarUrl).trim() : null,
+    linkedAt: record?.linkedAt ? String(record.linkedAt) : new Date().toISOString(),
+    lastUsedAt: record?.lastUsedAt ? String(record.lastUsedAt) : null,
+    disabledAt: record?.disabledAt ? String(record.disabledAt) : null,
+    data: cloneValue(record?.data || {}),
+    createdAt: record?.createdAt ? String(record.createdAt) : new Date().toISOString(),
+    updatedAt: record?.updatedAt ? String(record.updatedAt) : new Date().toISOString(),
+  };
+  if (!normalized.id || !normalized.userId || !normalized.provider || !normalized.providerSubject) {
+    return null;
+  }
+  return normalized;
+};
+
+const toUserIdentityPersistenceRow = (record) => ({
+  id: record.id,
+  userId: record.userId,
+  provider: record.provider,
+  providerSubject: record.providerSubject,
+  emailNormalized: record.emailNormalized,
+  emailVerified: record.emailVerified,
+  displayName: record.displayName,
+  avatarUrl: record.avatarUrl,
+  linkedAt: toDateOrNull(record.linkedAt) || new Date(),
+  lastUsedAt: toDateOrNull(record.lastUsedAt),
+  disabledAt: toDateOrNull(record.disabledAt),
+  data: cloneValue(record.data),
+});
+
+const toUserIdentitySnapshotRecord = (record) => {
+  const normalized = normalizeUserIdentityRecord({
+    ...record,
+    linkedAt: record?.linkedAt ? new Date(record.linkedAt).toISOString() : null,
+    lastUsedAt: record?.lastUsedAt ? new Date(record.lastUsedAt).toISOString() : null,
+    disabledAt: record?.disabledAt ? new Date(record.disabledAt).toISOString() : null,
+    createdAt: record?.createdAt ? new Date(record.createdAt).toISOString() : null,
+    updatedAt: record?.updatedAt ? new Date(record.updatedAt).toISOString() : null,
+  });
+  return normalized;
+};
+
+const cloneUserIdentityRecord = (record) => {
+  const normalized = normalizeUserIdentityRecord(record);
+  return normalized ? cloneValue(normalized) : null;
+};
+
+const cloneUserIdentityRecords = (records, predicate = null) =>
+  ensureArray(records).reduce((acc, record) => {
+    const normalized = cloneUserIdentityRecord(record);
+    if (!normalized) {
+      return acc;
+    }
+    if (typeof predicate === "function" && !predicate(normalized)) {
+      return acc;
+    }
+    acc.push(normalized);
+    return acc;
+  }, []);
+
+
+const findUserIdentityInCollection = (records, predicate) => {
+  const match = ensureArray(records).find(predicate);
+  return cloneUserIdentityRecord(match);
+};
+
 const toAnalyticsEventRow = (event, position) => ({
   id: String(event?.id || crypto.randomUUID()),
   position: Number.isFinite(Number(position)) ? Math.max(0, Math.floor(Number(position))) : 0,
@@ -273,6 +347,7 @@ export class DbDataRepository {
       siteSettings: {},
       integrationSettings: {},
       userPreferences: {},
+      userIdentityRecords: [],
       userLocalAuthRecords: {},
       userMfaTotpRecords: {},
       userSessionIndexRecords: [],
@@ -412,6 +487,7 @@ export class DbDataRepository {
       siteSettings,
       integrationSettings,
       userPreferences,
+      userIdentityRecords,
       userLocalAuthRecords,
       userMfaTotpRecords,
       userSessionIndexRecords,
@@ -453,6 +529,9 @@ export class DbDataRepository {
         ? prisma.integrationSettingsRecord.findUnique({ where: { id: 1 } }).catch(() => null)
         : Promise.resolve(null),
       prisma.userPreferenceRecord.findMany({}),
+      typeof prisma.userIdentityRecord?.findMany === "function"
+        ? prisma.userIdentityRecord.findMany({})
+        : Promise.resolve([]),
       typeof prisma.userLocalAuthRecord?.findMany === "function"
         ? prisma.userLocalAuthRecord.findMany({})
         : Promise.resolve([]),
@@ -660,6 +739,9 @@ export class DbDataRepository {
       acc[userId] = cloneValue(row.data);
       return acc;
     }, {});
+    this.snapshot.userIdentityRecords = cloneUserIdentityRecords(
+      userIdentityRecords.map((row) => toUserIdentitySnapshotRecord(row)),
+    );
     this.snapshot.userLocalAuthRecords = userLocalAuthRecords.reduce((acc, row) => {
       const userId = String(row?.userId || "").trim();
       if (!userId) {
@@ -1479,6 +1561,128 @@ export class DbDataRepository {
     });
   }
 
+  loadUserIdentityRecords({ userId = null, provider = null, includeDisabled = false } = {}) {
+    const normalizedUserId = String(userId || "").trim();
+    const normalizedProvider = String(provider || "").trim();
+    return cloneUserIdentityRecords(this.snapshot.userIdentityRecords || [], (record) => {
+      if (normalizedUserId && String(record.userId || "") !== normalizedUserId) {
+        return false;
+      }
+      if (normalizedProvider && String(record.provider || "") !== normalizedProvider) {
+        return false;
+      }
+      if (!includeDisabled && record.disabledAt) {
+        return false;
+      }
+      return true;
+    });
+  }
+
+  findUserIdentityRecord(provider, providerSubject) {
+    const normalizedProvider = String(provider || "").trim();
+    const normalizedSubject = String(providerSubject || "").trim();
+    if (!normalizedProvider || !normalizedSubject) {
+      return null;
+    }
+    return findUserIdentityInCollection(
+      this.snapshot.userIdentityRecords || [],
+      (record) =>
+        String(record.provider || "") === normalizedProvider &&
+        String(record.providerSubject || "") === normalizedSubject,
+    );
+  }
+
+  findUserIdentityRecordByEmail(provider, emailNormalized) {
+    const normalizedProvider = String(provider || "").trim();
+    const normalizedEmail = String(emailNormalized || "").trim().toLowerCase();
+    if (!normalizedProvider || !normalizedEmail) {
+      return null;
+    }
+    return findUserIdentityInCollection(
+      this.snapshot.userIdentityRecords || [],
+      (record) =>
+        !record.disabledAt &&
+        String(record.provider || "") === normalizedProvider &&
+        String(record.emailNormalized || "") === normalizedEmail,
+    );
+  }
+
+  findUserIdentityRecordsByEmail(emailNormalized, { includeDisabled = false } = {}) {
+    const normalizedEmail = String(emailNormalized || "").trim().toLowerCase();
+    if (!normalizedEmail) {
+      return [];
+    }
+    return cloneUserIdentityRecords(this.snapshot.userIdentityRecords || [], (record) => {
+      if (!includeDisabled && record.disabledAt) {
+        return false;
+      }
+      return String(record.emailNormalized || "") === normalizedEmail;
+    });
+  }
+
+  upsertUserIdentityRecord(record) {
+    const normalized = normalizeUserIdentityRecord(record);
+    if (!normalized) {
+      return null;
+    }
+    const list = Array.isArray(this.snapshot.userIdentityRecords) ? [...this.snapshot.userIdentityRecords] : [];
+    const index = list.findIndex((entry) => String(entry.id || "") === normalized.id);
+    if (index >= 0) {
+      list[index] = normalized;
+    } else {
+      list.push(normalized);
+    }
+    this.snapshot.userIdentityRecords = list;
+    this.enqueuePersist("user_identities", async () => {
+      const persistenceRow = toUserIdentityPersistenceRow(normalized);
+      await prisma.userIdentityRecord.upsert({
+        where: { id: normalized.id },
+        create: {
+          ...persistenceRow,
+          createdAt: toDateOrNull(normalized.createdAt) || new Date(),
+        },
+        update: persistenceRow,
+      });
+    });
+    return cloneUserIdentityRecord(normalized);
+  }
+
+  writeUserIdentityRecords(records) {
+    const nextRecords = cloneUserIdentityRecords(records || [], () => true);
+    this.snapshot.userIdentityRecords = nextRecords;
+    this.enqueuePersist("user_identities_replace", async () => {
+      if (typeof prisma.userIdentityRecord?.deleteMany === "function") {
+        await prisma.userIdentityRecord.deleteMany({});
+      }
+      if (!nextRecords.length) {
+        return;
+      }
+      if (typeof prisma.userIdentityRecord?.createMany === "function") {
+        await prisma.userIdentityRecord.createMany({
+          data: nextRecords.map((record) => ({
+            ...toUserIdentityPersistenceRow(record),
+            createdAt: toDateOrNull(record.createdAt) || new Date(),
+            updatedAt: toDateOrNull(record.updatedAt) || new Date(),
+          })),
+        });
+        return;
+      }
+      await Promise.all(
+        nextRecords.map((record) =>
+          prisma.userIdentityRecord.upsert({
+            where: { id: record.id },
+            create: {
+              ...toUserIdentityPersistenceRow(record),
+              createdAt: toDateOrNull(record.createdAt) || new Date(),
+            },
+            update: toUserIdentityPersistenceRow(record),
+          }),
+        ),
+      );
+    });
+    return cloneUserIdentityRecords(nextRecords, () => true);
+  }
+
   loadUserLocalAuthRecord(userId) {
     const key = String(userId || "").trim();
     if (!key) {
@@ -1519,10 +1723,34 @@ export class DbDataRepository {
         : null,
       passwordHash: String(record?.passwordHash || ""),
       passwordUpdatedAt: record?.passwordUpdatedAt ? String(record.passwordUpdatedAt) : new Date().toISOString(),
+      totpEnrollmentRequiredAt: record?.totpEnrollmentRequiredAt
+        ? String(record.totpEnrollmentRequiredAt)
+        : null,
       disabledAt: record?.disabledAt ? String(record.disabledAt) : null,
       createdAt: record?.createdAt ? String(record.createdAt) : new Date().toISOString(),
       updatedAt: record?.updatedAt ? String(record.updatedAt) : new Date().toISOString(),
     };
+    const records = Object.entries(this.snapshot.userLocalAuthRecords || {});
+    const emailConflict = row.emailNormalized
+      ? records.find(
+          ([candidateUserId, candidate]) =>
+            candidateUserId !== key &&
+            String(candidate?.emailNormalized || "") === row.emailNormalized,
+        )
+      : null;
+    if (emailConflict) {
+      throw new Error("local_auth_email_conflict");
+    }
+    const usernameConflict = row.usernameNormalized
+      ? records.find(
+          ([candidateUserId, candidate]) =>
+            candidateUserId !== key &&
+            String(candidate?.usernameNormalized || "") === row.usernameNormalized,
+        )
+      : null;
+    if (usernameConflict) {
+      throw new Error("local_auth_username_conflict");
+    }
     this.snapshot.userLocalAuthRecords = this.snapshot.userLocalAuthRecords || {};
     this.snapshot.userLocalAuthRecords[key] = row;
     this.enqueuePersist("user_local_auth", async () => {
@@ -1534,6 +1762,7 @@ export class DbDataRepository {
           usernameNormalized: row.usernameNormalized,
           passwordHash: row.passwordHash,
           passwordUpdatedAt: toDateOrNull(row.passwordUpdatedAt) || new Date(),
+          totpEnrollmentRequiredAt: toDateOrNull(row.totpEnrollmentRequiredAt),
           disabledAt: toDateOrNull(row.disabledAt),
           createdAt: toDateOrNull(row.createdAt) || new Date(),
         },
@@ -1542,6 +1771,7 @@ export class DbDataRepository {
           usernameNormalized: row.usernameNormalized,
           passwordHash: row.passwordHash,
           passwordUpdatedAt: toDateOrNull(row.passwordUpdatedAt) || new Date(),
+          totpEnrollmentRequiredAt: toDateOrNull(row.totpEnrollmentRequiredAt),
           disabledAt: toDateOrNull(row.disabledAt),
         },
       });

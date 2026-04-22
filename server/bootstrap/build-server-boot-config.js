@@ -21,6 +21,9 @@ export const buildServerBootConfig = ({ env = process.env, repoRootDir = process
     DISCORD_CLIENT_ID,
     DISCORD_CLIENT_SECRET,
     DISCORD_REDIRECT_URI = "auto",
+    GOOGLE_CLIENT_ID,
+    GOOGLE_CLIENT_SECRET,
+    GOOGLE_REDIRECT_URI = "auto",
     APP_ORIGIN = "",
     ADMIN_ORIGINS = "",
     SESSION_SECRET,
@@ -92,12 +95,14 @@ export const buildServerBootConfig = ({ env = process.env, repoRootDir = process
     appOriginEnv: APP_ORIGIN,
     adminOriginsEnv: ADMIN_ORIGINS,
     discordRedirectUriEnv: DISCORD_REDIRECT_URI,
+    googleRedirectUriEnv: GOOGLE_REDIRECT_URI,
     isProduction,
   });
   const ALLOWED_ORIGINS = originConfig.allowedOrigins;
   const PRIMARY_APP_ORIGIN = originConfig.primaryAppOrigin;
   const PRIMARY_APP_HOST = originConfig.primaryAppHost;
   const CONFIGURED_DISCORD_REDIRECT_URI = originConfig.configuredDiscordRedirectUri;
+  const CONFIGURED_GOOGLE_REDIRECT_URI = originConfig.configuredGoogleRedirectUri;
   const { buildSiteSettingsStoragePayload, normalizeSiteSettings, normalizeUploadsDeep } =
     createSiteSettingsRuntimeHelpers({
       primaryAppOrigin: PRIMARY_APP_ORIGIN,
@@ -198,9 +203,12 @@ export const buildServerBootConfig = ({ env = process.env, repoRootDir = process
     ALLOWED_ORIGINS,
     BOOTSTRAP_TOKEN,
     CONFIGURED_DISCORD_REDIRECT_URI,
+    CONFIGURED_GOOGLE_REDIRECT_URI,
     DATABASE_URL,
     DISCORD_CLIENT_ID,
     DISCORD_CLIENT_SECRET,
+    GOOGLE_CLIENT_ID,
+    GOOGLE_CLIENT_SECRET,
     MFA_ENROLLMENT_TTL_MS,
     MFA_ICON_URL,
     MFA_ISSUER,

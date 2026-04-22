@@ -325,8 +325,14 @@ const createAppEnvInteractive = async (databaseUrl) => {
   const maintenanceMode = await ask("MAINTENANCE_MODE", "false");
   const appOrigin = await ask("APP_ORIGIN", "http://127.0.0.1:5173");
   const redirectUri = await ask("DISCORD_REDIRECT_URI", "http://127.0.0.1:8080/login");
+  const googleRedirectUri = await ask(
+    "GOOGLE_REDIRECT_URI",
+    "http://127.0.0.1:8080/auth/google/callback",
+  );
   const discordClientId = await ask("DISCORD_CLIENT_ID");
   const discordClientSecret = await ask("DISCORD_CLIENT_SECRET");
+  const googleClientId = await ask("GOOGLE_CLIENT_ID");
+  const googleClientSecret = await ask("GOOGLE_CLIENT_SECRET");
   const sessionSecret =
     (await ask("SESSION_SECRET (leave blank to generate)", "")) || randomSecret();
   const ownerIds = await ask("OWNER_IDS (comma-separated, optional)");
@@ -347,6 +353,9 @@ const createAppEnvInteractive = async (databaseUrl) => {
     DISCORD_CLIENT_ID: discordClientId,
     DISCORD_CLIENT_SECRET: discordClientSecret,
     DISCORD_REDIRECT_URI: redirectUri,
+    GOOGLE_CLIENT_ID: googleClientId,
+    GOOGLE_CLIENT_SECRET: googleClientSecret,
+    GOOGLE_REDIRECT_URI: googleRedirectUri,
     SESSION_SECRET: sessionSecret,
     OWNER_IDS: ownerIds,
     BOOTSTRAP_TOKEN: bootstrapToken,

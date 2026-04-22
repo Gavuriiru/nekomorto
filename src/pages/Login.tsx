@@ -185,7 +185,7 @@ const Login = () => {
           return;
         }
         if (errorCode === "mfa_required") {
-          setMfaError("Sua sessão ainda exige MFA. Tente novamente.");
+          setMfaError("Sua sessão ainda exige V2F. Tente novamente.");
           return;
         }
         setMfaError("Não foi possível validar o código de segurança.");
@@ -254,12 +254,12 @@ const Login = () => {
               {isPasswordLoginVisible ? (
                 <div className="space-y-3 rounded-2xl border border-border/65 bg-card/70 p-4">
                   <p className="text-sm text-muted-foreground">
-                    Entre com seu e-mail ou username e sua senha.
+                    Entre com seu e-mail ou nome de usuário e sua senha.
                   </p>
                   <Input
                     value={identifier}
                     onChange={(event) => setIdentifier(event.target.value)}
-                    placeholder="E-mail ou username"
+                    placeholder="E-mail ou nome de usuário"
                     className="w-full rounded-xl border-border/65 bg-background/70 text-sm text-foreground"
                     aria-label="Identificador"
                   />
@@ -285,7 +285,7 @@ const Login = () => {
               {isMfaVisible ? (
                 <div className="space-y-3 rounded-2xl border border-border/65 bg-card/70 p-4">
                   <p className="text-sm text-muted-foreground">
-                    Digite seu código TOTP ou recovery code para concluir o login.
+                    Digite seu código da V2F ou código de recuperação para concluir o login.
                   </p>
                   <Input
                     value={mfaCode}
@@ -316,7 +316,7 @@ const Login = () => {
               {isMfaEnrollmentVisible ? (
                 <div className="space-y-3 rounded-2xl border border-border/65 bg-card/70 p-4">
                   <p className="text-sm text-muted-foreground">
-                    Seu primeiro login com senha exige a configuração do autenticador TOTP antes de liberar o painel.
+                    Esta conta configurou login com senha e precisa concluir a configuração da V2F antes de liberar o painel.
                   </p>
                   <Button asChild className="w-full">
                     <Link to={next ? `/dashboard/seguranca?next=${encodeURIComponent(next)}` : "/dashboard/seguranca"}>
@@ -350,6 +350,19 @@ const Login = () => {
                       }}
                     >
                       Entrar com Discord
+                    </Button>
+                    <Button
+                      type="button"
+                      variant="outline"
+                      className="w-full sm:w-auto"
+                      onClick={() => {
+                        const target = next
+                          ? `${apiBase}/auth/google?next=${encodeURIComponent(next)}`
+                          : `${apiBase}/auth/google`;
+                        window.location.href = target;
+                      }}
+                    >
+                      Entrar com Google
                     </Button>
                     <Link to="/" className="text-sm text-muted-foreground hover:text-foreground">
                       Voltar

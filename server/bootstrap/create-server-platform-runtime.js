@@ -6,6 +6,7 @@ import { createAbsoluteUrlResolver, createIndexHtmlLoader } from "../lib/meta-ht
 import {
   isAllowedOrigin as isAllowedOriginByConfig,
   resolveDiscordRedirectUri as resolveDiscordRedirectUriByConfig,
+  resolveGoogleRedirectUri as resolveGoogleRedirectUriByConfig,
 } from "../lib/origin-config.js";
 
 export const normalizeRequestIp = (value) => {
@@ -26,6 +27,7 @@ export const createServerPlatformRuntime = async ({
   fs,
   repoRootDir = process.cwd(),
   configuredDiscordRedirectUri = null,
+  configuredGoogleRedirectUri = null,
   allowedOrigins = [],
   primaryAppOrigin = "",
   isProduction = false,
@@ -60,6 +62,13 @@ export const createServerPlatformRuntime = async ({
       primaryAppOrigin,
       isAllowedOriginFn: isAllowedOrigin,
     });
+  const resolveGoogleRedirectUri = (req) =>
+    resolveGoogleRedirectUriByConfig({
+      req,
+      configuredGoogleRedirectUri,
+      primaryAppOrigin,
+      isAllowedOriginFn: isAllowedOrigin,
+    });
 
   return {
     clientDistDir,
@@ -70,6 +79,7 @@ export const createServerPlatformRuntime = async ({
     httpServer,
     isAllowedOrigin,
     resolveDiscordRedirectUri,
+    resolveGoogleRedirectUri,
     toAbsoluteUrl,
     viteDevServer,
   };

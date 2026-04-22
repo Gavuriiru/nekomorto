@@ -52,6 +52,7 @@ const USER_RUNTIME_DEPENDENCY_KEYS = [
   "loadProjects",
   "loadSecurityEvents",
   "loadSiteSettings",
+  "loadUserIdentityRecords",
   "loadUploads",
   "loadUsers",
   "loadStoredUserPreferences",
@@ -160,6 +161,8 @@ export const createUserRuntimeBundle = (dependencies = {}) => {
     hashRecoveryCode: dependencies.hashRecoveryCode,
     listActiveSessionsForUser: userSessionSecurityRuntime.listActiveSessionsForUser,
     loadSiteSettings: dependencies.loadSiteSettings,
+    loadUserIdentityRecords: dependencies.loadUserIdentityRecords,
+    loadUserLocalAuthRecord: dependencies.loadUserLocalAuthRecord,
     loadUserMfaTotpRecord: userSessionSecurityRuntime.loadUserMfaTotpRecord,
     loadUserSessionIndexRecords: userSessionSecurityRuntime.loadUserSessionIndexRecords,
     metricsRegistry: dependencies.metricsRegistry,
@@ -178,6 +181,7 @@ export const createUserRuntimeBundle = (dependencies = {}) => {
     shouldEmitSecurityRuleEvent: securityEventsRuntime.shouldEmitSecurityRuleEvent,
     upsertUserSessionIndexRecord: userSessionSecurityRuntime.upsertUserSessionIndexRecord,
     verifyTotpCode: dependencies.verifyTotpCode,
+    writeUserLocalAuthRecord: dependencies.writeUserLocalAuthRecord,
     writeUserMfaTotpRecord: userSessionSecurityRuntime.writeUserMfaTotpRecord,
   });
 
