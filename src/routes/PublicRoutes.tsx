@@ -15,6 +15,8 @@ const Donations = lazy(() => import("@/pages/Donations"));
 const FAQ = lazy(() => import("@/pages/FAQ"));
 const Login = lazy(() => import("@/pages/Login"));
 const Recruitment = lazy(() => import("@/pages/Recruitment"));
+const TermsOfService = lazy(() => import("@/pages/TermsOfService"));
+const PrivacyPolicy = lazy(() => import("@/pages/PrivacyPolicy"));
 
 const PublicRoutes = () => (
   <Routes>
@@ -31,6 +33,8 @@ const PublicRoutes = () => (
       <Route path="/projetos/:slug" element={<Project />} />
       <Route path="/projetos/:slug/leitura/:chapter" element={<ProjectReading />} />
       <Route path="/recrutamento" element={<Recruitment />} />
+      <Route path="/termos-de-uso" element={<TermsOfService />} />
+      <Route path="/politica-de-privacidade" element={<PrivacyPolicy />} />
       <Route path="/login" element={<Login />} />
       {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
       <Route path="*" element={<NotFound />} />

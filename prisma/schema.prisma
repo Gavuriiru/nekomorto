@@ -93,20 +93,6 @@ model UserIdentityRecord {
   @@map("user_identities")
 }
 
-model UserLocalAuthRecord {
-  userId                   String   @id
-  emailNormalized          String?  @unique(map: "user_local_auth_emailNormalized_key")
-  usernameNormalized       String?  @unique(map: "user_local_auth_usernameNormalized_key")
-  passwordHash             String
-  passwordUpdatedAt        DateTime
-  totpEnrollmentRequiredAt DateTime?
-  disabledAt               DateTime?
-  createdAt                DateTime @default(now())
-  updatedAt                DateTime @updatedAt
-
-  @@map("user_local_auth")
-}
-
 model UserWebAuthnCredentialRecord {
   id           String   @id
   userId       String

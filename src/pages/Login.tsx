@@ -7,9 +7,9 @@ import { getApiBase } from "@/lib/api-base";
 import { apiFetch } from "@/lib/api-client";
 import "@/styles/login.css";
 import { useEffect, useMemo, useState } from "react";
-import { Link, useLocation, useNavigate } from "react-router-dom";
+import { useLocation, useNavigate } from "react-router-dom";
 
-type SessionCheckState = "default" | "mfa" | "mfa_enrollment";
+type SessionCheckState = "default" | "mfa";
 
 const Login = () => {
   usePageMeta({ title: "Login", noIndex: true });
@@ -20,22 +20,12 @@ const Login = () => {
   const error = params.get("error");
   const next = params.get("next");
   const mfa = params.get("mfa");
-  const [identifier, setIdentifier] = useState("");
-  const [password, setPassword] = useState("");
-  const [passwordError, setPasswordError] = useState("");
-  const [isSubmittingPassword, setIsSubmittingPassword] = useState(false);
   const [mfaCode, setMfaCode] = useState("");
   const [isVerifyingMfa, setIsVerifyingMfa] = useState(false);
   const [isCancellingMfa, setIsCancellingMfa] = useState(false);
-  const [sessionState, setSessionState] = useState<SessionCheckState>(() => {
-    if (mfa === "required") {
-      return "mfa";
-    }
-    if (mfa === "enrollment_required") {
-      return "mfa_enrollment";
-    }
-    return "default";
-  });
+  const [sessionState, setSessionState] = useState<SessionCheckState>(() =>
+    mfa === "required" ? "mfa" : "default",
+  );
   const [mfaError, setMfaError] = useState("");
   const apiBase = getApiBase();
 
@@ -50,9 +40,6 @@ const Login = () => {
               const body = await response.json();
               if (body?.error === "mfa_required" && isActive) {
                 setSessionState("mfa");
-              }
-              if (body?.error === "mfa_enrollment_required" && isActive) {
-                setSessionState("mfa_enrollment");
               }
             } catch {
               // ignore parse errors
@@ -74,13 +61,7 @@ const Login = () => {
   }, [apiBase, navigate]);
 
   useEffect(() => {
-    if (mfa === "required") {
-      setSessionState("mfa");
-      return;
-    }
-    if (mfa === "enrollment_required") {
-      setSessionState("mfa_enrollment");
-    }
+    setSessionState(mfa === "required" ? "mfa" : "default");
   }, [mfa]);
 
   const errorMessage = (() => {
@@ -101,59 +82,6 @@ const Login = () => {
         return null;
     }
   })();
-
-  const handlePasswordLogin = async () => {
-    const normalizedIdentifier = identifier.trim();
-    if (!normalizedIdentifier || !password || isSubmittingPassword) {
-      return;
-    }
-    setIsSubmittingPassword(true);
-    setPasswordError("");
-    try {
-      const response = await apiFetch(apiBase, "/auth/password/login", {
-        method: "POST",
-        json: {
-          identifier: normalizedIdentifier,
-          password,
-          next,
-        },
-      });
-      if (!response.ok) {
-        let errorCode = "";
-        try {
-          const body = await response.json();
-          errorCode = String(body?.error || "").trim();
-        } catch {
-          errorCode = "";
-        }
-        if (errorCode === "invalid_credentials") {
-          setPasswordError("Identificador ou senha inválidos.");
-          return;
-        }
-        if (errorCode === "identifier_and_password_required") {
-          setPasswordError("Informe seu identificador e sua senha.");
-          return;
-        }
-        setPasswordError("Não foi possível iniciar o login com senha.");
-        return;
-      }
-      const body = await response.json();
-      if (body?.mfaRequired) {
-        setSessionState("mfa");
-        return;
-      }
-      if (body?.mfaEnrollmentRequired) {
-        setSessionState("mfa_enrollment");
-        return;
-      }
-      const redirect = typeof body?.redirect === "string" && body.redirect ? body.redirect : "/dashboard";
-      window.location.href = redirect;
-    } catch {
-      setPasswordError("Não foi possível iniciar o login com senha.");
-    } finally {
-      setIsSubmittingPassword(false);
-    }
-  };
 
   const handleMfaVerify = async () => {
     const normalizedCode = mfaCode.trim();
@@ -219,9 +147,8 @@ const Login = () => {
     }
   };
 
-  const isPasswordLoginVisible = sessionState === "default";
+  const isOauthLoginVisible = sessionState === "default";
   const isMfaVisible = sessionState === "mfa";
-  const isMfaEnrollmentVisible = sessionState === "mfa_enrollment";
 
   return (
     <div className="login-shell text-foreground">
@@ -251,34 +178,11 @@ const Login = () => {
                 </div>
               )}
 
-              {isPasswordLoginVisible ? (
+              {isOauthLoginVisible ? (
                 <div className="space-y-3 rounded-2xl border border-border/65 bg-card/70 p-4">
                   <p className="text-sm text-muted-foreground">
-                    Entre com seu e-mail ou nome de usuário e sua senha.
+                    Entre com um provedor OAuth liberado para acessar a plataforma.
                   </p>
-                  <Input
-                    value={identifier}
-                    onChange={(event) => setIdentifier(event.target.value)}
-                    placeholder="E-mail ou nome de usuário"
-                    className="w-full rounded-xl border-border/65 bg-background/70 text-sm text-foreground"
-                    aria-label="Identificador"
-                  />
-                  <Input
-                    type="password"
-                    value={password}
-                    onChange={(event) => setPassword(event.target.value)}
-                    placeholder="Senha"
-                    className="w-full rounded-xl border-border/65 bg-background/70 text-sm text-foreground"
-                    aria-label="Senha"
-                  />
-                  {passwordError ? <p className="text-xs text-red-300">{passwordError}</p> : null}
-                  <Button
-                    className="w-full"
-                    disabled={isSubmittingPassword || !identifier.trim() || !password}
-                    onClick={handlePasswordLogin}
-                  >
-                    {isSubmittingPassword ? "Entrando..." : "Entrar com senha"}
-                  </Button>
                 </div>
               ) : null}
 
@@ -313,30 +217,8 @@ const Login = () => {
                 </div>
               ) : null}
 
-              {isMfaEnrollmentVisible ? (
-                <div className="space-y-3 rounded-2xl border border-border/65 bg-card/70 p-4">
-                  <p className="text-sm text-muted-foreground">
-                    Esta conta configurou login com senha e precisa concluir a configuração da V2F antes de liberar o painel.
-                  </p>
-                  <Button asChild className="w-full">
-                    <Link to={next ? `/dashboard/seguranca?next=${encodeURIComponent(next)}` : "/dashboard/seguranca"}>
-                      Configurar autenticador
-                    </Link>
-                  </Button>
-                  <Button
-                    type="button"
-                    variant="outline"
-                    className="w-full"
-                    disabled={isCancellingMfa}
-                    onClick={handleCancelMfaLogin}
-                  >
-                    {isCancellingMfa ? "Cancelando..." : "Cancelar login"}
-                  </Button>
-                </div>
-              ) : null}
-
-              <div className={`login-actions ${(isMfaVisible || isMfaEnrollmentVisible) ? "justify-end" : ""}`}>
-                {isPasswordLoginVisible ? (
+              <div className={`login-actions ${isMfaVisible ? "justify-end" : ""}`}>
+                {isOauthLoginVisible ? (
                   <>
                     <Button
                       type="button"
@@ -364,9 +246,9 @@ const Login = () => {
                     >
                       Entrar com Google
                     </Button>
-                    <Link to="/" className="text-sm text-muted-foreground hover:text-foreground">
+                    <a href="/" className="text-sm text-muted-foreground hover:text-foreground">
                       Voltar
-                    </Link>
+                    </a>
                   </>
                 ) : null}
               </div>

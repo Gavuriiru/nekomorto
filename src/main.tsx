@@ -27,6 +27,8 @@ const titleForPath = (path: string) => {
     [/^\/projetos\/.+\/leitura\/.+/, "Leitura"],
     [/^\/projetos\/.+/, "Projeto"],
     [/^\/recrutamento\/?$/, "Recrutamento"],
+    [/^\/termos-de-uso\/?$/, "Termos de Uso"],
+    [/^\/politica-de-privacidade\/?$/, "Política de Privacidade"],
     [/^\/login\/?$/, "Login"],
     [/^\/dashboard\/usuarios\/?$/, "Usuários"],
     [/^\/dashboard\/posts\/?$/, "Posts"],

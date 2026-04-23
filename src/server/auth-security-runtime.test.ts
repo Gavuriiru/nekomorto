@@ -21,7 +21,6 @@ const createDeps = (overrides = {}) => ({
   listActiveSessionsForUser: () => [],
   loadSiteSettings: () => ({ site: { faviconUrl: "/favicon.png" } }),
   loadUserIdentityRecords: () => [],
-  loadUserLocalAuthRecord: () => null,
   loadUserMfaTotpRecord: () => null,
   loadUserSessionIndexRecords: () => [],
   metricsRegistry: {
@@ -47,7 +46,6 @@ const createDeps = (overrides = {}) => ({
   shouldEmitSecurityRuleEvent: () => true,
   upsertUserSessionIndexRecord: vi.fn(),
   verifyTotpCode: () => false,
-  writeUserLocalAuthRecord: vi.fn(),
   writeUserMfaTotpRecord: vi.fn(),
   ...overrides,
 });
@@ -119,37 +117,7 @@ describe("auth-security-runtime", () => {
     expect(record.recoveryCodesHashed).toEqual(["hash-beta"]);
   });
 
-  it("requires TOTP enrollment only when local auth has an explicit pending requirement", () => {
-    const runtime = createAuthSecurityRuntime(
-      createDeps({
-        loadUserLocalAuthRecord: () => ({
-          userId: "user-1",
-          passwordHash: "hash",
-          totpEnrollmentRequiredAt: "2026-04-21T12:00:00.000Z",
-        }),
-        loadUserMfaTotpRecord: () => null,
-      }),
-    );
-
-    expect(runtime.shouldRequireTotpEnrollmentForPasswordLogin("user-1")).toBe(true);
-  });
-
-  it("does not require TOTP enrollment for users without an explicit local auth pending requirement", () => {
-    const runtime = createAuthSecurityRuntime(
-      createDeps({
-        loadUserLocalAuthRecord: () => ({
-          userId: "user-1",
-          passwordHash: "hash",
-          totpEnrollmentRequiredAt: null,
-        }),
-        loadUserMfaTotpRecord: () => null,
-      }),
-    );
-
-    expect(runtime.shouldRequireTotpEnrollmentForPasswordLogin("user-1")).toBe(false);
-  });
-
-  it("builds security summary with oauth email suggestion and separated local auth identifiers", () => {
+  it("builds security summary with oauth email suggestion", () => {
     const runtime = createAuthSecurityRuntime(
       createDeps({
         loadUserIdentityRecords: () => [
@@ -166,22 +134,12 @@ describe("auth-security-runtime", () => {
             updatedAt: "2026-04-21T10:00:00.000Z",
           },
         ],
-        loadUserLocalAuthRecord: () => ({
-          userId: "user-1",
-          emailNormalized: "user@example.com",
-          usernameNormalized: "userone",
-          passwordHash: "hash",
-          totpEnrollmentRequiredAt: null,
-        }),
         loadUserMfaTotpRecord: () => null,
       }),
     );
 
     expect(runtime.buildMySecuritySummary({ req: { session: {} }, userId: "user-1" })).toMatchObject({
       oauthEmailSuggested: "user@example.com",
-      localAuthEmail: "user@example.com",
-      localAuthUsername: "userone",
-      localAuthIdentifier: "user@example.com",
     });
   });
 
@@ -254,154 +212,6 @@ describe("auth-security-runtime", () => {
     });
   });
 
-  it("marks local auth pending only when local auth requires totp and totp is still disabled", () => {
-    const runtime = createAuthSecurityRuntime(
-      createDeps({
-        loadUserLocalAuthRecord: () => ({
-          userId: "user-1",
-          emailNormalized: "user@example.com",
-          passwordHash: "hash",
-          totpEnrollmentRequiredAt: "2026-04-21T12:00:00.000Z",
-        }),
-        loadUserMfaTotpRecord: () => ({
-          enabledAt: null,
-          disabledAt: null,
-          recoveryCodesHashed: [],
-        }),
-      }),
-    );
-
-    expect(runtime.buildMySecuritySummary({ req: { session: {} }, userId: "user-1" })).toMatchObject({
-      localAuthTotpPending: true,
-    });
-  });
-
-  it("does not mark local auth pending when totp is already enabled", () => {
-    const runtime = createAuthSecurityRuntime(
-      createDeps({
-        loadUserLocalAuthRecord: () => ({
-          userId: "user-1",
-          emailNormalized: "user@example.com",
-          passwordHash: "hash",
-          totpEnrollmentRequiredAt: "2026-04-21T12:00:00.000Z",
-        }),
-        loadUserMfaTotpRecord: () => ({
-          enabledAt: "2026-04-21T12:05:00.000Z",
-          disabledAt: null,
-          recoveryCodesHashed: [],
-        }),
-      }),
-    );
-
-    expect(runtime.buildMySecuritySummary({ req: { session: {} }, userId: "user-1" })).toMatchObject({
-      localAuthTotpPending: false,
-    });
-  });
-
-  it("returns null local auth fields when local auth is not configured", () => {
-    const runtime = createAuthSecurityRuntime(createDeps());
-
-    expect(runtime.buildMySecuritySummary({ req: { session: {} }, userId: "user-1" })).toMatchObject({
-      localAuthEmail: null,
-      localAuthUsername: null,
-      localAuthIdentifier: null,
-    });
-  });
-
-  it("uses username as compatibility identifier when local auth has no email", () => {
-    const runtime = createAuthSecurityRuntime(
-      createDeps({
-        loadUserLocalAuthRecord: () => ({
-          userId: "user-1",
-          emailNormalized: null,
-          usernameNormalized: "userone",
-          passwordHash: "hash",
-          totpEnrollmentRequiredAt: null,
-        }),
-      }),
-    );
-
-    expect(runtime.buildMySecuritySummary({ req: { session: {} }, userId: "user-1" })).toMatchObject({
-      localAuthEmail: null,
-      localAuthUsername: "userone",
-      localAuthIdentifier: "userone",
-    });
-  });
-
-  it("prefers local auth email over username in compatibility identifier", () => {
-    const runtime = createAuthSecurityRuntime(
-      createDeps({
-        loadUserLocalAuthRecord: () => ({
-          userId: "user-1",
-          emailNormalized: "user@example.com",
-          usernameNormalized: "userone",
-          passwordHash: "hash",
-          totpEnrollmentRequiredAt: null,
-        }),
-      }),
-    );
-
-    expect(runtime.buildMySecuritySummary({ req: { session: {} }, userId: "user-1" })).toMatchObject({
-      localAuthIdentifier: "user@example.com",
-    });
-  });
-
-  it("reports local auth enabled only when password hash exists and record is active", () => {
-    const runtime = createAuthSecurityRuntime(
-      createDeps({
-        loadUserLocalAuthRecord: () => ({
-          userId: "user-1",
-          emailNormalized: "user@example.com",
-          usernameNormalized: "userone",
-          passwordHash: "",
-          disabledAt: null,
-          totpEnrollmentRequiredAt: null,
-        }),
-      }),
-    );
-
-    expect(runtime.buildMySecuritySummary({ req: { session: {} }, userId: "user-1" })).toMatchObject({
-      localAuthEnabled: false,
-    });
-  });
-
-  it("reports local auth disabled when record is disabled", () => {
-    const runtime = createAuthSecurityRuntime(
-      createDeps({
-        loadUserLocalAuthRecord: () => ({
-          userId: "user-1",
-          emailNormalized: "user@example.com",
-          usernameNormalized: "userone",
-          passwordHash: "hash",
-          disabledAt: "2026-04-21T12:00:00.000Z",
-          totpEnrollmentRequiredAt: null,
-        }),
-      }),
-    );
-
-    expect(runtime.buildMySecuritySummary({ req: { session: {} }, userId: "user-1" })).toMatchObject({
-      localAuthEnabled: false,
-    });
-  });
-
-  it("reports local auth enabled when active password hash exists", () => {
-    const runtime = createAuthSecurityRuntime(
-      createDeps({
-        loadUserLocalAuthRecord: () => ({
-          userId: "user-1",
-          emailNormalized: "user@example.com",
-          usernameNormalized: "userone",
-          passwordHash: "hash",
-          disabledAt: null,
-          totpEnrollmentRequiredAt: null,
-        }),
-      }),
-    );
-
-    expect(runtime.buildMySecuritySummary({ req: { session: {} }, userId: "user-1" })).toMatchObject({
-      localAuthEnabled: true,
-    });
-  });
 
   it("returns no oauth suggestion when identity loader is absent or empty", () => {
     const runtime = createAuthSecurityRuntime(
@@ -415,24 +225,6 @@ describe("auth-security-runtime", () => {
     });
   });
 
-  it("keeps local auth compatibility identifier null when no local identifiers exist", () => {
-    const runtime = createAuthSecurityRuntime(
-      createDeps({
-        loadUserLocalAuthRecord: () => ({
-          userId: "user-1",
-          emailNormalized: null,
-          usernameNormalized: null,
-          passwordHash: "hash",
-          disabledAt: null,
-          totpEnrollmentRequiredAt: null,
-        }),
-      }),
-    );
-
-    expect(runtime.buildMySecuritySummary({ req: { session: {} }, userId: "user-1" })).toMatchObject({
-      localAuthIdentifier: null,
-    });
-  });
 
   it("ignores disabled identities when summarizing oauth email", () => {
     const runtime = createAuthSecurityRuntime(
@@ -626,22 +418,6 @@ describe("auth-security-runtime", () => {
     const runtime = createAuthSecurityRuntime(createDeps());
     expect(runtime.buildMySecuritySummary({ req: { session: {} }, userId: "user-1" })).toMatchObject({
       iconUrl: "https://example.com/favicon.png",
-    });
-  });
-
-  it("returns false local auth pending when there is no local auth record", () => {
-    const runtime = createAuthSecurityRuntime(createDeps());
-
-    expect(runtime.buildMySecuritySummary({ req: { session: {} }, userId: "user-1" })).toMatchObject({
-      localAuthTotpPending: false,
-    });
-  });
-
-  it("returns false local auth enabled when there is no local auth record", () => {
-    const runtime = createAuthSecurityRuntime(createDeps());
-
-    expect(runtime.buildMySecuritySummary({ req: { session: {} }, userId: "user-1" })).toMatchObject({
-      localAuthEnabled: false,
     });
   });
 

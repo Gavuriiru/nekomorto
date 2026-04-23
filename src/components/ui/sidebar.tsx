@@ -41,6 +41,10 @@ function useSidebar() {
   return context;
 }
 
+function useSidebarState() {
+  return useSidebar();
+}
+
 const getStoredDesktopSidebarState = () => {
   if (typeof document === "undefined") {
     return null;
@@ -779,4 +783,5 @@ export {
   SidebarRail,
   SidebarSeparator,
   SidebarTrigger,
+  useSidebarState,
 };

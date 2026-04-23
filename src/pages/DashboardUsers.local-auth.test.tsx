@@ -1,5 +1,5 @@
 import DashboardUsers from "@/pages/DashboardUsers";
-import { fireEvent, render, screen, waitFor } from "@testing-library/react";
+import { fireEvent, render, screen } from "@testing-library/react";
 import type { ReactNode } from "react";
 import { MemoryRouter } from "react-router-dom";
 import { describe, expect, it, vi } from "vitest";
@@ -102,11 +102,6 @@ const setupApiMock = () => {
         totpEnabled: false,
         recoveryCodesRemaining: 0,
         activeSessionsCount: 1,
-        localAuthEnabled: false,
-        localAuthTotpPending: false,
-        localAuthIdentifier: null,
-        localAuthEmail: null,
-        localAuthUsername: null,
         oauthEmailSuggested: "user@example.com",
         identities: [
           {
@@ -137,20 +132,13 @@ const setupApiMock = () => {
     if (path === "/api/link-types" && method === "GET") {
       return mockJsonResponse(true, { items: [] });
     }
-    if (path === "/api/me/security/local-auth" && method === "POST") {
-      return mockJsonResponse(true, {
-        ok: true,
-        mfaEnrollmentRequired: true,
-        redirect: "/dashboard/seguranca",
-      });
-    }
 
     return mockJsonResponse(false, { error: "not_found" }, 404);
   });
 };
 
-describe("DashboardUsers local auth", () => {
-  it("configura login com senha e redireciona para concluir a V2F", async () => {
+describe("DashboardUsers connected accounts", () => {
+  it("renderiza contas conectadas sem UI de login com senha", async () => {
     installLocationMock();
     setupApiMock();
 
@@ -162,42 +150,15 @@ describe("DashboardUsers local auth", () => {
 
     await screen.findByRole("heading", { name: /gest.o de usu.rios/i });
     await screen.findByText(/editar usu.rio/i);
-    await screen.findAllByText(/configurar login com senha/i);
 
-    expect(screen.getByText(/sugestão do oauth: user@example.com/i)).toBeInTheDocument();
     expect(screen.getByText(/contas conectadas/i)).toBeInTheDocument();
     expect(screen.getByText(/^Discord$/)).toBeInTheDocument();
     expect(screen.getByText(/^Google$/)).toBeInTheDocument();
     expect(screen.getByText(/não conectada/i)).toBeInTheDocument();
-
-    const emailInput = screen.getByPlaceholderText(/voce@exemplo.com/i);
-    const usernameInput = screen.getByPlaceholderText(/Username \(opcional\)/i);
-    const passwordInput = screen.getByPlaceholderText(/nova senha/i);
-
-    fireEvent.change(emailInput, { target: { value: "secure@example.com" } });
-    fireEvent.change(usernameInput, { target: { value: "userone" } });
-    fireEvent.change(passwordInput, { target: { value: "secret-123" } });
-    fireEvent.click(screen.getByRole("button", { name: /configurar login com senha/i }));
-
-    await waitFor(() => {
-      expect(apiFetchMock).toHaveBeenCalledWith(
-        "http://api.local",
-        "/api/me/security/local-auth",
-        expect.objectContaining({
-          method: "POST",
-          auth: true,
-          json: {
-            email: "secure@example.com",
-            username: "userone",
-            password: "secret-123",
-          },
-        }),
-      );
-    });
-
-    await waitFor(() => {
-      expect(locationHref).toBe("/dashboard/seguranca");
-    });
+    expect(screen.queryByText(/configurar login com senha/i)).not.toBeInTheDocument();
+    expect(screen.queryByPlaceholderText(/voce@exemplo.com/i)).not.toBeInTheDocument();
+    expect(screen.queryByPlaceholderText(/Username \(opcional\)/i)).not.toBeInTheDocument();
+    expect(screen.queryByPlaceholderText(/nova senha/i)).not.toBeInTheDocument();
   });
 
   it("inicia o fluxo manual de conexão de provider", async () => {

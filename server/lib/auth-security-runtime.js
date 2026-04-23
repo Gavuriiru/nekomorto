@@ -14,9 +14,7 @@ const REQUIRED_DEPENDENCY_KEYS = [
   "listActiveSessionsForUser",
   "loadSiteSettings",
   "loadUserIdentityRecords",
-  "loadUserLocalAuthRecord",
   "loadUserMfaTotpRecord",
-  "writeUserLocalAuthRecord",
   "loadUserSessionIndexRecords",
   "metricsRegistry",
   "mfaEnrollmentTtlMs",
@@ -64,7 +62,6 @@ export const createAuthSecurityRuntime = (dependencies = {}) => {
     listActiveSessionsForUser,
     loadSiteSettings,
     loadUserIdentityRecords,
-    loadUserLocalAuthRecord,
     loadUserMfaTotpRecord,
     loadUserSessionIndexRecords,
     metricsRegistry,
@@ -235,7 +232,6 @@ export const createAuthSecurityRuntime = (dependencies = {}) => {
     const record = loadUserMfaTotpRecord(userId);
     const activeSessions = listActiveSessionsForUser(userId);
     const metadata = resolveMfaMetadata({ req, userId });
-    const localAuthRecord = loadUserLocalAuthRecord(userId);
     const loadedIdentityRecords =
       typeof loadUserIdentityRecords === "function" ? loadUserIdentityRecords({ userId }) : [];
     const identityRecords = Array.isArray(loadedIdentityRecords) ? loadedIdentityRecords : [];
@@ -253,8 +249,6 @@ export const createAuthSecurityRuntime = (dependencies = {}) => {
         const rightTs = Number.isFinite(rightTsRaw) ? rightTsRaw : 0;
         return rightTs - leftTs;
       })[0]?.emailNormalized || null;
-    const localAuthEmail = localAuthRecord?.emailNormalized || null;
-    const localAuthUsername = localAuthRecord?.usernameNormalized || null;
     const identities = identityRecords
       .filter((entry) => entry?.provider)
       .map((entry) => ({
@@ -276,13 +270,6 @@ export const createAuthSecurityRuntime = (dependencies = {}) => {
       issuer: metadata.issuer,
       accountLabel: metadata.accountLabel,
       iconUrl: metadata.iconUrl,
-      localAuthEnabled: Boolean(localAuthRecord?.passwordHash && !localAuthRecord?.disabledAt),
-      localAuthTotpPending: Boolean(
-        localAuthRecord?.totpEnrollmentRequiredAt && !(record && record.enabledAt && !record.disabledAt),
-      ),
-      localAuthIdentifier: localAuthEmail || localAuthUsername || null,
-      localAuthEmail,
-      localAuthUsername,
       oauthEmailSuggested,
       identities,
     };
@@ -376,18 +363,6 @@ export const createAuthSecurityRuntime = (dependencies = {}) => {
     req.session.loginAppOrigin = loginAppOrigin;
     req.session.loginNext = loginNext;
     return req.session.pendingMfaEnrollmentUser;
-  };
-
-  const shouldRequireTotpEnrollmentForPasswordLogin = (userId) => {
-    const normalizedUserId = String(userId || "").trim();
-    if (!normalizedUserId) {
-      return false;
-    }
-    const localAuthRecord = loadUserLocalAuthRecord(normalizedUserId);
-    if (!localAuthRecord?.totpEnrollmentRequiredAt) {
-      return false;
-    }
-    return !Boolean(loadUserMfaTotpRecord(normalizedUserId)?.enabledAt);
   };
 
   const completeRequiredMfaEnrollmentForSession = ({ req } = {}) => {
@@ -560,7 +535,6 @@ export const createAuthSecurityRuntime = (dependencies = {}) => {
     resolveMfaMetadata,
     resolvePendingMfaEnrollmentUser,
     resolveRecoveryCodesRemaining,
-    shouldRequireTotpEnrollmentForPasswordLogin,
     startTotpEnrollment,
     updateSessionIndexFromRequest,
     verifyTotpOrRecoveryCode,

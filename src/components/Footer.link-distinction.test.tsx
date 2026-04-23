@@ -12,7 +12,17 @@ vi.mock("@/hooks/use-site-settings", () => ({
 }));
 
 describe("Footer copyright text", () => {
-  it("renders copyright as plain text", () => {
+  it("allows overriding the footer shell background", () => {
+    render(
+      <MemoryRouter>
+        <Footer shellClassName="bg-gradient-surface" />
+      </MemoryRouter>,
+    );
+
+    expect(screen.getByRole("contentinfo")).toHaveClass("bg-gradient-surface");
+  });
+
+  it("renders copyright as plain text and legal links separately", () => {
     render(
       <MemoryRouter>
         <Footer />
@@ -23,6 +33,14 @@ describe("Footer copyright text", () => {
     expect(
       screen.queryByRole("link", { name: defaultSettings.footer.copyright }),
     ).not.toBeInTheDocument();
+    expect(screen.getByRole("link", { name: "Termos de Uso" })).toHaveAttribute(
+      "href",
+      "/termos-de-uso",
+    );
+    expect(screen.getByRole("link", { name: "Política de Privacidade" })).toHaveAttribute(
+      "href",
+      "/politica-de-privacidade",
+    );
   });
 
   it("uses an opaque footer shell without external top margin", () => {

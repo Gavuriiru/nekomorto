@@ -162,7 +162,6 @@ export const createUserRuntimeBundle = (dependencies = {}) => {
     listActiveSessionsForUser: userSessionSecurityRuntime.listActiveSessionsForUser,
     loadSiteSettings: dependencies.loadSiteSettings,
     loadUserIdentityRecords: dependencies.loadUserIdentityRecords,
-    loadUserLocalAuthRecord: dependencies.loadUserLocalAuthRecord,
     loadUserMfaTotpRecord: userSessionSecurityRuntime.loadUserMfaTotpRecord,
     loadUserSessionIndexRecords: userSessionSecurityRuntime.loadUserSessionIndexRecords,
     metricsRegistry: dependencies.metricsRegistry,
@@ -181,7 +180,6 @@ export const createUserRuntimeBundle = (dependencies = {}) => {
     shouldEmitSecurityRuleEvent: securityEventsRuntime.shouldEmitSecurityRuleEvent,
     upsertUserSessionIndexRecord: userSessionSecurityRuntime.upsertUserSessionIndexRecord,
     verifyTotpCode: dependencies.verifyTotpCode,
-    writeUserLocalAuthRecord: dependencies.writeUserLocalAuthRecord,
     writeUserMfaTotpRecord: userSessionSecurityRuntime.writeUserMfaTotpRecord,
   });
 

@@ -118,7 +118,6 @@ import {
   getInstitutionalOgCachedRender,
 } from "./lib/institutional-og-delivery.js";
 import { createJobQueue } from "./lib/job-queue.js";
-import { buildPasswordAuditMeta, verifyLocalPassword } from "./lib/local-password-auth.js";
 import { updateLexicalPollVotes } from "./lib/lexical-poll-votes.js";
 import { truncateMetaDescription } from "./lib/meta-description.js";
 import { createMetricsRegistry } from "./lib/metrics.js";
@@ -882,8 +881,6 @@ const {
   claimWebhookDelivery,
   findUserIdentityRecord,
   findUserIdentityRecordsByEmail,
-  findUserLocalAuthRecordByIdentifier,
-  deleteUserLocalAuthRecord,
   isEpubImportJobStorageAvailable,
   isProjectImageImportJobStorageAvailable,
   loadAdminExportJobs,
@@ -911,13 +908,11 @@ const {
   loadLinkTypes,
   loadOwnerIds,
   loadUserIdentityRecords,
-  loadUserLocalAuthRecord,
   loadUsers,
   normalizeLinkTypes,
   writeAllowedUsers,
   writeLinkTypes,
   writeOwnerIds,
-  writeUserLocalAuthRecord,
   writeUsers,
 } = createDataRepositoryBasicRuntime({
   dataRepository,
@@ -1379,7 +1374,6 @@ const userRuntime = createUserRuntimeBundle(
     loadSecurityEvents,
     loadSiteSettings,
     loadUserIdentityRecords,
-    loadUserLocalAuthRecord,
     loadUploads,
     loadUsers,
     metricsRegistry,
@@ -1408,7 +1402,6 @@ const userRuntime = createUserRuntimeBundle(
     upsertSecurityEvent,
     verifyTotpCode,
     writeAllowedUsers,
-    writeUserLocalAuthRecord,
     writeUsers,
   }),
 );
@@ -1720,13 +1713,11 @@ const rootRouteRegistrationDependencies = buildRootServerRegistrationSource({
   buildAnalyticsRange,
   buildAuthRedirectUrl,
   buildEditorialCalendarItems,
-  buildPasswordAuditMeta,
   buildGravatarUrl,
   buildInstitutionalOgDeliveryHeaders,
   buildInstitutionalPageMeta,
   buildManagedStorageAreaSummary,
   buildMySecuritySummary,
-  buildPasswordAuditMeta,
   buildOperationalWebhookTestTransition,
   buildPostMeta,
   buildProjectMeta,
@@ -1780,10 +1771,8 @@ const rootRouteRegistrationDependencies = buildRootServerRegistrationSource({
   establishAuthenticatedSession,
   evaluateOperationalMonitoring,
   findUserIdentityRecord,
-  findUserLocalAuthRecordByIdentifier,
   loadUsers,
   upsertUserIdentityRecord,
-  verifyLocalPassword,
   exportProjectEpub,
   exportProjectImageChapter,
   extractFirstImageFromPostContent,
@@ -1817,7 +1806,6 @@ const rootRouteRegistrationDependencies = buildRootServerRegistrationSource({
   handleMfaFailureSecuritySignals,
   hashRecoveryCode,
   findUserIdentityRecordsByEmail,
-  deleteUserLocalAuthRecord,
   writeUserIdentityRecords,
   isPendingMfaEnrollmentRequiredForUser,
   markMfaEnrollmentRequiredForSession,

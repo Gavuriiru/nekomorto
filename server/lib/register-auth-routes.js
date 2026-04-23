@@ -6,7 +6,6 @@ export const registerAuthRoutes = ({
   app,
   appendAuditLog,
   buildAuthRedirectUrl,
-  buildPasswordAuditMeta,
   canAttemptAuth,
   canVerifyMfa,
   createDiscordAvatarUrl,
@@ -17,7 +16,6 @@ export const registerAuthRoutes = ({
   establishAuthenticatedSession,
   findUserIdentityRecord,
   findUserIdentityRecordsByEmail,
-  findUserLocalAuthRecordByIdentifier,
   getRequestIp,
   googleClientId,
   googleClientSecret,
@@ -31,9 +29,7 @@ export const registerAuthRoutes = ({
   loadAllowedUsers,
   loadOwnerIds,
   loadUserIdentityRecords,
-  loadUserLocalAuthRecord,
   loadUsers,
-  markMfaEnrollmentRequiredForSession,
   metricsRegistry,
   maybeEmitExcessiveSessionsEvent,
   maybeEmitNewNetworkLoginEvent,
@@ -47,18 +43,14 @@ export const registerAuthRoutes = ({
   scopes,
   sessionCookieConfig,
   sessionIndexTouchTsBySid,
-  shouldRequireTotpEnrollmentForPasswordLogin,
   syncPersistedDiscordAvatarForLogin,
   updateSessionIndexFromRequest,
   upsertUserIdentityRecord,
-  verifyLocalPassword,
   verifyTotpOrRecoveryCode,
   writeAllowedUsers,
   writeOwnerIds,
   writeUserIdentityRecords,
-  writeUserLocalAuthRecord,
   writeUsers,
-  deleteUserLocalAuthRecord,
 }) => {
   const router = Router();
 
@@ -79,7 +71,6 @@ export const registerAuthRoutes = ({
   const getUserPrivilegeVector = (user) => {
     const userId = String(user?.id || "").trim();
     const ownerIds = resolveOwnerIdsList();
-    const localAuthRecord = typeof loadUserLocalAuthRecord === "function" ? loadUserLocalAuthRecord(userId) : null;
     const identityCount = Array.isArray(loadUserIdentityRecords?.({ userId }))
       ? loadUserIdentityRecords({ userId }).filter((entry) => !entry?.disabledAt).length
       : 0;
@@ -89,7 +80,6 @@ export const registerAuthRoutes = ({
       isSecondaryOwner: Boolean(userId && ownerIds.includes(userId) && ownerIds[0] !== userId),
       isAdmin: String(user?.accessRole || "").trim().toLowerCase() === "admin",
       hasTotp: typeof isTotpEnabledForUser === "function" ? isTotpEnabledForUser(userId) : false,
-      hasLocalAuth: Boolean(localAuthRecord?.passwordHash && !localAuthRecord?.disabledAt),
       identityCount,
       createdAtTs: Number.isFinite(new Date(user?.createdAt || 0).getTime())
         ? new Date(user?.createdAt || 0).getTime()
@@ -103,7 +93,6 @@ export const registerAuthRoutes = ({
       [left.isSecondaryOwner, right.isSecondaryOwner],
       [left.isAdmin, right.isAdmin],
       [left.hasTotp, right.hasTotp],
-      [left.hasLocalAuth, right.hasLocalAuth],
     ];
     for (const [leftValue, rightValue] of fields) {
       if (leftValue === rightValue) {
@@ -168,16 +157,9 @@ export const registerAuthRoutes = ({
     if (conflictingSameProvider.length > 0) {
       return { blockedReason: "same_provider_conflict", canonicalUserId: null, absorbedUserIds: [] };
     }
-    const localAuthRecord =
-      typeof findUserLocalAuthRecordByIdentifier === "function"
-        ? findUserLocalAuthRecordByIdentifier(normalizedEmail)
-        : null;
     const candidateUserIds = new Set(
       identityMatches.map((entry) => String(entry?.userId || "").trim()).filter(Boolean),
     );
-    if (localAuthRecord?.userId) {
-      candidateUserIds.add(String(localAuthRecord.userId));
-    }
     const candidateIds = [...candidateUserIds];
     if (!candidateIds.length) {
       return { blockedReason: "no_candidate", canonicalUserId: null, absorbedUserIds: [] };
@@ -291,13 +273,6 @@ export const registerAuthRoutes = ({
     if (!normalizedCanonicalUserId || !normalizedAbsorbedUserIds.length) {
       return { ok: true, absorbedUserIds: [] };
     }
-    const canonicalLocalAuth = loadUserLocalAuthRecord?.(normalizedCanonicalUserId) || null;
-    const absorbedLocalAuthRecords = normalizedAbsorbedUserIds
-      .map((userId) => loadUserLocalAuthRecord?.(userId) || null)
-      .filter((record) => record?.userId && record?.passwordHash && !record?.disabledAt);
-    if (canonicalLocalAuth?.passwordHash && absorbedLocalAuthRecords.length > 0) {
-      return { ok: false, reason: "local_auth_conflict" };
-    }
     const allIdentityRecords = Array.isArray(loadUserIdentityRecords?.({ includeDisabled: true }))
       ? loadUserIdentityRecords({ includeDisabled: true })
       : [];
@@ -338,14 +313,6 @@ export const registerAuthRoutes = ({
     });
     if (typeof writeUserIdentityRecords === "function") {
       writeUserIdentityRecords(nextIdentityRecords);
-    }
-    if (!canonicalLocalAuth?.passwordHash && absorbedLocalAuthRecords.length === 1) {
-      writeUserLocalAuthRecord?.(normalizedCanonicalUserId, {
-        ...absorbedLocalAuthRecords[0],
-        userId: normalizedCanonicalUserId,
-        updatedAt: new Date().toISOString(),
-      });
-      deleteUserLocalAuthRecord?.(absorbedLocalAuthRecords[0].userId);
     }
     const users = resolveStoredUsers();
     const nextUsers = users
@@ -604,15 +571,10 @@ export const registerAuthRoutes = ({
     loginAppOrigin,
     nextPath,
     mfaAuditAction = "auth.login.mfa_required",
-    enrollmentAuditAction = "auth.login.mfa_enrollment_required",
     successAuditAction = "auth.login.success",
     responseMode = "redirect",
   }) => {
     const requiresMfa = isTotpEnabledForUser(user.id);
-    const requiresEnrollment =
-      typeof shouldRequireTotpEnrollmentForPasswordLogin === "function"
-        ? shouldRequireTotpEnrollmentForPasswordLogin(user.id)
-        : false;
 
     if (requiresMfa && req.session) {
       req.session.pendingMfaUser = user;
@@ -645,39 +607,6 @@ export const registerAuthRoutes = ({
       return true;
     }
 
-    if (requiresEnrollment && req.session && typeof markMfaEnrollmentRequiredForSession === "function") {
-      markMfaEnrollmentRequiredForSession({
-        req,
-        user,
-        loginAppOrigin,
-        loginNext: nextPath || null,
-      });
-      try {
-        await saveSessionState(req);
-      } catch {
-        metricsRegistry.inc("auth_login_total", { status: "failed" });
-        handleAuthFailureSecuritySignals({ req, error: "session_persist_failed" });
-        appendAuditLog(req, "auth.login.failed", "auth", { error: "session_persist_failed" });
-        return false;
-      }
-      updateSessionIndexFromRequest(req, { force: true });
-      appendAuditLog(req, enrollmentAuditAction, "auth", { userId: user.id });
-      metricsRegistry.inc("auth_login_total", { status: "mfa_enrollment_required" });
-      const redirect = buildAuthRedirectUrl({
-        appOrigin: loginAppOrigin,
-        path: "/login",
-        searchParams: {
-          mfa: "enrollment_required",
-          next: nextPath || undefined,
-        },
-      });
-      if (responseMode === "json") {
-        res.status(200).json({ ok: true, mfaEnrollmentRequired: true, redirect });
-        return true;
-      }
-      res.redirect(redirect);
-      return true;
-    }
 
     if (req.session) {
       req.session.loginNext = null;
@@ -1264,7 +1193,6 @@ export const registerAuthRoutes = ({
         loginAppOrigin,
         nextPath,
         mfaAuditAction: "auth.google.mfa_required",
-        enrollmentAuditAction: "auth.google.mfa_enrollment_required",
         successAuditAction: "auth.google.success",
       });
       if (!finalized) {
@@ -1413,112 +1341,9 @@ export const registerAuthRoutes = ({
     },
     async (req, res) => {
       res.setHeader("Cache-Control", "no-store");
-      const identifier = String(req.body?.identifier || req.body?.email || req.body?.username || "").trim();
-      const password = String(req.body?.password || "");
-      if (!identifier || !password) {
-        return res.status(400).json({ error: "identifier_and_password_required" });
-      }
-
-      const localAuthRecord =
-        typeof findUserLocalAuthRecordByIdentifier === "function"
-          ? findUserLocalAuthRecordByIdentifier(identifier)
-          : null;
-      if (!localAuthRecord?.userId || localAuthRecord?.disabledAt) {
-        metricsRegistry.inc("auth_login_total", { status: "failed" });
-        handleAuthFailureSecuritySignals({ req, error: "invalid_credentials" });
-        appendAuditLog(req, "auth.password.failed", "auth", {
-          ...(typeof buildPasswordAuditMeta === "function" ? buildPasswordAuditMeta(identifier) : {}),
-          error: "invalid_credentials",
-        });
-        return res.status(401).json({ error: "invalid_credentials" });
-      }
-
-      const passwordMatches = await verifyLocalPassword(password, localAuthRecord.passwordHash);
-      if (!passwordMatches) {
-        metricsRegistry.inc("auth_login_total", { status: "failed" });
-        handleAuthFailureSecuritySignals({ req, error: "invalid_credentials" });
-        appendAuditLog(req, "auth.password.failed", "auth", {
-          userId: localAuthRecord.userId,
-          ...(typeof buildPasswordAuditMeta === "function" ? buildPasswordAuditMeta(identifier) : {}),
-          error: "invalid_credentials",
-        });
-        return res.status(401).json({ error: "invalid_credentials" });
-      }
-
-      const allowedUsers = loadAllowedUsers();
-      if (!allowedUsers.includes(localAuthRecord.userId)) {
-        metricsRegistry.inc("auth_login_total", { status: "failed" });
-        handleAuthFailureSecuritySignals({ req, error: "unauthorized" });
-        appendAuditLog(req, "auth.password.failed", "auth", {
-          userId: localAuthRecord.userId,
-          error: "unauthorized",
-        });
-        return res.status(401).json({ error: "invalid_credentials" });
-      }
-
-      const users = Array.isArray(loadUsers?.()) ? loadUsers() : [];
-      const matchedUser = users.find((user) => String(user?.id || "") === String(localAuthRecord.userId));
-      if (!matchedUser) {
-        metricsRegistry.inc("auth_login_total", { status: "failed" });
-        handleAuthFailureSecuritySignals({ req, error: "user_not_found" });
-        appendAuditLog(req, "auth.password.failed", "auth", {
-          userId: localAuthRecord.userId,
-          error: "user_not_found",
-        });
-        return res.status(401).json({ error: "invalid_credentials" });
-      }
-
-      const authenticatedUser = {
-        id: String(matchedUser.id || localAuthRecord.userId),
-        name: String(matchedUser?.name || matchedUser?.username || localAuthRecord.userId),
-        username: String(matchedUser?.username || matchedUser?.name || localAuthRecord.userId),
-        email: localAuthRecord.emailNormalized || matchedUser?.email || null,
-        avatarUrl: matchedUser?.avatarUrl ? String(matchedUser.avatarUrl) : null,
-      };
-      const loginAppOrigin = resolveAuthAppOrigin({
-        req,
-        sessionOrigin: null,
-        primaryAppOrigin,
-        isAllowedOriginFn: isAllowedOrigin,
-      });
-      const nextPath =
-        typeof req.body?.next === "string" && req.body.next.trim() ? String(req.body.next).trim() : null;
-
-      ensureOwnerUser(authenticatedUser);
-      try {
-        await establishAuthenticatedSession({
-          req,
-          user: authenticatedUser,
-          preserved: {
-            loginAppOrigin,
-            loginNext: nextPath || null,
-          },
-        });
-      } catch {
-        metricsRegistry.inc("auth_login_total", { status: "failed" });
-        handleAuthFailureSecuritySignals({ req, error: "session_regenerate_failed" });
-        appendAuditLog(req, "auth.password.failed", "auth", {
-          userId: authenticatedUser.id,
-          error: "session_regenerate_failed",
-        });
-        return res.status(500).json({ error: "server_error" });
-      }
-
-      const finalized = await finalizeAuthenticatedLogin({
-        req,
-        res,
-        user: authenticatedUser,
-        loginAppOrigin,
-        nextPath,
-        mfaAuditAction: "auth.password.mfa_required",
-        enrollmentAuditAction: "auth.password.mfa_enrollment_required",
-        successAuditAction: "auth.password.success",
-        responseMode: "json",
-      });
-      if (!finalized) {
-        return res.status(500).json({ error: "server_error" });
-      }
-      return undefined;
+      metricsRegistry.inc("auth_login_total", { status: "disabled" });
+      appendAuditLog(req, "auth.password.disabled", "auth", {});
+      return res.status(410).json({ error: "password_login_disabled" });
     },
   );
 

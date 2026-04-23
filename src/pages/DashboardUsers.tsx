@@ -113,11 +113,6 @@ type SecuritySummary = {
   issuer?: string;
   accountLabel?: string;
   iconUrl?: string;
-  localAuthEnabled?: boolean;
-  localAuthTotpPending?: boolean;
-  localAuthIdentifier?: string | null;
-  localAuthEmail?: string | null;
-  localAuthUsername?: string | null;
   oauthEmailSuggested?: string | null;
   identities?: Array<{
     provider: string;
@@ -493,9 +488,6 @@ const DashboardUsers = () => {
   const [securityQrDataUrl, setSecurityQrDataUrl] = useState("");
   const [securityEnrollCode, setSecurityEnrollCode] = useState("");
   const [securityDisableCode, setSecurityDisableCode] = useState("");
-  const [securityLocalAuthEmail, setSecurityLocalAuthEmail] = useState("");
-  const [securityLocalAuthIdentifier, setSecurityLocalAuthIdentifier] = useState("");
-  const [securityLocalAuthPassword, setSecurityLocalAuthPassword] = useState("");
   const [securityRecoveryCodes, setSecurityRecoveryCodes] = useState<string[]>([]);
   const [isDisconnectingIdentityProvider, setIsDisconnectingIdentityProvider] = useState<string | null>(null);
   const fallbackLinkTypes = useMemo(
@@ -803,9 +795,6 @@ const DashboardUsers = () => {
       setSecurityQrDataUrl("");
       setSecurityEnrollCode("");
       setSecurityDisableCode("");
-      setSecurityLocalAuthEmail("");
-      setSecurityLocalAuthIdentifier("");
-      setSecurityLocalAuthPassword("");
       setSecurityRecoveryCodes([]);
       setIsDisconnectingIdentityProvider(null);
       return;
@@ -828,7 +817,6 @@ const DashboardUsers = () => {
             return;
           }
           setSecuritySummary(body);
-          setSecurityLocalAuthEmail(String(body?.oauthEmailSuggested || body?.localAuthEmail || ""));
         } else {
           setSecuritySummary(null);
         }
@@ -900,7 +888,6 @@ const DashboardUsers = () => {
       if (securityRes.ok) {
         const body = await securityRes.json();
         setSecuritySummary(body);
-        setSecurityLocalAuthEmail(String(body?.oauthEmailSuggested || body?.localAuthEmail || ""));
       }
       if (sessionsRes.ok) {
         const body = await sessionsRes.json();
@@ -1022,72 +1009,6 @@ const DashboardUsers = () => {
     toast({ title: "V2F desativada" });    await refreshSelfSecurity();
   };
 
-  const configureLocalPassword = async () => {
-    const email = securityLocalAuthEmail.trim();
-    const username = securityLocalAuthIdentifier.trim();
-    const password = securityLocalAuthPassword;
-    if (!email || !password) {
-      return;
-    }
-    const response = await apiFetch(apiBase, "/api/me/security/local-auth", {
-      method: "POST",
-      auth: true,
-      json: {
-        email,
-        password,
-        ...(username ? { username } : {}),
-      },
-    });
-    if (!response.ok) {
-      let errorCode = "";
-      try {
-        const payload = await response.json();
-        errorCode = String(payload?.error || "").trim();
-      } catch {
-        errorCode = "";
-      }
-      if (errorCode === "local_auth_already_configured") {
-        toast({ title: "Login com senha já configurado", variant: "destructive" });
-        return;
-      }
-      if (errorCode === "password_required") {
-        toast({ title: "Informe uma senha", variant: "destructive" });
-        return;
-      }
-      if (errorCode === "invalid_email") {
-        toast({ title: "E-mail inválido", variant: "destructive" });
-        return;
-      }
-      if (errorCode === "invalid_username") {
-        toast({ title: "Username inválido", variant: "destructive" });
-        return;
-      }
-      if (errorCode === "oauth_email_unavailable") {
-        toast({ title: "Conta OAuth sem e-mail disponível", variant: "destructive" });
-        return;
-      }
-      if (errorCode === "local_auth_email_conflict") {
-        toast({ title: "E-mail já em uso no login local", variant: "destructive" });
-        return;
-      }
-      if (errorCode === "local_auth_username_conflict") {
-        toast({ title: "Username já em uso", variant: "destructive" });
-        return;
-      }
-      toast({ title: "Não foi possível configurar login com senha", variant: "destructive" });
-      return;
-    }
-    const body = await response.json();
-    setSecurityLocalAuthIdentifier("");
-    setSecurityLocalAuthPassword("");
-    toast({ title: "Login com senha configurado" });
-    if (body?.mfaEnrollmentRequired && typeof body?.redirect === "string" && body.redirect) {
-      window.location.href = body.redirect;
-      return;
-    }
-    await refreshSelfSecurity();
-  };
-
   const revokeSelfSession = async (sid: string) => {
     const response = await apiFetch(apiBase, `/api/me/sessions/${encodeURIComponent(sid)}`, {
       method: "DELETE",
@@ -1197,7 +1118,7 @@ const DashboardUsers = () => {
       <div className="space-y-1">
         <p className="text-sm font-medium">Contas conectadas</p>
         <p className="text-xs text-muted-foreground">
-          Conecte Google e Discord à sua conta para usar ambos como login.
+          Conecte Google e Discord à sua conta para usar ambos como métodos de acesso.
         </p>
       </div>
       <div className="space-y-2">
@@ -2411,71 +2332,12 @@ const DashboardUsers = () => {
                             V2F {securitySummary?.totpEnabled ? "Ativa" : "Inativa"}
                           </Badge>
                           <Badge className="bg-card/80 text-muted-foreground">
-                            Senha {securitySummary?.localAuthEnabled ? "Ativa" : "Inativa"}
-                          </Badge>
-                          <Badge className="bg-card/80 text-muted-foreground">
                             Recuperação: {securitySummary?.recoveryCodesRemaining ?? 0}
                           </Badge>
                           <Badge className="bg-card/80 text-muted-foreground">
                             Sessões: {securitySummary?.activeSessionsCount ?? 0}
                           </Badge>
                         </div>
-
-                        {!securitySummary?.localAuthEnabled ? (
-                          <div className={`space-y-3 rounded-2xl p-3 ${subtleInsetSurfaceClassName}`}>
-                            <div className="space-y-1">
-                              <p className="text-sm font-medium">Configurar login com senha</p>
-                              <p className="text-xs text-muted-foreground">
-                                O e-mail virá da conta usada para logar pela primeira vez. Você também pode adicionar um nome de usuário. Ao concluir, a V2F será obrigatória.
-                              </p>
-                            </div>
-                            <div className="space-y-1">
-                              <Label className="text-xs text-muted-foreground">E-mail para login</Label>
-                              <Input
-                                value={securityLocalAuthEmail}
-                                onChange={(event) => setSecurityLocalAuthEmail(event.target.value)}
-                                placeholder="voce@exemplo.com"
-                              />
-                              <p className="text-[11px] text-muted-foreground">
-                                Sugestão do OAuth: {securitySummary?.oauthEmailSuggested || "Nenhum e-mail OAuth disponível"}
-                              </p>
-                            </div>
-                            <Input
-                              value={securityLocalAuthIdentifier}
-                              onChange={(event) => setSecurityLocalAuthIdentifier(event.target.value)}
-                              placeholder="Username (opcional)"
-                            />
-                            <Input
-                              type="password"
-                              value={securityLocalAuthPassword}
-                              onChange={(event) => setSecurityLocalAuthPassword(event.target.value)}
-                              placeholder="Nova senha"
-                            />
-                            <DashboardActionButton
-                              size="sm"
-                              tone="primary"
-                              onClick={configureLocalPassword}
-                              disabled={!securityLocalAuthEmail.trim() || !securityLocalAuthPassword}
-                            >
-                              Configurar login com senha
-                            </DashboardActionButton>
-                          </div>
-                        ) : (
-                          <div className={`space-y-2 rounded-2xl p-3 ${subtleInsetSurfaceClassName}`}>
-                            <p className="text-sm font-medium">Login com senha configurado</p>
-                            <p className="text-xs text-muted-foreground">
-                              E-mail local: {securitySummary?.localAuthEmail || "-"}
-                            </p>
-                            <p className="text-xs text-muted-foreground">
-                              Username local: {securitySummary?.localAuthUsername || "Não configurado"}
-                            </p>
-                            {securitySummary?.localAuthTotpPending ? (
-                              <p className="text-xs text-amber-300">
-                                Esta conta ainda precisa concluir a configuração da V2F para liberar o uso do login com senha.
-                              </p>
-                            ) : null}
-                          </div>
-                        )}
 
                         {renderConnectedAccountsCard()}
 

@@ -89,51 +89,9 @@ describe("Login redesign", () => {
       "sm:w-auto",
     );
     expect(screen.getByRole("button", { name: "Entrar com Google" })).toBeInTheDocument();
-    expect(screen.getByRole("button", { name: "Entrar com senha" })).toBeInTheDocument();
-    expect(screen.getByLabelText("Identificador")).toBeInTheDocument();
-    expect(screen.getByLabelText("Senha")).toBeInTheDocument();
-  });
-
-  it("envia login por senha e redireciona no sucesso", async () => {
-    apiFetchMock
-      .mockResolvedValueOnce(mockResponse(false))
-      .mockResolvedValueOnce({
-        ok: true,
-        json: async () => ({ redirect: "/dashboard" }),
-      } as Response);
-
-    renderLogin("/login?next=/dashboard/posts");
-
-    fireEvent.change(screen.getByLabelText("Identificador"), {
-      target: { value: "user@example.com" },
-    });
-    fireEvent.change(screen.getByLabelText("Senha"), {
-      target: { value: "secret" },
-    });
-    fireEvent.click(screen.getByRole("button", { name: "Entrar com senha" }));
-
-    await waitFor(() => {
-      expect(apiFetchMock).toHaveBeenNthCalledWith(2, "http://api.local", "/auth/password/login", {
-        method: "POST",
-        json: {
-          identifier: "user@example.com",
-          password: "secret",
-          next: "/dashboard/posts",
-        },
-      });
-    });
-    await waitFor(() => {
-      expect(locationHref).toBe("/dashboard");
-    });
-  });
-
-  it("mostra estado de enrollment obrigatorio da V2F", () => {
-    renderLogin("/login?mfa=enrollment_required");
-
-    expect(
-      screen.getByText(/esta conta configurou login com senha e precisa concluir a configuração da V2F/i),
-    ).toBeInTheDocument();
-    expect(screen.getByRole("link", { name: "Configurar autenticador" })).toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: "Entrar com senha" })).not.toBeInTheDocument();
+    expect(screen.queryByLabelText("Identificador")).not.toBeInTheDocument();
+    expect(screen.queryByLabelText("Senha")).not.toBeInTheDocument();
   });
 
   it("exibe mensagem de erro e atributos de acessibilidade quando error existe", () => {

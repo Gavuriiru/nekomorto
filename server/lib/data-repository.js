@@ -348,7 +348,6 @@ export class DbDataRepository {
       integrationSettings: {},
       userPreferences: {},
       userIdentityRecords: [],
-      userLocalAuthRecords: {},
       userMfaTotpRecords: {},
       userSessionIndexRecords: [],
       securityEvents: [],
@@ -488,7 +487,6 @@ export class DbDataRepository {
       integrationSettings,
       userPreferences,
       userIdentityRecords,
-      userLocalAuthRecords,
       userMfaTotpRecords,
       userSessionIndexRecords,
       securityEvents,
@@ -531,9 +529,6 @@ export class DbDataRepository {
       prisma.userPreferenceRecord.findMany({}),
       typeof prisma.userIdentityRecord?.findMany === "function"
         ? prisma.userIdentityRecord.findMany({})
-        : Promise.resolve([]),
-      typeof prisma.userLocalAuthRecord?.findMany === "function"
-        ? prisma.userLocalAuthRecord.findMany({})
         : Promise.resolve([]),
       typeof prisma.userMfaTotpRecord?.findMany === "function"
         ? prisma.userMfaTotpRecord.findMany({})
@@ -742,27 +737,6 @@ export class DbDataRepository {
     this.snapshot.userIdentityRecords = cloneUserIdentityRecords(
       userIdentityRecords.map((row) => toUserIdentitySnapshotRecord(row)),
     );
-    this.snapshot.userLocalAuthRecords = userLocalAuthRecords.reduce((acc, row) => {
-      const userId = String(row?.userId || "").trim();
-      if (!userId) {
-        return acc;
-      }
-      acc[userId] = {
-        userId,
-        emailNormalized: row?.emailNormalized ? String(row.emailNormalized).trim().toLowerCase() : null,
-        usernameNormalized: row?.usernameNormalized
-          ? String(row.usernameNormalized).trim().toLowerCase()
-          : null,
-        passwordHash: String(row?.passwordHash || ""),
-        passwordUpdatedAt: row?.passwordUpdatedAt
-          ? new Date(row.passwordUpdatedAt).toISOString()
-          : null,
-        disabledAt: row?.disabledAt ? new Date(row.disabledAt).toISOString() : null,
-        createdAt: row?.createdAt ? new Date(row.createdAt).toISOString() : null,
-        updatedAt: row?.updatedAt ? new Date(row.updatedAt).toISOString() : null,
-      };
-      return acc;
-    }, {});
     this.snapshot.userMfaTotpRecords = userMfaTotpRecords.reduce((acc, row) => {
       const userId = String(row?.userId || "").trim();
       if (!userId) {
@@ -1681,114 +1655,6 @@ export class DbDataRepository {
       );
     });
     return cloneUserIdentityRecords(nextRecords, () => true);
-  }
-
-  loadUserLocalAuthRecord(userId) {
-    const key = String(userId || "").trim();
-    if (!key) {
-      return null;
-    }
-    const row = this.snapshot.userLocalAuthRecords?.[key];
-    return row ? cloneValue(row) : null;
-  }
-
-  loadAllUserLocalAuthRecords() {
-    return cloneValue(Object.values(this.snapshot.userLocalAuthRecords || {}));
-  }
-
-  findUserLocalAuthRecordByIdentifier(identifier) {
-    const normalized = String(identifier || "").trim().toLowerCase();
-    if (!normalized) {
-      return null;
-    }
-    const records = Object.values(this.snapshot.userLocalAuthRecords || {});
-    const match = records.find(
-      (row) =>
-        String(row?.emailNormalized || "") === normalized ||
-        String(row?.usernameNormalized || "") === normalized,
-    );
-    return match ? cloneValue(match) : null;
-  }
-
-  writeUserLocalAuthRecord(userId, record) {
-    const key = String(userId || "").trim();
-    if (!key) {
-      return;
-    }
-    const row = {
-      userId: key,
-      emailNormalized: record?.emailNormalized ? String(record.emailNormalized).trim().toLowerCase() : null,
-      usernameNormalized: record?.usernameNormalized
-        ? String(record.usernameNormalized).trim().toLowerCase()
-        : null,
-      passwordHash: String(record?.passwordHash || ""),
-      passwordUpdatedAt: record?.passwordUpdatedAt ? String(record.passwordUpdatedAt) : new Date().toISOString(),
-      totpEnrollmentRequiredAt: record?.totpEnrollmentRequiredAt
-        ? String(record.totpEnrollmentRequiredAt)
-        : null,
-      disabledAt: record?.disabledAt ? String(record.disabledAt) : null,
-      createdAt: record?.createdAt ? String(record.createdAt) : new Date().toISOString(),
-      updatedAt: record?.updatedAt ? String(record.updatedAt) : new Date().toISOString(),
-    };
-    const records = Object.entries(this.snapshot.userLocalAuthRecords || {});
-    const emailConflict = row.emailNormalized
-      ? records.find(
-          ([candidateUserId, candidate]) =>
-            candidateUserId !== key &&
-            String(candidate?.emailNormalized || "") === row.emailNormalized,
-        )
-      : null;
-    if (emailConflict) {
-      throw new Error("local_auth_email_conflict");
-    }
-    const usernameConflict = row.usernameNormalized
-      ? records.find(
-          ([candidateUserId, candidate]) =>
-            candidateUserId !== key &&
-            String(candidate?.usernameNormalized || "") === row.usernameNormalized,
-        )
-      : null;
-    if (usernameConflict) {
-      throw new Error("local_auth_username_conflict");
-    }
-    this.snapshot.userLocalAuthRecords = this.snapshot.userLocalAuthRecords || {};
-    this.snapshot.userLocalAuthRecords[key] = row;
-    this.enqueuePersist("user_local_auth", async () => {
-      await prisma.userLocalAuthRecord.upsert({
-        where: { userId: key },
-        create: {
-          userId: key,
-          emailNormalized: row.emailNormalized,
-          usernameNormalized: row.usernameNormalized,
-          passwordHash: row.passwordHash,
-          passwordUpdatedAt: toDateOrNull(row.passwordUpdatedAt) || new Date(),
-          totpEnrollmentRequiredAt: toDateOrNull(row.totpEnrollmentRequiredAt),
-          disabledAt: toDateOrNull(row.disabledAt),
-          createdAt: toDateOrNull(row.createdAt) || new Date(),
-        },
-        update: {
-          emailNormalized: row.emailNormalized,
-          usernameNormalized: row.usernameNormalized,
-          passwordHash: row.passwordHash,
-          passwordUpdatedAt: toDateOrNull(row.passwordUpdatedAt) || new Date(),
-          totpEnrollmentRequiredAt: toDateOrNull(row.totpEnrollmentRequiredAt),
-          disabledAt: toDateOrNull(row.disabledAt),
-        },
-      });
-    });
-  }
-
-  deleteUserLocalAuthRecord(userId) {
-    const key = String(userId || "").trim();
-    if (!key) {
-      return;
-    }
-    if (this.snapshot.userLocalAuthRecords) {
-      delete this.snapshot.userLocalAuthRecords[key];
-    }
-    this.enqueuePersist("user_local_auth_delete", async () => {
-      await prisma.userLocalAuthRecord.deleteMany({ where: { userId: key } });
-    });
   }
 
   loadUserMfaTotpRecord(userId) {

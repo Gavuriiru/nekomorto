@@ -98,7 +98,6 @@ const createDependencies = (overrides: Record<string, unknown> = {}) => {
     app,
     appendAuditLog,
     buildAuthRedirectUrl: vi.fn(({ appOrigin, path }) => `${appOrigin}${path}`),
-    buildPasswordAuditMeta: vi.fn(() => ({ identifierType: "email" })),
     canAttemptAuth: vi.fn(async () => true),
     canVerifyMfa: vi.fn(async () => true),
     createDiscordAvatarUrl: vi.fn(() => "https://cdn.discordapp.com/avatars/user/hash.png"),
@@ -114,18 +113,14 @@ const createDependencies = (overrides: Record<string, unknown> = {}) => {
     establishAuthenticatedSession: vi.fn(async () => undefined),
     findUserIdentityRecord: vi.fn(() => null),
     findUserIdentityRecordsByEmail: vi.fn(() => []),
-    findUserLocalAuthRecordByIdentifier: vi.fn(() => null),
     getRequestIp: vi.fn(() => "203.0.113.5"),
     loadOwnerIds: vi.fn(() => []),
     loadUserIdentityRecords: vi.fn(() => []),
-    loadUserLocalAuthRecord: vi.fn(() => null),
     revokeSessionBySid: vi.fn(async () => undefined),
     writeAllowedUsers: vi.fn(),
     writeOwnerIds: vi.fn(),
     writeUserIdentityRecords: vi.fn(),
-    writeUserLocalAuthRecord: vi.fn(),
     writeUsers: vi.fn(),
-    deleteUserLocalAuthRecord: vi.fn(),
     isTotpEnabledForUser: vi.fn(() => false),
     handleAuthFailureSecuritySignals: vi.fn(),
     handleMfaFailureSecuritySignals: vi.fn(),
@@ -159,7 +154,6 @@ const createDependencies = (overrides: Record<string, unknown> = {}) => {
     syncPersistedDiscordAvatarForLogin: vi.fn(),
     upsertUserIdentityRecord: vi.fn(),
     updateSessionIndexFromRequest: vi.fn(),
-    verifyLocalPassword: vi.fn(async () => false),
     verifyTotpOrRecoveryCode: vi.fn(() => ({ method: "totp", ok: true })),
     ...overrides,
   });
@@ -320,17 +314,10 @@ describe("registerAuthRoutes", () => {
     expect(verifyTotpOrRecoveryCode).not.toHaveBeenCalled();
   });
 
-  it("rejects password login with invalid credentials", async () => {
-    const findUserLocalAuthRecordByIdentifier = vi.fn(() => ({
-      userId: "user-1",
-      emailNormalized: "user@example.com",
-      passwordHash: "stored-hash",
-      disabledAt: null,
-    }));
-    const verifyLocalPassword = vi.fn(async () => false);
+  it("returns gone for password login because the flow is disabled", async () => {
+    const findUserLocalAuthRecordByIdentifier = vi.fn();
     const dependencies = createDependencies({
       findUserLocalAuthRecordByIdentifier,
-      verifyLocalPassword,
     });
     const routeLayer = getRouteLayer(dependencies.router, "post", "/auth/password/login");
     expect(routeLayer).toBeTruthy();
@@ -343,71 +330,15 @@ describe("registerAuthRoutes", () => {
       session: {},
     });
 
-    expect(res.statusCode).toBe(401);
-    expect(res.body).toEqual({ error: "invalid_credentials" });
-    expect(findUserLocalAuthRecordByIdentifier).toHaveBeenCalledWith("user@example.com");
-    expect(verifyLocalPassword).toHaveBeenCalledWith("wrong-password", "stored-hash");
+    expect(res.statusCode).toBe(410);
+    expect(res.body).toEqual({ error: "password_login_disabled" });
+    expect(findUserLocalAuthRecordByIdentifier).not.toHaveBeenCalled();
   });
 
-  it("accepts password login using email identifier when local auth has email and username", async () => {
-    const findUserLocalAuthRecordByIdentifier = vi.fn(() => ({
-      userId: "user-1",
-      emailNormalized: "user@example.com",
-      usernameNormalized: "userone",
-      passwordHash: "stored-hash",
-      disabledAt: null,
-    }));
-    const verifyLocalPassword = vi.fn(async () => true);
-    const establishAuthenticatedSession = vi.fn(async () => undefined);
+  it("returns gone for password login even when the identifier looks valid", async () => {
+    const findUserLocalAuthRecordByIdentifier = vi.fn();
     const dependencies = createDependencies({
-      establishAuthenticatedSession,
       findUserLocalAuthRecordByIdentifier,
-      loadUsers: vi.fn(() => [
-        {
-          id: "user-1",
-          name: "User One",
-          username: "userone",
-          email: "user@example.com",
-        },
-      ]),
-      verifyLocalPassword,
-    });
-    const routeLayer = getRouteLayer(dependencies.router, "post", "/auth/password/login");
-
-    const res = await invokeRoute(routeLayer, {
-      body: {
-        identifier: "user@example.com",
-        password: "secret-123",
-      },
-      session: {},
-    });
-
-    expect(res.statusCode).toBe(200);
-    expect(findUserLocalAuthRecordByIdentifier).toHaveBeenCalledWith("user@example.com");
-  });
-
-  it("accepts password login using username identifier when local auth has email and username", async () => {
-    const findUserLocalAuthRecordByIdentifier = vi.fn(() => ({
-      userId: "user-1",
-      emailNormalized: "user@example.com",
-      usernameNormalized: "userone",
-      passwordHash: "stored-hash",
-      disabledAt: null,
-    }));
-    const verifyLocalPassword = vi.fn(async () => true);
-    const establishAuthenticatedSession = vi.fn(async () => undefined);
-    const dependencies = createDependencies({
-      establishAuthenticatedSession,
-      findUserLocalAuthRecordByIdentifier,
-      loadUsers: vi.fn(() => [
-        {
-          id: "user-1",
-          name: "User One",
-          username: "userone",
-          email: "user@example.com",
-        },
-      ]),
-      verifyLocalPassword,
     });
     const routeLayer = getRouteLayer(dependencies.router, "post", "/auth/password/login");
 
@@ -419,8 +350,9 @@ describe("registerAuthRoutes", () => {
       session: {},
     });
 
-    expect(res.statusCode).toBe(200);
-    expect(findUserLocalAuthRecordByIdentifier).toHaveBeenCalledWith("userone");
+    expect(res.statusCode).toBe(410);
+    expect(res.body).toEqual({ error: "password_login_disabled" });
+    expect(findUserLocalAuthRecordByIdentifier).not.toHaveBeenCalled();
   });
 
   it("starts Google auth with the resolved callback URI", async () => {
