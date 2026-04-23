@@ -227,6 +227,8 @@ const LexicalToolbar = ({
           variant="ghost"
           size="icon"
           onClick={() => editor.dispatchCommand(FORMAT_TEXT_COMMAND, "bold")}
+          title="Negrito"
+          aria-label="Negrito"
         >
           <Bold className="h-4 w-4" />
         </Button>
@@ -235,6 +237,8 @@ const LexicalToolbar = ({
           variant="ghost"
           size="icon"
           onClick={() => editor.dispatchCommand(FORMAT_TEXT_COMMAND, "italic")}
+          title="Itálico"
+          aria-label="Itálico"
         >
           <Italic className="h-4 w-4" />
         </Button>
@@ -243,6 +247,8 @@ const LexicalToolbar = ({
           variant="ghost"
           size="icon"
           onClick={() => editor.dispatchCommand(FORMAT_TEXT_COMMAND, "underline")}
+          title="Sublinhado"
+          aria-label="Sublinhado"
         >
           <Underline className="h-4 w-4" />
         </Button>
@@ -251,6 +257,8 @@ const LexicalToolbar = ({
           variant="ghost"
           size="icon"
           onClick={() => editor.dispatchCommand(FORMAT_TEXT_COMMAND, "strikethrough")}
+          title="Tachado"
+          aria-label="Tachado"
         >
           <Strikethrough className="h-4 w-4" />
         </Button>
@@ -259,6 +267,8 @@ const LexicalToolbar = ({
           variant="ghost"
           size="icon"
           onClick={() => editor.dispatchCommand(FORMAT_ELEMENT_COMMAND, "left")}
+          title="Alinhar à esquerda"
+          aria-label="Alinhar à esquerda"
         >
           <AlignLeft className="h-4 w-4" />
         </Button>
@@ -267,6 +277,8 @@ const LexicalToolbar = ({
           variant="ghost"
           size="icon"
           onClick={() => editor.dispatchCommand(FORMAT_ELEMENT_COMMAND, "center")}
+          title="Centralizar"
+          aria-label="Centralizar"
         >
           <AlignCenter className="h-4 w-4" />
         </Button>
@@ -275,6 +287,8 @@ const LexicalToolbar = ({
           variant="ghost"
           size="icon"
           onClick={() => editor.dispatchCommand(FORMAT_ELEMENT_COMMAND, "right")}
+          title="Alinhar à direita"
+          aria-label="Alinhar à direita"
         >
           <AlignRight className="h-4 w-4" />
         </Button>
@@ -283,6 +297,8 @@ const LexicalToolbar = ({
           variant="ghost"
           size="icon"
           onClick={() => requireSelection(INSERT_UNORDERED_LIST_COMMAND)}
+          title="Lista com marcadores"
+          aria-label="Lista com marcadores"
         >
           <List className="h-4 w-4" />
         </Button>
@@ -291,19 +307,49 @@ const LexicalToolbar = ({
           variant="ghost"
           size="icon"
           onClick={() => requireSelection(INSERT_ORDERED_LIST_COMMAND)}
+          title="Lista numerada"
+          aria-label="Lista numerada"
         >
           <ListOrdered className="h-4 w-4" />
         </Button>
-        <Button type="button" variant="ghost" size="icon" onClick={() => onRequestLink?.()}>
+        <Button
+          type="button"
+          variant="ghost"
+          size="icon"
+          onClick={() => onRequestLink?.()}
+          title="Inserir link"
+          aria-label="Inserir link"
+        >
           <Link2 className="h-4 w-4" />
         </Button>
-        <Button type="button" variant="ghost" size="icon" onClick={() => onRequestImage?.()}>
+        <Button
+          type="button"
+          variant="ghost"
+          size="icon"
+          onClick={() => onRequestImage?.()}
+          title="Inserir imagem"
+          aria-label="Inserir imagem"
+        >
           <ImageIcon className="h-4 w-4" />
         </Button>
-        <Button type="button" variant="ghost" size="icon" onClick={() => onRequestVideo?.()}>
+        <Button
+          type="button"
+          variant="ghost"
+          size="icon"
+          onClick={() => onRequestVideo?.()}
+          title="Inserir vídeo"
+          aria-label="Inserir vídeo"
+        >
           <Video className="h-4 w-4" />
         </Button>
-        <Button type="button" variant="ghost" size="icon" onClick={() => onRequestTable?.()}>
+        <Button
+          type="button"
+          variant="ghost"
+          size="icon"
+          onClick={() => onRequestTable?.()}
+          title="Inserir tabela"
+          aria-label="Inserir tabela"
+        >
           <Table className="h-4 w-4" />
         </Button>
         <Button
@@ -311,6 +357,8 @@ const LexicalToolbar = ({
           variant="ghost"
           size="icon"
           onClick={() => editor.dispatchCommand(UNDO_COMMAND, undefined)}
+          title="Desfazer"
+          aria-label="Desfazer"
         >
           <Undo2 className="h-4 w-4" />
         </Button>
@@ -319,6 +367,8 @@ const LexicalToolbar = ({
           variant="ghost"
           size="icon"
           onClick={() => editor.dispatchCommand(REDO_COMMAND, undefined)}
+          title="Refazer"
+          aria-label="Refazer"
         >
           <Redo2 className="h-4 w-4" />
         </Button>
