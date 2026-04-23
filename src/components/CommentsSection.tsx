@@ -1,4 +1,7 @@
-﻿import { Input, Textarea } from "@/components/public-form-controls";
+﻿import { MessageSquare, Reply } from "lucide-react";
+import { memo, useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useLocation } from "react-router-dom";
+import { Input, Textarea } from "@/components/public-form-controls";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -18,9 +21,6 @@ import { usePublicCurrentUser } from "@/hooks/use-public-current-user";
 import { getApiBase } from "@/lib/api-base";
 import { apiFetch } from "@/lib/api-client";
 import { formatDateTime } from "@/lib/date";
-import { MessageSquare, Reply } from "lucide-react";
-import { memo, useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { useLocation } from "react-router-dom";
 
 type CommentTargetType = "post" | "project" | "chapter";
 
@@ -33,7 +33,7 @@ type PublicComment = {
   avatarUrl?: string;
 };
 
-type CommentNode = PublicComment & { replies: CommentNode[] };
+type CommentNode = PublicComment & { replies: CommentNode[]; _time: number };
 
 type CommentsSectionProps = {
   targetType: CommentTargetType;
@@ -56,7 +56,7 @@ type SubmitCommentResponse = {
 const buildCommentTree = (comments: PublicComment[]) => {
   const map = new Map<string, CommentNode>();
   comments.forEach((comment) => {
-    map.set(comment.id, { ...comment, replies: [] });
+    map.set(comment.id, { ...comment, replies: [], _time: new Date(comment.createdAt).getTime() });
   });
   const roots: CommentNode[] = [];
   map.forEach((comment) => {
@@ -67,7 +67,7 @@ const buildCommentTree = (comments: PublicComment[]) => {
     }
   });
   const sortByDate = (items: CommentNode[]) => {
-    items.sort((a, b) => new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime());
+    items.sort((a, b) => a._time - b._time);
     items.forEach((item) => sortByDate(item.replies));
   };
   sortByDate(roots);

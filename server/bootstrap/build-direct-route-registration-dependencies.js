@@ -26,10 +26,8 @@ export const buildDirectRouteRegistrationDependencies = (dependencies = {}) =>
       canManageMfa: dependencies.canManageMfa,
       clearEnrollmentFromSession: dependencies.clearEnrollmentFromSession,
       clearPendingMfaEnrollmentFromSession: dependencies.clearPendingMfaEnrollmentFromSession,
-      clearPendingMfaEnrollmentRedirectTarget:
-        dependencies.clearPendingMfaEnrollmentRedirectTarget,
-      completeRequiredMfaEnrollmentForSession:
-        dependencies.completeRequiredMfaEnrollmentForSession,
+      clearPendingMfaEnrollmentRedirectTarget: dependencies.clearPendingMfaEnrollmentRedirectTarget,
+      completeRequiredMfaEnrollmentForSession: dependencies.completeRequiredMfaEnrollmentForSession,
       dataEncryptionKeyring: dependencies.dataEncryptionKeyring,
       deleteUserMfaTotpRecord: dependencies.deleteUserMfaTotpRecord,
       encryptStringWithKeyring: dependencies.encryptStringWithKeyring,
@@ -40,8 +38,7 @@ export const buildDirectRouteRegistrationDependencies = (dependencies = {}) =>
       handleMfaFailureSecuritySignals: dependencies.handleMfaFailureSecuritySignals,
       hashRecoveryCode: dependencies.hashRecoveryCode,
       isPlainObject: dependencies.isPlainObject,
-      isPendingMfaEnrollmentRequiredForUser:
-        dependencies.isPendingMfaEnrollmentRequiredForUser,
+      isPendingMfaEnrollmentRequiredForUser: dependencies.isPendingMfaEnrollmentRequiredForUser,
       isTotpEnabledForUser: dependencies.isTotpEnabledForUser,
       listActiveSessionsForUser: dependencies.listActiveSessionsForUser,
       loadUserPreferences: dependencies.loadUserPreferences,
@@ -78,8 +75,7 @@ export const buildDirectRouteRegistrationDependencies = (dependencies = {}) =>
       handleAuthFailureSecuritySignals: dependencies.handleAuthFailureSecuritySignals,
       handleMfaFailureSecuritySignals: dependencies.handleMfaFailureSecuritySignals,
       isAllowedOrigin: dependencies.isAllowedOrigin,
-      isPendingMfaEnrollmentRequiredForUser:
-        dependencies.isPendingMfaEnrollmentRequiredForUser,
+      isPendingMfaEnrollmentRequiredForUser: dependencies.isPendingMfaEnrollmentRequiredForUser,
       isTotpEnabledForUser: dependencies.isTotpEnabledForUser,
       loadAllowedUsers: dependencies.loadAllowedUsers,
       loadUsers: dependencies.loadUsers,

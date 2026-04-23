@@ -217,7 +217,11 @@ export const registerAuthRoutes = ({
       return true;
     }
 
-    if (requiresEnrollment && req.session && typeof markMfaEnrollmentRequiredForSession === "function") {
+    if (
+      requiresEnrollment &&
+      req.session &&
+      typeof markMfaEnrollmentRequiredForSession === "function"
+    ) {
       markMfaEnrollmentRequiredForSession({
         req,
         user,
@@ -626,7 +630,9 @@ export const registerAuthRoutes = ({
     },
     async (req, res) => {
       res.setHeader("Cache-Control", "no-store");
-      const identifier = String(req.body?.identifier || req.body?.email || req.body?.username || "").trim();
+      const identifier = String(
+        req.body?.identifier || req.body?.email || req.body?.username || "",
+      ).trim();
       const password = String(req.body?.password || "");
       if (!identifier || !password) {
         return res.status(400).json({ error: "identifier_and_password_required" });
@@ -640,7 +646,9 @@ export const registerAuthRoutes = ({
         metricsRegistry.inc("auth_login_total", { status: "failed" });
         handleAuthFailureSecuritySignals({ req, error: "invalid_credentials" });
         appendAuditLog(req, "auth.password.failed", "auth", {
-          ...(typeof buildPasswordAuditMeta === "function" ? buildPasswordAuditMeta(identifier) : {}),
+          ...(typeof buildPasswordAuditMeta === "function"
+            ? buildPasswordAuditMeta(identifier)
+            : {}),
           error: "invalid_credentials",
         });
         return res.status(401).json({ error: "invalid_credentials" });
@@ -652,7 +660,9 @@ export const registerAuthRoutes = ({
         handleAuthFailureSecuritySignals({ req, error: "invalid_credentials" });
         appendAuditLog(req, "auth.password.failed", "auth", {
           userId: localAuthRecord.userId,
-          ...(typeof buildPasswordAuditMeta === "function" ? buildPasswordAuditMeta(identifier) : {}),
+          ...(typeof buildPasswordAuditMeta === "function"
+            ? buildPasswordAuditMeta(identifier)
+            : {}),
           error: "invalid_credentials",
         });
         return res.status(401).json({ error: "invalid_credentials" });
@@ -670,7 +680,9 @@ export const registerAuthRoutes = ({
       }
 
       const users = Array.isArray(loadUsers?.()) ? loadUsers() : [];
-      const matchedUser = users.find((user) => String(user?.id || "") === String(localAuthRecord.userId));
+      const matchedUser = users.find(
+        (user) => String(user?.id || "") === String(localAuthRecord.userId),
+      );
       if (!matchedUser) {
         metricsRegistry.inc("auth_login_total", { status: "failed" });
         handleAuthFailureSecuritySignals({ req, error: "user_not_found" });
@@ -695,7 +707,9 @@ export const registerAuthRoutes = ({
         isAllowedOriginFn: isAllowedOrigin,
       });
       const nextPath =
-        typeof req.body?.next === "string" && req.body.next.trim() ? String(req.body.next).trim() : null;
+        typeof req.body?.next === "string" && req.body.next.trim()
+          ? String(req.body.next).trim()
+          : null;
 
       ensureOwnerUser(authenticatedUser);
       try {

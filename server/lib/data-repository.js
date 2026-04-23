@@ -667,7 +667,9 @@ export class DbDataRepository {
       }
       acc[userId] = {
         userId,
-        emailNormalized: row?.emailNormalized ? String(row.emailNormalized).trim().toLowerCase() : null,
+        emailNormalized: row?.emailNormalized
+          ? String(row.emailNormalized).trim().toLowerCase()
+          : null,
         usernameNormalized: row?.usernameNormalized
           ? String(row.usernameNormalized).trim().toLowerCase()
           : null,
@@ -1493,7 +1495,9 @@ export class DbDataRepository {
   }
 
   findUserLocalAuthRecordByIdentifier(identifier) {
-    const normalized = String(identifier || "").trim().toLowerCase();
+    const normalized = String(identifier || "")
+      .trim()
+      .toLowerCase();
     if (!normalized) {
       return null;
     }
@@ -1513,12 +1517,16 @@ export class DbDataRepository {
     }
     const row = {
       userId: key,
-      emailNormalized: record?.emailNormalized ? String(record.emailNormalized).trim().toLowerCase() : null,
+      emailNormalized: record?.emailNormalized
+        ? String(record.emailNormalized).trim().toLowerCase()
+        : null,
       usernameNormalized: record?.usernameNormalized
         ? String(record.usernameNormalized).trim().toLowerCase()
         : null,
       passwordHash: String(record?.passwordHash || ""),
-      passwordUpdatedAt: record?.passwordUpdatedAt ? String(record.passwordUpdatedAt) : new Date().toISOString(),
+      passwordUpdatedAt: record?.passwordUpdatedAt
+        ? String(record.passwordUpdatedAt)
+        : new Date().toISOString(),
       disabledAt: record?.disabledAt ? String(record.disabledAt) : null,
       createdAt: record?.createdAt ? String(record.createdAt) : new Date().toISOString(),
       updatedAt: record?.updatedAt ? String(record.updatedAt) : new Date().toISOString(),

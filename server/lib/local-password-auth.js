@@ -87,7 +87,9 @@ const serializePasswordHash = ({ salt, hash, options }) =>
   ].join("$");
 
 const parsePasswordHash = (value) => {
-  const parts = String(value || "").trim().split("$");
+  const parts = String(value || "")
+    .trim()
+    .split("$");
   if (parts.length !== 7 || parts[0] !== "scrypt") {
     return null;
   }
@@ -147,7 +149,9 @@ export const normalizeStoredLocalAuthRecord = (record) => {
   }
   return {
     userId,
-    emailNormalized: record?.emailNormalized ? normalizeEmailIdentifier(record.emailNormalized) : null,
+    emailNormalized: record?.emailNormalized
+      ? normalizeEmailIdentifier(record.emailNormalized)
+      : null,
     usernameNormalized: record?.usernameNormalized
       ? normalizeUsernameIdentifier(record.usernameNormalized)
       : null,
@@ -162,7 +166,12 @@ export const normalizeStoredLocalAuthRecord = (record) => {
 export const isActiveLocalAuthRecord = (record) =>
   Boolean(record?.userId && !record?.disabledAt && record?.passwordHash);
 
-export const buildStoredLocalAuthRecord = ({ userId, identifier, passwordHash, disabledAt = null } = {}) => {
+export const buildStoredLocalAuthRecord = ({
+  userId,
+  identifier,
+  passwordHash,
+  disabledAt = null,
+} = {}) => {
   const lookup = buildLocalAuthLookup(identifier);
   const normalizedUserId = String(userId || "").trim();
   if (!normalizedUserId || !lookup || !String(passwordHash || "").trim()) {

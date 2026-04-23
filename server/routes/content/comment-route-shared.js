@@ -61,8 +61,9 @@ export const listPublicCommentsForTarget = ({
       }
       return true;
     })
-    .sort((left, right) => new Date(left.createdAt).getTime() - new Date(right.createdAt).getTime())
-    .map((comment) => serializePublicComment(comment, { buildGravatarUrl }));
+    .map((comment) => ({ comment, _createdAtTs: new Date(comment.createdAt).getTime() }))
+    .sort((left, right) => left._createdAtTs - right._createdAtTs)
+    .map(({ comment }) => serializePublicComment(comment, { buildGravatarUrl }));
 
 export const listAdminComments = ({
   comments,
@@ -79,9 +80,10 @@ export const listAdminComments = ({
     typeof status === "string" && status
       ? normalizedComments.filter((comment) => comment.status === status)
       : normalizedComments.slice();
-  const sortedComments = filteredComments.sort(
-    (left, right) => new Date(right.createdAt).getTime() - new Date(left.createdAt).getTime(),
-  );
+  const sortedComments = filteredComments
+    .map((comment) => ({ comment, _createdAtTs: new Date(comment.createdAt).getTime() }))
+    .sort((left, right) => right._createdAtTs - left._createdAtTs)
+    .map(({ comment }) => comment);
   const limitedComments =
     Number.isFinite(Number(limit)) && Number(limit) > 0
       ? sortedComments.slice(0, Math.min(Number(limit), sortedComments.length))

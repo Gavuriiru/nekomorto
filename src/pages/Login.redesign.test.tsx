@@ -94,12 +94,10 @@ describe("Login redesign", () => {
   });
 
   it("envia login por senha e redireciona no sucesso", async () => {
-    apiFetchMock
-      .mockResolvedValueOnce(mockResponse(false))
-      .mockResolvedValueOnce({
-        ok: true,
-        json: async () => ({ redirect: "/dashboard" }),
-      } as Response);
+    apiFetchMock.mockResolvedValueOnce(mockResponse(false)).mockResolvedValueOnce({
+      ok: true,
+      json: async () => ({ redirect: "/dashboard" }),
+    } as Response);
 
     renderLogin("/login?next=/dashboard/posts");
 

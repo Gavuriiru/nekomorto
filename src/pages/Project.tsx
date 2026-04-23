@@ -115,7 +115,9 @@ const ProjectPage = () => {
   const bootstrapData = readWindowPublicBootstrap();
   const hasFullBootstrap = Boolean(bootstrapData && bootstrapData.payloadMode !== "critical-home");
   const bootstrapProject = resolveBootstrapProject(bootstrapData, slug);
-  const [project, setProject] = useState<Project | null>(() => (bootstrapProject as Project | null) || null);
+  const [project, setProject] = useState<Project | null>(
+    () => (bootstrapProject as Project | null) || null,
+  );
   const [projectRevision, setProjectRevision] = useState("");
   const [hasLoaded, setHasLoaded] = useState(Boolean(bootstrapProject));
   const [projectDirectory, setProjectDirectory] = useState<Project[]>(() =>

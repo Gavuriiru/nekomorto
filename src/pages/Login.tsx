@@ -146,7 +146,8 @@ const Login = () => {
         setSessionState("mfa_enrollment");
         return;
       }
-      const redirect = typeof body?.redirect === "string" && body.redirect ? body.redirect : "/dashboard";
+      const redirect =
+        typeof body?.redirect === "string" && body.redirect ? body.redirect : "/dashboard";
       window.location.href = redirect;
     } catch {
       setPasswordError("Não foi possível iniciar o login com senha.");
@@ -316,10 +317,17 @@ const Login = () => {
               {isMfaEnrollmentVisible ? (
                 <div className="space-y-3 rounded-2xl border border-border/65 bg-card/70 p-4">
                   <p className="text-sm text-muted-foreground">
-                    Seu primeiro login com senha exige a configuração do autenticador TOTP antes de liberar o painel.
+                    Seu primeiro login com senha exige a configuração do autenticador TOTP antes de
+                    liberar o painel.
                   </p>
                   <Button asChild className="w-full">
-                    <Link to={next ? `/dashboard/seguranca?next=${encodeURIComponent(next)}` : "/dashboard/seguranca"}>
+                    <Link
+                      to={
+                        next
+                          ? `/dashboard/seguranca?next=${encodeURIComponent(next)}`
+                          : "/dashboard/seguranca"
+                      }
+                    >
                       Configurar autenticador
                     </Link>
                   </Button>
@@ -335,7 +343,9 @@ const Login = () => {
                 </div>
               ) : null}
 
-              <div className={`login-actions ${(isMfaVisible || isMfaEnrollmentVisible) ? "justify-end" : ""}`}>
+              <div
+                className={`login-actions ${isMfaVisible || isMfaEnrollmentVisible ? "justify-end" : ""}`}
+              >
                 {isPasswordLoginVisible ? (
                   <>
                     <Button

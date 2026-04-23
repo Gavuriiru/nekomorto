@@ -5,7 +5,11 @@ const setNoStore = (res) => {
 };
 
 const requireUserSessionOrPendingAuth = (req, res, next) => {
-  if (req.session?.user || req.session?.pendingMfaUser?.id || req.session?.pendingMfaEnrollmentUser?.id) {
+  if (
+    req.session?.user ||
+    req.session?.pendingMfaUser?.id ||
+    req.session?.pendingMfaEnrollmentUser?.id
+  ) {
     return next();
   }
   setNoStore(res);

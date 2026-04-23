@@ -10,7 +10,8 @@ const createAppCapture = () => {
         routes.set(`GET ${path}`, handler);
       },
     },
-    getRoute: (method: string, path: string) => routes.get(`${method.toUpperCase()} ${path}`) || null,
+    getRoute: (method: string, path: string) =>
+      routes.get(`${method.toUpperCase()} ${path}`) || null,
   };
 };
 
@@ -77,9 +78,7 @@ describe("registerContentPostPublicDetailRoute", () => {
 
     handler(req, res);
 
-    expect(res.headers.get("cache-control")).toBe(
-      "public, max-age=60, stale-while-revalidate=300",
-    );
+    expect(res.headers.get("cache-control")).toBe("public, max-age=60, stale-while-revalidate=300");
     expect(res.statusCode).toBe(200);
     expect(res.body).toEqual({
       post: {

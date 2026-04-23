@@ -51,7 +51,9 @@ const normalizePublicBootstrapPostDetail = (value: unknown): PublicBootstrapPost
       ? candidate.tags.map((tag) => String(tag || "").trim()).filter(Boolean)
       : [],
     views: Number.isFinite(Number(candidate.views)) ? Number(candidate.views) : 0,
-    commentsCount: Number.isFinite(Number(candidate.commentsCount)) ? Number(candidate.commentsCount) : 0,
+    commentsCount: Number.isFinite(Number(candidate.commentsCount))
+      ? Number(candidate.commentsCount)
+      : 0,
     content: String(candidate.content || ""),
     contentFormat: candidate.contentFormat === "lexical" ? "lexical" : undefined,
     seoTitle: candidate.seoTitle ? String(candidate.seoTitle) : null,

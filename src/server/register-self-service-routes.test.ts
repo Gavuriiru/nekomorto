@@ -90,7 +90,11 @@ const createDependencies = (overrides: Record<string, unknown> = {}) => {
     encryptStringWithKeyring: vi.fn(() => "encrypted"),
     generateRecoveryCodes: vi.fn(() => ["code-1"]),
     getPendingMfaEnrollmentRedirectTarget: vi.fn(() => "/dashboard"),
-    getPendingMfaEnrollmentState: vi.fn(() => ({ pending: false, user: null, redirectTarget: "/dashboard" })),
+    getPendingMfaEnrollmentState: vi.fn(() => ({
+      pending: false,
+      user: null,
+      redirectTarget: "/dashboard",
+    })),
     getRequestIp: vi.fn(() => "198.51.100.40"),
     handleMfaFailureSecuritySignals: vi.fn(),
     hashRecoveryCode: vi.fn(({ code }) => `hash:${code}`),

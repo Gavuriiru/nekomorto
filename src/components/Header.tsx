@@ -342,7 +342,6 @@ const Header = ({
     };
   }, [shouldRenderActionMenus]);
 
-
   useEffect(() => {
     const handleOutsideClick = (event: MouseEvent) => {
       if (searchRef.current && !searchRef.current.contains(event.target as Node)) {

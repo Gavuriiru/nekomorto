@@ -157,7 +157,10 @@ export const createAuthSecurityRuntime = (dependencies = {}) => {
   const resolveMfaMetadata = ({ req, userId, accountName } = {}) => {
     const normalizedUserId = String(userId || "").trim();
     const sessionUser =
-      req?.session?.user || req?.session?.pendingMfaUser || req?.session?.pendingMfaEnrollmentUser || null;
+      req?.session?.user ||
+      req?.session?.pendingMfaUser ||
+      req?.session?.pendingMfaEnrollmentUser ||
+      null;
     const issuer = String(mfaIssuer || "Nekomata").trim() || "Nekomata";
     const accountLabel =
       String(
@@ -244,7 +247,9 @@ export const createAuthSecurityRuntime = (dependencies = {}) => {
     const sid = String(req?.sessionID || "").trim();
     const userId = String(req?.session?.user?.id || "").trim();
     const pendingMfaUserId = String(req?.session?.pendingMfaUser?.id || "").trim();
-    const pendingMfaEnrollmentUserId = String(req?.session?.pendingMfaEnrollmentUser?.id || "").trim();
+    const pendingMfaEnrollmentUserId = String(
+      req?.session?.pendingMfaEnrollmentUser?.id || "",
+    ).trim();
     const isPendingMfa = Boolean(pendingMfaUserId && !userId);
     const isPendingMfaEnrollment = Boolean(pendingMfaEnrollmentUserId && !userId);
     if (!sid || (!userId && !isPendingMfa && !isPendingMfaEnrollment)) {
@@ -317,7 +322,12 @@ export const createAuthSecurityRuntime = (dependencies = {}) => {
     req.session.loginAppOrigin = null;
   };
 
-  const markMfaEnrollmentRequiredForSession = ({ req, user, loginAppOrigin = null, loginNext = null } = {}) => {
+  const markMfaEnrollmentRequiredForSession = ({
+    req,
+    user,
+    loginAppOrigin = null,
+    loginNext = null,
+  } = {}) => {
     if (!req?.session || !user?.id) {
       return null;
     }
@@ -354,7 +364,6 @@ export const createAuthSecurityRuntime = (dependencies = {}) => {
     user: resolvePendingMfaEnrollmentUser(req),
     redirectTarget: getPendingMfaEnrollmentRedirectTarget(req),
   });
-
 
   const maybeEmitNewNetworkLoginEvent = ({ req, userId } = {}) => {
     const network = getIpv4Network24(getRequestIp(req));

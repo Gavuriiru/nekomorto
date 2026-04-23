@@ -127,7 +127,9 @@ const sortLaunchUpdates = (updates: PublicBootstrapUpdate[]) =>
       const kind = String(update.kind || "").toLowerCase();
       return kind === "lançamento" || kind === "lancamento";
     })
-    .sort((a, b) => new Date(b.updatedAt || 0).getTime() - new Date(a.updatedAt || 0).getTime());
+    .map((update) => ({ update, _time: new Date(update.updatedAt || 0).getTime() }))
+    .sort((a, b) => b._time - a._time)
+    .map(({ update }) => update);
 
 const buildHeroSlides = (
   projects: PublicBootstrapProject[],
