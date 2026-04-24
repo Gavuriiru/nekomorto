@@ -34,7 +34,7 @@ import {
 import { buildAvatarRenderUrl } from "@/lib/avatar-render-url";
 import { readWindowPublicBootstrapCurrentUser } from "@/lib/public-bootstrap-global";
 import { uiCopy } from "@/lib/ui-copy";
-import { Home } from "lucide-react";
+import { ChevronRight, Home } from "lucide-react";
 import {
   createContext,
   type CSSProperties,
@@ -233,43 +233,48 @@ const DashboardSidebarProfileCard = ({
   const collapsedCardStateClass =
     userCardDataCollapsible === "icon"
       ? "h-10 w-10 self-start justify-center gap-0 border-sidebar-border/60 bg-sidebar-accent/15 p-0"
-      : "h-[4.25rem] w-full self-stretch px-3 py-2.5";
+      : "h-[4.25rem] w-full self-stretch gap-3.5 px-3 py-2.5";
   const userCardClass =
-    `relative flex items-center overflow-hidden rounded-xl border border-sidebar-border/80 bg-sidebar-accent/20 transition-[width,height,padding,gap,background-color,border-color] duration-200 ${cardTransitionTimingClass} hover:border-sidebar-ring/40 hover:bg-sidebar-accent/35 ${collapsedCardStateClass}`;
+    `group/profile relative flex items-center overflow-hidden rounded-[1.15rem] border border-sidebar-border/70 bg-[linear-gradient(180deg,hsl(var(--sidebar-accent)/0.34),hsl(var(--sidebar-accent)/0.18))] text-left shadow-[0_18px_40px_-28px_hsl(var(--sidebar-background)/0.95)] ring-1 ring-white/5 transition-[width,height,padding,gap,background-color,border-color,box-shadow,transform] duration-200 ${cardTransitionTimingClass} ${collapsedCardStateClass}`;
+  const interactiveUserCardClass = isUserClickable
+    ? "cursor-pointer hover:-translate-y-[1px] hover:border-sidebar-ring/45 hover:bg-[linear-gradient(180deg,hsl(var(--sidebar-accent)/0.5),hsl(var(--sidebar-accent)/0.28))] hover:shadow-[0_22px_44px_-26px_hsl(var(--sidebar-background)/0.96)] active:translate-y-0 active:scale-[0.985] focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-sidebar-ring focus-visible:ring-offset-2 focus-visible:ring-offset-sidebar"
+    : "cursor-default";
   const userCardTextWrapFlexClass = userCardDataCollapsible === "icon" ? "flex-none" : "flex-1";
   const userCardTextWrapClass = `${textVisibleStateClass} flex min-w-0 ${userCardTextWrapFlexClass} overflow-hidden transition-[max-width,opacity,transform] ${textTransitionDurationClass} ${textTransitionTimingClass}`;
-  const userCardTextClass = `${textInnerVisibleStateClass} flex min-w-0 flex-col transition-[opacity,transform] ${textTransitionDurationClass} ${textTransitionTimingClass}`;
+  const userCardTextClass = `${textInnerVisibleStateClass} flex min-w-0 flex-col justify-center gap-0.5 transition-[opacity,transform] ${textTransitionDurationClass} ${textTransitionTimingClass}`;
   const avatarCollapsedStateClass = userCardDataCollapsible === "icon" ? "h-7 w-7 min-h-7 min-w-7 scale-100" : "h-11 w-11 min-h-11 min-w-11";
   const avatarFallbackCollapsedStateClass = userCardDataCollapsible === "icon" ? "text-[9px]" : "text-xs";
   const userCardAvatarClass =
-    `${avatarCollapsedStateClass} shrink-0 border border-sidebar-border shadow-xs transition-[width,height,transform] ${textTransitionDurationClass} ${cardTransitionTimingClass}`;
+    `${avatarCollapsedStateClass} shrink-0 border border-white/10 bg-sidebar-primary/10 shadow-[0_10px_30px_-24px_hsl(var(--sidebar-background)/1)] transition-[width,height,transform,border-color] ${textTransitionDurationClass} ${cardTransitionTimingClass}`;
   const userCardCollapsedAvatarClass =
-    `${avatarCollapsedStateClass} relative flex shrink-0 items-center justify-center overflow-hidden rounded-full border border-sidebar-border shadow-xs transition-[width,height,transform] ${textTransitionDurationClass} ${cardTransitionTimingClass}`;
+    `${avatarCollapsedStateClass} relative flex shrink-0 items-center justify-center overflow-hidden rounded-full border border-white/10 bg-sidebar-primary/10 shadow-[0_10px_30px_-24px_hsl(var(--sidebar-background)/1)] transition-[width,height,transform,border-color] ${textTransitionDurationClass} ${cardTransitionTimingClass}`;
   const userCardAvatarFallbackClass =
     `bg-sidebar-primary/10 text-sidebar-foreground transition-[font-size] ${textTransitionDurationClass} ${cardTransitionTimingClass} ${avatarFallbackCollapsedStateClass}`;
   const shouldRenderCollapsedAvatarShell = userCardDataCollapsible === "icon";
   const collapsedAvatarFallbackText = initials;
   const collapsedAvatarImageClass = "block h-full w-full rounded-full object-cover object-center";
   const collapsedAvatarFallbackShellClass = `flex h-full w-full items-center justify-center rounded-full ${userCardAvatarFallbackClass}`;
-  const userCardTextSpanClass = "truncate text-sm font-semibold text-sidebar-foreground";
-  const userCardSubTextSpanClass = "truncate text-xs text-sidebar-foreground/70";
+  const userCardTextSpanClass = "truncate text-sm font-semibold leading-tight text-sidebar-foreground [text-wrap:balance]";
+  const userCardSubTextSpanClass = "truncate text-xs text-sidebar-foreground/68";
+  const userCardMetaClass =
+    "ml-auto hidden shrink-0 items-center text-sidebar-foreground/38 transition-[opacity,transform,color] duration-200 group-hover/profile:text-sidebar-foreground/62 group-focus-visible/profile:text-sidebar-foreground/62 group-data-[collapsible=icon]:hidden";
+  const cardAriaLabel = `Abrir perfil de ${userName}`;
+  const CardRoot = isUserClickable ? "button" : "div";
 
   return (
-    <div
+    <CardRoot
       data-state={userCardDataState}
       data-collapsible={userCardDataCollapsible}
-      className={`${userCardClass} ${isUserClickable ? "cursor-pointer" : "cursor-default"}`}
+      className={`${userCardClass} ${interactiveUserCardClass}`}
+      {...(isUserClickable
+        ? {
+            type: "button" as const,
+            onClick: onUserCardClick,
+            "aria-label": cardAriaLabel,
+          }
+        : {})}
     >
-      {isUserClickable ? (
-        <button
-          type="button"
-          className="absolute inset-0 z-10 rounded-xl focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-sidebar-ring"
-          aria-label={`Abrir perfil de ${userName}`}
-          onClick={onUserCardClick}
-        >
-          <span className="sr-only">{`Abrir perfil de ${userName}`}</span>
-        </button>
-      ) : null}
+      <span className="pointer-events-none absolute inset-x-3 top-0 h-px bg-gradient-to-r from-transparent via-white/18 to-transparent opacity-80" />
       {shouldRenderCollapsedAvatarShell ? (
         <div className={userCardCollapsedAvatarClass}>
           {userAvatarUrl ? (
@@ -290,7 +295,10 @@ const DashboardSidebarProfileCard = ({
           <span className={userCardSubTextSpanClass}>{userHandle}</span>
         </div>
       </div>
-    </div>
+      <span aria-hidden="true" className={userCardMetaClass}>
+        <ChevronRight className="size-4" />
+      </span>
+    </CardRoot>
   );
 };
 
@@ -371,13 +379,14 @@ const DashboardShellFrame = ({
     userLabel ??
     effectiveUser?.name ??
     (isLoadingUser ? uiCopy.user.loading : uiCopy.user.singular);
-  const userHandle =
-    userSubLabel ??
-    (effectiveUser?.username
-      ? `@${effectiveUser.username}`
-      : isLoadingUser
-        ? uiCopy.user.waiting
-        : uiCopy.dashboard.home);
+  const resolvedAccessRole = resolveAccessRole(effectiveUser || null);
+  const roleLabel =
+    resolvedAccessRole === "owner_primary" || resolvedAccessRole === "owner_secondary"
+      ? "Dono"
+      : resolvedAccessRole === "admin"
+        ? "Admin"
+        : "Membro";
+  const userHandle = userSubLabel ?? (isLoadingUser ? uiCopy.user.waiting : roleLabel);
   const initialsRaw = (effectiveUser?.name ?? effectiveUser?.username ?? "")
     .split(" ")
     .filter(Boolean)

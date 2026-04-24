@@ -44,6 +44,7 @@ vi.mock("@/components/ui/sidebar", () => ({
     <div>{children}</div>
   ),
   SidebarSeparator: () => <hr />,
+  useSidebarState: () => ({ open: true }),
 }));
 
 const buildGrants = () => ({
@@ -192,7 +193,7 @@ describe("DashboardShell menu permissions", () => {
     );
 
     expect(screen.getByText("Maria Persist")).toBeInTheDocument();
-    expect(screen.getByText("@maria")).toBeInTheDocument();
+    expect(screen.getByText("membro")).toBeInTheDocument();
 
     rerender(
       <MemoryRouter initialEntries={["/dashboard/posts"]}>
@@ -203,7 +204,7 @@ describe("DashboardShell menu permissions", () => {
     );
 
     expect(screen.getByText("Maria Persist")).toBeInTheDocument();
-    expect(screen.getByText("@maria")).toBeInTheDocument();
+    expect(screen.getByText("Aguarde")).toBeInTheDocument();
 
     rerender(
       <MemoryRouter initialEntries={["/dashboard/posts"]}>

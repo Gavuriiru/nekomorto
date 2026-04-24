@@ -1,4 +1,4 @@
-import { render, screen } from "@testing-library/react";
+import { act, fireEvent, render, screen } from "@testing-library/react";
 import type { ReactNode } from "react";
 import { MemoryRouter } from "react-router-dom";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
@@ -82,7 +82,7 @@ describe("DashboardShell avatar render", () => {
     const avatarImage = screen.getByAltText("Admin");
     const avatar = avatarImage.parentElement as HTMLElement;
     const profileCard = avatar.parentElement as HTMLElement;
-    const textWrap = profileCard.lastElementChild as HTMLElement;
+    const textWrap = avatar.nextElementSibling as HTMLElement;
 
     expect(sidebarHeader.className).toContain("group-data-[collapsible=icon]:items-start");
     expect(sidebarHeader.className).not.toContain("group-data-[collapsible=icon]:items-center");
@@ -125,27 +125,29 @@ describe("DashboardShell avatar render", () => {
 
     sidebarOpen = false;
 
-    rerender(
-      <MemoryRouter initialEntries={["/dashboard"]}>
-        <DashboardShell
-          currentUser={{
-            id: "user-1",
-            name: "Admin",
-            username: "admin",
-            avatarUrl: "/uploads/users/avatar-user-1.png",
-            revision: "rev-42",
-            grants: {},
-          }}
-        >
-          <div>Conteudo</div>
-        </DashboardShell>
-      </MemoryRouter>,
-    );
+    act(() => {
+      rerender(
+        <MemoryRouter initialEntries={["/dashboard"]}>
+          <DashboardShell
+            currentUser={{
+              id: "user-1",
+              name: "Admin",
+              username: "admin",
+              avatarUrl: "/uploads/users/avatar-user-1.png",
+              revision: "rev-42",
+              grants: {},
+            }}
+          >
+            <div>Conteudo</div>
+          </DashboardShell>
+        </MemoryRouter>,
+      );
+    });
 
     const avatarImage = screen.getByAltText("Admin");
     const avatar = avatarImage.parentElement as HTMLElement;
     const profileCard = avatar.parentElement as HTMLElement;
-    const textWrap = profileCard.lastElementChild as HTMLElement;
+    const textWrap = avatar.nextElementSibling as HTMLElement;
     const textContainer = screen.getByText("Admin").parentElement as HTMLElement;
 
     expect(profileCard.dataset.state).toBe("collapsed");
@@ -185,34 +187,38 @@ describe("DashboardShell avatar render", () => {
 
     sidebarOpen = true;
 
-    rerender(
-      <MemoryRouter initialEntries={["/dashboard"]}>
-        <DashboardShell
-          currentUser={{
-            id: "user-1",
-            name: "Admin",
-            username: "admin",
-            avatarUrl: "/uploads/users/avatar-user-1.png",
-            revision: "rev-42",
-            grants: {},
-          }}
-        >
-          <div>Conteudo</div>
-        </DashboardShell>
-      </MemoryRouter>,
-    );
+    act(() => {
+      rerender(
+        <MemoryRouter initialEntries={["/dashboard"]}>
+          <DashboardShell
+            currentUser={{
+              id: "user-1",
+              name: "Admin",
+              username: "admin",
+              avatarUrl: "/uploads/users/avatar-user-1.png",
+              revision: "rev-42",
+              grants: {},
+            }}
+          >
+            <div>Conteudo</div>
+          </DashboardShell>
+        </MemoryRouter>,
+      );
+    });
 
     const avatarImage = screen.getByAltText("Admin");
     const avatar = avatarImage.parentElement as HTMLElement;
     const profileCard = avatar.parentElement as HTMLElement;
-    const textWrap = profileCard.lastElementChild as HTMLElement;
+    const textWrap = avatar.nextElementSibling as HTMLElement;
 
     expect(profileCard.dataset.state).toBe("collapsed");
     expect(profileCard.className).toContain("h-10");
     expect(avatar.className).toContain("h-7");
     expect(textWrap.className).toContain("max-w-0");
 
-    vi.advanceTimersByTime(40);
+    act(() => {
+      vi.advanceTimersByTime(40);
+    });
   });
 
   it("renderiza fallback de iniciais no estado colapsado sem deslocar o avatar", () => {
@@ -275,24 +281,80 @@ describe("DashboardShell avatar render", () => {
     const textContainer = screen.getByText("Admin").parentElement as HTMLElement;
 
     expect(profileCard.className).toContain("border");
-    expect(profileCard.className).toContain("border-sidebar-border/80");
-    expect(profileCard.className).toContain("bg-sidebar-accent/20");
-    expect(profileCard.className).toContain("hover:border-sidebar-ring/40");
-    expect(profileCard.className).toContain("hover:bg-sidebar-accent/35");
+    expect(profileCard.className).toContain("rounded-[1.15rem]");
+    expect(profileCard.className).toContain("border-sidebar-border/70");
+    expect(profileCard.className).toContain("bg-[linear-gradient(180deg,hsl(var(--sidebar-accent)/0.34),hsl(var(--sidebar-accent)/0.18))]");
+    expect(profileCard.className).not.toContain("hover:border-sidebar-ring/45");
+    expect(profileCard.className).not.toContain("hover:bg-[linear-gradient(180deg,hsl(var(--sidebar-accent)/0.5),hsl(var(--sidebar-accent)/0.28))]");
     expect(profileCard.className).toContain("overflow-hidden");
-    expect(profileCard.className).toContain("transition-[width,height,padding,gap,background-color,border-color]");
+    expect(profileCard.className).toContain("transition-[width,height,padding,gap,background-color,border-color,box-shadow,transform]");
+    expect(profileCard.className).toContain("shadow-[0_18px_40px_-28px_hsl(var(--sidebar-background)/0.95)]");
     expect(textWrap.className).toContain("max-w-[10rem]");
     expect(textWrap.className).toContain("transition-[max-width,opacity,transform]");
     expect(avatar.className).toContain("border");
-    expect(avatar.className).toContain("border-sidebar-border");
-    expect(avatar.className).toContain("transition-[width,height,transform]");
+    expect(avatar.className).toContain("border-white/10");
+    expect(avatar.className).toContain("transition-[width,height,transform,border-color]");
     expect(avatar.className).toContain("h-11");
     expect(avatar.className).toContain("w-11");
     expect(avatar.className).toContain("min-h-11");
     expect(avatar.className).toContain("min-w-11");
     expect(textContainer.className).toContain("transition-[opacity,transform]");
+    expect(textContainer.className).toContain("justify-center");
+    expect(textContainer.className).toContain("gap-0.5");
     expect(textContainer.className).toContain("translate-x-0");
+    expect(screen.queryByText("Conta ativa")).not.toBeInTheDocument();
+    expect(screen.getByText("Membro")).toBeInTheDocument();
     expect(avatarImages).toHaveLength(1);
+  });
+
+  it("mostra o papel do usuário no lugar do @username", () => {
+    render(
+      <MemoryRouter initialEntries={["/dashboard"]}>
+        <DashboardShell
+          currentUser={{
+            id: "user-1",
+            name: "Admin",
+            username: "admin",
+            accessRole: "admin",
+            avatarUrl: "/uploads/users/avatar-user-1.png",
+            revision: "rev-42",
+            grants: {},
+          }}
+        >
+          <div>Conteudo</div>
+        </DashboardShell>
+      </MemoryRouter>,
+    );
+
+    expect(screen.getByText("Admin")).toBeInTheDocument();
+    expect(screen.queryByText("@admin")).not.toBeInTheDocument();
+  });
+
+  it("dispara o clique no card inteiro quando o perfil pode ser aberto", () => {
+    const onUserCardClick = vi.fn();
+
+    render(
+      <MemoryRouter initialEntries={["/dashboard"]}>
+        <DashboardShell
+          currentUser={{
+            id: "user-1",
+            name: "Admin",
+            username: "admin",
+            avatarUrl: "/uploads/users/avatar-user-1.png",
+            revision: "rev-42",
+            grants: {},
+          }}
+          onUserCardClick={onUserCardClick}
+        >
+          <div>Conteudo</div>
+        </DashboardShell>
+      </MemoryRouter>,
+    );
+
+    const profileCard = screen.getByRole("button", { name: "Abrir perfil de Admin" });
+    fireEvent.click(profileCard);
+
+    expect(onUserCardClick).toHaveBeenCalledTimes(1);
   });
 
   it("aplica revision na mesma URL canonica do avatar", () => {
