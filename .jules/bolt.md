@@ -5,3 +5,6 @@
 ## 2025-02-28 - O(N) date parsing optimization for Comment Trees
 **Learning:** When constructing recursive nested trees from flat API lists (e.g., comments) and sorting them by date using `Date(string).getTime()`, placing the `new Date()` object instantiation inside the nested `.sort()` function call invokes O(N log N) recursive date parsing operations, which heavily bottlenecks the main thread on platforms that use slower engines for `new Date()`.
 **Action:** Pre-compute and map timestamps on the `CommentNode` itself inside an initial, simple O(N) loop before any sorting or recursive mapping occurs, transforming `O(N log N)` date parses into a simple array mutation.
+## 2025-02-18 - Precomputing Date parsing in map() before array sort()
+**Learning:** Found a specific bottleneck where `Date` strings were being parsed inside a `Array.prototype.sort` comparator. Because `sort` can call the comparator $O(N \log N)$ times, parsing strings into Date instances on every call was expensive and significantly degraded performance for large lists of dates.
+**Action:** Always precompute heavy operations such as `Date` parsing during an initial $O(N)$ `map` operation to attach the timestamps to the objects. Then, perform the `sort` comparing the precomputed timestamps and finally `map` to unwrap the original objects back.

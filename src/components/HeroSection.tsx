@@ -122,12 +122,18 @@ const heroSlidesSeed: HeroSlide[] = [
 ];
 
 const sortLaunchUpdates = (updates: PublicBootstrapUpdate[]) =>
-  [...updates]
+  updates
     .filter((update) => {
       const kind = String(update.kind || "").toLowerCase();
       return kind === "lançamento" || kind === "lancamento";
     })
-    .sort((a, b) => new Date(b.updatedAt || 0).getTime() - new Date(a.updatedAt || 0).getTime());
+    // ⚡ Bolt: Precompute timestamps in O(N) map to avoid redundant parsing in O(N log N) sort
+    .map((update) => ({
+      update,
+      time: update.updatedAt ? new Date(update.updatedAt).getTime() : 0,
+    }))
+    .sort((a, b) => b.time - a.time)
+    .map(({ update }) => update);
 
 const buildHeroSlides = (
   projects: PublicBootstrapProject[],
