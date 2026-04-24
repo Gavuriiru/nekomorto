@@ -444,4 +444,212 @@ describe("registerUserRoutes", () => {
       }),
     );
   });
+
+  it("registers PUT /api/users/self before PUT /api/users/:id and handles a basic-profile-only patch", async () => {
+    const { app, routes } = createAppRecorder();
+    let storedUsers = [
+      {
+        id: "user-2",
+        name: "Colaborador",
+        phrase: "Frase antiga",
+        bio: "Bio antiga",
+        email: "nerdplaygamer1@gmail.com",
+        avatarUrl: "/uploads/users/original.png",
+        avatarDisplay: { x: 0, y: 0, zoom: 1, rotation: 0 },
+        socials: [{ type: "discord", url: "https://discord.gg/old" }],
+        favoriteWorks: { manga: ["Old"], anime: [] },
+        status: "active",
+        permissions: ["posts"],
+        roles: ["reviewer"],
+        accessRole: AccessRole.NORMAL,
+        order: 0,
+        username: "user-2",
+      },
+    ];
+    const dependencies = createDependencies({
+      app,
+      overrides: {
+        loadUsers: vi.fn(() => cloneJson(storedUsers)),
+        normalizeUsers: vi.fn((users) => users),
+        loadUploads: vi.fn(() => [{ id: "upload-1" }]),
+        pickBasicProfilePatch: vi.fn((update) => ({
+          name: update.name,
+          bio: update.bio,
+          avatarUrl: update.avatarUrl,
+          socials: update.socials,
+          favoriteWorks: update.favoriteWorks,
+        })),
+        sanitizeSocials: vi.fn((value) => value),
+        sanitizeFavoriteWorksByCategory: vi.fn((value) => value),
+        writeUsers: vi.fn((users) => {
+          storedUsers = cloneJson(users);
+        }),
+        withUserProfileRevision: vi.fn((user) => ({
+          ...user,
+          revision: "self-revision",
+        })),
+      },
+    });
+
+    registerUserRoutes(dependencies);
+
+    const selfRouteIndex = routes.findIndex(
+      (route) => route.method === "PUT" && route.path === "/api/users/self",
+    );
+    const managedRouteIndex = routes.findIndex(
+      (route) => route.method === "PUT" && route.path === "/api/users/:id",
+    );
+    expect(selfRouteIndex).toBeGreaterThanOrEqual(0);
+    expect(managedRouteIndex).toBeGreaterThanOrEqual(0);
+    expect(selfRouteIndex).toBeLessThan(managedRouteIndex);
+
+    const route = getRoute(routes, "PUT", "/api/users/self");
+    expect(route).toBeTruthy();
+    expect(route.handlers).toHaveLength(2);
+    expect(route.handlers[0]).toBe(dependencies.requireAuth);
+
+    const res = await invokeRouteHandlers(route, {
+      body: {
+        name: "Perfil Atualizado",
+        bio: "Nova bio",
+        avatarUrl: "/uploads/users/updated.png",
+        socials: [{ type: "discord", url: "https://discord.gg/new" }],
+        favoriteWorks: { manga: ["Naruto"], anime: ["Frieren"] },
+        permissions: ["usuarios_acesso"],
+      },
+      session: {
+        user: {
+          id: "user-2",
+          email: "nerdplaygamer1@gmail.com",
+          avatarUrl: "https://cdn.discordapp.com/avatars/1/avatar.png",
+        },
+      },
+    });
+
+    expect(res.statusCode).toBe(200);
+    expect(dependencies.pickBasicProfilePatch).toHaveBeenCalledWith(
+      expect.objectContaining({
+        name: "Perfil Atualizado",
+        permissions: ["usuarios_acesso"],
+      }),
+    );
+    expect(storedUsers[0]).toEqual(
+      expect.objectContaining({
+        id: "user-2",
+        name: "Perfil Atualizado",
+        bio: "Nova bio",
+        avatarUrl: "/uploads/users/updated.png",
+        socials: [{ type: "discord", url: "https://discord.gg/new" }],
+        favoriteWorks: { manga: ["Naruto"], anime: ["Frieren"] },
+        permissions: ["posts"],
+        accessRole: AccessRole.NORMAL,
+        roles: ["reviewer"],
+      }),
+    );
+    expect(dependencies.syncSessionUserDisplayProfile).toHaveBeenCalledWith(
+      expect.objectContaining({
+        session: expect.objectContaining({
+          user: expect.objectContaining({
+            id: "user-2",
+            email: "nerdplaygamer1@gmail.com",
+          }),
+        }),
+      }),
+      expect.objectContaining({
+        id: "user-2",
+        name: "Perfil Atualizado",
+      }),
+      [{ id: "upload-1" }],
+    );
+    expect(dependencies.appendAuditLog).toHaveBeenCalledWith(
+      expect.any(Object),
+      "users.update_self",
+      "users",
+      expect.objectContaining({
+        id: "user-2",
+        before: expect.objectContaining({ name: "Colaborador" }),
+        after: expect.objectContaining({ name: "Perfil Atualizado" }),
+      }),
+    );
+    expect(res.body).toEqual({
+      user: expect.objectContaining({
+        id: "user-2",
+        name: "Perfil Atualizado",
+        revision: "self-revision",
+      }),
+    });
+  });
+
+  it("falls back to the session email for PUT /api/users/self and returns a specific error when unresolved", async () => {
+    const { app, routes } = createAppRecorder();
+    const storedUsers = [
+      {
+        id: "user-2",
+        name: "Colaborador",
+        phrase: "",
+        bio: "",
+        email: "nerdplaygamer1@gmail.com",
+        avatarUrl: null,
+        avatarDisplay: { x: 0, y: 0, zoom: 1, rotation: 0 },
+        socials: [],
+        favoriteWorks: { manga: [], anime: [] },
+        status: "active",
+        permissions: [],
+        roles: [],
+        accessRole: AccessRole.NORMAL,
+        order: 0,
+        username: "user-2",
+      },
+    ];
+    const dependencies = createDependencies({
+      app,
+      overrides: {
+        loadUsers: vi.fn(() => cloneJson(storedUsers)),
+        normalizeUsers: vi.fn((users) => users),
+        pickBasicProfilePatch: vi.fn((update) => ({ name: update.name })),
+        withUserProfileRevision: vi.fn((user) => ({
+          ...user,
+          revision: "email-fallback-revision",
+        })),
+      },
+    });
+
+    registerUserRoutes(dependencies);
+
+    const route = getRoute(routes, "PUT", "/api/users/self");
+
+    const fallbackRes = await invokeRouteHandlers(route, {
+      body: { name: "Por email" },
+      session: {
+        user: {
+          id: "external-subject",
+          email: "NerdPlayGamer1@gmail.com",
+          avatarUrl: null,
+        },
+      },
+    });
+
+    expect(fallbackRes.statusCode).toBe(200);
+    expect(fallbackRes.body).toEqual({
+      user: expect.objectContaining({
+        id: "user-2",
+        name: "Por email",
+        revision: "email-fallback-revision",
+      }),
+    });
+
+    const unresolvedRes = await invokeRouteHandlers(route, {
+      body: { name: "Ignorado" },
+      session: {
+        user: {
+          id: "missing-user",
+          email: "missing@example.com",
+          avatarUrl: null,
+        },
+      },
+    });
+
+    expect(unresolvedRes.statusCode).toBe(404);
+    expect(unresolvedRes.body).toEqual({ error: "self_user_not_found" });
+  });
 });

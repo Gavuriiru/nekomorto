@@ -19,6 +19,7 @@ import {
   rebuildUsersAfterDeletion,
   resolveManagedUserActorCapabilities,
   syncOwnerIdsAfterUserDeletion,
+  buildGeneratedManagedUserId,
 } from "./shared.js";
 
 export const registerUserManagementRoutes = ({
@@ -88,8 +89,18 @@ export const registerUserManagementRoutes = ({
       accessRole,
     } = req.body || {};
 
-    if (!id || !name) {
-      return res.status(400).json({ error: "id_and_name_required" });
+    if (!name) {
+      return res.status(400).json({ error: "name_required" });
+    }
+
+    const targetId = String(id || "").trim() || buildGeneratedManagedUserId();
+
+    if (!String(email || "").trim()) {
+      return res.status(400).json({ error: "email_required" });
+    }
+
+    if (!targetId) {
+      return res.status(500).json({ error: "user_id_generation_failed" });
     }
 
     if (!isRbacV2Enabled) {
@@ -98,7 +109,7 @@ export const registerUserManagementRoutes = ({
       }
 
       let users = normalizeUsers(loadUsers());
-      if (users.some((user) => user.id === String(id))) {
+      if (users.some((user) => user.id === targetId)) {
         return res.status(409).json({ error: "user_exists" });
       }
 
@@ -108,7 +119,7 @@ export const registerUserManagementRoutes = ({
         bio,
         email,
         favoriteWorks,
-        id,
+        id: targetId,
         name,
         normalizeAvatarDisplay,
         order: users.length,
@@ -139,7 +150,6 @@ export const registerUserManagementRoutes = ({
     }
 
     let users = normalizeUsers(loadUsers());
-    const targetId = String(id);
     if (users.some((user) => user.id === targetId)) {
       return res.status(409).json({ error: "user_exists" });
     }

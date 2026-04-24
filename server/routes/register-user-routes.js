@@ -201,6 +201,12 @@ export const registerUserRoutes = (dependencies = {}) => {
       ),
     );
   }
+  if (shouldRegisterUserGroup(dependencies, ["pickBasicProfilePatch"])) {
+    registerUserSelfRoutes({
+      ...pickUserDependencies(dependencies, "register-user-routes.self", SELF_DEPENDENCY_KEYS),
+      persistCurrentUsers,
+    });
+  }
   if (
     shouldRegisterUserGroup(dependencies, ["normalizeAvatarDisplay", "defaultPermissionsForRole"])
   ) {
@@ -210,12 +216,6 @@ export const registerUserRoutes = (dependencies = {}) => {
         "register-user-routes.user-management",
         MANAGEMENT_DEPENDENCY_KEYS,
       ),
-      persistCurrentUsers,
-    });
-  }
-  if (shouldRegisterUserGroup(dependencies, ["resolveDiscordAvatarFallbackUrl"])) {
-    registerUserSelfRoutes({
-      ...pickUserDependencies(dependencies, "register-user-routes.self", SELF_DEPENDENCY_KEYS),
       persistCurrentUsers,
     });
   }

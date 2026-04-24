@@ -663,6 +663,10 @@ const DashboardUsers = () => {
   const isAdminRecord = (user: UserRecord) => resolveUserAccessRole(user) === "admin";
   const isAdminForm = formState.accessRole === "admin";
   const isEditingSelf = Boolean(editingUser && currentUser && editingUser.id === currentUser.id);
+  const showPrivateIdentityFields = isPrimaryOwnerActor || isSecondaryOwnerActor || isAdminActor;
+  const showInternalIdField = showPrivateIdentityFields;
+  const showAccessEmailField = showPrivateIdentityFields;
+  const showEditorIdBadge = showPrivateIdentityFields;
   const avatarLibraryFolders = useMemo(
     () =>
       filterImageLibraryFoldersByAccess(["users", "posts", "projects"], {
@@ -1279,9 +1283,24 @@ const DashboardUsers = () => {
       };
     })();
 
-    if (!editingUser && (!basePayload.id || !basePayload.name)) {
+    if (!editingUser && !basePayload.name) {
+      toast({
+        title: "Informe pelo menos o nome do usuário",
+        description: "O e-mail de acesso é obrigatório para a pré-criação da conta.",
+        variant: "destructive",
+      });
       return;
     }
+    if (!editingUser && !basePayload.email) {
+      toast({
+        title: "Informe o e-mail de acesso",
+        description: "O sistema gera o ID interno automaticamente ao salvar.",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    const requestPayload = !editingUser && !basePayload.id ? { ...payload, id: null } : payload;
 
     const method = editingUser ? "PUT" : "POST";
     const canUseUsersByIdEndpoint = isPrimaryOwnerActor || isSecondaryOwnerActor || isAdminActor;
@@ -1294,7 +1313,7 @@ const DashboardUsers = () => {
     const response = await apiFetch(apiBase, path, {
       method,
       auth: true,
-      json: payload,
+      json: requestPayload,
     });
 
     if (response.ok) {
@@ -1656,7 +1675,7 @@ const DashboardUsers = () => {
   const editorStatusLabel = formState.status === "active" ? "Ativo" : "Aposentado";
   const editorDialogDescription = editingUser
     ? "Atualize as informações e permissões do usuário."
-    : "Cadastre um novo usuário autorizado.";
+    : "Cadastre um novo usuário autorizado. O ID interno será gerado automaticamente ao salvar.";
 
   const renderUserCard = ({
     user,
@@ -2017,9 +2036,11 @@ const DashboardUsers = () => {
                 </div>
               </DialogHeader>
               <div className="project-editor-status-bar flex flex-wrap items-center gap-2 border-t border-border/60 px-4 py-1.5 md:px-6 lg:px-8">
-                <Badge variant="outline" className="text-[10px] uppercase tracking-[0.12em]">
-                  ID {editorUserId}
-                </Badge>
+                {showEditorIdBadge ? (
+                  <Badge variant="outline" className="text-[10px] uppercase tracking-[0.12em]">
+                    ID {editorUserId}
+                  </Badge>
+                ) : null}
                 <Badge variant="secondary" className="text-[10px] uppercase tracking-[0.12em]">
                   {editorAccessRoleLabel}
                 </Badge>
@@ -2058,18 +2079,25 @@ const DashboardUsers = () => {
                   </AccordionTrigger>
                   <AccordionContent className={editorSectionContentClassName}>
                     <div className="grid gap-4 md:grid-cols-2">
-                      <DashboardFieldStack>
-                        <Label htmlFor="user-id">ID do Discord</Label>
-                        <Input
-                          id="user-id"
-                          value={formState.id}
-                          onChange={(event) =>
-                            setFormState((prev) => ({ ...prev, id: event.target.value }))
-                          }
-                          placeholder="Ex.: 380305493391966208"
-                          disabled={Boolean(editingUser) || !canManageUsers}
-                        />
-                      </DashboardFieldStack>
+                      {showInternalIdField ? (
+                        <DashboardFieldStack>
+                          <Label htmlFor="user-id">ID interno</Label>
+                          <Input
+                            id="user-id"
+                            value={formState.id}
+                            onChange={(event) =>
+                              setFormState((prev) => ({ ...prev, id: event.target.value }))
+                            }
+                            placeholder={editingUser ? "ID interno" : "Gerado automaticamente ao salvar"}
+                            disabled={Boolean(editingUser) || !canManageUsers}
+                          />
+                          {!editingUser ? (
+                            <p className="text-xs text-muted-foreground">
+                              Você pode deixar em branco para gerar o ID interno automaticamente.
+                            </p>
+                          ) : null}
+                        </DashboardFieldStack>
+                      ) : null}
                       <DashboardFieldStack>
                         <Label htmlFor="user-name">Nome</Label>
                         <Input
@@ -2094,19 +2122,21 @@ const DashboardUsers = () => {
                           disabled={!canEditBasicFields}
                         />
                       </DashboardFieldStack>
-                      <DashboardFieldStack>
-                        <Label htmlFor="user-email">E-mail de acesso</Label>
-                        <Input
-                          id="user-email"
-                          type="email"
-                          value={formState.email}
-                          onChange={(event) =>
-                            setFormState((prev) => ({ ...prev, email: event.target.value }))
-                          }
-                          placeholder="usuario@exemplo.com"
-                          disabled={!canEditBasicFields}
-                        />
-                      </DashboardFieldStack>
+                      {showAccessEmailField ? (
+                        <DashboardFieldStack>
+                          <Label htmlFor="user-email">E-mail de acesso</Label>
+                          <Input
+                            id="user-email"
+                            type="email"
+                            value={formState.email}
+                            onChange={(event) =>
+                              setFormState((prev) => ({ ...prev, email: event.target.value }))
+                            }
+                            placeholder="usuario@exemplo.com"
+                            disabled={!canEditBasicFields}
+                          />
+                        </DashboardFieldStack>
+                      ) : null}
                       <DashboardFieldStack className="md:col-span-2">
                         <Label htmlFor="user-bio">Bio</Label>
                         <Textarea
@@ -2624,169 +2654,171 @@ const DashboardUsers = () => {
                     </AccordionContent>
                   </AccordionItem>
                 ) : null}
-                <AccordionItem value="acesso-permissoes" className={editorSectionClassName}>
-                  <AccordionTrigger className={editorSectionTriggerClassName}>
-                    <ProjectEditorAccordionHeader
-                      title="Acesso e permissões"
-                      subtitle={`${editorAccessRoleLabel} • ${stripOwnerRole(formState.roles).length
-                        } funções`}
-                    />
-                  </AccordionTrigger>
-                  <AccordionContent className={editorSectionContentClassName}>
-                    <div className="grid gap-4">
-                      <div className="grid gap-2">
-                        <Label>Funções</Label>
-                        {!canEditRoles && (
-                          <p className="text-xs text-muted-foreground">
-                            Apenas donos com permissão de acesso podem alterar funções de equipe.
-                          </p>
-                        )}
-                        <div className="flex flex-wrap gap-2">
-                          {roleOptions.map((role) => {
-                            const isSelected = formState.roles.includes(role);
-                            const iconKey = roleIconMap.get(role);
-                            const RoleIcon = iconKey
-                              ? roleIconRegistry[String(iconKey).toLowerCase()]
-                              : null;
-                            return (
-                              <Button
-                                key={role}
-                                type="button"
-                                variant={isSelected ? "default" : "outline"}
-                                onClick={() => toggleRole(role)}
-                                disabled={!canEditRoles}
-                              >
-                                {RoleIcon ? <RoleIcon className="h-4 w-4" /> : null}
-                                {role}
-                              </Button>
-                            );
-                          })}
-                        </div>
-                        {isOwnerRecord && (
-                          <p className="text-xs text-muted-foreground">
-                            A badge de dono é automática.
-                          </p>
-                        )}
-                      </div>
-                      <DashboardFieldStack>
-                        <Label>Papel de acesso</Label>
-                        <DashboardFieldStack density="compact">
-                          <Combobox
-                            value={formState.accessRole}
-                            onValueChange={(value) =>
-                              setFormState((prev) => ({
-                                ...prev,
-                                accessRole: value === "admin" ? "admin" : "normal",
-                                permissions:
-                                  value === "admin"
-                                    ? permissionOptions
-                                      .filter((option) =>
-                                        DEFAULT_ADMIN_PERMISSIONS.includes(option.id),
-                                      )
-                                      .map((option) => option.id)
-                                    : prev.permissions,
-                              }))
-                            }
-                            disabled={!canEditAccessControls || isOwnerRecord}
-                            ariaLabel="Selecionar papel de acesso"
-                            options={accessRoleOptions.map((option) => ({
-                              value: option.id,
-                              label: option.label,
-                            }))}
-                            placeholder="Selecione um papel"
-                            searchable={false}
-                          />
-                          {isOwnerRecord ? (
+                {canEditAccessControls ? (
+                  <AccordionItem value="acesso-permissoes" className={editorSectionClassName}>
+                    <AccordionTrigger className={editorSectionTriggerClassName}>
+                      <ProjectEditorAccordionHeader
+                        title="Acesso e permissões"
+                        subtitle={`${editorAccessRoleLabel} • ${stripOwnerRole(formState.roles).length
+                          } funções`}
+                      />
+                    </AccordionTrigger>
+                    <AccordionContent className={editorSectionContentClassName}>
+                      <div className="grid gap-4">
+                        <div className="grid gap-2">
+                          <Label>Funções</Label>
+                          {!canEditRoles && (
                             <p className="text-xs text-muted-foreground">
-                              O papel de dono é definido pela governança de owners.
+                              Apenas donos com permissão de acesso podem alterar funções de equipe.
                             </p>
-                          ) : null}
-                        </DashboardFieldStack>
-                      </DashboardFieldStack>
-                      <div className="grid gap-2">
-                        <Label>Permissões</Label>
-                        {isOwnerRecord && (
-                          <Badge className="w-fit bg-primary/20 text-primary">Acesso total</Badge>
-                        )}
-                        {!isOwnerRecord && isAdminForm && (
-                          <Badge className="w-fit bg-card/80 text-muted-foreground">
-                            Administrador
-                          </Badge>
-                        )}
-                        <div className="flex flex-wrap gap-2">
-                          {permissionOptions.map((permission) => {
-                            const isSelected = effectivePermissions.includes(permission.id);
-                            return (
-                              <Button
-                                key={permission.id}
-                                type="button"
-                                variant={isSelected ? "default" : "outline"}
-                                onClick={() => togglePermission(permission.id)}
-                                disabled={!canEditAccessControls || isOwnerRecord}
-                              >
-                                {permission.label}
-                              </Button>
-                            );
-                          })}
+                          )}
+                          <div className="flex flex-wrap gap-2">
+                            {roleOptions.map((role) => {
+                              const isSelected = formState.roles.includes(role);
+                              const iconKey = roleIconMap.get(role);
+                              const RoleIcon = iconKey
+                                ? roleIconRegistry[String(iconKey).toLowerCase()]
+                                : null;
+                              return (
+                                <Button
+                                  key={role}
+                                  type="button"
+                                  variant={isSelected ? "default" : "outline"}
+                                  onClick={() => toggleRole(role)}
+                                  disabled={!canEditRoles}
+                                >
+                                  {RoleIcon ? <RoleIcon className="h-4 w-4" /> : null}
+                                  {role}
+                                </Button>
+                              );
+                            })}
+                          </div>
+                          {isOwnerRecord && (
+                            <p className="text-xs text-muted-foreground">
+                              A badge de dono é automática.
+                            </p>
+                          )}
                         </div>
-                        {!canEditAccessControls && (
-                          <p className="text-xs text-muted-foreground">
-                            Apenas donos com permissão de acesso podem alterar permissões de acesso.
-                          </p>
-                        )}
-                      </div>
-                      {canManageUsers ? (
                         <DashboardFieldStack>
-                          <Label>Dono</Label>
+                          <Label>Papel de acesso</Label>
                           <DashboardFieldStack density="compact">
-                            <div
-                              className={`flex items-center justify-between gap-4 rounded-2xl px-4 py-3 ${subtleSurfaceClassName}`}
-                            >
-                              <span className="text-sm text-muted-foreground">
-                                Permite acesso total ao painel e às configurações críticas.
-                              </span>
-                              <Switch
-                                checked={ownerToggle}
-                                onCheckedChange={setOwnerToggle}
-                                disabled={!canManageOwners || isPrimaryOwnerRecord}
-                              />
-                            </div>
-                            {!canManageOwners ? (
+                            <Combobox
+                              value={formState.accessRole}
+                              onValueChange={(value) =>
+                                setFormState((prev) => ({
+                                  ...prev,
+                                  accessRole: value === "admin" ? "admin" : "normal",
+                                  permissions:
+                                    value === "admin"
+                                      ? permissionOptions
+                                        .filter((option) =>
+                                          DEFAULT_ADMIN_PERMISSIONS.includes(option.id),
+                                        )
+                                        .map((option) => option.id)
+                                      : prev.permissions,
+                                }))
+                              }
+                              disabled={!canEditAccessControls || isOwnerRecord}
+                              ariaLabel="Selecionar papel de acesso"
+                              options={accessRoleOptions.map((option) => ({
+                                value: option.id,
+                                label: option.label,
+                              }))}
+                              placeholder="Selecione um papel"
+                              searchable={false}
+                            />
+                            {isOwnerRecord ? (
                               <p className="text-xs text-muted-foreground">
-                                Apenas o primeiro dono pode promover ou rebaixar outros donos.
-                              </p>
-                            ) : null}
-                            {isPrimaryOwnerRecord ? (
-                              <p className="text-xs text-muted-foreground">
-                                O primeiro dono não pode ser rebaixado.
+                                O papel de dono é definido pela governança de owners.
                               </p>
                             ) : null}
                           </DashboardFieldStack>
                         </DashboardFieldStack>
-                      ) : null}
-                      <DashboardFieldStack>
-                        <Label>Status</Label>
-                        <div
-                          className={`flex items-center justify-between gap-4 rounded-2xl px-4 py-3 ${subtleSurfaceClassName}`}
-                        >
-                          <span className="text-sm text-muted-foreground">
-                            {formState.status === "active" ? "Ativo" : "Aposentado"}
-                          </span>
-                          <Switch
-                            checked={formState.status === "active"}
-                            onCheckedChange={(checked) =>
-                              setFormState((prev) => ({
-                                ...prev,
-                                status: checked ? "active" : "retired",
-                              }))
-                            }
-                            disabled={!canEditStatus}
-                          />
+                        <div className="grid gap-2">
+                          <Label>Permissões</Label>
+                          {isOwnerRecord && (
+                            <Badge className="w-fit bg-primary/20 text-primary">Acesso total</Badge>
+                          )}
+                          {!isOwnerRecord && isAdminForm && (
+                            <Badge className="w-fit bg-card/80 text-muted-foreground">
+                              Administrador
+                            </Badge>
+                          )}
+                          <div className="flex flex-wrap gap-2">
+                            {permissionOptions.map((permission) => {
+                              const isSelected = effectivePermissions.includes(permission.id);
+                              return (
+                                <Button
+                                  key={permission.id}
+                                  type="button"
+                                  variant={isSelected ? "default" : "outline"}
+                                  onClick={() => togglePermission(permission.id)}
+                                  disabled={!canEditAccessControls || isOwnerRecord}
+                                >
+                                  {permission.label}
+                                </Button>
+                              );
+                            })}
+                          </div>
+                          {!canEditAccessControls && (
+                            <p className="text-xs text-muted-foreground">
+                              Apenas donos com permissão de acesso podem alterar permissões de acesso.
+                            </p>
+                          )}
                         </div>
-                      </DashboardFieldStack>
-                    </div>
-                  </AccordionContent>
-                </AccordionItem>
+                        {canManageUsers ? (
+                          <DashboardFieldStack>
+                            <Label>Dono</Label>
+                            <DashboardFieldStack density="compact">
+                              <div
+                                className={`flex items-center justify-between gap-4 rounded-2xl px-4 py-3 ${subtleSurfaceClassName}`}
+                              >
+                                <span className="text-sm text-muted-foreground">
+                                  Permite acesso total ao painel e às configurações críticas.
+                                </span>
+                                <Switch
+                                  checked={ownerToggle}
+                                  onCheckedChange={setOwnerToggle}
+                                  disabled={!canManageOwners || isPrimaryOwnerRecord}
+                                />
+                              </div>
+                              {!canManageOwners ? (
+                                <p className="text-xs text-muted-foreground">
+                                  Apenas o primeiro dono pode promover ou rebaixar outros donos.
+                                </p>
+                              ) : null}
+                              {isPrimaryOwnerRecord ? (
+                                <p className="text-xs text-muted-foreground">
+                                  O primeiro dono não pode ser rebaixado.
+                                </p>
+                              ) : null}
+                            </DashboardFieldStack>
+                          </DashboardFieldStack>
+                        ) : null}
+                        <DashboardFieldStack>
+                          <Label>Status</Label>
+                          <div
+                            className={`flex items-center justify-between gap-4 rounded-2xl px-4 py-3 ${subtleSurfaceClassName}`}
+                          >
+                            <span className="text-sm text-muted-foreground">
+                              {formState.status === "active" ? "Ativo" : "Aposentado"}
+                            </span>
+                            <Switch
+                              checked={formState.status === "active"}
+                              onCheckedChange={(checked) =>
+                                setFormState((prev) => ({
+                                  ...prev,
+                                  status: checked ? "active" : "retired",
+                                }))
+                              }
+                              disabled={!canEditStatus}
+                            />
+                          </div>
+                        </DashboardFieldStack>
+                      </div>
+                    </AccordionContent>
+                  </AccordionItem>
+                ) : null}
               </Accordion>
             </div>
             <div className="project-editor-footer sticky bottom-0 z-20 flex flex-col gap-3 border-t border-border/60 bg-background/95 px-4 py-2 backdrop-blur-sm supports-backdrop-filter:bg-background/80 md:flex-row md:items-center md:justify-between md:px-6 md:py-2.5 lg:px-8">

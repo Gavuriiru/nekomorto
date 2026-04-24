@@ -1,5 +1,24 @@
 import { diffUserFields, toUserApiResponse } from "./shared.js";
 
+const normalizeComparable = (value) => String(value || "").trim().toLowerCase();
+
+const resolveSelfUserIndex = (users, sessionUser) => {
+  const normalizedSessionUserId = String(sessionUser?.id || "").trim();
+  if (normalizedSessionUserId) {
+    const matchedById = users.findIndex((user) => user.id === normalizedSessionUserId);
+    if (matchedById !== -1) {
+      return matchedById;
+    }
+  }
+
+  const normalizedSessionEmail = normalizeComparable(sessionUser?.email);
+  if (!normalizedSessionEmail) {
+    return -1;
+  }
+
+  return users.findIndex((user) => normalizeComparable(user?.email) === normalizedSessionEmail);
+};
+
 export const registerUserSelfRoutes = ({
   BASIC_PROFILE_FIELDS,
   app,
@@ -28,13 +47,22 @@ export const registerUserSelfRoutes = ({
     const sessionUser = req.session.user;
     const options = parseEditRevisionOptions(req.body);
     let users = normalizeUsers(loadUsers());
-    const index = users.findIndex((user) => user.id === String(sessionUser.id));
+    const index = resolveSelfUserIndex(users, sessionUser);
     if (index === -1) {
-      return res.status(404).json({ error: "not_found" });
+      return res.status(404).json({ error: "self_user_not_found" });
     }
 
     const update = req.body || {};
     const existing = users[index];
+    const targetUserId = String(existing.id || sessionUser.id || "").trim();
+    if (!targetUserId) {
+      return res.status(404).json({ error: "self_user_not_found" });
+    }
+    const targetSessionUser = {
+      ...sessionUser,
+      id: targetUserId,
+      email: existing.email || sessionUser.email || null,
+    };
     const ownerIds = loadOwnerIds().map((id) => String(id));
     const currentUserSnapshot = toUserApiResponse({
       applyOwnerRole,
@@ -48,7 +76,7 @@ export const registerUserSelfRoutes = ({
       req,
       res,
       resourceType: "user",
-      resourceId: existing.id,
+      resourceId: targetUserId,
       current: currentUserSnapshot,
       currentRevision,
       options,
@@ -79,7 +107,7 @@ export const registerUserSelfRoutes = ({
     const beforeSnapshot = currentUserSnapshot;
     users[index] = updated;
     users = persistCurrentUsers({ users });
-    const persisted = users.find((user) => user.id === String(sessionUser.id)) || updated;
+    const persisted = users.find((user) => user.id === targetUserId) || updated;
     const afterSnapshot = toUserApiResponse({
       applyOwnerRole,
       ownerIds,
@@ -88,11 +116,12 @@ export const registerUserSelfRoutes = ({
     });
 
     appendAuditLog(req, "users.update_self", "users", {
-      id: sessionUser.id,
+      id: targetUserId,
       before: beforeSnapshot,
       after: afterSnapshot,
       changes: diffUserFields(beforeSnapshot, afterSnapshot, BASIC_PROFILE_FIELDS),
     });
+    req.session.user = targetSessionUser;
     syncSessionUserDisplayProfile(req, persisted, responseUploads);
     return res.json({
       user: withUserProfileRevision(

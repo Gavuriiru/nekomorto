@@ -1,5 +1,9 @@
+import { randomUUID } from "node:crypto";
+
 export const sortUsersByOrder = (users) =>
   [...users].sort((left, right) => left.order - right.order);
+
+export const buildGeneratedManagedUserId = () => `user_${randomUUID().replaceAll("-", "")}`;
 
 const buildActiveRetiredOrder = (users) => {
   const activeUsers = users

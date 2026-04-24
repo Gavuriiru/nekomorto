@@ -189,11 +189,14 @@ describe("DashboardUsers owner governance", () => {
     renderPage();
 
     const dialog = await openNewUserDialog();
-    fireEvent.change(within(dialog).getByLabelText("ID do Discord"), {
+    fireEvent.change(within(dialog).getByLabelText("ID interno"), {
       target: { value: "user-2" },
     });
     fireEvent.change(within(dialog).getByLabelText("Nome"), {
       target: { value: "LuckShiba" },
+    });
+    fireEvent.change(within(dialog).getByLabelText("E-mail de acesso"), {
+      target: { value: "luckshiba@example.com" },
     });
     toggleOwnerSwitch(dialog);
 
@@ -268,6 +271,8 @@ describe("DashboardUsers owner governance", () => {
     renderPage();
 
     const dialog = await openUserDialog("LuckShiba");
+    expect(within(dialog).getByLabelText("ID interno")).toBeInTheDocument();
+    expect(within(dialog).getByLabelText("E-mail de acesso")).toBeInTheDocument();
     toggleOwnerSwitch(dialog);
 
     fireEvent.click(within(dialog).getByRole("button", { name: "Salvar" }));
@@ -398,11 +403,14 @@ describe("DashboardUsers owner governance", () => {
     renderPage();
 
     const dialog = await openNewUserDialog();
-    fireEvent.change(within(dialog).getByLabelText("ID do Discord"), {
+    fireEvent.change(within(dialog).getByLabelText("ID interno"), {
       target: { value: "user-2" },
     });
     fireEvent.change(within(dialog).getByLabelText("Nome"), {
       target: { value: "LuckShiba" },
+    });
+    fireEvent.change(within(dialog).getByLabelText("E-mail de acesso"), {
+      target: { value: "luckshiba@example.com" },
     });
     toggleOwnerSwitch(dialog);
 

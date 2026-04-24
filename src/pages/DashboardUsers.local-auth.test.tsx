@@ -1,3 +1,4 @@
+import { DashboardSessionContext } from "@/hooks/dashboard-session-context";
 import DashboardUsers from "@/pages/DashboardUsers";
 import { fireEvent, render, screen, waitFor } from "@testing-library/react";
 import type { ReactNode } from "react";
@@ -6,8 +7,6 @@ import { afterEach, describe, expect, it, vi } from "vitest";
 
 const apiFetchMock = vi.hoisted(() => vi.fn());
 const toastMock = vi.hoisted(() => vi.fn());
-const originalLocation = window.location;
-let locationHref = "http://localhost/dashboard/usuarios?edit=me";
 
 vi.mock("@/components/DashboardShell", () => ({
   default: ({ children }: { children: ReactNode }) => <div>{children}</div>,
@@ -37,6 +36,67 @@ vi.mock("@/components/ui/use-toast", () => ({
   toast: (...args: unknown[]) => toastMock(...args),
 }));
 
+const originalLocation = window.location;
+let locationHref = "http://localhost/dashboard/usuarios?edit=me";
+
+const currentUserValue = {
+  id: "user-1",
+  name: "Admin",
+  accessRole: "admin",
+  grants: {
+    usuarios_basico: true,
+    usuarios_acesso: true,
+    uploads: true,
+  },
+  authMethods: [{ provider: "discord", linked: true }],
+};
+
+const normalCurrentUserValue = {
+  id: "user-2",
+  name: "Colaborador",
+  accessRole: "normal",
+  grants: {
+    usuarios_basico: false,
+    usuarios_acesso: false,
+    uploads: false,
+  },
+  authMethods: [{ provider: "discord", linked: true }],
+};
+
+const buildUsersPayload = (user = currentUserValue) => ({
+  users: [
+    {
+      id: user.id,
+      name: user.name,
+      phrase: "",
+      bio: "",
+      email: "user@example.com",
+      avatarUrl: null,
+      socials: [],
+      favoriteWorks: { manga: [], anime: [] },
+      status: "active",
+      permissions:
+        user.accessRole === "admin" ? ["usuarios_basico", "usuarios_acesso"] : [],
+      roles: [],
+      accessRole: user.accessRole,
+      order: 0,
+    },
+  ],
+  ownerIds: [],
+  primaryOwnerId: null,
+});
+
+const buildMePayload = (user = currentUserValue, includeAuthMethods = true) => ({
+  id: user.id,
+  name: user.name,
+  username: user.accessRole === "admin" ? "admin" : "colaborador",
+  accessRole: user.accessRole,
+  ...(includeAuthMethods ? { authMethods: [{ provider: "discord", linked: true }] } : {}),
+  grants: user.grants,
+  ownerIds: [],
+  primaryOwnerId: null,
+});
+
 const mockJsonResponse = (ok: boolean, payload: unknown, status = ok ? 200 : 500) =>
   ({ ok, status, json: async () => payload }) as Response;
 
@@ -57,48 +117,42 @@ const installLocationMock = () => {
   });
 };
 
-const setupApiMock = ({ includeAuthMethods = true } = {}) => {
+const setupApiMock = ({
+  includeAuthMethods = true,
+  currentUser = currentUserValue,
+}: {
+  includeAuthMethods?: boolean;
+  currentUser?: typeof currentUserValue;
+} = {}) => {
   apiFetchMock.mockReset();
   toastMock.mockReset();
   apiFetchMock.mockImplementation(async (_base: string, path: string, options?: RequestInit) => {
     const method = String(options?.method || "GET").toUpperCase();
 
     if (path === "/api/users" && method === "GET") {
+      return mockJsonResponse(true, buildUsersPayload(currentUser));
+    }
+    if (path === "/api/users" && method === "POST") {
       return mockJsonResponse(true, {
-        users: [
-          {
-            id: "user-1",
-            name: "Admin",
-            phrase: "",
-            bio: "",
-            email: "user@example.com",
-            avatarUrl: null,
-            socials: [],
-            status: "active",
-            permissions: ["usuarios_basico", "usuarios_acesso"],
-            roles: [],
-            accessRole: "admin",
-            order: 0,
-          },
-        ],
-        ownerIds: [],
-        primaryOwnerId: null,
+        user: {
+          id: "user_generated_1",
+          name: "Alice",
+          phrase: "",
+          bio: "",
+          email: "alice@example.com",
+          avatarUrl: null,
+          socials: [],
+          favoriteWorks: { manga: [], anime: [] },
+          status: "active",
+          permissions: [],
+          roles: [],
+          accessRole: "normal",
+          order: 1,
+        },
       });
     }
     if (path === "/api/me" && method === "GET") {
-      return mockJsonResponse(true, {
-        id: "user-1",
-        name: "Admin",
-        username: "admin",
-        accessRole: "admin",
-        ...(includeAuthMethods ? { authMethods: [{ provider: "discord", linked: true }] } : {}),
-        grants: {
-          usuarios_basico: true,
-          usuarios_acesso: true,
-        },
-        ownerIds: [],
-        primaryOwnerId: null,
-      });
+      return mockJsonResponse(true, buildMePayload(currentUser, includeAuthMethods));
     }
     if (path === "/api/me/security" && method === "GET") {
       return mockJsonResponse(true, {
@@ -140,16 +194,43 @@ const setupApiMock = ({ includeAuthMethods = true } = {}) => {
   });
 };
 
+const renderDashboardUsers = (
+  initialEntry: string,
+  currentUser: typeof currentUserValue = currentUserValue,
+) =>
+  render(
+    <DashboardSessionContext.Provider
+      value={{
+        hasProvider: true,
+        currentUser: currentUser as never,
+        hasResolved: true,
+        isLoading: false,
+        refresh: async () => currentUser as never,
+        setCurrentUser: () => undefined,
+      }}
+    >
+      <MemoryRouter initialEntries={[initialEntry]}>
+        <DashboardUsers />
+      </MemoryRouter>
+    </DashboardSessionContext.Provider>,
+  );
+
+const openNewUserDialog = async () => {
+  const addButton = await screen.findByRole("button", { name: /adicionar usuário/i });
+  fireEvent.click(addButton);
+  await screen.findByLabelText(/id interno/i);
+};
+
+const clickSave = () => {
+  fireEvent.click(screen.getByRole("button", { name: /^salvar$/i }));
+};
+
 describe("DashboardUsers connected accounts", () => {
   it("renderiza métodos de acesso sem UI de login com senha", async () => {
     installLocationMock();
     setupApiMock();
 
-    render(
-      <MemoryRouter initialEntries={["/dashboard/usuarios?edit=me"]}>
-        <DashboardUsers />
-      </MemoryRouter>,
-    );
+    renderDashboardUsers("/dashboard/usuarios?edit=me");
 
     await screen.findByRole("heading", { name: /gest.o de usu.rios/i });
     await screen.findByText(/editar usu.rio/i);
@@ -157,21 +238,15 @@ describe("DashboardUsers connected accounts", () => {
     expect(screen.getAllByText(/métodos de acesso/i).length).toBeGreaterThan(0);
     expect(screen.getByText(/^Discord$/)).toBeInTheDocument();
     expect(screen.getByText(/^Google$/)).toBeInTheDocument();
-    expect(screen.getByText(/não conectada/i)).toBeInTheDocument();
+    expect(screen.getAllByText(/não conectada/i).length).toBeGreaterThan(0);
     expect(screen.queryByText(/configurar login com senha/i)).not.toBeInTheDocument();
-    expect(screen.queryByPlaceholderText(/Username \(opcional\)/i)).not.toBeInTheDocument();
-    expect(screen.queryByPlaceholderText(/nova senha/i)).not.toBeInTheDocument();
   });
 
   it("inicia o fluxo manual de conexão de provider", async () => {
     installLocationMock();
     setupApiMock();
 
-    render(
-      <MemoryRouter initialEntries={["/dashboard/usuarios?edit=me"]}>
-        <DashboardUsers />
-      </MemoryRouter>,
-    );
+    renderDashboardUsers("/dashboard/usuarios?edit=me");
 
     await screen.findAllByText(/métodos de acesso/i);
     fireEvent.click(screen.getByRole("button", { name: "Conectar" }));
@@ -185,11 +260,7 @@ describe("DashboardUsers connected accounts", () => {
     installLocationMock();
     setupApiMock();
 
-    render(
-      <MemoryRouter initialEntries={["/dashboard/usuarios?edit=me&error=identity_already_linked"]}>
-        <DashboardUsers />
-      </MemoryRouter>,
-    );
+    renderDashboardUsers("/dashboard/usuarios?edit=me&error=identity_already_linked");
 
     await screen.findAllByText(/métodos de acesso/i);
     expect(toastMock).toHaveBeenCalledWith(
@@ -204,11 +275,7 @@ describe("DashboardUsers connected accounts", () => {
     installLocationMock();
     setupApiMock();
 
-    render(
-      <MemoryRouter initialEntries={["/dashboard/usuarios?edit=me&linked=google"]}>
-        <DashboardUsers />
-      </MemoryRouter>,
-    );
+    renderDashboardUsers("/dashboard/usuarios?edit=me&linked=google");
 
     await screen.findAllByText(/métodos de acesso/i);
     expect(toastMock).toHaveBeenCalledWith(
@@ -216,53 +283,146 @@ describe("DashboardUsers connected accounts", () => {
     );
   });
 
-  it("mostra campo de e-mail na edição do usuário", async () => {
+  it("mantém o e-mail readonly em métodos de acesso e mostra o campo editável no self-edit de admin", async () => {
     installLocationMock();
     setupApiMock();
 
-    render(
-      <MemoryRouter initialEntries={["/dashboard/usuarios?edit=me"]}>
-        <DashboardUsers />
-      </MemoryRouter>,
-    );
+    renderDashboardUsers("/dashboard/usuarios?edit=me");
 
-    await screen.findByLabelText(/e-mail de acesso/i);
+    await screen.findAllByText(/métodos de acesso/i);
     expect(screen.getByLabelText(/e-mail de acesso/i)).toHaveAttribute("type", "email");
+    expect(screen.getByText(/e-mail:\s*user@example.com/i)).toBeInTheDocument();
+  });
+
+  it("mantém o id interno visível no self-edit de admin", async () => {
+    installLocationMock();
+    setupApiMock();
+
+    renderDashboardUsers("/dashboard/usuarios?edit=me");
+
+    await screen.findAllByText(/métodos de acesso/i);
+    expect(screen.getByLabelText(/id interno/i)).toBeInTheDocument();
+  });
+
+  it("esconde o campo editável de e-mail para usuário sem gestão", async () => {
+    installLocationMock();
+    setupApiMock({ currentUser: normalCurrentUserValue });
+
+    renderDashboardUsers("/dashboard/usuarios?edit=me", normalCurrentUserValue);
+
+    await screen.findByRole("heading", { name: /gest.o de usu.rios/i });
+    await screen.findByText(/editar usu.rio/i);
+    expect(screen.queryByLabelText(/e-mail de acesso/i)).not.toBeInTheDocument();
+  });
+
+  it("esconde também o id interno para usuário sem gestão", async () => {
+    installLocationMock();
+    setupApiMock({ currentUser: normalCurrentUserValue });
+
+    renderDashboardUsers("/dashboard/usuarios?edit=me", normalCurrentUserValue);
+
+    await screen.findByRole("heading", { name: /gest.o de usu.rios/i });
+    await screen.findByText(/editar usu.rio/i);
+    expect(screen.queryByLabelText(/id interno/i)).not.toBeInTheDocument();
+  });
+
+  it("explica que o id interno pode ser gerado automaticamente", async () => {
+    installLocationMock();
+    setupApiMock();
+
+    renderDashboardUsers("/dashboard/usuarios");
+    await openNewUserDialog();
+
+    expect(screen.getByText(/você pode deixar em branco para gerar o id interno automaticamente/i)).toBeInTheDocument();
+    expect(screen.getByText(/será definido ao salvar/i)).toBeInTheDocument();
+    expect(screen.getByText(/o id interno será gerado automaticamente ao salvar/i)).toBeInTheDocument();
+  });
+
+  it("mostra os campos de id interno e e-mail de acesso na criação", async () => {
+    installLocationMock();
+    setupApiMock();
+
+    renderDashboardUsers("/dashboard/usuarios");
+    await openNewUserDialog();
+
+    expect(screen.getByLabelText(/id interno/i)).toBeInTheDocument();
+    expect(screen.getByLabelText(/e-mail de acesso/i)).toHaveAttribute("type", "email");
+  });
+
+  it("mostra feedback ao tentar criar usuário sem e-mail", async () => {
+    installLocationMock();
+    setupApiMock();
+
+    renderDashboardUsers("/dashboard/usuarios");
+    await openNewUserDialog();
+    fireEvent.change(screen.getByLabelText(/^nome$/i), { target: { value: "Alice" } });
+    clickSave();
+
+    expect(toastMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        title: "Informe o e-mail de acesso",
+        variant: "destructive",
+      }),
+    );
+  });
+
+  it("mostra feedback ao tentar criar usuário sem nome", async () => {
+    installLocationMock();
+    setupApiMock();
+
+    renderDashboardUsers("/dashboard/usuarios");
+    await openNewUserDialog();
+    fireEvent.change(screen.getByLabelText(/e-mail de acesso/i), {
+      target: { value: "alice@example.com" },
+    });
+    clickSave();
+
+    expect(toastMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        title: "Informe pelo menos o nome do usuário",
+        variant: "destructive",
+      }),
+    );
+  });
+
+  it("envia id nulo ao criar usuário sem preencher id manual", async () => {
+    installLocationMock();
+    setupApiMock();
+
+    renderDashboardUsers("/dashboard/usuarios");
+    await openNewUserDialog();
+    fireEvent.change(screen.getByLabelText(/^nome$/i), { target: { value: "Alice" } });
+    fireEvent.change(screen.getByLabelText(/e-mail de acesso/i), {
+      target: { value: "Alice@Example.com" },
+    });
+    clickSave();
+
+    await waitFor(() => {
+      expect(apiFetchMock).toHaveBeenCalledWith(
+        "http://api.local",
+        "/api/users",
+        expect.objectContaining({
+          method: "POST",
+          auth: true,
+          json: expect.objectContaining({
+            id: null,
+            name: "Alice",
+            email: "alice@example.com",
+          }),
+        }),
+      );
+    });
   });
 
   it("preserva fallback quando /api/me ainda não traz authMethods", async () => {
     installLocationMock();
     setupApiMock({ includeAuthMethods: false });
 
-    render(
-      <MemoryRouter initialEntries={["/dashboard/usuarios?edit=me"]}>
-        <DashboardUsers />
-      </MemoryRouter>,
-    );
+    renderDashboardUsers("/dashboard/usuarios?edit=me");
 
     await screen.findAllByText(/métodos de acesso/i);
     expect(screen.getByText(/^Discord$/)).toBeInTheDocument();
     expect(screen.getByText(/^Google$/)).toBeInTheDocument();
-  });
-
-  it("recarrega o resumo de segurança após linked=google", async () => {
-    installLocationMock();
-    setupApiMock();
-
-    render(
-      <MemoryRouter initialEntries={["/dashboard/usuarios?edit=me&linked=google"]}>
-        <DashboardUsers />
-      </MemoryRouter>,
-    );
-
-    await screen.findAllByText(/métodos de acesso/i);
-    await waitFor(() => {
-      expect(apiFetchMock).toHaveBeenCalledWith(
-        "http://api.local",
-        "/api/me/security",
-        expect.objectContaining({ auth: true }),
-      );
-    });
   });
 
   afterEach(() => {

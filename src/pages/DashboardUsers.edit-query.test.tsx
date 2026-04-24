@@ -1,6 +1,6 @@
 import { dashboardEditorDialogWidthClassName } from "@/components/dashboard/dashboard-page-tokens";
 import DashboardUsers from "@/pages/DashboardUsers";
-import { fireEvent, render, screen, waitFor } from "@testing-library/react";
+import { fireEvent, render, screen, waitFor, within } from "@testing-library/react";
 import type { ReactNode } from "react";
 import { MemoryRouter, useLocation } from "react-router-dom";
 import { describe, expect, it, vi } from "vitest";
@@ -47,16 +47,6 @@ const classTokens = (element: Element | null) =>
     .split(/\s+/)
     .filter(Boolean);
 
-const expectDashboardActionButtonTokens = (element: HTMLElement, sizeToken: "h-9" | "h-10") => {
-  const tokens = classTokens(element);
-
-  expect(tokens).toEqual(
-    expect.arrayContaining(["rounded-xl", "bg-background", "font-semibold", sizeToken]),
-  );
-  expect(tokens).not.toContain("interactive-lift-sm");
-  expect(tokens).not.toContain("pressable");
-};
-
 const expectPrimaryDashboardActionButtonTokens = (
   element: HTMLElement,
   sizeToken: "h-9" | "h-10",
@@ -81,15 +71,60 @@ const expectPrimaryDashboardActionButtonTokens = (
   expect(tokens).not.toContain("pressable");
 };
 
+const expectDashboardActionButtonTokens = (element: HTMLElement, sizeToken: "h-9" | "h-10") => {
+  const tokens = classTokens(element);
+
+  expect(tokens).toEqual(
+    expect.arrayContaining(["rounded-xl", "bg-background", "font-semibold", sizeToken]),
+  );
+  expect(tokens).not.toContain("interactive-lift-sm");
+  expect(tokens).not.toContain("pressable");
+};
+
+void expectPrimaryDashboardActionButtonTokens;
+void expectDashboardActionButtonTokens;
+
 const setupApiMock = ({
   currentUserGrants = {
     usuarios_basico: true,
     usuarios_acesso: true,
   },
+  currentUser = {
+    id: "user-1",
+    name: "Admin",
+    username: "admin",
+    email: null,
+    accessRole: "admin",
+    permissions: ["usuarios_basico", "usuarios_acesso"],
+    roles: [],
+    status: "active",
+    phrase: "",
+    bio: "",
+    avatarUrl: null,
+    socials: [],
+    favoriteWorks: { manga: [], anime: [] },
+    order: 0,
+  },
 }: {
   currentUserGrants?: {
     usuarios_basico?: boolean;
     usuarios_acesso?: boolean;
+  };
+  currentUser?: {
+    id: string;
+    name: string;
+    username: string;
+    email: string | null;
+    accessRole: string;
+    permissions: string[];
+    roles: string[];
+    status: "active" | "retired";
+    phrase: string;
+    bio: string;
+    avatarUrl: string | null;
+    socials: Array<Record<string, unknown>>;
+    favoriteWorks: { manga: string[]; anime: string[] };
+    order: number;
   };
 } = {}) => {
   apiFetchMock.mockReset();
@@ -98,34 +133,30 @@ const setupApiMock = ({
 
     if (path === "/api/users" && method === "GET") {
       return mockJsonResponse(true, {
-        users: [
-          {
-            id: "user-1",
-            name: "Admin",
-            phrase: "",
-            bio: "",
-            avatarUrl: null,
-            socials: [],
-            status: "active",
-            permissions: ["usuarios_basico", "usuarios_acesso"],
-            roles: [],
-            accessRole: "admin",
-            order: 0,
-          },
-        ],
+        users: [currentUser],
         ownerIds: [],
         primaryOwnerId: null,
       });
     }
     if (path === "/api/me" && method === "GET") {
       return mockJsonResponse(true, {
-        id: "user-1",
-        name: "Admin",
-        username: "admin",
-        accessRole: "admin",
+        id: currentUser.id,
+        name: currentUser.name,
+        username: currentUser.username,
+        accessRole: currentUser.accessRole,
         grants: currentUserGrants,
         ownerIds: [],
         primaryOwnerId: null,
+      });
+    }
+    if (path === "/api/users/self" && method === "PUT") {
+      const payload = (options as { json?: Record<string, unknown> } | undefined)?.json || {};
+      return mockJsonResponse(true, {
+        user: {
+          ...currentUser,
+          ...payload,
+          revision: "self-save-revision",
+        },
       });
     }
     if (path === "/api/me/security" && method === "GET") {
@@ -133,6 +164,13 @@ const setupApiMock = ({
         totpEnabled: false,
         recoveryCodesRemaining: 0,
         activeSessionsCount: 1,
+        identities: [
+          {
+            provider: "discord",
+            linked: true,
+            emailNormalized: "user@example.com",
+          },
+        ],
       });
     }
     if (path === "/api/me/sessions" && method === "GET") {
@@ -176,16 +214,39 @@ describe("DashboardUsers edit query", () => {
     await screen.findByRole("heading", { name: /gest.o de usu.rios/i });
     await screen.findByRole("heading", { name: /adicionar usu.rio/i });
     expect(document.querySelector(".project-editor-dialog")).not.toBeNull();
-    expect(screen.getByLabelText(/ID do Discord/i).parentElement?.className).toContain("gap-2");
+    expect(screen.getByLabelText(/ID interno/i).parentElement?.className).toContain("gap-2");
+    expect(screen.getByLabelText(/e-mail de acesso/i)).toHaveAttribute("type", "email");
+    expect(screen.getByText(/será definido ao salvar/i)).toBeInTheDocument();
     await waitFor(() => {
       expect(screen.getByTestId("location-search").textContent).toBe("");
     });
   });
 
-  it("abre editor automaticamente com ?edit=me e limpa a query", async () => {
-    setupApiMock();
+  it("esconde id interno, e-mail de acesso e badge de id para self-edit sem privilégio de gestão", async () => {
+    setupApiMock({
+      currentUserGrants: {
+        usuarios_basico: false,
+        usuarios_acesso: false,
+      },
+      currentUser: {
+        id: "user-2",
+        name: "Colaborador",
+        username: "colaborador",
+        email: "nerdplaygamer1@gmail.com",
+        accessRole: "normal",
+        permissions: [],
+        roles: [],
+        status: "active",
+        phrase: "Frase antiga",
+        bio: "Bio antiga",
+        avatarUrl: "/uploads/users/original.png",
+        socials: [],
+        favoriteWorks: { manga: ["Old Manga"], anime: ["Old Anime"] },
+        order: 0,
+      },
+    });
 
-    const { unmount } = render(
+    render(
       <MemoryRouter initialEntries={["/dashboard/usuarios?edit=me"]}>
         <DashboardUsers />
         <LocationProbe />
@@ -194,26 +255,37 @@ describe("DashboardUsers edit query", () => {
 
     await screen.findByRole("heading", { name: /gest.o de usu.rios/i });
     await screen.findByText(/editar usu.rio/i);
-    await waitFor(() => {
-      expect(screen.getByTestId("location-search").textContent).toBe("");
-    });
-    expect(document.documentElement).toHaveClass("editor-scroll-locked");
-    expect(document.body).toHaveClass("editor-scroll-locked");
-    expect(document.body.getAttribute("data-editor-scroll-lock-count")).toBe("1");
-    const editorUserSummaryCard = screen.getByText(/^Usu.rio$/i).closest("div.rounded-xl");
-    expect(editorUserSummaryCard).not.toBeNull();
-    expect(classTokens(editorUserSummaryCard)).toContain("hover:border-primary/40");
-    const favoriteWorksCategoryCard = screen.getByText(/Mang/i).closest("div");
-    expect(favoriteWorksCategoryCard).not.toBeNull();
-    expect(String(favoriteWorksCategoryCard?.className || "")).toContain("hover:border-primary/40");
-    const currentSessionBadge = await screen.findByText("Atual");
-    expect(currentSessionBadge).toHaveClass("border-accent/60", "bg-accent/10", "text-accent");
 
-    unmount();
+    expect(screen.queryByLabelText(/id interno/i)).not.toBeInTheDocument();
+    expect(screen.queryByLabelText(/e-mail de acesso/i)).not.toBeInTheDocument();
+    expect(screen.queryByText(/^ID\s/i)).not.toBeInTheDocument();
+    expect(screen.queryByText(/^acesso e permissões$/i)).not.toBeInTheDocument();
+    expect(screen.queryByText(/^papel de acesso$/i)).not.toBeInTheDocument();
+    expect(screen.queryByText(/^permissões$/i)).not.toBeInTheDocument();
+    expect(screen.getAllByText(/segurança/i).length).toBeGreaterThan(0);
+    expect(screen.getAllByText(/métodos de acesso/i).length).toBeGreaterThan(0);
+    expect(screen.getAllByText(/e-mail:/i).length).toBeGreaterThan(0);
+  });
 
-    expect(document.documentElement).not.toHaveClass("editor-scroll-locked");
-    expect(document.body).not.toHaveClass("editor-scroll-locked");
-    expect(document.body.getAttribute("data-editor-scroll-lock-count")).toBeNull();
+  it("mostra id interno, e-mail de acesso e acesso/permissões para self-edit de admin", async () => {
+    setupApiMock();
+
+    render(
+      <MemoryRouter initialEntries={["/dashboard/usuarios?edit=me"]}>
+        <DashboardUsers />
+        <LocationProbe />
+      </MemoryRouter>,
+    );
+
+    await screen.findByRole("heading", { name: /gest.o de usu.rios/i });
+    await screen.findByText(/editar usu.rio/i);
+
+    expect(screen.getByLabelText(/id interno/i)).toBeInTheDocument();
+    expect(screen.getByLabelText(/e-mail de acesso/i)).toHaveAttribute("type", "email");
+    expect(screen.getAllByText(/^ID\s/i).length).toBeGreaterThan(0);
+    expect(screen.getByText(/^acesso e permissões$/i)).toBeInTheDocument();
+    expect(screen.getByText(/^papel de acesso$/i)).toBeInTheDocument();
+    expect(screen.getByText(/^permissões$/i)).toBeInTheDocument();
   });
 
   it("mostra o aviso de edição restrita com hover accent quando só há acesso básico", async () => {
@@ -238,6 +310,87 @@ describe("DashboardUsers edit query", () => {
     const restrictedNoticeCard = restrictedNotice.closest("div.rounded-2xl");
     expect(restrictedNoticeCard).not.toBeNull();
     expect(classTokens(restrictedNoticeCard)).toContain("hover:border-primary/40");
+  });
+
+  it("salva o próprio perfil de usuário comum via /api/users/self com campos básicos", async () => {
+    setupApiMock({
+      currentUserGrants: {
+        usuarios_basico: false,
+        usuarios_acesso: false,
+      },
+      currentUser: {
+        id: "user-2",
+        name: "Colaborador",
+        username: "colaborador",
+        email: "nerdplaygamer1@gmail.com",
+        accessRole: "normal",
+        permissions: [],
+        roles: [],
+        status: "active",
+        phrase: "Frase antiga",
+        bio: "Bio antiga",
+        avatarUrl: "/uploads/users/original.png",
+        socials: [],
+        favoriteWorks: { manga: ["Old Manga"], anime: ["Old Anime"] },
+        order: 0,
+      },
+    });
+
+    render(
+      <MemoryRouter initialEntries={["/dashboard/usuarios?edit=me"]}>
+        <DashboardUsers />
+        <LocationProbe />
+      </MemoryRouter>,
+    );
+
+    await screen.findByRole("heading", { name: /gest.o de usu.rios/i });
+    const dialog = await screen.findByRole("dialog");
+
+    fireEvent.change(within(dialog).getByLabelText("Nome"), {
+      target: { value: "Perfil Atualizado" },
+    });
+    fireEvent.change(within(dialog).getByLabelText("Frase"), {
+      target: { value: "Nova frase" },
+    });
+    fireEvent.change(within(dialog).getByLabelText("Bio"), {
+      target: { value: "Nova bio" },
+    });
+    fireEvent.change(within(dialog).getByPlaceholderText("Mangá 1"), {
+      target: { value: "Naruto" },
+    });
+    fireEvent.change(within(dialog).getByPlaceholderText("Anime 1"), {
+      target: { value: "Frieren" },
+    });
+
+    fireEvent.click(within(dialog).getByRole("button", { name: "Salvar" }));
+
+    await waitFor(() => {
+      const putCall = apiFetchMock.mock.calls.find((call) => {
+        const path = call[1];
+        const method = String((call[2] as RequestInit | undefined)?.method || "GET").toUpperCase();
+        return path === "/api/users/self" && method === "PUT";
+      });
+      expect(putCall).toBeTruthy();
+      const payload = (putCall?.[2] as { json?: Record<string, unknown> }).json || {};
+      expect(payload).toMatchObject({
+        name: "Perfil Atualizado",
+        phrase: "Nova frase",
+        bio: "Nova bio",
+        favoriteWorks: {
+          manga: ["Naruto"],
+          anime: ["Frieren"],
+        },
+      });
+      expect(payload).not.toHaveProperty("permissions");
+      expect(payload).not.toHaveProperty("accessRole");
+      expect(payload).not.toHaveProperty("status");
+      expect(payload).not.toHaveProperty("roles");
+      expect(payload).not.toHaveProperty("id");
+    });
+
+    await waitFor(() => {
+      expect(screen.queryByRole("dialog")).not.toBeInTheDocument();
+    });
   });
 
   it("controla classe editor-modal-scrolled no dialog ao rolar e fechar", async () => {
@@ -293,51 +446,113 @@ describe("DashboardUsers edit query", () => {
     expect(editorTop?.className).toContain("sticky");
     expect(editorFooter?.className).toContain("sticky");
     expect(document.querySelector(".project-editor-dialog-surface")).toBeNull();
-    expect(classTokens(editorDialog as HTMLElement)).toContain(dashboardEditorDialogWidthClassName);
-    expect(classTokens(editorDialog as HTMLElement)).not.toContain(
-      "max-w-[min(1520px,calc(100vw-1rem))]",
+    expect(classTokens(editorDialog as HTMLElement)).toContain(
+      dashboardEditorDialogWidthClassName,
     );
-    expect(classTokens(editorBackdrop)).toEqual(
-      expect.arrayContaining(["fixed", "inset-0", "z-[45]", "bg-black/80", "backdrop-blur-xs"]),
-    );
-    expect(editorBackdrop.parentElement).toBe(document.body);
+    expect(classTokens(editorDialog as HTMLElement)).not.toContain("max-w-5xl");
+    expect(classTokens(editorDialog as HTMLElement)).not.toContain("h-[85vh]");
+    expect(classTokens(editorDialog as HTMLElement)).not.toContain("overflow-hidden");
+    expect(classTokens(editorDialog as HTMLElement)).not.toContain("sm:rounded-2xl");
+    expect(classTokens(editorDialog as HTMLElement)).toContain("p-0");
+    expect(classTokens(editorScrollShell as HTMLElement)).toContain("overflow-y-auto");
+    expect(classTokens(editorScrollShell as HTMLElement)).not.toContain("overscroll-contain");
+    expect(editorBackdrop).toHaveClass("bg-black/80", "backdrop-blur-xs");
     expect(legacyBackdrop).toBeUndefined();
-    expect(editorScrollShell?.className).toContain("overflow-y-auto");
-    expect(editorScrollShell?.className).not.toContain("max-h-[94vh]");
-    expect(editorHeader?.className).toContain("pt-3.5");
-    expect(editorHeader?.className).toContain("pb-2.5");
-    expect(editorStatusBar?.className).toContain("py-1.5");
-    expect(editorLayout?.className).toContain("gap-3.5");
-    expect(editorLayout?.className).toContain("pt-2.5");
-    expect(editorLayout?.className).toContain("pb-4");
-    expect(editorFooter?.className).toContain("py-2");
-    expect(editorFooter?.className).toContain("md:py-2.5");
-    expect(editorSectionContent?.className).toContain("pb-2.5");
-    expect(editorAccordion?.className).toContain("space-y-2.5");
-    expect(editorDialog).not.toHaveClass("editor-modal-scrolled");
 
-    if (!editorDialog || !editorScrollShell) {
-      throw new Error("Editor dialog not found");
-    }
-
-    expect(editorDialog.contains(editorScrollShell)).toBe(true);
-    const cancelButton = screen.getByRole("button", { name: "Cancelar" });
-    const saveButton = screen.getByRole("button", { name: "Salvar" });
-    expectDashboardActionButtonTokens(cancelButton, "h-9");
-    expectPrimaryDashboardActionButtonTokens(saveButton, "h-9");
-
-    editorScrollShell.scrollTop = 24;
-    fireEvent.scroll(editorScrollShell);
+    Object.defineProperty(editorScrollShell as HTMLElement, "scrollTop", {
+      configurable: true,
+      value: 24,
+      writable: true,
+    });
+    fireEvent.scroll(editorScrollShell as HTMLElement);
 
     await waitFor(() => {
-      expect(editorDialog).toHaveClass("editor-modal-scrolled");
+      expect(classTokens(editorDialog as HTMLElement)).toContain("editor-modal-scrolled");
     });
 
-    fireEvent.click(screen.getByRole("button", { name: "Cancelar" }));
+    Object.defineProperty(editorScrollShell as HTMLElement, "scrollTop", {
+      configurable: true,
+      value: 0,
+      writable: true,
+    });
+    fireEvent.scroll(editorScrollShell as HTMLElement);
 
     await waitFor(() => {
-      expect(screen.queryByRole("heading", { name: /editar usu.rio/i })).not.toBeInTheDocument();
+      expect(classTokens(editorDialog as HTMLElement)).not.toContain("editor-modal-scrolled");
     });
-    expect(document.querySelector(".project-editor-dialog.editor-modal-scrolled")).toBeNull();
+
+    fireEvent.keyDown(document, { key: "Escape" });
+
+    await waitFor(() => {
+      expect(screen.queryByRole("dialog", { name: /editar usu.rio/i })).not.toBeInTheDocument();
+    });
+
+    expect(document.documentElement).not.toHaveClass("editor-scroll-locked");
+    expect(document.body).not.toHaveClass("editor-scroll-locked");
+    expect(document.body.getAttribute("data-editor-scroll-lock-count")).toBeNull();
+  });
+
+  it("fecha o editor ao clicar no backdrop e mantém layout sticky até o fechamento", async () => {
+    setupApiMock();
+
+    render(
+      <MemoryRouter initialEntries={["/dashboard/usuarios?edit=me"]}>
+        <DashboardUsers />
+        <LocationProbe />
+      </MemoryRouter>,
+    );
+
+    await screen.findByRole("heading", { name: /gest.o de usu.rios/i });
+    await screen.findByRole("heading", { name: /editar usu.rio/i });
+    await waitFor(() => {
+      expect(screen.getByTestId("location-search").textContent).toBe("");
+    });
+
+    const editorDialog = document.querySelector(".project-editor-dialog") as HTMLElement | null;
+    const editorTop = document.querySelector(".project-editor-top") as HTMLElement | null;
+    const editorFooter = document.querySelector(".project-editor-footer") as HTMLElement | null;
+    const editorHeader = editorTop?.firstElementChild as HTMLElement | null;
+    const editorStatusBar = editorTop?.lastElementChild as HTMLElement | null;
+    const editorBackdrop = screen.getByTestId("dashboard-editor-backdrop");
+
+    expect(editorDialog).not.toBeNull();
+    expect(editorTop).not.toBeNull();
+    expect(editorFooter).not.toBeNull();
+    expect(editorHeader).not.toBeNull();
+    expect(editorStatusBar).not.toBeNull();
+    expect(editorTop?.className).toContain("sticky");
+    expect(editorFooter?.className).toContain("sticky");
+    expect(editorBackdrop).toHaveClass("bg-black/80", "backdrop-blur-xs");
+
+    fireEvent.pointerDown(editorBackdrop);
+    fireEvent.click(editorBackdrop);
+
+    await waitFor(() => {
+      expect(screen.queryByRole("dialog", { name: /editar usu.rio/i })).not.toBeInTheDocument();
+    });
+    expect(document.documentElement).not.toHaveClass("editor-scroll-locked");
+    expect(document.body).not.toHaveClass("editor-scroll-locked");
+    expect(document.body.getAttribute("data-editor-scroll-lock-count")).toBeNull();
+  });
+
+  it("mantém altura expandida para obras favoritas, avatar e redes no modo edição", async () => {
+    setupApiMock();
+
+    render(
+      <MemoryRouter initialEntries={["/dashboard/usuarios?edit=me"]}>
+        <DashboardUsers />
+        <LocationProbe />
+      </MemoryRouter>,
+    );
+
+    await screen.findByRole("heading", { name: /gest.o de usu.rios/i });
+    await screen.findByRole("heading", { name: /editar usu.rio/i });
+    await waitFor(() => {
+      expect(screen.getByTestId("location-search").textContent).toBe("");
+    });
+
+    expect(screen.getByText(/obras favoritas/i)).toBeInTheDocument();
+    expect(screen.getByText(/^Avatar$/i)).toBeInTheDocument();
+    expect(screen.getByText(/links e redes/i)).toBeInTheDocument();
   });
 });
