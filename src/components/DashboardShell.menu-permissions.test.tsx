@@ -193,7 +193,7 @@ describe("DashboardShell menu permissions", () => {
     );
 
     expect(screen.getByText("Maria Persist")).toBeInTheDocument();
-    expect(screen.getByText("membro")).toBeInTheDocument();
+    expect(screen.getByText("Membro")).toBeInTheDocument();
 
     rerender(
       <MemoryRouter initialEntries={["/dashboard/posts"]}>

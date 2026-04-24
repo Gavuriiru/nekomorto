@@ -65,17 +65,23 @@ describe("Sidebar desktop toggle", () => {
 
     expect(sidebarState.dataset.state).toBe("expanded");
     expect(provider.style.getPropertyValue("--sidebar-header-left")).toBe("16rem");
+    expect(provider.style.getPropertyValue("--sidebar-desktop-transition-duration")).toBe("200ms");
+    expect(provider.style.getPropertyValue("--sidebar-desktop-transition-timing")).toBe("linear");
 
     fireEvent.click(trigger);
 
     expect(sidebarState.dataset.state).toBe("collapsed");
     expect(sidebarState.dataset.collapsible).toBe("icon");
     expect(provider.style.getPropertyValue("--sidebar-header-left")).toBe("calc(3rem + 1.5rem)");
+    expect(provider.style.getPropertyValue("--sidebar-desktop-transition-duration")).toBe("200ms");
+    expect(provider.style.getPropertyValue("--sidebar-desktop-transition-timing")).toBe("linear");
 
     fireEvent.click(trigger);
 
     expect(sidebarState.dataset.state).toBe("expanded");
     expect(provider.style.getPropertyValue("--sidebar-header-left")).toBe("16rem");
+    expect(provider.style.getPropertyValue("--sidebar-desktop-transition-duration")).toBe("200ms");
+    expect(provider.style.getPropertyValue("--sidebar-desktop-transition-timing")).toBe("linear");
   });
 
   it("inicializa a partir do cookie e persiste o novo estado desktop", async () => {

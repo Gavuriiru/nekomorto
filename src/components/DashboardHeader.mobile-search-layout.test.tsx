@@ -149,8 +149,18 @@ describe("DashboardHeader mobile search layout", () => {
 
     expect(header).not.toBeNull();
     expect(classTokens(header as HTMLElement)).toEqual(
-      expect.arrayContaining(["dashboard-scroll-lock-fixed-right", "fixed", "right-0", "top-0"]),
+      expect.arrayContaining([
+        "dashboard-scroll-lock-fixed-right",
+        "fixed",
+        "right-0",
+        "top-0",
+        "z-20",
+        "transition-[left]",
+        "duration-[var(--sidebar-desktop-transition-duration)]",
+        "ease-[var(--sidebar-desktop-transition-timing)]",
+      ]),
     );
+    expect((header as HTMLElement).style.left).toBe("var(--sidebar-header-left)");
   });
 
   it("habilita busca mobile, nao faz fetch eager e renderiza sugestoes remotas", async () => {

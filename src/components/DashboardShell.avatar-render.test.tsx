@@ -326,7 +326,7 @@ describe("DashboardShell avatar render", () => {
       </MemoryRouter>,
     );
 
-    expect(screen.getByText("Admin")).toBeInTheDocument();
+    expect(screen.getAllByText("Admin")).toHaveLength(2);
     expect(screen.queryByText("@admin")).not.toBeInTheDocument();
   });
 

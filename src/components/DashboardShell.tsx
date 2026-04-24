@@ -73,8 +73,13 @@ type DashboardShellProps = {
   onMenuItemClick?: (item: DashboardMenuItem, event: MouseEvent<HTMLAnchorElement>) => void;
 };
 
+type DashboardShellRuntimeProps = Omit<DashboardShellProps, "children">;
+
 const DASHBOARD_SCROLLBAR_GUTTER_CLASS = "dashboard-scrollbar-gutter-stable";
 const DashboardShellPresenceContext = createContext(false);
+const DashboardShellRuntimePropsContext = createContext<
+  ((value: DashboardShellRuntimeProps | null) => void) | null
+>(null);
 
 let lastResolvedDashboardUser: DashboardUser | null = readWindowPublicBootstrapCurrentUser();
 
@@ -478,14 +483,44 @@ const DashboardShellFrame = ({
 
 const DashboardShell = (props: DashboardShellProps) => {
   const hasPersistentShell = useContext(DashboardShellPresenceContext);
+  const setRuntimeProps = useContext(DashboardShellRuntimePropsContext);
+
+  useEffect(() => {
+    if (!hasPersistentShell || !setRuntimeProps) {
+      return;
+    }
+
+    const { children: _children, ...runtimeProps } = props;
+    setRuntimeProps(runtimeProps);
+
+    return () => {
+      setRuntimeProps(null);
+    };
+  }, [hasPersistentShell, props, setRuntimeProps]);
+
   if (hasPersistentShell) {
     return <>{props.children}</>;
   }
+
   return (
     <DashboardShellPresenceContext.Provider value>
       <DashboardShellFrame {...props} />
     </DashboardShellPresenceContext.Provider>
   );
 };
+
+const DashboardShellRoot = ({ children }: { children: ReactNode }) => {
+  const [runtimeProps, setRuntimeProps] = useState<DashboardShellRuntimeProps | null>(null);
+
+  return (
+    <DashboardShellPresenceContext.Provider value>
+      <DashboardShellRuntimePropsContext.Provider value={setRuntimeProps}>
+        <DashboardShellFrame {...(runtimeProps ?? {})}>{children}</DashboardShellFrame>
+      </DashboardShellRuntimePropsContext.Provider>
+    </DashboardShellPresenceContext.Provider>
+  );
+};
+
+export { DashboardShellRoot };
 
 export default DashboardShell;

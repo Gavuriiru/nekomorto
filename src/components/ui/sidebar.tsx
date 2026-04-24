@@ -18,6 +18,8 @@ const SIDEBAR_WIDTH_MOBILE = "18rem";
 const SIDEBAR_MOBILE_HEADER_HEIGHT = "4.75rem";
 const SIDEBAR_WIDTH_ICON = "3rem";
 const SIDEBAR_HEADER_LEFT_COLLAPSED = `calc(${SIDEBAR_WIDTH_ICON} + 1.5rem)`;
+const SIDEBAR_DESKTOP_TRANSITION_DURATION = "200ms";
+const SIDEBAR_DESKTOP_TRANSITION_TIMING = "linear";
 const SIDEBAR_KEYBOARD_SHORTCUT = "b";
 
 type SidebarContext = {
@@ -175,6 +177,8 @@ const SidebarProvider = React.forwardRef<
                   : open
                     ? SIDEBAR_WIDTH
                     : SIDEBAR_HEADER_LEFT_COLLAPSED,
+                "--sidebar-desktop-transition-duration": SIDEBAR_DESKTOP_TRANSITION_DURATION,
+                "--sidebar-desktop-transition-timing": SIDEBAR_DESKTOP_TRANSITION_TIMING,
                 ...style,
               } as React.CSSProperties
             }

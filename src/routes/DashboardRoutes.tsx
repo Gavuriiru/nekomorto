@@ -1,4 +1,4 @@
-import DashboardShell from "@/components/DashboardShell";
+import DashboardShell, { DashboardShellRoot } from "@/components/DashboardShell";
 import { DashboardPreferencesProvider } from "@/hooks/dashboard-preferences-provider";
 import { DashboardSessionProvider } from "@/hooks/dashboard-session-provider";
 import "@/styles/project-editor.css";
@@ -32,7 +32,7 @@ const withPageTransition = (page: ReactNode) => <PageTransition>{page}</PageTran
 
 const DashboardProtectedRoutes = () => (
   <RequireAuth>
-    <DashboardShell>
+    <DashboardShellRoot>
       <Routes>
         <Route index element={withPageTransition(<Dashboard />)} />
         <Route path="usuarios" element={withPageTransition(<DashboardUsers />)} />
@@ -65,7 +65,7 @@ const DashboardProtectedRoutes = () => (
         <Route path="seguranca" element={withPageTransition(<DashboardSecurity />)} />
         <Route path="*" element={<NotFound />} />
       </Routes>
-    </DashboardShell>
+    </DashboardShellRoot>
   </RequireAuth>
 );
 
