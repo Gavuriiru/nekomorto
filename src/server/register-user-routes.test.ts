@@ -217,6 +217,7 @@ describe("registerUserRoutes", () => {
       body: {
         id: "user-2",
         name: "Alice",
+        email: "Alice@Example.com",
         socials: [{ type: "discord", url: "https://discord.gg/x" }],
       },
       session: {
@@ -238,6 +239,7 @@ describe("registerUserRoutes", () => {
       expect.objectContaining({
         id: "user-2",
         name: "Alice",
+        email: "alice@example.com",
         order: 0,
       }),
     ]);

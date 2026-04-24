@@ -60,6 +60,7 @@ const createDependencies = ({ app, overrides = {} }) => ({
     "name",
     "phrase",
     "bio",
+    "email",
     "avatarUrl",
     "avatarDisplay",
     "socials",
@@ -84,7 +85,7 @@ const createDependencies = ({ app, overrides = {} }) => ({
   })),
   isAdminUser: vi.fn(() => false),
   isBasicProfileField: vi.fn((field) =>
-    ["name", "phrase", "bio", "avatarUrl", "avatarDisplay", "socials", "favoriteWorks"].includes(
+    ["name", "phrase", "bio", "email", "avatarUrl", "avatarDisplay", "socials", "favoriteWorks"].includes(
       field,
     ),
   ),

@@ -218,7 +218,8 @@ const DashboardSidebarProfileCard = ({
   }, [open]);
 
   const isClosingTransition = forceTextTransition && transitionDirection === "closing";
-  const textTransitionDurationClass = isClosingTransition ? "duration-[220ms]" : "duration-[220ms]";
+  const textTransitionDurationClass = "duration-[220ms]";
+  const textOpacityDurationClass = isClosingTransition ? "duration-0" : "duration-[220ms]";
   const textTransitionTimingClass = isClosingTransition
     ? "ease-[cubic-bezier(0.32,0,0.67,0)]"
     : "ease-[cubic-bezier(0.16,1,0.3,1)]";
@@ -240,13 +241,13 @@ const DashboardSidebarProfileCard = ({
       ? "h-10 w-10 self-start justify-center gap-0 border-sidebar-border/60 bg-sidebar-accent/15 p-0"
       : "h-[4.25rem] w-full self-stretch gap-3.5 px-3 py-2.5";
   const userCardClass =
-    `group/profile relative flex items-center overflow-hidden rounded-[1.15rem] border border-sidebar-border/70 bg-[linear-gradient(180deg,hsl(var(--sidebar-accent)/0.34),hsl(var(--sidebar-accent)/0.18))] text-left shadow-[0_18px_40px_-28px_hsl(var(--sidebar-background)/0.95)] ring-1 ring-white/5 transition-[width,height,padding,gap,background-color,border-color,box-shadow,transform] duration-200 ${cardTransitionTimingClass} ${collapsedCardStateClass}`;
+    `group/profile relative flex items-center overflow-hidden rounded-[1.15rem] border border-sidebar-border/70 bg-[linear-gradient(180deg,hsl(var(--sidebar-accent)/0.34),hsl(var(--sidebar-accent)/0.18))] text-left shadow-[0_18px_40px_-28px_hsl(var(--sidebar-background)/0.95)] transition-[width,height,padding,gap,border-color] duration-200 ${cardTransitionTimingClass} ${collapsedCardStateClass}`;
   const interactiveUserCardClass = isUserClickable
-    ? "cursor-pointer hover:-translate-y-[1px] hover:border-sidebar-ring/45 hover:bg-[linear-gradient(180deg,hsl(var(--sidebar-accent)/0.5),hsl(var(--sidebar-accent)/0.28))] hover:shadow-[0_22px_44px_-26px_hsl(var(--sidebar-background)/0.96)] active:translate-y-0 active:scale-[0.985] focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-sidebar-ring focus-visible:ring-offset-2 focus-visible:ring-offset-sidebar"
+    ? "cursor-pointer hover:border-sidebar-ring/45 focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-sidebar-ring focus-visible:ring-offset-2 focus-visible:ring-offset-sidebar"
     : "cursor-default";
   const userCardTextWrapFlexClass = userCardDataCollapsible === "icon" ? "flex-none" : "flex-1";
   const userCardTextWrapClass = `${textVisibleStateClass} flex min-w-0 ${userCardTextWrapFlexClass} overflow-hidden transition-[max-width,opacity,transform] ${textTransitionDurationClass} ${textTransitionTimingClass}`;
-  const userCardTextClass = `${textInnerVisibleStateClass} flex min-w-0 flex-col justify-center gap-0.5 transition-[opacity,transform] ${textTransitionDurationClass} ${textTransitionTimingClass}`;
+  const userCardTextClass = `${textInnerVisibleStateClass} flex min-w-0 flex-col justify-center gap-0.5 transition-[opacity,transform] ${textOpacityDurationClass} ${textTransitionTimingClass}`;
   const avatarCollapsedStateClass = userCardDataCollapsible === "icon" ? "h-7 w-7 min-h-7 min-w-7 scale-100" : "h-11 w-11 min-h-11 min-w-11";
   const avatarFallbackCollapsedStateClass = userCardDataCollapsible === "icon" ? "text-[9px]" : "text-xs";
   const userCardAvatarClass =
@@ -259,8 +260,8 @@ const DashboardSidebarProfileCard = ({
   const collapsedAvatarFallbackText = initials;
   const collapsedAvatarImageClass = "block h-full w-full rounded-full object-cover object-center";
   const collapsedAvatarFallbackShellClass = `flex h-full w-full items-center justify-center rounded-full ${userCardAvatarFallbackClass}`;
-  const userCardTextSpanClass = "truncate text-sm font-semibold leading-tight text-sidebar-foreground [text-wrap:balance]";
-  const userCardSubTextSpanClass = "truncate text-xs text-sidebar-foreground/68";
+  const userCardTextSpanClass = "truncate whitespace-nowrap text-sm font-semibold leading-tight text-sidebar-foreground";
+  const userCardSubTextSpanClass = "truncate whitespace-nowrap text-xs text-sidebar-foreground/68";
   const userCardMetaClass =
     "ml-auto hidden shrink-0 items-center text-sidebar-foreground/38 transition-[opacity,transform,color] duration-200 group-hover/profile:text-sidebar-foreground/62 group-focus-visible/profile:text-sidebar-foreground/62 group-data-[collapsible=icon]:hidden";
   const cardAriaLabel = `Abrir perfil de ${userName}`;
@@ -279,7 +280,6 @@ const DashboardSidebarProfileCard = ({
           }
         : {})}
     >
-      <span className="pointer-events-none absolute inset-x-3 top-0 h-px bg-gradient-to-r from-transparent via-white/18 to-transparent opacity-80" />
       {shouldRenderCollapsedAvatarShell ? (
         <div className={userCardCollapsedAvatarClass}>
           {userAvatarUrl ? (

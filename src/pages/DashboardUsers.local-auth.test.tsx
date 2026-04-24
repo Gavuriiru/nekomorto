@@ -1,8 +1,8 @@
 import DashboardUsers from "@/pages/DashboardUsers";
-import { fireEvent, render, screen } from "@testing-library/react";
+import { fireEvent, render, screen, waitFor } from "@testing-library/react";
 import type { ReactNode } from "react";
 import { MemoryRouter } from "react-router-dom";
-import { describe, expect, it, vi } from "vitest";
+import { afterEach, describe, expect, it, vi } from "vitest";
 
 const apiFetchMock = vi.hoisted(() => vi.fn());
 const toastMock = vi.hoisted(() => vi.fn());
@@ -57,8 +57,9 @@ const installLocationMock = () => {
   });
 };
 
-const setupApiMock = () => {
+const setupApiMock = ({ includeAuthMethods = true } = {}) => {
   apiFetchMock.mockReset();
+  toastMock.mockReset();
   apiFetchMock.mockImplementation(async (_base: string, path: string, options?: RequestInit) => {
     const method = String(options?.method || "GET").toUpperCase();
 
@@ -70,6 +71,7 @@ const setupApiMock = () => {
             name: "Admin",
             phrase: "",
             bio: "",
+            email: "user@example.com",
             avatarUrl: null,
             socials: [],
             status: "active",
@@ -89,6 +91,7 @@ const setupApiMock = () => {
         name: "Admin",
         username: "admin",
         accessRole: "admin",
+        ...(includeAuthMethods ? { authMethods: [{ provider: "discord", linked: true }] } : {}),
         grants: {
           usuarios_basico: true,
           usuarios_acesso: true,
@@ -138,7 +141,7 @@ const setupApiMock = () => {
 };
 
 describe("DashboardUsers connected accounts", () => {
-  it("renderiza contas conectadas sem UI de login com senha", async () => {
+  it("renderiza métodos de acesso sem UI de login com senha", async () => {
     installLocationMock();
     setupApiMock();
 
@@ -151,12 +154,11 @@ describe("DashboardUsers connected accounts", () => {
     await screen.findByRole("heading", { name: /gest.o de usu.rios/i });
     await screen.findByText(/editar usu.rio/i);
 
-    expect(screen.getByText(/contas conectadas/i)).toBeInTheDocument();
+    expect(screen.getAllByText(/métodos de acesso/i).length).toBeGreaterThan(0);
     expect(screen.getByText(/^Discord$/)).toBeInTheDocument();
     expect(screen.getByText(/^Google$/)).toBeInTheDocument();
     expect(screen.getByText(/não conectada/i)).toBeInTheDocument();
     expect(screen.queryByText(/configurar login com senha/i)).not.toBeInTheDocument();
-    expect(screen.queryByPlaceholderText(/voce@exemplo.com/i)).not.toBeInTheDocument();
     expect(screen.queryByPlaceholderText(/Username \(opcional\)/i)).not.toBeInTheDocument();
     expect(screen.queryByPlaceholderText(/nova senha/i)).not.toBeInTheDocument();
   });
@@ -171,12 +173,96 @@ describe("DashboardUsers connected accounts", () => {
       </MemoryRouter>,
     );
 
-    await screen.findByText(/contas conectadas/i);
+    await screen.findAllByText(/métodos de acesso/i);
     fireEvent.click(screen.getByRole("button", { name: "Conectar" }));
 
     expect(locationHref).toBe(
       "http://api.local/api/me/security/identities/google/link/start?next=%2Fdashboard%2Fusuarios%3Fedit%3Dme",
     );
+  });
+
+  it("mostra erro de link quando a identidade já está ligada a outro usuário", async () => {
+    installLocationMock();
+    setupApiMock();
+
+    render(
+      <MemoryRouter initialEntries={["/dashboard/usuarios?edit=me&error=identity_already_linked"]}>
+        <DashboardUsers />
+      </MemoryRouter>,
+    );
+
+    await screen.findAllByText(/métodos de acesso/i);
+    expect(toastMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        title: "Essa conta já está conectada a outro usuário",
+        variant: "destructive",
+      }),
+    );
+  });
+
+  it("mostra feedback de sucesso ao voltar do link manual", async () => {
+    installLocationMock();
+    setupApiMock();
+
+    render(
+      <MemoryRouter initialEntries={["/dashboard/usuarios?edit=me&linked=google"]}>
+        <DashboardUsers />
+      </MemoryRouter>,
+    );
+
+    await screen.findAllByText(/métodos de acesso/i);
+    expect(toastMock).toHaveBeenCalledWith(
+      expect.objectContaining({ title: "Conta Google conectada com sucesso" }),
+    );
+  });
+
+  it("mostra campo de e-mail na edição do usuário", async () => {
+    installLocationMock();
+    setupApiMock();
+
+    render(
+      <MemoryRouter initialEntries={["/dashboard/usuarios?edit=me"]}>
+        <DashboardUsers />
+      </MemoryRouter>,
+    );
+
+    await screen.findByLabelText(/e-mail de acesso/i);
+    expect(screen.getByLabelText(/e-mail de acesso/i)).toHaveAttribute("type", "email");
+  });
+
+  it("preserva fallback quando /api/me ainda não traz authMethods", async () => {
+    installLocationMock();
+    setupApiMock({ includeAuthMethods: false });
+
+    render(
+      <MemoryRouter initialEntries={["/dashboard/usuarios?edit=me"]}>
+        <DashboardUsers />
+      </MemoryRouter>,
+    );
+
+    await screen.findAllByText(/métodos de acesso/i);
+    expect(screen.getByText(/^Discord$/)).toBeInTheDocument();
+    expect(screen.getByText(/^Google$/)).toBeInTheDocument();
+  });
+
+  it("recarrega o resumo de segurança após linked=google", async () => {
+    installLocationMock();
+    setupApiMock();
+
+    render(
+      <MemoryRouter initialEntries={["/dashboard/usuarios?edit=me&linked=google"]}>
+        <DashboardUsers />
+      </MemoryRouter>,
+    );
+
+    await screen.findAllByText(/métodos de acesso/i);
+    await waitFor(() => {
+      expect(apiFetchMock).toHaveBeenCalledWith(
+        "http://api.local",
+        "/api/me/security",
+        expect.objectContaining({ auth: true }),
+      );
+    });
   });
 
   afterEach(() => {

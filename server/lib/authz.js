@@ -70,6 +70,7 @@ export const BASIC_PROFILE_FIELDS = freeze([
   "name",
   "phrase",
   "bio",
+  "email",
   "avatarUrl",
   "avatarDisplay",
   "socials",

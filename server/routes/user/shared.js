@@ -317,11 +317,15 @@ export const buildLegacyManagedUser = ({
   sanitizeSocials,
   socials,
   status,
+  email,
 }) => ({
   id: String(id),
   name,
   phrase: phrase || "",
   bio: bio || "",
+  email: String(email || "")
+    .trim()
+    .toLowerCase() || null,
   avatarUrl: avatarUrl || null,
   avatarDisplay: normalizeAvatarDisplay(avatarDisplay),
   socials: sanitizeSocials(socials),
@@ -339,6 +343,7 @@ export const buildRbacManagedUser = ({
   avatarUrl,
   bio,
   defaultPermissionsForRole,
+  email,
   favoriteWorks,
   id,
   name,
@@ -370,6 +375,9 @@ export const buildRbacManagedUser = ({
     name: String(name || "Sem nome"),
     phrase: phrase || "",
     bio: bio || "",
+    email: String(email || "")
+      .trim()
+      .toLowerCase() || null,
     avatarUrl: avatarUrl || null,
     avatarDisplay: normalizeAvatarDisplay(avatarDisplay),
     socials: sanitizeSocials(socials),
@@ -393,6 +401,12 @@ export const buildLegacyManagedUserUpdate = ({
   name: update.name ?? existing.name,
   phrase: update.phrase ?? existing.phrase,
   bio: update.bio ?? existing.bio,
+  email:
+    Object.prototype.hasOwnProperty.call(update, "email")
+      ? String(update.email || "")
+          .trim()
+          .toLowerCase() || null
+      : existing.email ?? null,
   avatarUrl: update.avatarUrl ?? existing.avatarUrl,
   avatarDisplay:
     update.avatarDisplay !== undefined
@@ -427,6 +441,12 @@ export const buildRbacManagedUserUpdate = ({
   const updated = {
     ...existing,
     ...basicPatch,
+    email:
+      Object.prototype.hasOwnProperty.call(basicPatch, "email")
+        ? String(basicPatch.email || "")
+            .trim()
+            .toLowerCase() || null
+        : existing.email ?? null,
     avatarDisplay:
       basicPatch.avatarDisplay !== undefined
         ? normalizeAvatarDisplay(basicPatch.avatarDisplay)

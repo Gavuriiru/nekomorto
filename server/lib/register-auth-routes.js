@@ -142,11 +142,48 @@ export const registerAuthRoutes = ({
     updatedAt: new Date().toISOString(),
   });
 
+  const normalizeComparableEmail = (value) =>
+    String(value || "")
+      .trim()
+      .toLowerCase();
+
+  const resolvePreprovisionedUserForEmail = (emailNormalized) => {
+    const normalizedEmail = normalizeComparableEmail(emailNormalized);
+    if (!normalizedEmail) {
+      return { blockedReason: "preprovision_required", userId: null };
+    }
+    const users = resolveStoredUsers();
+    const matches = users.filter((entry) => normalizeComparableEmail(entry?.email) === normalizedEmail);
+    if (!matches.length) {
+      return { blockedReason: "preprovision_required", userId: null };
+    }
+    if (matches.length > 1) {
+      return { blockedReason: "ambiguous_candidate", userId: null };
+    }
+    const userId = String(matches[0]?.id || "").trim();
+    if (!userId) {
+      return { blockedReason: "preprovision_required", userId: null };
+    }
+    const allowedUsers = resolveAllowedUsersList();
+    if (allowedUsers.length && !allowedUsers.includes(userId)) {
+      return { blockedReason: "preprovision_required", userId: null };
+    }
+    return { blockedReason: null, userId };
+  };
+
   const resolveCanonicalUserForVerifiedEmail = ({ emailNormalized, provider }) => {
     const normalizedEmail = String(emailNormalized || "").trim().toLowerCase();
     const normalizedProvider = String(provider || "").trim();
     if (!normalizedEmail || !normalizedProvider) {
       return { blockedReason: "no_candidate", canonicalUserId: null, absorbedUserIds: [] };
+    }
+    const preprovisioned = resolvePreprovisionedUserForEmail(normalizedEmail);
+    if (!preprovisioned.userId) {
+      return {
+        blockedReason: preprovisioned.blockedReason || "preprovision_required",
+        canonicalUserId: null,
+        absorbedUserIds: [],
+      };
     }
     const identityMatches = Array.isArray(findUserIdentityRecordsByEmail?.(normalizedEmail, { includeDisabled: false }))
       ? findUserIdentityRecordsByEmail(normalizedEmail, { includeDisabled: false })
@@ -162,9 +199,15 @@ export const registerAuthRoutes = ({
     );
     const candidateIds = [...candidateUserIds];
     if (!candidateIds.length) {
-      return { blockedReason: "no_candidate", canonicalUserId: null, absorbedUserIds: [] };
+      return {
+        blockedReason: null,
+        canonicalUserId: preprovisioned.userId,
+        absorbedUserIds: [],
+      };
     }
-    const allowedUsers = resolveAllowedUsersList();
+    if (!candidateIds.includes(preprovisioned.userId)) {
+      return { blockedReason: "ambiguous_candidate", canonicalUserId: null, absorbedUserIds: [] };
+    }
     const users = resolveStoredUsers();
     const candidates = candidateIds
       .map((userId) => users.find((entry) => String(entry?.id || "") === userId) || { id: userId })
@@ -173,13 +216,10 @@ export const registerAuthRoutes = ({
     if (!candidates.length) {
       return { blockedReason: "no_candidate", canonicalUserId: null, absorbedUserIds: [] };
     }
-    if (candidates.length > 1 && comparePrivilegeVectors(candidates[0].vector, candidates[1].vector) === 0) {
+    if (candidates.some(({ user }) => normalizeComparableEmail(user?.email) !== normalizedEmail)) {
       return { blockedReason: "ambiguous_candidate", canonicalUserId: null, absorbedUserIds: [] };
     }
-    const canonicalUserId = String(candidates[0].user?.id || "").trim();
-    if (!canonicalUserId || (allowedUsers.length && !allowedUsers.includes(canonicalUserId))) {
-      return { blockedReason: "unauthorized_candidate", canonicalUserId: null, absorbedUserIds: [] };
-    }
+    const canonicalUserId = preprovisioned.userId;
     return {
       blockedReason: null,
       canonicalUserId,
@@ -243,6 +283,7 @@ export const registerAuthRoutes = ({
     }
     req.session.oauthIntent = null;
     req.session.oauthLinkedProvider = null;
+    req.session.oauthLinkError = null;
   };
 
   const markLinkSuccessInSession = (req, provider) => {
@@ -250,6 +291,14 @@ export const registerAuthRoutes = ({
       return;
     }
     req.session.oauthLinkedProvider = String(provider || "").trim();
+    req.session.oauthLinkError = null;
+  };
+
+  const markLinkErrorInSession = (req, error) => {
+    if (!req.session) {
+      return;
+    }
+    req.session.oauthLinkError = String(error || "").trim() || null;
   };
 
   const consumeLinkIntent = (req) =>
@@ -262,6 +311,7 @@ export const registerAuthRoutes = ({
       searchParams: {
         edit: "me",
         linked: String(req.session?.oauthLinkedProvider || "").trim() || undefined,
+        error: String(req.session?.oauthLinkError || "").trim() || undefined,
       },
     });
 
@@ -372,6 +422,7 @@ export const registerAuthRoutes = ({
         return { error: "link_requires_authenticated_session", userId: null, absorbedUserIds: [] };
       }
       if (existingIdentity?.userId && String(existingIdentity.userId) !== currentSessionUserId) {
+        markLinkErrorInSession(req, "identity_already_linked");
         return { error: "identity_already_linked", userId: null, absorbedUserIds: [] };
       }
       upsertUserIdentityRecord?.(
@@ -406,11 +457,15 @@ export const registerAuthRoutes = ({
       return { error: null, userId: String(existingIdentity.userId), absorbedUserIds: [] };
     }
     if (emailVerified !== true || !emailNormalized) {
-      return { error: "unauthorized", userId: null, absorbedUserIds: [] };
+      return { error: "email_not_verified", userId: null, absorbedUserIds: [] };
     }
     const resolved = resolveCanonicalUserForVerifiedEmail({ emailNormalized, provider });
     if (!resolved.canonicalUserId) {
-      return { error: resolved.blockedReason || "unauthorized", userId: null, absorbedUserIds: [] };
+      return {
+        error: resolved.blockedReason || "preprovision_required",
+        userId: null,
+        absorbedUserIds: [],
+      };
     }
     const mergeResult = await mergeUsersIntoCanonical({
       canonicalUserId: resolved.canonicalUserId,
@@ -879,7 +934,7 @@ export const registerAuthRoutes = ({
           buildAuthRedirectUrl({
             appOrigin: loginAppOrigin,
             path: "/login",
-            searchParams: { error: "unauthorized" },
+            searchParams: { error: resolvedIdentity.error || "unauthorized" },
           }),
         );
       }
@@ -897,7 +952,7 @@ export const registerAuthRoutes = ({
           buildAuthRedirectUrl({
             appOrigin: loginAppOrigin,
             path: "/login",
-            searchParams: { error: "unauthorized" },
+            searchParams: { error: resolvedIdentity.error || "unauthorized" },
           }),
         );
       }
@@ -921,7 +976,7 @@ export const registerAuthRoutes = ({
           buildAuthRedirectUrl({
             appOrigin: loginAppOrigin,
             path: "/login",
-            searchParams: { error: "unauthorized" },
+            searchParams: { error: resolvedIdentity.error || "unauthorized" },
           }),
         );
       }
@@ -1106,7 +1161,7 @@ export const registerAuthRoutes = ({
           buildAuthRedirectUrl({
             appOrigin: loginAppOrigin,
             path: "/login",
-            searchParams: { error: "unauthorized" },
+            searchParams: { error: resolvedIdentity.error || "unauthorized" },
           }),
         );
       }
@@ -1124,7 +1179,7 @@ export const registerAuthRoutes = ({
           buildAuthRedirectUrl({
             appOrigin: loginAppOrigin,
             path: "/login",
-            searchParams: { error: "unauthorized" },
+            searchParams: { error: resolvedIdentity.error || "unauthorized" },
           }),
         );
       }
@@ -1148,7 +1203,7 @@ export const registerAuthRoutes = ({
           buildAuthRedirectUrl({
             appOrigin: loginAppOrigin,
             path: "/login",
-            searchParams: { error: "unauthorized" },
+            searchParams: { error: resolvedIdentity.error || "unauthorized" },
           }),
         );
       }

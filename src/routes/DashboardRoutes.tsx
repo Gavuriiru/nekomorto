@@ -1,4 +1,4 @@
-import DashboardShell, { DashboardShellRoot } from "@/components/DashboardShell";
+import { DashboardShellRoot } from "@/components/DashboardShell";
 import { DashboardPreferencesProvider } from "@/hooks/dashboard-preferences-provider";
 import { DashboardSessionProvider } from "@/hooks/dashboard-session-provider";
 import "@/styles/project-editor.css";

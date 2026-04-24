@@ -76,6 +76,7 @@ describe("registerSessionRoutes", () => {
       app,
       apiContractVersion: "v1",
       buildApiContractV1Payload: () => ({ ok: true }),
+      buildMySecuritySummary: vi.fn(() => ({ identities: [], passkeys: { count: 0 } })),
       buildRuntimeMetadata: () => ({ sha: "abc123" }),
       buildUserPayload,
       proxyDiscordAvatarRequest: vi.fn(),
@@ -106,6 +107,7 @@ describe("registerSessionRoutes", () => {
         name: "User One",
         username: "user.one",
         avatarUrl: "/avatar.png",
+        authMethods: [],
       },
     });
 
@@ -122,6 +124,7 @@ describe("registerSessionRoutes", () => {
     expect(authenticatedResponse.body).toEqual({
       id: "user-2",
       name: "User Two",
+      authMethods: [],
     });
     expect(buildUserPayload).toHaveBeenCalledWith({
       id: "user-2",
@@ -137,6 +140,7 @@ describe("registerSessionRoutes", () => {
       app,
       apiContractVersion: "v1",
       buildApiContractV1Payload: () => ({ ok: true }),
+      buildMySecuritySummary: vi.fn(() => ({ identities: [], passkeys: { count: 0 } })),
       buildRuntimeMetadata: () => ({ sha: "abc123" }),
       buildUserPayload,
       proxyDiscordAvatarRequest: vi.fn(),

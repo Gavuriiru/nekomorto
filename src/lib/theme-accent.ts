@@ -1,10 +1,22 @@
 const DEFAULT_PRIMARY_FOREGROUND = "0 0% 100%";
+const HEX_COLOR_PATTERN = /^[0-9a-fA-F]{3}$|^[0-9a-fA-F]{6}$/;
+const THEME_ACCENT_VARIABLES = [
+  "--primary",
+  "--primary-foreground",
+  "--ring",
+  "--sidebar-primary",
+  "--sidebar-ring",
+  "--accent",
+  "--accent-foreground",
+  "--app-loader-accent",
+  "--app-loader-accent-soft",
+] as const;
 
 const clamp = (value: number, min: number, max: number) => Math.min(max, Math.max(min, value));
 
-export const hexToHsl = (hex: string) => {
-  const cleaned = hex.trim().replace("#", "");
-  if (!/^[0-9a-fA-F]{3}$|^[0-9a-fA-F]{6}$/.test(cleaned)) {
+export const normalizeAccentHex = (hex: string) => {
+  const cleaned = String(hex || "").trim().replace("#", "");
+  if (!HEX_COLOR_PATTERN.test(cleaned)) {
     return null;
   }
   const expanded =
@@ -14,9 +26,39 @@ export const hexToHsl = (hex: string) => {
           .map((char) => char + char)
           .join("")
       : cleaned;
-  const r = parseInt(expanded.slice(0, 2), 16) / 255;
-  const g = parseInt(expanded.slice(2, 4), 16) / 255;
-  const b = parseInt(expanded.slice(4, 6), 16) / 255;
+  return `#${expanded.toLowerCase()}`;
+};
+
+const hexToRgb = (hex: string) => {
+  const normalized = normalizeAccentHex(hex);
+  if (!normalized) {
+    return null;
+  }
+  const raw = normalized.slice(1);
+  return {
+    r: parseInt(raw.slice(0, 2), 16),
+    g: parseInt(raw.slice(2, 4), 16),
+    b: parseInt(raw.slice(4, 6), 16),
+  };
+};
+
+const withAlpha = (hex: string, alpha: number) => {
+  const rgb = hexToRgb(hex);
+  if (!rgb) {
+    return null;
+  }
+  return `rgba(${rgb.r}, ${rgb.g}, ${rgb.b}, ${alpha})`;
+};
+
+export const hexToHsl = (hex: string) => {
+  const normalized = normalizeAccentHex(hex);
+  if (!normalized) {
+    return null;
+  }
+  const raw = normalized.slice(1);
+  const r = parseInt(raw.slice(0, 2), 16) / 255;
+  const g = parseInt(raw.slice(2, 4), 16) / 255;
+  const b = parseInt(raw.slice(4, 6), 16) / 255;
   const max = Math.max(r, g, b);
   const min = Math.min(r, g, b);
   const delta = max - min;
@@ -131,4 +173,34 @@ export const deriveThemeAccentTokens = (accentHex: string) => {
     primaryForeground: pickReadableForeground(primaryValue),
     accentForeground: pickReadableForeground(accentValue),
   };
+};
+
+export const applyThemeAccentVariables = (
+  style: Pick<CSSStyleDeclaration, "setProperty" | "removeProperty">,
+  accentHex?: string | null,
+) => {
+  const trimmedAccentHex = String(accentHex || "").trim();
+  if (!trimmedAccentHex) {
+    THEME_ACCENT_VARIABLES.forEach((variable) => style.removeProperty(variable));
+    return;
+  }
+
+  const normalizedAccentHex = normalizeAccentHex(trimmedAccentHex);
+  const accentTokens = deriveThemeAccentTokens(trimmedAccentHex);
+  if (!normalizedAccentHex || !accentTokens) {
+    return;
+  }
+
+  style.setProperty("--primary", accentTokens.primary);
+  style.setProperty("--primary-foreground", accentTokens.primaryForeground);
+  style.setProperty("--ring", accentTokens.ring);
+  style.setProperty("--sidebar-primary", accentTokens.sidebarPrimary);
+  style.setProperty("--sidebar-ring", accentTokens.sidebarRing);
+  style.setProperty("--accent", accentTokens.accent);
+  style.setProperty("--accent-foreground", accentTokens.accentForeground);
+  style.setProperty("--app-loader-accent", normalizedAccentHex);
+  style.setProperty(
+    "--app-loader-accent-soft",
+    withAlpha(normalizedAccentHex, 0.2) || "rgba(150, 103, 224, 0.2)",
+  );
 };

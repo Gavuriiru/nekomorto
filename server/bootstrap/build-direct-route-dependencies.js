@@ -9,6 +9,7 @@ export const DIRECT_ROUTE_DEPENDENCY_KEYS = {
     "app",
     "apiContractVersion",
     "buildApiContractV1Payload",
+    "buildMySecuritySummary",
     "buildRuntimeMetadata",
     "buildUserPayload",
     "proxyDiscordAvatarRequest",

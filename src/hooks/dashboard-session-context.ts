@@ -4,8 +4,17 @@ import {
 } from "@/lib/public-bootstrap-global";
 import { createContext } from "react";
 
+export type DashboardSessionAuthMethod = {
+  provider: string;
+  linked: boolean;
+  hasPasskey?: boolean;
+  emailNormalized?: string | null;
+  emailVerified?: boolean;
+};
+
 export type DashboardSessionUser = PublicBootstrapCurrentUser & {
   email?: string | null;
+  authMethods?: DashboardSessionAuthMethod[];
 };
 
 export type DashboardSessionContextValue = {

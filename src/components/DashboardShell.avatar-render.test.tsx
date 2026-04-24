@@ -162,6 +162,7 @@ describe("DashboardShell avatar render", () => {
     expect(textWrap.className).toContain("max-w-0");
     expect(textWrap.className).toContain("flex-none");
     expect(textContainer.className).toContain("opacity-0");
+    expect(textContainer.className).toContain("duration-0");
     expect(textContainer.className).toContain("translate-x-1");
   });
 
@@ -299,9 +300,13 @@ describe("DashboardShell avatar render", () => {
     expect(avatar.className).toContain("min-h-11");
     expect(avatar.className).toContain("min-w-11");
     expect(textContainer.className).toContain("transition-[opacity,transform]");
+    expect(textContainer.className).toContain("duration-[220ms]");
     expect(textContainer.className).toContain("justify-center");
     expect(textContainer.className).toContain("gap-0.5");
     expect(textContainer.className).toContain("translate-x-0");
+    expect(screen.getByText("Admin").className).toContain("whitespace-nowrap");
+    expect(screen.getByText("Admin").className).not.toContain("[text-wrap:balance]");
+    expect(screen.getByText("Membro").className).toContain("whitespace-nowrap");
     expect(screen.queryByText("Conta ativa")).not.toBeInTheDocument();
     expect(screen.getByText("Membro")).toBeInTheDocument();
     expect(avatarImages).toHaveLength(1);

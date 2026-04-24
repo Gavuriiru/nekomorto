@@ -1,3 +1,4 @@
+import AppLoadingFallback from "@/components/AppLoadingFallback";
 import { AccessibilityAnnouncerProvider } from "@/hooks/accessibility-announcer";
 import { GlobalShortcutsProvider } from "@/hooks/global-shortcuts-provider";
 import { SiteSettingsProvider } from "@/hooks/site-settings-provider";
@@ -14,7 +15,7 @@ const DeferredSonner = lazy(() =>
   import("@/components/ui/sonner").then((module) => ({ default: module.Toaster })),
 );
 
-const RouteLoadingFallback = () => <div aria-hidden="true" className="min-h-[55vh] w-full" />;
+const RouteLoadingFallback = () => <AppLoadingFallback label="Carregando..." />;
 
 export const ScrollToTop = () => {
   const location = useLocation();

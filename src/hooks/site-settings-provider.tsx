@@ -5,7 +5,7 @@ import { apiFetch } from "@/lib/api-client";
 import { normalizeAssetUrl } from "@/lib/asset-url";
 import { truncateMetaDescription } from "@/lib/meta-description";
 import { readWindowPublicBootstrap } from "@/lib/public-bootstrap-global";
-import { deriveThemeAccentTokens } from "@/lib/theme-accent";
+import { applyThemeAccentVariables } from "@/lib/theme-accent";
 import type { SiteSettings } from "@/types/site-settings";
 import type { ReactNode } from "react";
 import { useCallback, useEffect, useMemo, useState } from "react";
@@ -70,28 +70,7 @@ const applyDocumentSettings = (settings: SiteSettings) => {
     icon.href = settings.site.faviconUrl;
   }
 
-  const root = document.documentElement;
-  const accentHex = settings.theme?.accent?.trim();
-  if (accentHex) {
-    const accentTokens = deriveThemeAccentTokens(accentHex);
-    if (accentTokens) {
-      root.style.setProperty("--primary", accentTokens.primary);
-      root.style.setProperty("--primary-foreground", accentTokens.primaryForeground);
-      root.style.setProperty("--ring", accentTokens.ring);
-      root.style.setProperty("--sidebar-primary", accentTokens.sidebarPrimary);
-      root.style.setProperty("--sidebar-ring", accentTokens.sidebarRing);
-      root.style.setProperty("--accent", accentTokens.accent);
-      root.style.setProperty("--accent-foreground", accentTokens.accentForeground);
-    }
-  } else {
-    root.style.removeProperty("--primary");
-    root.style.removeProperty("--primary-foreground");
-    root.style.removeProperty("--ring");
-    root.style.removeProperty("--sidebar-primary");
-    root.style.removeProperty("--sidebar-ring");
-    root.style.removeProperty("--accent");
-    root.style.removeProperty("--accent-foreground");
-  }
+  applyThemeAccentVariables(document.documentElement.style, settings.theme?.accent);
 };
 
 export const SiteSettingsProvider = ({
@@ -164,11 +143,8 @@ export const SiteSettingsProvider = ({
   }, [refresh, resolvedInitialSettings]);
 
   useEffect(() => {
-    if (isLoading) {
-      return;
-    }
     applyDocumentSettings(settings);
-  }, [isLoading, settings]);
+  }, [settings]);
 
   const value = useMemo(
     () => ({

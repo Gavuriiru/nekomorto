@@ -137,11 +137,15 @@ export const createUserAccessRuntime = (dependencies = {}) => {
         ownerIds,
         primaryOwnerId,
       });
+      const normalizedEmail = String(user.email || "")
+        .trim()
+        .toLowerCase();
       return normalizeUploadsDeep({
         id: normalizedId,
         name: user.name || "Sem nome",
         phrase: user.phrase || "",
         bio: user.bio || "",
+        email: normalizedEmail || null,
         avatarUrl: user.avatarUrl || null,
         socials: sanitizeSocials(user.socials),
         favoriteWorks: sanitizeFavoriteWorksByCategory(user.favoriteWorks),

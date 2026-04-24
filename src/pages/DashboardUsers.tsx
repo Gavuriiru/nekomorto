@@ -94,6 +94,7 @@ type UserRecord = {
   name: string;
   phrase: string;
   bio: string;
+  email?: string | null;
   avatarUrl?: string | null;
   revision?: string | null;
   socials?: Array<{ label: string; href: string }>;
@@ -192,6 +193,7 @@ const createEmptyForm = () => ({
   name: "",
   phrase: "",
   bio: "",
+  email: "",
   avatarUrl: "",
   socials: [] as Array<{ label: string; href: string }>,
   favoriteWorksDraft: createEmptyFavoriteWorksDraft(),
@@ -607,6 +609,7 @@ const DashboardUsers = () => {
         name: user.name,
         phrase: user.phrase,
         bio: user.bio,
+        email: user.email || "",
         avatarUrl: user.avatarUrl || "",
         socials: user.socials ? [...user.socials] : [],
         favoriteWorksDraft: toFavoriteWorksDraft(user.favoriteWorks),
@@ -1091,17 +1094,42 @@ const DashboardUsers = () => {
     () => String(searchParams.get("linked") || "").trim().toLowerCase(),
     [searchParams],
   );
+  const linkedProviderError = useMemo(
+    () => String(searchParams.get("error") || "").trim().toLowerCase(),
+    [searchParams],
+  );
 
   useEffect(() => {
-    if (!linkedProvider || !showSelfSecuritySection) {
+    if ((!linkedProvider && !linkedProviderError) || !showSelfSecuritySection) {
       return;
     }
-    toast({ title: `Conta ${linkedProvider} conectada` });
+    if (linkedProviderError === "identity_already_linked") {
+      toast({
+        title: "Essa conta já está conectada a outro usuário",
+        variant: "destructive",
+      });
+    } else if (linkedProvider) {
+      const providerLabel =
+        linkedProvider === "google"
+          ? "Google"
+          : linkedProvider === "discord"
+            ? "Discord"
+            : linkedProvider;
+      toast({ title: `Conta ${providerLabel} conectada com sucesso` });
+      void refreshSelfSecurity();
+    }
     const nextParams = new URLSearchParams(searchParams);
     nextParams.delete("linked");
+    nextParams.delete("error");
     setSearchParams(nextParams, { replace: true });
-    void refreshSelfSecurity();
-  }, [linkedProvider, refreshSelfSecurity, searchParams, setSearchParams, showSelfSecuritySection]);
+  }, [
+    linkedProvider,
+    linkedProviderError,
+    refreshSelfSecurity,
+    searchParams,
+    setSearchParams,
+    showSelfSecuritySection,
+  ]);
 
   const formatIdentityProviderLabel = (provider: string) =>
     provider === "google" ? "Google" : provider === "discord" ? "Discord" : provider;
@@ -1116,7 +1144,7 @@ const DashboardUsers = () => {
   const renderConnectedAccountsCard = () => (
     <div className={`space-y-3 rounded-2xl p-3 ${subtleInsetSurfaceClassName}`}>
       <div className="space-y-1">
-        <p className="text-sm font-medium">Contas conectadas</p>
+        <p className="text-sm font-medium">Métodos de acesso</p>
         <p className="text-xs text-muted-foreground">
           Conecte Google e Discord à sua conta para usar ambos como métodos de acesso.
         </p>
@@ -1224,6 +1252,7 @@ const DashboardUsers = () => {
       name: formState.name.trim(),
       phrase: formState.phrase.trim(),
       bio: formState.bio.trim(),
+      email: formState.email.trim().toLowerCase() || null,
       avatarUrl: formState.avatarUrl.trim() || null,
       socials: formState.socials.filter((item) => item.label.trim() && item.href.trim()),
       favoriteWorks: buildFavoriteWorksPayloadFromDraft(formState.favoriteWorksDraft),
@@ -1243,6 +1272,7 @@ const DashboardUsers = () => {
         name: basePayload.name,
         phrase: basePayload.phrase,
         bio: basePayload.bio,
+        email: basePayload.email,
         avatarUrl: basePayload.avatarUrl,
         socials: basePayload.socials,
         favoriteWorks: basePayload.favoriteWorks,
@@ -2061,6 +2091,19 @@ const DashboardUsers = () => {
                             setFormState((prev) => ({ ...prev, phrase: event.target.value }))
                           }
                           placeholder="Frase curta"
+                          disabled={!canEditBasicFields}
+                        />
+                      </DashboardFieldStack>
+                      <DashboardFieldStack>
+                        <Label htmlFor="user-email">E-mail de acesso</Label>
+                        <Input
+                          id="user-email"
+                          type="email"
+                          value={formState.email}
+                          onChange={(event) =>
+                            setFormState((prev) => ({ ...prev, email: event.target.value }))
+                          }
+                          placeholder="usuario@exemplo.com"
                           disabled={!canEditBasicFields}
                         />
                       </DashboardFieldStack>

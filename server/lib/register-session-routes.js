@@ -12,10 +12,54 @@ const requireUserSessionOrPendingAuth = (req, res, next) => {
   return res.status(401).json({ error: "unauthorized" });
 };
 
+const buildAuthMethods = (summary) => {
+  const identities = Array.isArray(summary?.identities) ? summary.identities : [];
+  const methods = identities.map((entry) => ({
+    provider: String(entry?.provider || "").trim().toLowerCase(),
+    linked: entry?.linked === true,
+    emailNormalized: entry?.emailNormalized || null,
+    emailVerified: entry?.emailVerified === true,
+    hasPasskey: false,
+  }));
+  return summary?.passkeys?.count > 0
+    ? [...methods, { provider: "passkey", linked: true, hasPasskey: true }]
+    : methods;
+};
+
+const buildSessionUserPayload = ({ buildMySecuritySummary, buildUserPayload, user }) => {
+  const base = buildUserPayload(user);
+  if (!user?.id || typeof buildMySecuritySummary !== "function") {
+    return base;
+  }
+  const securitySummary = buildMySecuritySummary(String(user.id));
+  return {
+    ...base,
+    authMethods: buildAuthMethods(securitySummary),
+  };
+};
+
+const buildPendingSessionUserPayload = ({ buildMySecuritySummary, user }) => {
+  const base = {
+    id: user?.id,
+    name: user?.name || "",
+    username: user?.username || "",
+    avatarUrl: user?.avatarUrl || null,
+  };
+  if (!user?.id || typeof buildMySecuritySummary !== "function") {
+    return base;
+  }
+  const securitySummary = buildMySecuritySummary(String(user.id));
+  return {
+    ...base,
+    authMethods: buildAuthMethods(securitySummary),
+  };
+};
+
 export const registerSessionRoutes = ({
   app,
   apiContractVersion,
   buildApiContractV1Payload,
+  buildMySecuritySummary,
   buildRuntimeMetadata,
   buildUserPayload,
   proxyDiscordAvatarRequest,
@@ -28,28 +72,30 @@ export const registerSessionRoutes = ({
       return res.status(401).json({
         error: "mfa_required",
         pendingMfa: true,
-        user: {
-          id: req.session.pendingMfaUser.id,
-          name: req.session.pendingMfaUser.name || "",
-          username: req.session.pendingMfaUser.username || "",
-          avatarUrl: req.session.pendingMfaUser.avatarUrl || null,
-        },
+        user: buildPendingSessionUserPayload({
+          buildMySecuritySummary,
+          user: req.session.pendingMfaUser,
+        }),
       });
     }
     if (!req.session?.user && req.session?.pendingMfaEnrollmentUser?.id) {
       return res.status(401).json({
         error: "mfa_enrollment_required",
         pendingMfaEnrollment: true,
-        user: {
-          id: req.session.pendingMfaEnrollmentUser.id,
-          name: req.session.pendingMfaEnrollmentUser.name || "",
-          username: req.session.pendingMfaEnrollmentUser.username || "",
-          avatarUrl: req.session.pendingMfaEnrollmentUser.avatarUrl || null,
-        },
+        user: buildPendingSessionUserPayload({
+          buildMySecuritySummary,
+          user: req.session.pendingMfaEnrollmentUser,
+        }),
       });
     }
 
-    return res.json(buildUserPayload(req.session.user));
+    return res.json(
+      buildSessionUserPayload({
+        buildMySecuritySummary,
+        buildUserPayload,
+        user: req.session.user,
+      }),
+    );
   });
 
   router.get("/api/public/me", (req, res) => {
@@ -62,7 +108,13 @@ export const registerSessionRoutes = ({
       });
     }
 
-    return res.json({ user: buildUserPayload(req.session.user) });
+    return res.json({
+      user: buildSessionUserPayload({
+        buildMySecuritySummary,
+        buildUserPayload,
+        user: req.session.user,
+      }),
+    });
   });
 
   router.get("/api/public/discord-avatar/:userId/:avatarFile", async (req, res) => {

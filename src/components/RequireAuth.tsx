@@ -1,3 +1,4 @@
+import AppLoadingFallback from "@/components/AppLoadingFallback";
 import { toast } from "@/components/ui/use-toast";
 import { useDashboardSession } from "@/hooks/use-dashboard-session";
 import {
@@ -150,11 +151,7 @@ const RequireAuth = ({ children }: RequireAuthProps) => {
   ]);
 
   if (isChecking) {
-    return (
-      <div className="flex min-h-screen items-center justify-center bg-background text-foreground">
-        <p className="text-sm text-muted-foreground">Verificando acesso...</p>
-      </div>
-    );
+    return <AppLoadingFallback fullScreen label="Verificando acesso..." />;
   }
 
   return <>{children}</>;

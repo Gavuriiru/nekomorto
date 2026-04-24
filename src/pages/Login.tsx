@@ -67,7 +67,16 @@ const Login = () => {
   const errorMessage = (() => {
     switch (error) {
       case "unauthorized":
-        return "Seu usuário ainda não tem acesso liberado.";
+      case "preprovision_required":
+        return "Seu usuário ainda não foi liberado por um owner.";
+      case "email_not_verified":
+        return "Não foi possível confirmar seu e-mail no provedor escolhido.";
+      case "identity_already_linked":
+        return "Essa conta já está conectada a outro usuário.";
+      case "ambiguous_candidate":
+        return "Encontramos um conflito de conta e não foi possível concluir o acesso automaticamente.";
+      case "same_provider_conflict":
+        return "Já existe uma conta desse provedor vinculada para este e-mail.";
       case "state_mismatch":
         return "Falha de segurança na autenticação. Tente novamente.";
       case "token_exchange_failed":
@@ -168,7 +177,7 @@ const Login = () => {
               <div className="space-y-2">
                 <h1 className="text-3xl font-semibold lg:text-4xl">Autorização Necessária</h1>
                 <p className="text-sm text-muted-foreground">
-                  Faça o seu login para acessar a plataforma.
+                  Faça login para acessar a plataforma.
                 </p>
               </div>
 
@@ -181,7 +190,7 @@ const Login = () => {
               {isOauthLoginVisible ? (
                 <div className="space-y-3 rounded-2xl border border-border/65 bg-card/70 p-4">
                   <p className="text-sm text-muted-foreground">
-                    Entre com um provedor OAuth liberado para acessar a plataforma.
+                    Entre com Google ou Discord em um usuário já criado ou liberado por um owner.
                   </p>
                 </div>
               ) : null}
