@@ -52,12 +52,16 @@ const mockResponse = (ok: boolean) =>
     json: async () => ({}),
   }) as Response;
 
-const renderLogin = (route = "/login") =>
-  render(
+const renderLogin = async (route = "/login") => {
+  const utils = render(
     <MemoryRouter initialEntries={[route]}>
       <Login />
     </MemoryRouter>,
   );
+  // Wait for the initial session check to settle (renders UI or navigates away)
+  await waitFor(() => expect(apiFetchMock).toHaveBeenCalled());
+  return utils;
+};
 
 describe("Login redesign", () => {
   beforeEach(() => {
@@ -74,8 +78,8 @@ describe("Login redesign", () => {
     });
   });
 
-  it("renderiza a estrutura principal com classes de redesign", () => {
-    renderLogin();
+  it("renderiza a estrutura principal com classes de redesign", async () => {
+    await renderLogin();
 
     expect(document.querySelector(".login-shell")).not.toBeNull();
     expect(document.querySelector(".login-backdrop")).not.toBeNull();
@@ -84,21 +88,18 @@ describe("Login redesign", () => {
     expect(card).not.toHaveClass("p-1");
     expect(document.querySelector(".login-card-content")).not.toBeNull();
     expect(document.querySelector(".login-actions")).not.toBeNull();
-    expect(screen.getByRole("button", { name: "Entrar com Discord" })).toHaveClass(
-      "w-full",
-      "sm:w-auto",
-    );
-    expect(screen.getByRole("button", { name: "Entrar com Google" })).toBeInTheDocument();
-    expect(
-      screen.getByText(/Entre com Google ou Discord em um usuário já criado ou liberado por um owner/i),
-    ).toBeInTheDocument();
+    expect(document.querySelector(".login-providers")).not.toBeNull();
+    const discordBtn = screen.getByRole("button", { name: "Entrar com Discord" });
+    expect(discordBtn).toHaveClass("login-provider-btn", "login-provider-btn--discord");
+    const googleBtn = screen.getByRole("button", { name: "Entrar com Google" });
+    expect(googleBtn).toHaveClass("login-provider-btn", "login-provider-btn--google");
     expect(screen.queryByRole("button", { name: "Entrar com senha" })).not.toBeInTheDocument();
     expect(screen.queryByLabelText("Identificador")).not.toBeInTheDocument();
     expect(screen.queryByLabelText("Senha")).not.toBeInTheDocument();
   });
 
-  it("exibe mensagem de erro e atributos de acessibilidade quando error existe", () => {
-    renderLogin("/login?error=state_mismatch");
+  it("exibe mensagem de erro e atributos de acessibilidade quando error existe", async () => {
+    await renderLogin("/login?error=state_mismatch");
 
     const alert = screen.getByRole("alert");
     expect(alert).toHaveClass("login-alert");
@@ -106,48 +107,48 @@ describe("Login redesign", () => {
     expect(alert).toHaveTextContent("Falha de segurança na autenticação. Tente novamente.");
   });
 
-  it("explica quando o usuário ainda não foi liberado", () => {
-    renderLogin("/login?error=preprovision_required");
+  it("explica quando o usuário ainda não foi liberado", async () => {
+    await renderLogin("/login?error=preprovision_required");
 
     expect(screen.getByRole("alert")).toHaveTextContent(
       "Seu usuário ainda não foi liberado por um owner.",
     );
   });
 
-  it("explica conflito de conta já vinculada", () => {
-    renderLogin("/login?error=identity_already_linked");
+  it("explica conflito de conta já vinculada", async () => {
+    await renderLogin("/login?error=identity_already_linked");
 
     expect(screen.getByRole("alert")).toHaveTextContent(
       "Essa conta já está conectada a outro usuário.",
     );
   });
 
-  it("explica quando o provedor não confirma o e-mail", () => {
-    renderLogin("/login?error=email_not_verified");
+  it("explica quando o provedor não confirma o e-mail", async () => {
+    await renderLogin("/login?error=email_not_verified");
 
     expect(screen.getByRole("alert")).toHaveTextContent(
       "Não foi possível confirmar seu e-mail no provedor escolhido.",
     );
   });
 
-  it("explica quando há conflito ambíguo de conta", () => {
-    renderLogin("/login?error=ambiguous_candidate");
+  it("explica quando há conflito ambíguo de conta", async () => {
+    await renderLogin("/login?error=ambiguous_candidate");
 
     expect(screen.getByRole("alert")).toHaveTextContent(
       "Encontramos um conflito de conta e não foi possível concluir o acesso automaticamente.",
     );
   });
 
-  it("explica conflito de provedor já existente para o e-mail", () => {
-    renderLogin("/login?error=same_provider_conflict");
+  it("explica conflito de provedor já existente para o e-mail", async () => {
+    await renderLogin("/login?error=same_provider_conflict");
 
     expect(screen.getByRole("alert")).toHaveTextContent(
       "Já existe uma conta desse provedor vinculada para este e-mail.",
     );
   });
 
-  it("mantém mensagem legada de unauthorized como falta de liberação", () => {
-    renderLogin("/login?error=unauthorized");
+  it("mantém mensagem legada de unauthorized como falta de liberação", async () => {
+    await renderLogin("/login?error=unauthorized");
 
     expect(screen.getByRole("alert")).toHaveTextContent(
       "Seu usuário ainda não foi liberado por um owner.",
@@ -186,40 +187,40 @@ describe("Login redesign", () => {
     });
   });
 
-  it("monta URL de autenticacao com next no clique de entrar com Discord", () => {
-    renderLogin("/login?next=/dashboard/posts");
+  it("monta URL de autenticacao com next no clique de entrar com Discord", async () => {
+    await renderLogin("/login?next=/dashboard/posts");
 
     fireEvent.click(screen.getByRole("button", { name: "Entrar com Discord" }));
 
     expect(locationHref).toBe("http://api.local/auth/discord?next=%2Fdashboard%2Fposts");
   });
 
-  it("monta URL de autenticacao com next no clique de entrar com Discord", () => {
-    renderLogin("/login?next=/dashboard/posts");
+  it("monta URL de autenticacao com next no clique de entrar com Discord", async () => {
+    await renderLogin("/login?next=/dashboard/posts");
 
     fireEvent.click(screen.getByRole("button", { name: "Entrar com Discord" }));
 
     expect(locationHref).toBe("http://api.local/auth/discord?next=%2Fdashboard%2Fposts");
   });
 
-  it("usa fallback de autenticacao sem next", () => {
-    renderLogin("/login");
+  it("usa fallback de autenticacao sem next", async () => {
+    await renderLogin("/login");
 
     fireEvent.click(screen.getByRole("button", { name: "Entrar com Discord" }));
 
     expect(locationHref).toBe("http://api.local/auth/discord");
   });
 
-  it("monta URL de autenticacao do Google com next", () => {
-    renderLogin("/login?next=/dashboard/posts");
+  it("monta URL de autenticacao do Google com next", async () => {
+    await renderLogin("/login?next=/dashboard/posts");
 
     fireEvent.click(screen.getByRole("button", { name: "Entrar com Google" }));
 
     expect(locationHref).toBe("http://api.local/auth/google?next=%2Fdashboard%2Fposts");
   });
 
-  it("aplica foco forte fino ao campo de V2F publico", () => {
-    renderLogin("/login?mfa=required");
+  it("aplica foco forte fino ao campo de V2F publico", async () => {
+    await renderLogin("/login?mfa=required");
 
     expect(screen.getByPlaceholderText("000000 ou ABCDE-12345")).toHaveClass(
       "focus-visible:border-primary",
@@ -234,7 +235,7 @@ describe("Login redesign", () => {
       .mockResolvedValueOnce(mockResponse(false))
       .mockResolvedValueOnce(mockResponse(true));
 
-    renderLogin("/login?mfa=required");
+    await renderLogin("/login?mfa=required");
 
     fireEvent.click(screen.getByRole("button", { name: "Cancelar login" }));
 
@@ -254,7 +255,7 @@ describe("Login redesign", () => {
       .mockResolvedValueOnce(mockResponse(false))
       .mockRejectedValueOnce(new Error("network"));
 
-    renderLogin("/login?mfa=required");
+    await renderLogin("/login?mfa=required");
 
     fireEvent.click(screen.getByRole("button", { name: "Cancelar login" }));
 

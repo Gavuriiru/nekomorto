@@ -305,10 +305,7 @@ export const registerRuntimeMiddleware = ({
       resave: false,
       saveUninitialized: false,
       store: sessionStore,
-      cookie: {
-        ...sessionCookieConfig.cookie,
-        secure: true,
-      },
+      cookie: sessionCookieConfig.cookie,
     }),
   );
 

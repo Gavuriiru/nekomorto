@@ -460,7 +460,7 @@ const DashboardShellFrame = ({
           id="dashboard-main-content"
           tabIndex={-1}
           data-dashboard-motion="true"
-          className={`a11y-focus-target ${dashboardStrongFocusScopeClassName} min-w-0 overflow-x-hidden flex min-h-screen flex-col bg-gradient-surface text-foreground md:peer-data-[variant=inset]:shadow-none md:peer-data-[variant=inset]:rounded-none`}
+          className={`a11y-focus-target ${dashboardStrongFocusScopeClassName} min-w-0 overflow-x-hidden flex min-h-screen flex-col bg-gradient-surface text-foreground md:peer-data-[variant=inset]:m-0 md:peer-data-[variant=inset]:shadow-none md:peer-data-[variant=inset]:rounded-none`}
           style={
             {
               "--dashboard-motion-enter-duration": `${dashboardMotionDurations.enterMs}ms`,

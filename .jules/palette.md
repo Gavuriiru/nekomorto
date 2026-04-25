@@ -1,6 +1,3 @@
-## 2026-04-23 - Added titles and aria labels to Lexical Toolbar
-**Learning:** Icon-only formatting buttons in text editors are a common accessibility oversight. They need both `title` for native hover tooltips and `aria-label` for screen readers. Using Portuguese labels is consistent with the app's default locale.
-**Action:** When working with text editors or toolbars with icon buttons, always ensure proper native tooltip () and screen reader () attributes are present, verifying the correct application language.
-## 2024-05-18 - Added titles and aria labels to Lexical Toolbar
-**Learning:** Icon-only formatting buttons in text editors are a common accessibility oversight. They need both `title` for native hover tooltips and `aria-label` for screen readers. Using Portuguese labels is consistent with the app locale.
-**Action:** When working with text editors or toolbars with icon buttons, always ensure proper native tooltip (`title`) and screen reader (`aria-label`) attributes are present, verifying the correct application language.
+## $(date +%Y-%m-%d) - Added ARIA labels to Settings Dashboard Trash Buttons
+**Learning:** Found several icon-only action buttons (e.g. Delete/Trash) in the dashboard settings layout missing `aria-label`s, indicating this might be a pattern across internal dashboard components where functionality is prioritized over a11y.
+**Action:** Always verify icon-only buttons (`DashboardActionButton` using Lucide icons) have appropriate `aria-label`s, especially in complex list/array configuration forms. Keep them in Portuguese to match the app's language context.
