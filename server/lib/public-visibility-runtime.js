@@ -60,11 +60,14 @@ export const createPublicVisibilityRuntime = (dependencies = {}) => {
     const now = Date.now();
     return normalizePosts(loadPosts())
       .filter((post) => !post.deletedAt)
-      .filter((post) => {
-        const publishTime = new Date(post.publishedAt).getTime();
-        return publishTime <= now && (post.status === "published" || post.status === "scheduled");
+      .map((post) => ({ post, publishTs: new Date(post.publishedAt).getTime() }))
+      .filter(({ post, publishTs }) => {
+        return publishTs <= now && (post.status === "published" || post.status === "scheduled");
       })
-      .sort((a, b) => new Date(b.publishedAt).getTime() - new Date(a.publishedAt).getTime());
+      // ⚡ Bolt: Precomputing timestamp during map iteration instead of
+      // parsing date string repeatedly inside the O(N log N) sort comparator.
+      .sort((a, b) => b.publishTs - a.publishTs)
+      .map(({ post }) => post);
   };
 
   const getPublicVisibleUpdates = () => {
@@ -91,15 +94,22 @@ export const createPublicVisibilityRuntime = (dependencies = {}) => {
       .map((update) => {
         const reason = String(update?.reason || "");
         const kind = String(update?.kind || "");
+        let adjustedUpdate = update;
         if (
           kind.toLowerCase().startsWith("lan") &&
           reason.toLowerCase().includes("novo link adicionado")
         ) {
-          return { ...update, kind: "Ajuste" };
+          adjustedUpdate = { ...update, kind: "Ajuste" };
         }
-        return update;
+        return {
+          update: adjustedUpdate,
+          updateTs: new Date(adjustedUpdate.updatedAt).getTime(),
+        };
       })
-      .sort((a, b) => new Date(b.updatedAt).getTime() - new Date(a.updatedAt).getTime());
+      // ⚡ Bolt: Precomputing timestamp during map iteration instead of
+      // parsing date string repeatedly inside the O(N log N) sort comparator.
+      .sort((a, b) => b.updateTs - a.updateTs)
+      .map(({ update }) => update);
   };
 
   return {
