@@ -1,15 +1,28 @@
-import { fireEvent, render, screen, waitFor, within } from "@testing-library/react";
+import {
+  fireEvent,
+  render,
+  screen,
+  waitFor,
+  within,
+} from "@testing-library/react";
 import type { ReactNode } from "react";
 import { MemoryRouter, Route, Routes, useLocation } from "react-router-dom";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
-import type { ProjectEpisode, ProjectVolumeCover, ProjectVolumeEntry } from "@/data/projects";
+import type {
+  ProjectEpisode,
+  ProjectVolumeCover,
+  ProjectVolumeEntry,
+} from "@/data/projects";
 import DashboardProjectChapterEditor from "@/pages/DashboardProjectChapterEditor";
 
 const originalScrollIntoView = window.HTMLElement.prototype.scrollIntoView;
-const originalHasPointerCapture = window.HTMLElement.prototype.hasPointerCapture;
-const originalSetPointerCapture = window.HTMLElement.prototype.setPointerCapture;
-const originalReleasePointerCapture = window.HTMLElement.prototype.releasePointerCapture;
+const originalHasPointerCapture =
+  window.HTMLElement.prototype.hasPointerCapture;
+const originalSetPointerCapture =
+  window.HTMLElement.prototype.setPointerCapture;
+const originalReleasePointerCapture =
+  window.HTMLElement.prototype.releasePointerCapture;
 const originalAnchorClick = window.HTMLAnchorElement.prototype.click;
 
 const {
@@ -31,7 +44,8 @@ const {
 }));
 
 vi.mock("@/hooks/use-public-bootstrap", async (importOriginal) => {
-  const actual = await importOriginal<typeof import("@/hooks/use-public-bootstrap")>();
+  const actual =
+    await importOriginal<typeof import("@/hooks/use-public-bootstrap")>();
   return {
     ...actual,
     refetchPublicBootstrapCache: refetchPublicBootstrapCacheMock,
@@ -47,7 +61,11 @@ vi.mock("@/components/DashboardShell", () => ({
     onUserCardClick?: () => void;
   }) => (
     <div>
-      <button type="button" data-testid="dashboard-shell-user-card" onClick={onUserCardClick}>
+      <button
+        type="button"
+        data-testid="dashboard-shell-user-card"
+        onClick={onUserCardClick}
+      >
         Abrir usuario
       </button>
       {children}
@@ -66,104 +84,225 @@ vi.mock("@/components/ImageLibraryDialog", () => ({
   },
 }));
 
-vi.mock("@/components/project-reader/MangaWorkflowPanel", async (importOriginal) => {
-  const React = await vi.importActual<typeof import("react")>("react");
-  const actual =
-    await importOriginal<typeof import("@/components/project-reader/MangaWorkflowPanel")>();
-  return {
-    ...actual,
-    default: React.forwardRef(function MockMangaWorkflowPanel(
-      props: {
-        project?: {
-          id?: string;
-          revision?: string;
-          title?: string;
-          type?: string;
-          volumeEntries?: Array<{
-            volume: number;
-            synopsis?: string;
-            coverImageUrl?: string;
-            coverImageAlt?: string;
+vi.mock(
+  "@/components/project-reader/MangaWorkflowPanel",
+  async (importOriginal) => {
+    const React = await vi.importActual<typeof import("react")>("react");
+    const actual =
+      await importOriginal<
+        typeof import("@/components/project-reader/MangaWorkflowPanel")
+      >();
+    return {
+      ...actual,
+      default: React.forwardRef(function MockMangaWorkflowPanel(
+        props: {
+          project?: {
+            id?: string;
+            revision?: string;
+            title?: string;
+            type?: string;
+            volumeEntries?: Array<{
+              volume: number;
+              synopsis?: string;
+              coverImageUrl?: string;
+              coverImageAlt?: string;
+            }>;
+            episodeDownloads?: Array<Record<string, unknown>>;
+          };
+          stagedChapters?: Array<{
+            id: string;
+            title?: string;
           }>;
-          episodeDownloads?: Array<Record<string, unknown>>;
+          selectedStageChapterId?: string | null;
+          setStagedChapters?: (value: unknown) => void;
+          setSelectedStageChapterId?: (value: string | null) => void;
+          onPersistProjectSnapshot?: (
+            snapshot: Record<string, unknown>,
+            options: { context: string },
+          ) => Promise<Record<string, unknown> | null>;
+          onProjectChange?: (project: unknown) => void;
+          onSelectedStageChapterChange?: (chapter: unknown) => void;
+          onOpenImportedChapter?: (
+            project: unknown,
+            chapters: unknown[],
+          ) => void;
+        },
+        ref: React.ForwardedRef<{
+          hasUnsavedChanges: () => boolean;
+          savePreparedChaptersAsDraft: () => Promise<boolean>;
+          discardPreparedChapters: () => void;
+        }>,
+      ) {
+        const [isStageDirty, setIsStageDirty] = React.useState(false);
+        mangaWorkflowPropsSpy(props);
+        const pendingChapter = {
+          id: "stage-1",
+          number: 7,
+          synopsis: "",
+          volume: 1,
+          title: "Capítulo pendente",
+          titleDetected: "",
+          sourceLabel: "Capítulo manual",
+          pages: [
+            {
+              id: "stage-page-1",
+              file: new File(["image"], "001.jpg", { type: "image/jpeg" }),
+              previewUrl: "blob:stage-1",
+              relativePath: "Volume 1/Capitulo 7/001.jpg",
+              name: "001.jpg",
+            },
+          ],
+          coverPageId: "stage-page-1",
+          entryKind: "main",
+          entrySubtype: "chapter",
+          publicationStatus: "draft",
+          progressStage: "aguardando-raw",
+          completedStages: [],
+          operation: "create",
+          warnings: [],
         };
-        stagedChapters?: Array<{
-          id: string;
-          title?: string;
-        }>;
-        selectedStageChapterId?: string | null;
-        setStagedChapters?: (value: unknown) => void;
-        setSelectedStageChapterId?: (value: string | null) => void;
-        onPersistProjectSnapshot?: (
-          snapshot: Record<string, unknown>,
-          options: { context: string },
-        ) => Promise<Record<string, unknown> | null>;
-        onProjectChange?: (project: unknown) => void;
-        onSelectedStageChapterChange?: (chapter: unknown) => void;
-        onOpenImportedChapter?: (project: unknown, chapters: unknown[]) => void;
-      },
-      ref: React.ForwardedRef<{
-        hasUnsavedChanges: () => boolean;
-        savePreparedChaptersAsDraft: () => Promise<boolean>;
-        discardPreparedChapters: () => void;
-      }>,
-    ) {
-      const [isStageDirty, setIsStageDirty] = React.useState(false);
-      mangaWorkflowPropsSpy(props);
-      const pendingChapter = {
-        id: "stage-1",
-        number: 7,
-        synopsis: "",
-        volume: 1,
-        title: "Capítulo pendente",
-        titleDetected: "",
-        sourceLabel: "Capítulo manual",
-        pages: [
-          {
-            id: "stage-page-1",
-            file: new File(["image"], "001.jpg", { type: "image/jpeg" }),
-            previewUrl: "blob:stage-1",
-            relativePath: "Volume 1/Capitulo 7/001.jpg",
-            name: "001.jpg",
-          },
-        ],
-        coverPageId: "stage-page-1",
-        entryKind: "main",
-        entrySubtype: "chapter",
-        publicationStatus: "draft",
-        progressStage: "aguardando-raw",
-        completedStages: [],
-        operation: "create",
-        warnings: [],
-      };
-      const pendingChapterNewVolume = {
-        ...pendingChapter,
-        id: "stage-2",
-        volume: 5,
-        title: "Capítulo pendente novo volume",
-      };
-      const pristineManualChapter = {
-        ...pendingChapter,
-        id: "stage-pristine",
-        number: 11,
-        title: "Capítulo manual vazio",
-        pages: [],
-        coverPageId: null,
-        leaveGuardPristine: true,
-      };
-      React.useImperativeHandle(
-        ref,
-        () => ({
-          hasUnsavedChanges: () => isStageDirty,
-          savePreparedChaptersAsDraft: async () => {
-            const nextProject = {
-              ...(props.project || {}),
-              episodeDownloads: [
-                ...((props.project?.episodeDownloads || []) as Array<Record<string, unknown>>),
-                {
+        const pendingChapterNewVolume = {
+          ...pendingChapter,
+          id: "stage-2",
+          volume: 5,
+          title: "Capítulo pendente novo volume",
+        };
+        const pristineManualChapter = {
+          ...pendingChapter,
+          id: "stage-pristine",
+          number: 11,
+          title: "Capítulo manual vazio",
+          pages: [],
+          coverPageId: null,
+          leaveGuardPristine: true,
+        };
+        React.useImperativeHandle(
+          ref,
+          () => ({
+            hasUnsavedChanges: () => isStageDirty,
+            savePreparedChaptersAsDraft: async () => {
+              const nextProject = {
+                ...(props.project || {}),
+                episodeDownloads: [
+                  ...((props.project?.episodeDownloads || []) as Array<
+                    Record<string, unknown>
+                  >),
+                  {
+                    number: 7,
+                    volume: 1,
+                    title: "Capítulo pendente",
+                    synopsis: "",
+                    releaseDate: "",
+                    duration: "",
+                    sourceType: "Web",
+                    sources: [],
+                    content: "",
+                    contentFormat: "images",
+                    pages: [
+                      {
+                        position: 1,
+                        imageUrl: "/uploads/manga/pending-01.jpg",
+                      },
+                    ],
+                    pageCount: 1,
+                    hasPages: true,
+                    publicationStatus: "draft",
+                    coverImageUrl: "/uploads/manga/pending-01.jpg",
+                    coverImageAlt: "",
+                  },
+                ],
+              };
+              const persistedProject =
+                (await props.onPersistProjectSnapshot?.(nextProject, {
+                  context: "manga-import",
+                })) || null;
+              if (!persistedProject) {
+                return false;
+              }
+              props.onProjectChange?.(persistedProject);
+              props.setStagedChapters?.([]);
+              props.setSelectedStageChapterId?.(null);
+              props.onSelectedStageChapterChange?.(null);
+              setIsStageDirty(false);
+              return true;
+            },
+            discardPreparedChapters: () => {
+              props.setStagedChapters?.([]);
+              props.setSelectedStageChapterId?.(null);
+              props.onSelectedStageChapterChange?.(null);
+              setIsStageDirty(false);
+            },
+          }),
+          [isStageDirty, props],
+        );
+        return (
+          <div data-testid="manga-workflow-panel">
+            <button
+              type="button"
+              data-testid="mock-stage-add"
+              onClick={() => {
+                props.setStagedChapters?.([pendingChapter]);
+                props.setSelectedStageChapterId?.("stage-1");
+                props.onSelectedStageChapterChange?.(pendingChapter);
+                setIsStageDirty(true);
+              }}
+            >
+              Adicionar pendente
+            </button>
+            <button
+              type="button"
+              data-testid="mock-stage-add-pristine"
+              onClick={() => {
+                props.setStagedChapters?.([pristineManualChapter]);
+                props.setSelectedStageChapterId?.("stage-pristine");
+                props.onSelectedStageChapterChange?.(pristineManualChapter);
+                setIsStageDirty(false);
+              }}
+            >
+              Adicionar pendente limpo
+            </button>
+            <button
+              type="button"
+              data-testid="mock-stage-edit-selected"
+              onClick={() => {
+                props.setStagedChapters?.([
+                  {
+                    ...pristineManualChapter,
+                    volume: 2,
+                    leaveGuardPristine: false,
+                  },
+                ]);
+                props.setSelectedStageChapterId?.("stage-pristine");
+                props.onSelectedStageChapterChange?.({
+                  ...pristineManualChapter,
+                  volume: 2,
+                  leaveGuardPristine: false,
+                });
+                setIsStageDirty(true);
+              }}
+            >
+              Editar pendente limpo
+            </button>
+            <button
+              type="button"
+              data-testid="mock-stage-add-new-volume"
+              onClick={() => {
+                props.setStagedChapters?.([pendingChapterNewVolume]);
+                props.setSelectedStageChapterId?.("stage-2");
+                props.onSelectedStageChapterChange?.(pendingChapterNewVolume);
+                setIsStageDirty(true);
+              }}
+            >
+              Adicionar pendente novo volume
+            </button>
+            <button
+              type="button"
+              data-testid="mock-stage-import-open"
+              onClick={() => {
+                const importedChapter = {
                   number: 7,
-                  volume: 1,
-                  title: "Capítulo pendente",
+                  volume: 3,
+                  title: "Capítulo importado",
                   synopsis: "",
                   releaseDate: "",
                   duration: "",
@@ -171,148 +310,53 @@ vi.mock("@/components/project-reader/MangaWorkflowPanel", async (importOriginal)
                   sources: [],
                   content: "",
                   contentFormat: "images",
-                  pages: [{ position: 1, imageUrl: "/uploads/manga/pending-01.jpg" }],
+                  pages: [
+                    {
+                      position: 1,
+                      imageUrl: "/uploads/manga/importado-01.jpg",
+                    },
+                  ],
                   pageCount: 1,
                   hasPages: true,
                   publicationStatus: "draft",
-                  coverImageUrl: "/uploads/manga/pending-01.jpg",
+                  coverImageUrl: "/uploads/manga/importado-01.jpg",
                   coverImageAlt: "",
-                },
-              ],
-            };
-            const persistedProject =
-              (await props.onPersistProjectSnapshot?.(nextProject, {
-                context: "manga-import",
-              })) || null;
-            if (!persistedProject) {
-              return false;
-            }
-            props.onProjectChange?.(persistedProject);
-            props.setStagedChapters?.([]);
-            props.setSelectedStageChapterId?.(null);
-            props.onSelectedStageChapterChange?.(null);
-            setIsStageDirty(false);
-            return true;
-          },
-          discardPreparedChapters: () => {
-            props.setStagedChapters?.([]);
-            props.setSelectedStageChapterId?.(null);
-            props.onSelectedStageChapterChange?.(null);
-            setIsStageDirty(false);
-          },
-        }),
-        [isStageDirty, props],
-      );
-      return (
-        <div data-testid="manga-workflow-panel">
-          <button
-            type="button"
-            data-testid="mock-stage-add"
-            onClick={() => {
-              props.setStagedChapters?.([pendingChapter]);
-              props.setSelectedStageChapterId?.("stage-1");
-              props.onSelectedStageChapterChange?.(pendingChapter);
-              setIsStageDirty(true);
-            }}
-          >
-            Adicionar pendente
-          </button>
-          <button
-            type="button"
-            data-testid="mock-stage-add-pristine"
-            onClick={() => {
-              props.setStagedChapters?.([pristineManualChapter]);
-              props.setSelectedStageChapterId?.("stage-pristine");
-              props.onSelectedStageChapterChange?.(pristineManualChapter);
-              setIsStageDirty(false);
-            }}
-          >
-            Adicionar pendente limpo
-          </button>
-          <button
-            type="button"
-            data-testid="mock-stage-edit-selected"
-            onClick={() => {
-              props.setStagedChapters?.([
-                {
-                  ...pristineManualChapter,
-                  volume: 2,
-                  leaveGuardPristine: false,
-                },
-              ]);
-              props.setSelectedStageChapterId?.("stage-pristine");
-              props.onSelectedStageChapterChange?.({
-                ...pristineManualChapter,
-                volume: 2,
-                leaveGuardPristine: false,
-              });
-              setIsStageDirty(true);
-            }}
-          >
-            Editar pendente limpo
-          </button>
-          <button
-            type="button"
-            data-testid="mock-stage-add-new-volume"
-            onClick={() => {
-              props.setStagedChapters?.([pendingChapterNewVolume]);
-              props.setSelectedStageChapterId?.("stage-2");
-              props.onSelectedStageChapterChange?.(pendingChapterNewVolume);
-              setIsStageDirty(true);
-            }}
-          >
-            Adicionar pendente novo volume
-          </button>
-          <button
-            type="button"
-            data-testid="mock-stage-import-open"
-            onClick={() => {
-              const importedChapter = {
-                number: 7,
-                volume: 3,
-                title: "Capítulo importado",
-                synopsis: "",
-                releaseDate: "",
-                duration: "",
-                sourceType: "Web",
-                sources: [],
-                content: "",
-                contentFormat: "images",
-                pages: [{ position: 1, imageUrl: "/uploads/manga/importado-01.jpg" }],
-                pageCount: 1,
-                hasPages: true,
-                publicationStatus: "draft",
-                coverImageUrl: "/uploads/manga/importado-01.jpg",
-                coverImageAlt: "",
-              };
-              props.onOpenImportedChapter?.(
-                {
-                  ...props.project,
-                  volumeEntries: [
-                    ...(props.project?.volumeEntries || []),
-                    {
-                      volume: 3,
-                      synopsis: "Volume importado",
-                      coverImageUrl: "",
-                      coverImageAlt: "",
-                    },
-                  ],
-                  episodeDownloads: [importedChapter],
-                },
-                [importedChapter],
-              );
-            }}
-          >
-            Abrir importado
-          </button>
-          <div data-testid="mock-stage-dirty">{isStageDirty ? "dirty" : "clean"}</div>
-          <div data-testid="mock-stage-count">{props.stagedChapters?.length || 0}</div>
-          <div data-testid="mock-stage-selected">{props.selectedStageChapterId || ""}</div>
-        </div>
-      );
-    }),
-  };
-});
+                };
+                props.onOpenImportedChapter?.(
+                  {
+                    ...props.project,
+                    volumeEntries: [
+                      ...(props.project?.volumeEntries || []),
+                      {
+                        volume: 3,
+                        synopsis: "Volume importado",
+                        coverImageUrl: "",
+                        coverImageAlt: "",
+                      },
+                    ],
+                    episodeDownloads: [importedChapter],
+                  },
+                  [importedChapter],
+                );
+              }}
+            >
+              Abrir importado
+            </button>
+            <div data-testid="mock-stage-dirty">
+              {isStageDirty ? "dirty" : "clean"}
+            </div>
+            <div data-testid="mock-stage-count">
+              {props.stagedChapters?.length || 0}
+            </div>
+            <div data-testid="mock-stage-selected">
+              {props.selectedStageChapterId || ""}
+            </div>
+          </div>
+        );
+      }),
+    };
+  },
+);
 
 vi.mock("@/components/ui/async-state", () => ({
   default: ({
@@ -386,7 +430,10 @@ vi.mock("@/lib/api-client", () => ({
 }));
 
 vi.mock("@/lib/frontend-build", () => ({
-  getFrontendBuildMetadata: () => ({ commitSha: "frontendsha", builtAt: "2026-03-08T00:00:00Z" }),
+  getFrontendBuildMetadata: () => ({
+    commitSha: "frontendsha",
+    builtAt: "2026-03-08T00:00:00Z",
+  }),
   formatBuildMetadataLabel: () => "build-label",
 }));
 
@@ -402,7 +449,11 @@ vi.mock("@/pages/NotFound", () => ({
   default: () => <div data-testid="not-found" />,
 }));
 
-const mockJsonResponse = (ok: boolean, payload: unknown, status = ok ? 200 : 500) =>
+const mockJsonResponse = (
+  ok: boolean,
+  payload: unknown,
+  status = ok ? 200 : 500,
+) =>
   ({
     ok,
     status,
@@ -412,7 +463,10 @@ const mockJsonResponse = (ok: boolean, payload: unknown, status = ok ? 200 : 500
 const classTokens = (element: HTMLElement) =>
   String(element.className).split(/\s+/).filter(Boolean);
 
-const expectStableDashboardActionButton = (element: HTMLElement, sizeToken: "h-9" | "h-10") => {
+const expectStableDashboardActionButton = (
+  element: HTMLElement,
+  sizeToken: "h-9" | "h-10",
+) => {
   const tokens = classTokens(element);
 
   expect(tokens).toEqual(
@@ -435,7 +489,9 @@ const mockBinaryResponse = (ok = true) =>
     status: ok ? 200 : 500,
     headers: {
       get: (name: string) =>
-        name === "Content-Disposition" ? 'attachment; filename="projeto.epub"' : null,
+        name === "Content-Disposition"
+          ? 'attachment; filename="projeto.epub"'
+          : null,
     },
     blob: async () => new Blob(["epub"]),
     json: async () => ({}),
@@ -620,7 +676,9 @@ const LocationProbe = () => {
   );
 };
 
-const renderEditor = (initialEntry = "/dashboard/projetos/project-ln-1/capitulos/1?volume=2") =>
+const renderEditor = (
+  initialEntry = "/dashboard/projetos/project-ln-1/capitulos/1?volume=2",
+) =>
   render(
     <MemoryRouter initialEntries={[initialEntry]}>
       <Routes>
@@ -701,24 +759,25 @@ const expectStructureGroupSelected = (groupKey: string) => {
     "border-primary/45",
     "bg-primary/[0.06]",
   );
-  expect(screen.getByTestId(`chapter-structure-group-header-${groupKey}`)).toHaveClass(
-    "bg-primary/[0.04]",
-  );
+  expect(
+    screen.getByTestId(`chapter-structure-group-header-${groupKey}`),
+  ).toHaveClass("bg-primary/[0.04]");
 };
 
 const expectStructureGroupNotSelected = (groupKey: string) => {
-  expect(screen.getByTestId(`chapter-structure-group-${groupKey}`)).not.toHaveClass(
-    "border-primary/45",
-    "bg-primary/[0.06]",
-  );
-  expect(screen.getByTestId(`chapter-structure-group-header-${groupKey}`)).not.toHaveClass(
-    "bg-primary/[0.04]",
-  );
+  expect(
+    screen.getByTestId(`chapter-structure-group-${groupKey}`),
+  ).not.toHaveClass("border-primary/45", "bg-primary/[0.06]");
+  expect(
+    screen.getByTestId(`chapter-structure-group-header-${groupKey}`),
+  ).not.toHaveClass("bg-primary/[0.04]");
 };
 
-const getTopActions = () => within(screen.getByTestId("chapter-editor-top-actions"));
+const getTopActions = () =>
+  within(screen.getByTestId("chapter-editor-top-actions"));
 
-const findLeaveDialog = () => screen.findByTestId("chapter-unsaved-leave-dialog");
+const findLeaveDialog = () =>
+  screen.findByTestId("chapter-unsaved-leave-dialog");
 const findVolumeRequiredSaveDialog = () =>
   screen.findByTestId("chapter-save-volume-required-dialog");
 const hasChapterSaveRequest = () =>
@@ -730,17 +789,22 @@ const hasChapterSaveRequest = () =>
 const getStructureGroupChapterOrder = (groupKey: string) => {
   const group = screen.getByTestId(`chapter-structure-group-${groupKey}`);
   return Array.from(
-    group.querySelectorAll<HTMLElement>("[data-testid^='chapter-structure-episode-open-']"),
+    group.querySelectorAll<HTMLElement>(
+      "[data-testid^='chapter-structure-episode-open-']",
+    ),
   )
     .map((element) => element.dataset.testid || "")
     .filter(
-      (testId) => testId.includes("chapter-structure-episode-open-") && !testId.includes("-icon-"),
+      (testId) =>
+        testId.includes("chapter-structure-episode-open-") &&
+        !testId.includes("-icon-"),
     )
     .map((testId) => testId.replace("chapter-structure-episode-open-", ""));
 };
 
 const setupApiMock = ({
   permissions = ["projetos"],
+  grants = { projetos: permissions.includes("projetos") },
   currentUserOverrides,
   project = buildProject(),
   projectStatus = 200,
@@ -754,6 +818,7 @@ const setupApiMock = ({
   epubExportResponse,
 }: {
   permissions?: string[];
+  grants?: Record<string, boolean>;
   currentUserOverrides?: Record<string, unknown>;
   project?: ReturnType<typeof buildProject>;
   projectStatus?: number;
@@ -805,6 +870,7 @@ const setupApiMock = ({
           name: "Admin",
           username: "admin",
           permissions,
+          grants,
           ...currentUserOverrides,
         });
       }
@@ -831,7 +897,11 @@ const setupApiMock = ({
 
       if (path === "/api/projects/project-ln-1" && method === "GET") {
         if (projectStatus >= 400) {
-          return mockJsonResponse(false, { error: "load_failed" }, projectStatus);
+          return mockJsonResponse(
+            false,
+            { error: "load_failed" },
+            projectStatus,
+          );
         }
         return mockJsonResponse(true, { project });
       }
@@ -842,7 +912,9 @@ const setupApiMock = ({
       if (chapterSaveMatch && method === "PUT") {
         const payload = options?.json || {};
         const chapterNumber = Number(chapterSaveMatch[1]);
-        const chapterVolume = chapterSaveMatch[2] ? Number(chapterSaveMatch[2]) : undefined;
+        const chapterVolume = chapterSaveMatch[2]
+          ? Number(chapterSaveMatch[2])
+          : undefined;
         const chapterIndex = project.episodeDownloads.findIndex(
           (episode) =>
             Number(episode.number) === chapterNumber &&
@@ -851,7 +923,9 @@ const setupApiMock = ({
               : Number(episode.volume) === chapterVolume),
         );
         const currentChapter =
-          chapterIndex >= 0 ? project.episodeDownloads[chapterIndex] : project.episodeDownloads[0];
+          chapterIndex >= 0
+            ? project.episodeDownloads[chapterIndex]
+            : project.episodeDownloads[0];
         const nextChapter = {
           ...currentChapter,
           ...((payload.chapter as Record<string, unknown> | undefined) || {}),
@@ -873,7 +947,9 @@ const setupApiMock = ({
             ...project,
             revision: "rev-2",
             episodeDownloads: project.episodeDownloads.map((episode, index) =>
-              index === (chapterIndex >= 0 ? chapterIndex : 0) ? nextChapter : episode,
+              index === (chapterIndex >= 0 ? chapterIndex : 0)
+                ? nextChapter
+                : episode,
             ),
           },
           chapter: nextChapter,
@@ -900,11 +976,17 @@ const setupApiMock = ({
         });
       }
 
-      if (path === "/api/projects/project-ln-1/manga-export/chapter" && method === "POST") {
+      if (
+        path === "/api/projects/project-ln-1/manga-export/chapter" &&
+        method === "POST"
+      ) {
         return mockBinaryResponse(true);
       }
 
-      if (path === "/api/projects/project-ln-1/manga-export/jobs" && method === "POST") {
+      if (
+        path === "/api/projects/project-ln-1/manga-export/jobs" &&
+        method === "POST"
+      ) {
         return mockJsonResponse(true, {
           job: {
             id: "manga-export-job-1",
@@ -918,12 +1000,16 @@ const setupApiMock = ({
             finishedAt: "2026-03-09T00:00:01.000Z",
             expiresAt: null,
             hasFile: true,
-            downloadPath: "/api/projects/project-ln-1/manga-export/downloads/manga-export-job-1",
+            downloadPath:
+              "/api/projects/project-ln-1/manga-export/downloads/manga-export-job-1",
           },
         });
       }
 
-      if (path === "/api/projects/project-ln-1/manga-export/downloads/manga-export-job-1") {
+      if (
+        path ===
+        "/api/projects/project-ln-1/manga-export/downloads/manga-export-job-1"
+      ) {
         return mockBinaryResponse(true);
       }
 
@@ -968,7 +1054,10 @@ const setupApiMock = ({
         );
       }
 
-      if (path.startsWith("/api/projects/epub/import/jobs/") && method === "GET") {
+      if (
+        path.startsWith("/api/projects/epub/import/jobs/") &&
+        method === "GET"
+      ) {
         if (typeof epubImportJobStatusResponse === "function") {
           return epubImportJobStatusResponse(getLastPathSegment(path));
         }
@@ -1049,10 +1138,14 @@ describe("DashboardProjectChapterEditor", () => {
       configurable: true,
       value: vi.fn(),
     });
-    Object.defineProperty(window.HTMLElement.prototype, "releasePointerCapture", {
-      configurable: true,
-      value: vi.fn(),
-    });
+    Object.defineProperty(
+      window.HTMLElement.prototype,
+      "releasePointerCapture",
+      {
+        configurable: true,
+        value: vi.fn(),
+      },
+    );
     Object.defineProperty(window.HTMLAnchorElement.prototype, "click", {
       configurable: true,
       value: vi.fn(),
@@ -1072,10 +1165,14 @@ describe("DashboardProjectChapterEditor", () => {
       configurable: true,
       value: originalSetPointerCapture,
     });
-    Object.defineProperty(window.HTMLElement.prototype, "releasePointerCapture", {
-      configurable: true,
-      value: originalReleasePointerCapture,
-    });
+    Object.defineProperty(
+      window.HTMLElement.prototype,
+      "releasePointerCapture",
+      {
+        configurable: true,
+        value: originalReleasePointerCapture,
+      },
+    );
     Object.defineProperty(window.HTMLAnchorElement.prototype, "click", {
       configurable: true,
       value: originalAnchorClick,
@@ -1083,9 +1180,13 @@ describe("DashboardProjectChapterEditor", () => {
   });
 
   it("envia kind=loading para AsyncState enquanto a tela inicializa", () => {
-    apiFetchMock.mockImplementation(() => new Promise<Response>(() => undefined));
+    apiFetchMock.mockImplementation(
+      () => new Promise<Response>(() => undefined),
+    );
     renderEditor();
-    expect(screen.getByText("Carregando editor de capítulo")).toBeInTheDocument();
+    expect(
+      screen.getByText("Carregando editor de capítulo"),
+    ).toBeInTheDocument();
   });
 
   it("renderiza a rota neutra com card único de estrutura e sem volume selecionado", async () => {
@@ -1097,7 +1198,9 @@ describe("DashboardProjectChapterEditor", () => {
       "h-10",
     );
     expectStableDashboardActionButton(
-      within(epubTools).getByRole("button", { name: /Exportar volume em EPUB/i }),
+      within(epubTools).getByRole("button", {
+        name: /Exportar volume em EPUB/i,
+      }),
       "h-10",
     );
     expectStableDashboardActionButton(
@@ -1110,32 +1213,55 @@ describe("DashboardProjectChapterEditor", () => {
     const sidebar = screen.getByTestId("chapter-editor-sidebar");
     const upperLayout = screen.getByTestId("chapter-editor-upper-layout");
     const structureSection = screen.getByTestId("chapter-structure-section");
-    const structureScrollRegion = screen.getByTestId("chapter-structure-scroll-region");
+    const structureScrollRegion = screen.getByTestId(
+      "chapter-structure-scroll-region",
+    );
     const structureGroup = screen.getByTestId("chapter-structure-group-2");
-    const activeChapterCard = screen.getByTestId("chapter-structure-episode-open-1:2");
+    const activeChapterCard = screen.getByTestId(
+      "chapter-structure-episode-open-1:2",
+    );
     const structureAccordion = structureSection.parentElement;
-    const epubTrigger = within(epubTools).getByRole("button", { name: /Ferramentas EPUB/i });
+    const epubTrigger = within(epubTools).getByRole("button", {
+      name: /Ferramentas EPUB/i,
+    });
     expect(structureAccordion).not.toBeNull();
-    expect(headerShell).toContainElement(screen.getByTestId("chapter-editor-masthead"));
-    expect(headerShell).toContainElement(screen.getByTestId("chapter-editor-command-bar"));
+    expect(headerShell).toContainElement(
+      screen.getByTestId("chapter-editor-masthead"),
+    );
+    expect(headerShell).toContainElement(
+      screen.getByTestId("chapter-editor-command-bar"),
+    );
     expect(Array.from(upperLayout.children)).toEqual([mainColumn, sidebar]);
     expect(Array.from(mainColumn.children)).toEqual([workspace]);
     expect(Array.from(workspace.children)).toEqual([epubTools]);
     expect(mainColumn).toContainElement(workspace);
     expect(sidebar).toContainElement(structureSection);
     expect(sidebar).not.toContainElement(epubTools);
-    expect(sidebar).toHaveClass("min-w-0", "xl:sticky", "xl:top-24", "xl:min-h-0");
-    expect(upperLayout.style.getPropertyValue("--dedicated-editor-sidebar-height")).toBe("34rem");
+    expect(sidebar).toHaveClass(
+      "min-w-0",
+      "xl:sticky",
+      "xl:top-24",
+      "xl:min-h-0",
+    );
+    expect(
+      upperLayout.style.getPropertyValue("--dedicated-editor-sidebar-height"),
+    ).toBe("34rem");
     expect(Array.from(sidebar.children)[0]).toBe(structureAccordion);
     expect(structureSection).toHaveAttribute("data-state", "open");
-    expect(structureAccordion).toHaveClass("project-editor-accordion", "space-y-2.5", "min-h-0");
+    expect(structureAccordion).toHaveClass(
+      "project-editor-accordion",
+      "space-y-2.5",
+      "min-h-0",
+    );
     expect(structureSection).toHaveClass(
       "flex",
       "max-h-[var(--dedicated-editor-sidebar-height,34rem)]",
       "min-h-0",
       "flex-col",
     );
-    expect(structureSection).not.toHaveClass("h-[var(--dedicated-editor-sidebar-height,34rem)]");
+    expect(structureSection).not.toHaveClass(
+      "h-[var(--dedicated-editor-sidebar-height,34rem)]",
+    );
     expect(structureSection).not.toHaveClass("max-h-[calc(100dvh-9rem)]");
     expect(structureScrollRegion).toHaveClass(
       "no-scrollbar",
@@ -1148,51 +1274,100 @@ describe("DashboardProjectChapterEditor", () => {
     expect(activeChapterCard).not.toHaveClass("shadow-sm");
     expect(epubTrigger).toHaveClass("hover:no-underline", "py-3.5", "md:py-4");
     expect(within(epubTools).getByText("Ferramentas EPUB")).toBeInTheDocument();
-    expect(within(epubTools).getByText("Importação e exportação por volume")).toBeInTheDocument();
+    expect(
+      within(epubTools).getByText("Importação e exportação por volume"),
+    ).toBeInTheDocument();
     expect(within(structureSection).getByText("Estrutura")).toBeInTheDocument();
     expect(screen.queryByText(/Seleção editorial/i)).not.toBeInTheDocument();
-    expect(screen.queryByRole("button", { name: /Salvar como rascunho/i })).not.toBeInTheDocument();
-    expect(screen.queryByRole("button", { name: /^Publicar$/i })).not.toBeInTheDocument();
     expect(
-      within(structureSection).getByText("Volumes, filtros, navegação e criação de capítulos"),
+      screen.queryByRole("button", { name: /Salvar como rascunho/i }),
+    ).not.toBeInTheDocument();
+    expect(
+      screen.queryByRole("button", { name: /^Publicar$/i }),
+    ).not.toBeInTheDocument();
+    expect(
+      within(structureSection).getByText(
+        "Volumes, filtros, navegação e criação de capítulos",
+      ),
     ).toBeInTheDocument();
-    expect(screen.getByTestId("chapter-structure-intro-row")).toHaveClass("space-y-3");
+    expect(screen.getByTestId("chapter-structure-intro-row")).toHaveClass(
+      "space-y-3",
+    );
     expect(screen.getByTestId("chapter-structure-intro-copy")).toHaveClass(
       "text-xs",
       "leading-5",
       "text-muted-foreground",
     );
     expect(
-      within(screen.getByTestId("chapter-structure-intro-row")).getByRole("button", {
-        name: /Adicionar volume/i,
-      }),
+      within(screen.getByTestId("chapter-structure-intro-row")).getByRole(
+        "button",
+        {
+          name: /Adicionar volume/i,
+        },
+      ),
     ).toHaveClass("w-full", "justify-center");
     expect(screen.getByTestId("chapter-structure-group-2")).toBeInTheDocument();
-    expect(screen.getByTestId("chapter-structure-group-none")).toBeInTheDocument();
-    expect(screen.getByTestId("chapter-structure-group-header-2")).toBeInTheDocument();
-    expect(screen.getByTestId("chapter-structure-group-main-2")).toBeInTheDocument();
-    expect(screen.getByTestId("chapter-structure-group-actions-2")).toBeInTheDocument();
-    expect(screen.getByTestId("chapter-structure-group-toggle-2")).toBeInTheDocument();
-    expect(screen.getByTestId("chapter-structure-group-main-none")).toBeInTheDocument();
-    expect(screen.getByTestId("chapter-structure-group-actions-none")).toBeInTheDocument();
-    expect(screen.getByTestId("chapter-structure-group-toggle-none")).toBeInTheDocument();
+    expect(
+      screen.getByTestId("chapter-structure-group-none"),
+    ).toBeInTheDocument();
+    expect(
+      screen.getByTestId("chapter-structure-group-header-2"),
+    ).toBeInTheDocument();
+    expect(
+      screen.getByTestId("chapter-structure-group-main-2"),
+    ).toBeInTheDocument();
+    expect(
+      screen.getByTestId("chapter-structure-group-actions-2"),
+    ).toBeInTheDocument();
+    expect(
+      screen.getByTestId("chapter-structure-group-toggle-2"),
+    ).toBeInTheDocument();
+    expect(
+      screen.getByTestId("chapter-structure-group-main-none"),
+    ).toBeInTheDocument();
+    expect(
+      screen.getByTestId("chapter-structure-group-actions-none"),
+    ).toBeInTheDocument();
+    expect(
+      screen.getByTestId("chapter-structure-group-toggle-none"),
+    ).toBeInTheDocument();
     expectStructureGroupNotSelected("2");
     expectStructureGroupNotSelected("none");
     expect(screen.getByTestId("chapter-structure-select-2")).not.toHaveClass(
       "rounded-xl",
       "border",
     );
-    expect(screen.queryByTestId("chapter-volume-editor")).not.toBeInTheDocument();
-    expect(screen.queryByTestId("chapter-selection-state")).not.toBeInTheDocument();
-    expect(screen.queryByTestId("chapter-content-accordion")).not.toBeInTheDocument();
-    expect(screen.queryByTestId("chapter-content-section")).not.toBeInTheDocument();
-    expect(screen.queryByRole("button", { name: /Excluir capítulo/i })).not.toBeInTheDocument();
-    expect(screen.queryByRole("button", { name: /Excluir volume/i })).not.toBeInTheDocument();
+    expect(
+      screen.queryByTestId("chapter-volume-editor"),
+    ).not.toBeInTheDocument();
+    expect(
+      screen.queryByTestId("chapter-selection-state"),
+    ).not.toBeInTheDocument();
+    expect(
+      screen.queryByTestId("chapter-content-accordion"),
+    ).not.toBeInTheDocument();
+    expect(
+      screen.queryByTestId("chapter-content-section"),
+    ).not.toBeInTheDocument();
+    expect(
+      screen.queryByRole("button", { name: /Excluir capítulo/i }),
+    ).not.toBeInTheDocument();
+    expect(
+      screen.queryByRole("button", { name: /Excluir volume/i }),
+    ).not.toBeInTheDocument();
     expect(screen.queryByTestId("mock-lexical")).not.toBeInTheDocument();
-    expect(screen.queryByTestId("chapter-metadata-accordion")).not.toBeInTheDocument();
-    expect(screen.queryByTestId("chapter-editor-status-meta-group")).not.toBeInTheDocument();
-    expect(screen.queryByTestId("chapter-editor-status-pill-chapter")).not.toBeInTheDocument();
-    expect(screen.queryByTestId("chapter-editor-status-pill-reading")).not.toBeInTheDocument();
+    expect(
+      screen.queryByTestId("chapter-metadata-accordion"),
+    ).not.toBeInTheDocument();
+    expect(
+      screen.queryByTestId("chapter-editor-status-meta-group"),
+    ).not.toBeInTheDocument();
+    expect(
+      screen.queryByTestId("chapter-editor-status-pill-chapter"),
+    ).not.toBeInTheDocument();
+    expect(
+      screen.queryByTestId("chapter-editor-status-pill-reading"),
+    ).not.toBeInTheDocument();
   });
 
   it("passa filteredChapters para o workflow neutro de manga e atualiza com a busca", async () => {
@@ -1249,23 +1424,34 @@ describe("DashboardProjectChapterEditor", () => {
     await screen.findByTestId("manga-workflow-panel");
     expect(screen.queryByTestId("chapter-epub-tools")).not.toBeInTheDocument();
 
-    const initialWorkflowProps = getLastItem(mangaWorkflowPropsSpy.mock.calls)?.[0] as {
+    const initialWorkflowProps = getLastItem(
+      mangaWorkflowPropsSpy.mock.calls,
+    )?.[0] as {
       filteredChapters?: Array<{ title?: string }>;
       filterMode?: string;
     };
     expect(initialWorkflowProps.filterMode).toBe("all");
     expect(initialWorkflowProps.filteredChapters).toHaveLength(2);
 
-    fireEvent.change(within(screen.getByTestId("chapter-structure-section")).getByRole("textbox"), {
-      target: { value: "publicado" },
-    });
+    fireEvent.change(
+      within(screen.getByTestId("chapter-structure-section")).getByRole(
+        "textbox",
+      ),
+      {
+        target: { value: "publicado" },
+      },
+    );
 
     await waitFor(() => {
-      const latestWorkflowProps = getLastItem(mangaWorkflowPropsSpy.mock.calls)?.[0] as {
+      const latestWorkflowProps = getLastItem(
+        mangaWorkflowPropsSpy.mock.calls,
+      )?.[0] as {
         filteredChapters?: Array<{ title?: string }>;
       };
       expect(latestWorkflowProps.filteredChapters).toHaveLength(1);
-      expect(latestWorkflowProps.filteredChapters?.[0]?.title).toBe("Capítulo publicado");
+      expect(latestWorkflowProps.filteredChapters?.[0]?.title).toBe(
+        "Capítulo publicado",
+      );
     });
   });
 
@@ -1358,56 +1544,114 @@ describe("DashboardProjectChapterEditor", () => {
 
     await screen.findByTestId("manga-workflow-panel");
 
-    expect(screen.getByTestId("chapter-structure-export-volume-1")).toBeInTheDocument();
-    expect(screen.queryByTestId("chapter-structure-export-volume-2")).not.toBeInTheDocument();
-    expect(screen.queryByTestId("chapter-structure-export-volume-none")).not.toBeInTheDocument();
-    expect(screen.getByTestId("chapter-structure-episode-content-3:1")).toBeInTheDocument();
-    expect(screen.getByTestId("chapter-structure-episode-header-3:1")).toBeInTheDocument();
-    expect(screen.getByTestId("chapter-structure-episode-footer-3:1")).toBeInTheDocument();
-    expect(screen.getByTestId("chapter-structure-episode-meta-3:1")).toBeInTheDocument();
-    expect(screen.getByTestId("chapter-structure-episode-actions-3:1")).toBeInTheDocument();
-    expect(screen.getByTestId("chapter-structure-episode-move-up-3:1")).toBeDisabled();
-    expect(screen.getByTestId("chapter-structure-episode-move-down-3:1")).toBeEnabled();
+    expect(
+      screen.getByTestId("chapter-structure-export-volume-1"),
+    ).toBeInTheDocument();
+    expect(
+      screen.queryByTestId("chapter-structure-export-volume-2"),
+    ).not.toBeInTheDocument();
+    expect(
+      screen.queryByTestId("chapter-structure-export-volume-none"),
+    ).not.toBeInTheDocument();
+    expect(
+      screen.getByTestId("chapter-structure-episode-content-3:1"),
+    ).toBeInTheDocument();
+    expect(
+      screen.getByTestId("chapter-structure-episode-header-3:1"),
+    ).toBeInTheDocument();
+    expect(
+      screen.getByTestId("chapter-structure-episode-footer-3:1"),
+    ).toBeInTheDocument();
+    expect(
+      screen.getByTestId("chapter-structure-episode-meta-3:1"),
+    ).toBeInTheDocument();
+    expect(
+      screen.getByTestId("chapter-structure-episode-actions-3:1"),
+    ).toBeInTheDocument();
+    expect(
+      screen.getByTestId("chapter-structure-episode-move-up-3:1"),
+    ).toBeDisabled();
+    expect(
+      screen.getByTestId("chapter-structure-episode-move-down-3:1"),
+    ).toBeEnabled();
     expect(
       screen.queryByTestId("chapter-structure-episode-export-zip-3:1"),
     ).not.toBeInTheDocument();
-    expect(screen.getByTestId("chapter-structure-episode-open-icon-3:1")).toBeInTheDocument();
     expect(
-      within(screen.getByTestId("chapter-structure-episode-header-3:1")).getByText(
-        "Capítulo em imagem",
-      ),
+      screen.getByTestId("chapter-structure-episode-open-icon-3:1"),
+    ).toBeInTheDocument();
+    expect(
+      within(
+        screen.getByTestId("chapter-structure-episode-header-3:1"),
+      ).getByText("Capítulo em imagem"),
     ).toHaveClass("line-clamp-2");
-    expect(screen.getByTestId("chapter-structure-episode-footer-4:1")).toBeInTheDocument();
-    expect(screen.getByTestId("chapter-structure-episode-meta-4:1")).toBeInTheDocument();
-    expect(screen.getByTestId("chapter-structure-episode-actions-4:1")).toBeInTheDocument();
-    expect(screen.getByTestId("chapter-structure-episode-move-up-4:1")).toBeEnabled();
-    expect(screen.getByTestId("chapter-structure-episode-move-down-4:1")).toBeEnabled();
+    expect(
+      screen.getByTestId("chapter-structure-episode-footer-4:1"),
+    ).toBeInTheDocument();
+    expect(
+      screen.getByTestId("chapter-structure-episode-meta-4:1"),
+    ).toBeInTheDocument();
+    expect(
+      screen.getByTestId("chapter-structure-episode-actions-4:1"),
+    ).toBeInTheDocument();
+    expect(
+      screen.getByTestId("chapter-structure-episode-move-up-4:1"),
+    ).toBeEnabled();
+    expect(
+      screen.getByTestId("chapter-structure-episode-move-down-4:1"),
+    ).toBeEnabled();
     expect(
       screen.queryByTestId("chapter-structure-episode-export-zip-4:1"),
     ).not.toBeInTheDocument();
-    expect(screen.queryByTestId("chapter-structure-episode-open-icon-4:1")).not.toBeInTheDocument();
-    expect(screen.getByTestId("chapter-structure-episode-footer-5:1")).toBeInTheDocument();
-    expect(screen.getByTestId("chapter-structure-episode-meta-5:1")).toBeInTheDocument();
-    expect(screen.getByTestId("chapter-structure-episode-actions-5:1")).toBeInTheDocument();
-    expect(screen.getByTestId("chapter-structure-episode-move-up-5:1")).toBeEnabled();
-    expect(screen.getByTestId("chapter-structure-episode-move-down-5:1")).toBeDisabled();
+    expect(
+      screen.queryByTestId("chapter-structure-episode-open-icon-4:1"),
+    ).not.toBeInTheDocument();
+    expect(
+      screen.getByTestId("chapter-structure-episode-footer-5:1"),
+    ).toBeInTheDocument();
+    expect(
+      screen.getByTestId("chapter-structure-episode-meta-5:1"),
+    ).toBeInTheDocument();
+    expect(
+      screen.getByTestId("chapter-structure-episode-actions-5:1"),
+    ).toBeInTheDocument();
+    expect(
+      screen.getByTestId("chapter-structure-episode-move-up-5:1"),
+    ).toBeEnabled();
+    expect(
+      screen.getByTestId("chapter-structure-episode-move-down-5:1"),
+    ).toBeDisabled();
     expect(
       screen.queryByTestId("chapter-structure-episode-export-zip-5:1"),
     ).not.toBeInTheDocument();
-    expect(screen.queryByTestId("chapter-structure-episode-open-icon-5:1")).not.toBeInTheDocument();
+    expect(
+      screen.queryByTestId("chapter-structure-episode-open-icon-5:1"),
+    ).not.toBeInTheDocument();
     fireEvent.click(screen.getByTestId("chapter-structure-group-toggle-2"));
-    expect(screen.getByTestId("chapter-structure-episode-actions-6:2")).toBeInTheDocument();
-    expect(screen.getByTestId("chapter-structure-episode-move-up-6:2")).toBeDisabled();
-    expect(screen.getByTestId("chapter-structure-episode-move-down-6:2")).toBeDisabled();
+    expect(
+      screen.getByTestId("chapter-structure-episode-actions-6:2"),
+    ).toBeInTheDocument();
+    expect(
+      screen.getByTestId("chapter-structure-episode-move-up-6:2"),
+    ).toBeDisabled();
+    expect(
+      screen.getByTestId("chapter-structure-episode-move-down-6:2"),
+    ).toBeDisabled();
     expect(
       screen.queryByTestId("chapter-structure-episode-export-zip-6:2"),
     ).not.toBeInTheDocument();
-    expect(screen.getByTestId("chapter-structure-episode-open-icon-6:2")).toBeInTheDocument();
+    expect(
+      screen.getByTestId("chapter-structure-episode-open-icon-6:2"),
+    ).toBeInTheDocument();
 
     fireEvent.click(screen.getByTestId("mock-stage-add"));
     await screen.findByTestId("chapter-structure-stage-select-stage-1");
-    expect(screen.queryByTestId("chapter-structure-episode-move-up-7:1")).not.toBeInTheDocument();
-    expect(screen.queryByTestId("chapter-structure-episode-move-down-7:1")).not.toBeInTheDocument();
+    expect(
+      screen.queryByTestId("chapter-structure-episode-move-up-7:1"),
+    ).not.toBeInTheDocument();
+    expect(
+      screen.queryByTestId("chapter-structure-episode-move-down-7:1"),
+    ).not.toBeInTheDocument();
 
     fireEvent.click(screen.getByTestId("chapter-structure-export-volume-1"));
 
@@ -1417,10 +1661,16 @@ describe("DashboardProjectChapterEditor", () => {
           ([, path, options]) =>
             path === "/api/projects/project-ln-1/manga-export/jobs" &&
             options?.method === "POST" &&
-            (options?.json as { volume?: number; includeDrafts?: boolean } | undefined)?.volume ===
-              1 &&
-            (options?.json as { volume?: number; includeDrafts?: boolean } | undefined)
-              ?.includeDrafts === false,
+            (
+              options?.json as
+                | { volume?: number; includeDrafts?: boolean }
+                | undefined
+            )?.volume === 1 &&
+            (
+              options?.json as
+                | { volume?: number; includeDrafts?: boolean }
+                | undefined
+            )?.includeDrafts === false,
         ),
       ).toBe(true);
     });
@@ -1429,7 +1679,9 @@ describe("DashboardProjectChapterEditor", () => {
       "/dashboard/projetos/project-ln-1/capitulos",
     );
 
-    fireEvent.click(screen.getByTestId("chapter-structure-episode-open-icon-3:1"));
+    fireEvent.click(
+      screen.getByTestId("chapter-structure-episode-open-icon-3:1"),
+    );
 
     expect(screen.getByTestId("location-pathname")).toHaveTextContent(
       "/dashboard/projetos/project-ln-1/capitulos",
@@ -1473,13 +1725,23 @@ describe("DashboardProjectChapterEditor", () => {
     renderEditor("/dashboard/projetos/project-ln-1/capitulos");
     await screen.findByTestId("chapter-structure-section");
 
-    expect(screen.getByTestId("chapter-structure-episode-move-up-1:2")).toBeDisabled();
-    expect(screen.getByTestId("chapter-structure-episode-move-down-1:2")).toBeEnabled();
-    expect(screen.getByTestId("chapter-structure-episode-move-up-2:2")).toBeEnabled();
-    expect(screen.getByTestId("chapter-structure-episode-move-down-2:2")).toBeDisabled();
+    expect(
+      screen.getByTestId("chapter-structure-episode-move-up-1:2"),
+    ).toBeDisabled();
+    expect(
+      screen.getByTestId("chapter-structure-episode-move-down-1:2"),
+    ).toBeEnabled();
+    expect(
+      screen.getByTestId("chapter-structure-episode-move-up-2:2"),
+    ).toBeEnabled();
+    expect(
+      screen.getByTestId("chapter-structure-episode-move-down-2:2"),
+    ).toBeDisabled();
     expect(getStructureGroupChapterOrder("2")).toEqual(["1:2", "2:2"]);
 
-    fireEvent.click(screen.getByTestId("chapter-structure-episode-move-up-2:2"));
+    fireEvent.click(
+      screen.getByTestId("chapter-structure-episode-move-up-2:2"),
+    );
 
     await waitFor(() => {
       expect(getStructureGroupChapterOrder("2")).toEqual(["2:2", "1:2"]);
@@ -1539,7 +1801,9 @@ describe("DashboardProjectChapterEditor", () => {
 
     expect(getStructureGroupChapterOrder("2")).toEqual(["1:2", "2:2"]);
 
-    fireEvent.click(screen.getByTestId("chapter-structure-episode-move-up-2:2"));
+    fireEvent.click(
+      screen.getByTestId("chapter-structure-episode-move-up-2:2"),
+    );
 
     await waitFor(() => {
       expect(getStructureGroupChapterOrder("2")).toEqual(["2:2", "1:2"]);
@@ -1607,23 +1871,30 @@ describe("DashboardProjectChapterEditor", () => {
     renderEditor("/dashboard/projetos/project-ln-1/capitulos");
     await screen.findByTestId("manga-workflow-panel");
 
-    fireEvent.click(screen.getByTestId("chapter-structure-episode-move-up-99:1"));
+    fireEvent.click(
+      screen.getByTestId("chapter-structure-episode-move-up-99:1"),
+    );
 
     await waitFor(() => {
       const saveCall = apiFetchMock.mock.calls.find(
-        ([, path, options]) => path === "/api/projects/project-ln-1" && options?.method === "PUT",
+        ([, path, options]) =>
+          path === "/api/projects/project-ln-1" && options?.method === "PUT",
       );
       expect(saveCall).toBeDefined();
-      const payload = (saveCall?.[2] as { json?: Record<string, unknown> } | undefined)?.json;
+      const payload = (
+        saveCall?.[2] as { json?: Record<string, unknown> } | undefined
+      )?.json;
       expect(
-        ((payload?.episodeDownloads as Array<Record<string, unknown>> | undefined) || []).map(
-          (episode) => ({
-            number: episode.number,
-            volume: episode.volume,
-            readingOrder: episode.readingOrder,
-            entryKind: episode.entryKind,
-          }),
-        ),
+        (
+          (payload?.episodeDownloads as
+            | Array<Record<string, unknown>>
+            | undefined) || []
+        ).map((episode) => ({
+          number: episode.number,
+          volume: episode.volume,
+          readingOrder: episode.readingOrder,
+          entryKind: episode.entryKind,
+        })),
       ).toEqual([
         { number: 99, volume: 1, readingOrder: 1, entryKind: "extra" },
         { number: 1, volume: 1, readingOrder: 2, entryKind: "main" },
@@ -1637,22 +1908,32 @@ describe("DashboardProjectChapterEditor", () => {
     await screen.findByTestId("mock-lexical");
 
     openIdentityAccordion();
-    fireEvent.change(document.getElementById("chapter-title-standard") as HTMLInputElement, {
-      target: { value: "Capítulo 2 alterado" },
-    });
+    fireEvent.change(
+      document.getElementById("chapter-title-standard") as HTMLInputElement,
+      {
+        target: { value: "Capítulo 2 alterado" },
+      },
+    );
 
-    fireEvent.click(screen.getByTestId("chapter-structure-episode-move-up-2:2"));
+    fireEvent.click(
+      screen.getByTestId("chapter-structure-episode-move-up-2:2"),
+    );
 
     const leaveDialog = await findLeaveDialog();
     expect(leaveDialog).toBeInTheDocument();
-    fireEvent.click(within(leaveDialog).getByRole("button", { name: /Cancelar/i }));
+    fireEvent.click(
+      within(leaveDialog).getByRole("button", { name: /Cancelar/i }),
+    );
 
     await waitFor(() => {
-      expect(screen.queryByTestId("chapter-unsaved-leave-dialog")).not.toBeInTheDocument();
+      expect(
+        screen.queryByTestId("chapter-unsaved-leave-dialog"),
+      ).not.toBeInTheDocument();
     });
     expect(
       apiFetchMock.mock.calls.some(
-        ([, path, options]) => path === "/api/projects/project-ln-1" && options?.method === "PUT",
+        ([, path, options]) =>
+          path === "/api/projects/project-ln-1" && options?.method === "PUT",
       ),
     ).toBe(false);
   });
@@ -1709,23 +1990,30 @@ describe("DashboardProjectChapterEditor", () => {
     renderEditor("/dashboard/projetos/project-ln-1/capitulos");
     await screen.findByTestId("manga-workflow-panel");
 
-    fireEvent.click(screen.getByTestId("chapter-structure-episode-move-up-99:1"));
+    fireEvent.click(
+      screen.getByTestId("chapter-structure-episode-move-up-99:1"),
+    );
 
     await waitFor(() => {
       const saveCall = apiFetchMock.mock.calls.find(
-        ([, path, options]) => path === "/api/projects/project-ln-1" && options?.method === "PUT",
+        ([, path, options]) =>
+          path === "/api/projects/project-ln-1" && options?.method === "PUT",
       );
       expect(saveCall).toBeDefined();
-      const payload = (saveCall?.[2] as { json?: Record<string, unknown> } | undefined)?.json;
+      const payload = (
+        saveCall?.[2] as { json?: Record<string, unknown> } | undefined
+      )?.json;
       expect(
-        ((payload?.episodeDownloads as Array<Record<string, unknown>> | undefined) || []).map(
-          (episode) => ({
-            number: episode.number,
-            volume: episode.volume,
-            readingOrder: episode.readingOrder,
-            entryKind: episode.entryKind,
-          }),
-        ),
+        (
+          (payload?.episodeDownloads as
+            | Array<Record<string, unknown>>
+            | undefined) || []
+        ).map((episode) => ({
+          number: episode.number,
+          volume: episode.volume,
+          readingOrder: episode.readingOrder,
+          entryKind: episode.entryKind,
+        })),
       ).toEqual([
         { number: 99, volume: 1, readingOrder: 1, entryKind: "extra" },
         { number: 1, volume: 1, readingOrder: 2, entryKind: "main" },
@@ -1741,10 +2029,16 @@ describe("DashboardProjectChapterEditor", () => {
     renderEditor("/dashboard/projetos/project-ln-1/capitulos");
     await screen.findByTestId("chapter-structure-section");
 
-    expect(screen.getByTestId("chapter-structure-episode-open-icon-1:2")).toBeInTheDocument();
-    expect(screen.queryByTestId("chapter-structure-episode-open-icon-2:2")).not.toBeInTheDocument();
+    expect(
+      screen.getByTestId("chapter-structure-episode-open-icon-1:2"),
+    ).toBeInTheDocument();
+    expect(
+      screen.queryByTestId("chapter-structure-episode-open-icon-2:2"),
+    ).not.toBeInTheDocument();
 
-    fireEvent.click(screen.getByTestId("chapter-structure-episode-open-icon-1:2"));
+    fireEvent.click(
+      screen.getByTestId("chapter-structure-episode-open-icon-1:2"),
+    );
 
     expect(openMock).toHaveBeenCalledWith(
       "/projeto/project-ln-1/leitura/1?volume=2",
@@ -1788,7 +2082,9 @@ describe("DashboardProjectChapterEditor", () => {
     await screen.findByTestId("manga-workflow-panel");
     fireEvent.click(screen.getByTestId("mock-stage-add"));
 
-    const pendingEntry = await screen.findByTestId("chapter-structure-stage-select-stage-1");
+    const pendingEntry = await screen.findByTestId(
+      "chapter-structure-stage-select-stage-1",
+    );
     expect(pendingEntry).toHaveTextContent("Capítulo pendente");
     expectStructureGroupSelected("1");
     expectStructureGroupNotSelected("none");
@@ -1796,8 +2092,12 @@ describe("DashboardProjectChapterEditor", () => {
     const previousPath = screen.getByTestId("location-pathname").textContent;
     fireEvent.click(pendingEntry);
 
-    expect(screen.getByTestId("location-pathname").textContent).toBe(previousPath);
-    expect(screen.getByTestId("mock-stage-selected")).toHaveTextContent("stage-1");
+    expect(screen.getByTestId("location-pathname").textContent).toBe(
+      previousPath,
+    );
+    expect(screen.getByTestId("mock-stage-selected")).toHaveTextContent(
+      "stage-1",
+    );
   });
 
   it("abre o editor de volume existente ao selecionar um capitulo pendente com volume conhecido", async () => {
@@ -1825,8 +2125,12 @@ describe("DashboardProjectChapterEditor", () => {
 
     const volumeEditor = await screen.findByTestId("chapter-volume-editor");
     expect(screen.getByDisplayValue("Sinopse do volume 1")).toBeInTheDocument();
-    expect(screen.queryByPlaceholderText(/URL da capa do volume/i)).not.toBeInTheDocument();
-    expect(within(volumeEditor).getByRole("button", { name: "Biblioteca" })).toBeInTheDocument();
+    expect(
+      screen.queryByPlaceholderText(/URL da capa do volume/i),
+    ).not.toBeInTheDocument();
+    expect(
+      within(volumeEditor).getByRole("button", { name: "Biblioteca" }),
+    ).toBeInTheDocument();
     expectStructureGroupSelected("1");
     expectStructureGroupNotSelected("2");
   });
@@ -1846,9 +2150,13 @@ describe("DashboardProjectChapterEditor", () => {
 
     const volumeEditor = await screen.findByTestId("chapter-volume-editor");
     expect(volumeEditor).toBeInTheDocument();
-    expect(within(volumeEditor).getAllByText("Volume 5").length).toBeGreaterThan(0);
+    expect(
+      within(volumeEditor).getAllByText("Volume 5").length,
+    ).toBeGreaterThan(0);
     expect(screen.getByLabelText(/Sinopse do volume/i)).toHaveValue("");
-    expect(screen.queryByPlaceholderText(/URL da capa do volume/i)).not.toBeInTheDocument();
+    expect(
+      screen.queryByPlaceholderText(/URL da capa do volume/i),
+    ).not.toBeInTheDocument();
     expectStructureGroupSelected("5");
     expectStructureGroupNotSelected("2");
   });
@@ -1874,8 +2182,12 @@ describe("DashboardProjectChapterEditor", () => {
     expect(
       getTopActions().getByRole("button", { name: /Salvar como rascunho/i }),
     ).toBeInTheDocument();
-    expect(getTopActions().getByRole("button", { name: /^Publicar$/i })).toBeInTheDocument();
-    expect(screen.queryByTestId("chapter-editor-footer-actions")).not.toBeInTheDocument();
+    expect(
+      getTopActions().getByRole("button", { name: /^Publicar$/i }),
+    ).toBeInTheDocument();
+    expect(
+      screen.queryByTestId("chapter-editor-footer-actions"),
+    ).not.toBeInTheDocument();
   });
 
   it("não abre modal ao sair com capítulo manual vazio ainda intocado no workflow de mangá", async () => {
@@ -1893,11 +2205,15 @@ describe("DashboardProjectChapterEditor", () => {
     fireEvent.click(screen.getByTestId("dashboard-shell-user-card"));
 
     await waitFor(() => {
-      expect(screen.getByTestId("location-pathname").textContent).toBe("/dashboard/usuarios");
+      expect(screen.getByTestId("location-pathname").textContent).toBe(
+        "/dashboard/usuarios",
+      );
     });
     expect(screen.getByTestId("location-search").textContent).toBe("?edit=me");
     expect(screen.getByTestId("dashboard-users-page")).toBeInTheDocument();
-    expect(screen.queryByTestId("chapter-unsaved-leave-dialog")).not.toBeInTheDocument();
+    expect(
+      screen.queryByTestId("chapter-unsaved-leave-dialog"),
+    ).not.toBeInTheDocument();
   });
 
   it("protege a saída da rota quando o workflow de mangá tem alterações não salvas", async () => {
@@ -1915,10 +2231,14 @@ describe("DashboardProjectChapterEditor", () => {
     fireEvent.click(screen.getByTestId("dashboard-shell-user-card"));
 
     let leaveDialog = await findLeaveDialog();
-    fireEvent.click(within(leaveDialog).getByRole("button", { name: /Cancelar/i }));
+    fireEvent.click(
+      within(leaveDialog).getByRole("button", { name: /Cancelar/i }),
+    );
 
     await waitFor(() => {
-      expect(screen.queryByTestId("chapter-unsaved-leave-dialog")).not.toBeInTheDocument();
+      expect(
+        screen.queryByTestId("chapter-unsaved-leave-dialog"),
+      ).not.toBeInTheDocument();
     });
     expect(screen.getByTestId("location-pathname")).toHaveTextContent(
       "/dashboard/projetos/project-ln-1/capitulos",
@@ -1927,11 +2247,15 @@ describe("DashboardProjectChapterEditor", () => {
     fireEvent.click(screen.getByTestId("dashboard-shell-user-card"));
     leaveDialog = await findLeaveDialog();
     fireEvent.click(
-      within(leaveDialog).getByRole("button", { name: /Salvar como rascunho e continuar/i }),
+      within(leaveDialog).getByRole("button", {
+        name: /Salvar como rascunho e continuar/i,
+      }),
     );
 
     await waitFor(() => {
-      expect(screen.getByTestId("location-pathname").textContent).toBe("/dashboard/usuarios");
+      expect(screen.getByTestId("location-pathname").textContent).toBe(
+        "/dashboard/usuarios",
+      );
     });
     expect(screen.getByTestId("location-search").textContent).toBe("?edit=me");
     expect(screen.getByTestId("dashboard-users-page")).toBeInTheDocument();
@@ -1940,11 +2264,18 @@ describe("DashboardProjectChapterEditor", () => {
       if (path !== "/api/projects/project-ln-1" || options?.method !== "PUT") {
         return false;
       }
-      const payload = (options as { json?: Record<string, unknown> } | undefined)?.json;
-      return Array.isArray(payload?.episodeDownloads) && payload.episodeDownloads.length > 0;
+      const payload = (
+        options as { json?: Record<string, unknown> } | undefined
+      )?.json;
+      return (
+        Array.isArray(payload?.episodeDownloads) &&
+        payload.episodeDownloads.length > 0
+      );
     });
     expect(stageSaveCall).toBeDefined();
-    const payload = (stageSaveCall?.[2] as { json?: Record<string, unknown> } | undefined)?.json;
+    const payload = (
+      stageSaveCall?.[2] as { json?: Record<string, unknown> } | undefined
+    )?.json;
     expect(payload?.episodeDownloads).toEqual(
       expect.arrayContaining([
         expect.objectContaining({
@@ -1972,10 +2303,16 @@ describe("DashboardProjectChapterEditor", () => {
 
     fireEvent.click(screen.getByTestId("dashboard-shell-user-card"));
     const leaveDialog = await findLeaveDialog();
-    fireEvent.click(within(leaveDialog).getByRole("button", { name: /Descartar e continuar/i }));
+    fireEvent.click(
+      within(leaveDialog).getByRole("button", {
+        name: /Descartar e continuar/i,
+      }),
+    );
 
     await waitFor(() => {
-      expect(screen.getByTestId("location-pathname").textContent).toBe("/dashboard/usuarios");
+      expect(screen.getByTestId("location-pathname").textContent).toBe(
+        "/dashboard/usuarios",
+      );
     });
     expect(screen.getByTestId("location-search").textContent).toBe("?edit=me");
     expect(screen.getByTestId("dashboard-users-page")).toBeInTheDocument();
@@ -2027,40 +2364,68 @@ describe("DashboardProjectChapterEditor", () => {
     const supportRow = screen.getByTestId("chapter-workspace-support-row");
     const sidebar = screen.getByTestId("chapter-editor-sidebar");
     const actionRail = screen.getByTestId("chapter-editor-action-rail");
-    const topStatusGroup = screen.getByTestId("chapter-editor-top-status-group");
+    const topStatusGroup = screen.getByTestId(
+      "chapter-editor-top-status-group",
+    );
     const topActions = screen.getByTestId("chapter-editor-top-actions");
     const statusBar = screen.getByTestId("chapter-editor-status-bar");
     const structureSection = screen.getByTestId("chapter-structure-section");
-    const structureScrollRegion = screen.getByTestId("chapter-structure-scroll-region");
-    const structureGroup = screen.getByTestId("chapter-structure-group-2");
-    const activeChapterCard = screen.getByTestId("chapter-structure-episode-open-1:2");
-    const structureAccordion = structureSection.parentElement;
-    const structureTrigger = within(screen.getByTestId("chapter-structure-section")).getByRole(
-      "button",
-      { name: /Estrutura/i },
+    const structureScrollRegion = screen.getByTestId(
+      "chapter-structure-scroll-region",
     );
+    const structureGroup = screen.getByTestId("chapter-structure-group-2");
+    const activeChapterCard = screen.getByTestId(
+      "chapter-structure-episode-open-1:2",
+    );
+    const structureAccordion = structureSection.parentElement;
+    const structureTrigger = within(
+      screen.getByTestId("chapter-structure-section"),
+    ).getByRole("button", { name: /Estrutura/i });
 
-    expect(screen.getByTestId("chapter-editor-upper-layout")).not.toHaveClass("px-4");
-    expect(screen.getByTestId("chapter-editor-upper-layout")).not.toHaveClass("md:px-6");
-    expect(screen.getByTestId("chapter-editor-upper-layout")).not.toHaveClass("lg:px-8");
+    expect(screen.getByTestId("chapter-editor-upper-layout")).not.toHaveClass(
+      "px-4",
+    );
+    expect(screen.getByTestId("chapter-editor-upper-layout")).not.toHaveClass(
+      "md:px-6",
+    );
+    expect(screen.getByTestId("chapter-editor-upper-layout")).not.toHaveClass(
+      "lg:px-8",
+    );
     expect(commandBar).toHaveClass("sticky", "top-3");
     expect(Array.from(upperLayout.children)).toEqual([mainColumn, sidebar]);
     expect(Array.from(mainColumn.children)).toEqual([workspace]);
-    expect(Array.from(workspace.children)).toEqual([topRow, contentAccordion, supportRow]);
+    expect(Array.from(workspace.children)).toEqual([
+      topRow,
+      contentAccordion,
+      supportRow,
+    ]);
     expect(masthead).toHaveTextContent(/Gerenciamento de Conte/i);
     expect(sidebar).toContainElement(structureSection);
-    expect(sidebar).toHaveClass("min-w-0", "xl:sticky", "xl:top-24", "xl:min-h-0");
-    expect(upperLayout.style.getPropertyValue("--dedicated-editor-sidebar-height")).toBe("34rem");
+    expect(sidebar).toHaveClass(
+      "min-w-0",
+      "xl:sticky",
+      "xl:top-24",
+      "xl:min-h-0",
+    );
+    expect(
+      upperLayout.style.getPropertyValue("--dedicated-editor-sidebar-height"),
+    ).toBe("34rem");
     expect(structureAccordion).not.toBeNull();
     expect(Array.from(sidebar.children)[0]).toBe(structureAccordion);
-    expect(structureAccordion).toHaveClass("project-editor-accordion", "space-y-2.5", "min-h-0");
+    expect(structureAccordion).toHaveClass(
+      "project-editor-accordion",
+      "space-y-2.5",
+      "min-h-0",
+    );
     expect(structureSection).toHaveClass(
       "flex",
       "max-h-[var(--dedicated-editor-sidebar-height,34rem)]",
       "min-h-0",
       "flex-col",
     );
-    expect(structureSection).not.toHaveClass("h-[var(--dedicated-editor-sidebar-height,34rem)]");
+    expect(structureSection).not.toHaveClass(
+      "h-[var(--dedicated-editor-sidebar-height,34rem)]",
+    );
     expect(structureSection).not.toHaveClass("max-h-[calc(100dvh-9rem)]");
     expect(structureScrollRegion).toHaveClass(
       "no-scrollbar",
@@ -2071,20 +2436,29 @@ describe("DashboardProjectChapterEditor", () => {
     expect(structureScrollRegion).not.toHaveClass("overscroll-contain");
     expect(structureGroup).not.toHaveClass("shadow-editor-nested-card");
     expect(activeChapterCard).not.toHaveClass("shadow-sm");
-    expect(screen.getByTestId("chapter-structure-group-header-2")).toBeInTheDocument();
-    expect(screen.getByTestId("chapter-structure-group-actions-2")).toContainElement(
+    expect(
+      screen.getByTestId("chapter-structure-group-header-2"),
+    ).toBeInTheDocument();
+    expect(
+      screen.getByTestId("chapter-structure-group-actions-2"),
+    ).toContainElement(screen.getByTestId("chapter-structure-add-chapter-2"));
+    expectStableDashboardActionButton(
       screen.getByTestId("chapter-structure-add-chapter-2"),
+      "h-9",
     );
-    expectStableDashboardActionButton(screen.getByTestId("chapter-structure-add-chapter-2"), "h-9");
     expectStructureGroupSelected("2");
     expectStructureGroupNotSelected("none");
     expect(screen.queryByTestId("chapter-epub-tools")).not.toBeInTheDocument();
     expect(screen.queryByText(/Autosave do cap/i)).not.toBeInTheDocument();
-    expect(getTopActions().getByRole("button", { name: /Salvar altera/i })).toBeInTheDocument();
+    expect(
+      getTopActions().getByRole("button", { name: /Salvar altera/i }),
+    ).toBeInTheDocument();
     expect(
       getTopActions().getByRole("button", { name: /Mover para rascunho/i }),
     ).toBeInTheDocument();
-    expect(screen.queryByTestId("chapter-editor-footer-actions")).not.toBeInTheDocument();
+    expect(
+      screen.queryByTestId("chapter-editor-footer-actions"),
+    ).not.toBeInTheDocument();
     expect(actionRail).toHaveClass("lg:flex-row", "lg:justify-between");
     expect(topStatusGroup).toContainElement(screen.getByText(/Sem alter/i));
     expect(topActions).toContainElement(
@@ -2093,7 +2467,9 @@ describe("DashboardProjectChapterEditor", () => {
     expect(topActions).toContainElement(
       getTopActions().getByRole("button", { name: /Mover para rascunho/i }),
     );
-    expect(topActions).toContainElement(screen.getByRole("button", { name: /Excluir cap/i }));
+    expect(topActions).toContainElement(
+      screen.getByRole("button", { name: /Excluir cap/i }),
+    );
     expect(
       within(statusBar).queryByRole("button", { name: /Salvar altera/i }),
     ).not.toBeInTheDocument();
@@ -2101,21 +2477,33 @@ describe("DashboardProjectChapterEditor", () => {
       within(statusBar).queryByRole("button", { name: /Excluir cap/i }),
     ).not.toBeInTheDocument();
     expect(screen.queryByRole("switch")).not.toBeInTheDocument();
-    expect(structureTrigger).toHaveClass("hover:no-underline", "py-3.5", "md:py-4");
+    expect(structureTrigger).toHaveClass(
+      "hover:no-underline",
+      "py-3.5",
+      "md:py-4",
+    );
     expect(screen.getByText("Estrutura")).toBeInTheDocument();
     expect(screen.getByText(/Volumes, filtros, navega/i)).toBeInTheDocument();
     expect(identityCard).toHaveTextContent(/Dados|Identidade do cap/i);
     expect(screen.getByText(/numera/i)).toBeInTheDocument();
     expect(identityTrigger).toHaveAttribute("aria-expanded", "false");
     expect(identitySection).toHaveAttribute("data-state", "open");
-    expect(screen.queryByTestId("chapter-volume-accordion")).not.toBeInTheDocument();
-    expect(screen.queryByTestId("chapter-volume-editor")).not.toBeInTheDocument();
-    expect(screen.queryByTestId("chapter-volume-trigger")).not.toBeInTheDocument();
+    expect(
+      screen.queryByTestId("chapter-volume-accordion"),
+    ).not.toBeInTheDocument();
+    expect(
+      screen.queryByTestId("chapter-volume-editor"),
+    ).not.toBeInTheDocument();
+    expect(
+      screen.queryByTestId("chapter-volume-trigger"),
+    ).not.toBeInTheDocument();
     expect(topRow).toContainElement(identityCard);
     expect(asideColumn).toBeNull();
     expect(contentTrigger).toHaveAttribute("aria-expanded", "true");
     expect(within(contentSection).getByText(/Espa/i)).toBeInTheDocument();
-    expect(within(contentSection).getByText(/Ambiente principal de escrita/i)).toBeInTheDocument();
+    expect(
+      within(contentSection).getByText(/Ambiente principal de escrita/i),
+    ).toBeInTheDocument();
     expect(screen.queryByText("Texto / Lexical")).not.toBeInTheDocument();
     expect(screen.queryByText("Imagem / Manga")).not.toBeInTheDocument();
     expect(contentBody).toHaveAttribute("aria-hidden", "false");
@@ -2126,7 +2514,9 @@ describe("DashboardProjectChapterEditor", () => {
       "data-[state=closed]:animate-accordion-up",
       "data-[state=open]:animate-accordion-down",
     );
-    expect(screen.queryByTestId("chapter-metadata-accordion")).not.toBeInTheDocument();
+    expect(
+      screen.queryByTestId("chapter-metadata-accordion"),
+    ).not.toBeInTheDocument();
     expect(lexicalEditor).toHaveClass(
       "lexical-playground--stretch",
       "lexical-playground--chapter-editor",
@@ -2135,10 +2525,11 @@ describe("DashboardProjectChapterEditor", () => {
     expect(
       lexicalEditorPropsSpy.mock.calls.some(([props]) =>
         Boolean(
-          (props as { className?: string; followCaretScroll?: boolean }).followCaretScroll &&
-            String((props as { className?: string }).className || "").includes(
-              "lexical-playground--chapter-editor",
-            ),
+          (props as { className?: string; followCaretScroll?: boolean })
+            .followCaretScroll &&
+          String((props as { className?: string }).className || "").includes(
+            "lexical-playground--chapter-editor",
+          ),
         ),
       ),
     ).toBe(true);
@@ -2170,23 +2561,23 @@ describe("DashboardProjectChapterEditor", () => {
       "flex-wrap",
       "gap-3",
     );
-    expect(document.getElementById("chapter-title-standard") as HTMLInputElement).toHaveClass(
-      "w-full",
-    );
-    expect(document.getElementById("chapter-number-standard") as HTMLInputElement).toHaveClass(
-      "w-full",
-      "sm:w-[132px]",
-    );
-    expect(document.getElementById("chapter-volume-standard") as HTMLInputElement).toHaveClass(
-      "w-full",
-      "sm:w-[132px]",
-    );
-    expect(screen.queryByLabelText(/Ordem de leitura/i)).not.toBeInTheDocument();
-    expect(document.getElementById("chapter-synopsis-standard") as HTMLTextAreaElement).toHaveClass(
-      "w-full",
-      "app-textarea",
-      "resize-none",
-    );
+    expect(
+      document.getElementById("chapter-title-standard") as HTMLInputElement,
+    ).toHaveClass("w-full");
+    expect(
+      document.getElementById("chapter-number-standard") as HTMLInputElement,
+    ).toHaveClass("w-full", "sm:w-[132px]");
+    expect(
+      document.getElementById("chapter-volume-standard") as HTMLInputElement,
+    ).toHaveClass("w-full", "sm:w-[132px]");
+    expect(
+      screen.queryByLabelText(/Ordem de leitura/i),
+    ).not.toBeInTheDocument();
+    expect(
+      document.getElementById(
+        "chapter-synopsis-standard",
+      ) as HTMLTextAreaElement,
+    ).toHaveClass("w-full", "app-textarea", "resize-none");
   });
 
   it("mede a coluna principal textual para definir a altura da sidebar", async () => {
@@ -2304,36 +2695,60 @@ describe("DashboardProjectChapterEditor", () => {
     const contentCard = screen.getByTestId("chapter-content-accordion");
     expect(Array.from(workspace.children)).toEqual([topRow, contentCard]);
     expect(Array.from(topRow.children)).toEqual([identityCard, progressCard]);
-    expect(screen.queryByTestId("chapter-publication-section")).not.toBeInTheDocument();
-    expect(screen.queryByTestId("chapter-workspace-support-row")).not.toBeInTheDocument();
-    expect(screen.queryByTestId("chapter-cover-section")).not.toBeInTheDocument();
-    expect(screen.queryByTestId("chapter-sources-section")).not.toBeInTheDocument();
+    expect(
+      screen.queryByTestId("chapter-publication-section"),
+    ).not.toBeInTheDocument();
+    expect(
+      screen.queryByTestId("chapter-workspace-support-row"),
+    ).not.toBeInTheDocument();
+    expect(
+      screen.queryByTestId("chapter-cover-section"),
+    ).not.toBeInTheDocument();
+    expect(
+      screen.queryByTestId("chapter-sources-section"),
+    ).not.toBeInTheDocument();
     expect(within(identityCard).getByText(/Dados do cap/i)).toBeInTheDocument();
     expect(within(progressCard).getByText("Em progresso")).toBeInTheDocument();
-    expect(screen.getByTestId("chapter-progress-percent")).toHaveTextContent("0%");
-    expect(screen.getByTestId("chapter-progress-stage-track")).toBeInTheDocument();
-    expect(screen.getByTestId("chapter-progress-stage-list")).toBeInTheDocument();
-    expect(screen.getByTestId("chapter-progress-stage-chip-aguardando-raw")).toHaveAttribute(
+    expect(screen.getByTestId("chapter-progress-percent")).toHaveTextContent(
+      "0%",
+    );
+    expect(
+      screen.getByTestId("chapter-progress-stage-track"),
+    ).toBeInTheDocument();
+    expect(
+      screen.getByTestId("chapter-progress-stage-list"),
+    ).toBeInTheDocument();
+    expect(
+      screen.getByTestId("chapter-progress-stage-chip-aguardando-raw"),
+    ).toHaveAttribute(
       "aria-label",
       expect.stringMatching(/Aguardando Raw: atual/i),
     );
     const currentStageBadge = within(progressCard)
       .getAllByText("Atual")
-      .find((element) => String((element as HTMLElement).className || "").includes("rounded-full"));
+      .find((element) =>
+        String((element as HTMLElement).className || "").includes(
+          "rounded-full",
+        ),
+      );
     expect(within(progressCard).getAllByText("Atual")).toHaveLength(1);
-    expect(currentStageBadge).toHaveClass("border-accent/60", "bg-accent/10", "text-accent");
-    expect(within(contentCard).getByRole("heading", { name: /Páginas/i })).toBeInTheDocument();
-    expect(document.getElementById("chapter-volume-image") as HTMLInputElement).toHaveClass(
-      "w-full",
-      "sm:w-[132px]",
+    expect(currentStageBadge).toHaveClass(
+      "border-accent/60",
+      "bg-accent/10",
+      "text-accent",
     );
-    expect(document.getElementById("chapter-number-image") as HTMLInputElement).toHaveClass(
-      "w-full",
-      "sm:w-[132px]",
-    );
-    expect(document.getElementById("chapter-title-image") as HTMLInputElement).toHaveClass(
-      "w-full",
-    );
+    expect(
+      within(contentCard).getByRole("heading", { name: /Páginas/i }),
+    ).toBeInTheDocument();
+    expect(
+      document.getElementById("chapter-volume-image") as HTMLInputElement,
+    ).toHaveClass("w-full", "sm:w-[132px]");
+    expect(
+      document.getElementById("chapter-number-image") as HTMLInputElement,
+    ).toHaveClass("w-full", "sm:w-[132px]");
+    expect(
+      document.getElementById("chapter-title-image") as HTMLInputElement,
+    ).toHaveClass("w-full");
     expect(screen.getByTestId("chapter-image-compact-fields")).toHaveClass(
       "flex",
       "flex-wrap",
@@ -2341,17 +2756,27 @@ describe("DashboardProjectChapterEditor", () => {
     );
     expect(screen.queryByText("Texto / Lexical")).not.toBeInTheDocument();
     expect(screen.queryByText("Imagem / Manga")).not.toBeInTheDocument();
-    expect(screen.queryByLabelText(/Ordem de leitura/i)).not.toBeInTheDocument();
+    expect(
+      screen.queryByLabelText(/Ordem de leitura/i),
+    ).not.toBeInTheDocument();
     expect(screen.getByLabelText(/Sinopse/i)).toBeInTheDocument();
     expect(screen.getByLabelText(/Sinopse/i)).toHaveValue("");
-    expect(screen.queryByTestId("manga-pages-utilities-trigger")).not.toBeInTheDocument();
-    expect(screen.getByTestId("manga-pages-export-actions")).toBeInTheDocument();
+    expect(
+      screen.queryByTestId("manga-pages-utilities-trigger"),
+    ).not.toBeInTheDocument();
+    expect(
+      screen.getByTestId("manga-pages-export-actions"),
+    ).toBeInTheDocument();
     expect(screen.getByTestId("manga-pages-sources")).toBeInTheDocument();
     expect(
       getTopActions().getByRole("button", { name: /Salvar como rascunho/i }),
     ).toBeInTheDocument();
-    expect(getTopActions().getByRole("button", { name: /Publicar/i })).toBeInTheDocument();
-    expect(screen.queryByTestId("chapter-editor-footer-actions")).not.toBeInTheDocument();
+    expect(
+      getTopActions().getByRole("button", { name: /Publicar/i }),
+    ).toBeInTheDocument();
+    expect(
+      screen.queryByTestId("chapter-editor-footer-actions"),
+    ).not.toBeInTheDocument();
   });
 
   it("renderiza e persiste o progresso no painel de light novel", async () => {
@@ -2372,17 +2797,25 @@ describe("DashboardProjectChapterEditor", () => {
     await screen.findByTestId("mock-lexical");
 
     const statusBar = screen.getByTestId("chapter-editor-status-bar");
-    const positionPill = within(statusBar).getByTestId("chapter-editor-status-position-badge");
+    const positionPill = within(statusBar).getByTestId(
+      "chapter-editor-status-position-badge",
+    );
     expect(positionPill).toHaveTextContent(/\d+ de \d+/i);
-    expect(within(statusBar).getByTestId("chapter-editor-status-meta-group")).toBeInTheDocument();
-    const chapterPill = within(statusBar).getByTestId("chapter-editor-status-pill-chapter");
-    const readingPill = within(statusBar).getByTestId("chapter-editor-status-pill-reading");
-    expect(within(statusBar).getByTestId("chapter-editor-status-pill-chapter")).toHaveTextContent(
-      /Cap[ií]tulo 2/i,
+    expect(
+      within(statusBar).getByTestId("chapter-editor-status-meta-group"),
+    ).toBeInTheDocument();
+    const chapterPill = within(statusBar).getByTestId(
+      "chapter-editor-status-pill-chapter",
     );
-    expect(within(statusBar).getByTestId("chapter-editor-status-pill-reading")).toHaveTextContent(
-      "Sem leitura",
+    const readingPill = within(statusBar).getByTestId(
+      "chapter-editor-status-pill-reading",
     );
+    expect(
+      within(statusBar).getByTestId("chapter-editor-status-pill-chapter"),
+    ).toHaveTextContent(/Cap[ií]tulo 2/i);
+    expect(
+      within(statusBar).getByTestId("chapter-editor-status-pill-reading"),
+    ).toHaveTextContent("Sem leitura");
     expect(positionPill).toHaveClass(
       "project-editor-status-bar__pill",
       "project-editor-status-bar__pill--position",
@@ -2396,29 +2829,36 @@ describe("DashboardProjectChapterEditor", () => {
       "project-editor-status-bar__pill--reading",
     );
 
-    expect(screen.getByTestId("chapter-progress-percent")).toHaveTextContent("29%");
-    expect(screen.getByTestId("chapter-progress-stage-chip-limpeza")).toHaveAttribute(
-      "aria-label",
-      expect.stringMatching(/Limpeza: atual/i),
+    expect(screen.getByTestId("chapter-progress-percent")).toHaveTextContent(
+      "29%",
     );
+    expect(
+      screen.getByTestId("chapter-progress-stage-chip-limpeza"),
+    ).toHaveAttribute("aria-label", expect.stringMatching(/Limpeza: atual/i));
 
     fireEvent.click(screen.getByTestId("chapter-progress-toggle-limpeza"));
 
-    expect(screen.getByTestId("chapter-progress-percent")).toHaveTextContent("43%");
-    expect(screen.getByTestId("chapter-progress-stage-chip-redrawing")).toHaveAttribute(
-      "aria-label",
-      expect.stringMatching(/Redrawing: atual/i),
+    expect(screen.getByTestId("chapter-progress-percent")).toHaveTextContent(
+      "43%",
     );
+    expect(
+      screen.getByTestId("chapter-progress-stage-chip-redrawing"),
+    ).toHaveAttribute("aria-label", expect.stringMatching(/Redrawing: atual/i));
 
-    fireEvent.click(getTopActions().getByRole("button", { name: /Salvar como rascunho/i }));
+    fireEvent.click(
+      getTopActions().getByRole("button", { name: /Salvar como rascunho/i }),
+    );
 
     await waitFor(() => {
       const saveCall = apiFetchMock.mock.calls.find(
         ([, path, options]) =>
-          path === "/api/projects/project-ln-1/chapters/2?volume=2" && options?.method === "PUT",
+          path === "/api/projects/project-ln-1/chapters/2?volume=2" &&
+          options?.method === "PUT",
       );
       expect(saveCall).toBeDefined();
-      const payload = (saveCall?.[2] as { json?: Record<string, unknown> } | undefined)?.json;
+      const payload = (
+        saveCall?.[2] as { json?: Record<string, unknown> } | undefined
+      )?.json;
       expect(payload?.chapter).toEqual(
         expect.objectContaining({
           completedStages: ["aguardando-raw", "traducao", "limpeza"],
@@ -2436,14 +2876,19 @@ describe("DashboardProjectChapterEditor", () => {
     await screen.findByTestId("mock-lexical");
 
     const sourcesSection = screen.getByTestId("chapter-sources-section");
-    const addSourceButton = within(sourcesSection).getByRole("button", { name: /^Adicionar$/i });
+    const addSourceButton = within(sourcesSection).getByRole("button", {
+      name: /^Adicionar$/i,
+    });
     expectStableDashboardActionButton(addSourceButton, "h-9");
     fireEvent.click(addSourceButton);
 
     const sourceTrigger = await waitFor(() =>
-      within(screen.getByTestId("chapter-sources-section")).getByRole("combobox", {
-        name: "Fonte 1",
-      }),
+      within(screen.getByTestId("chapter-sources-section")).getByRole(
+        "combobox",
+        {
+          name: "Fonte 1",
+        },
+      ),
     );
     const sourceUrlInput = within(
       screen.getByTestId("chapter-sources-section"),
@@ -2451,31 +2896,44 @@ describe("DashboardProjectChapterEditor", () => {
     expect(sourceUrlInput).toBeDisabled();
 
     fireEvent.click(sourceTrigger);
-    fireEvent.click(await screen.findByRole("option", { name: /^Google Drive$/i }));
+    fireEvent.click(
+      await screen.findByRole("option", { name: /^Google Drive$/i }),
+    );
     await waitFor(() => {
       expect(
-        within(screen.getByTestId("chapter-sources-section")).getByPlaceholderText("URL"),
+        within(
+          screen.getByTestId("chapter-sources-section"),
+        ).getByPlaceholderText("URL"),
       ).not.toBeDisabled();
     });
 
     fireEvent.change(
-      within(screen.getByTestId("chapter-sources-section")).getByPlaceholderText("URL"),
+      within(
+        screen.getByTestId("chapter-sources-section"),
+      ).getByPlaceholderText("URL"),
       {
         target: { value: "https://example.com/capitulo-2-google-drive" },
       },
     );
     await waitFor(() => {
-      expect(getTopActions().getByRole("button", { name: /Salvar como rascunho/i })).toBeEnabled();
+      expect(
+        getTopActions().getByRole("button", { name: /Salvar como rascunho/i }),
+      ).toBeEnabled();
     });
-    fireEvent.click(getTopActions().getByRole("button", { name: /Salvar como rascunho/i }));
+    fireEvent.click(
+      getTopActions().getByRole("button", { name: /Salvar como rascunho/i }),
+    );
 
     await waitFor(() => {
       const saveCall = apiFetchMock.mock.calls.find(
         ([, path, options]) =>
-          path === "/api/projects/project-ln-1/chapters/2?volume=2" && options?.method === "PUT",
+          path === "/api/projects/project-ln-1/chapters/2?volume=2" &&
+          options?.method === "PUT",
       );
       expect(saveCall).toBeDefined();
-      const payload = (saveCall?.[2] as { json?: Record<string, unknown> } | undefined)?.json;
+      const payload = (
+        saveCall?.[2] as { json?: Record<string, unknown> } | undefined
+      )?.json;
       expect(payload?.chapter).toEqual(
         expect.objectContaining({
           sources: [
@@ -2527,17 +2985,25 @@ describe("DashboardProjectChapterEditor", () => {
     await screen.findByTestId("manga-chapter-pages-editor");
 
     const statusBar = screen.getByTestId("chapter-editor-status-bar");
-    const positionPill = within(statusBar).getByTestId("chapter-editor-status-position-badge");
+    const positionPill = within(statusBar).getByTestId(
+      "chapter-editor-status-position-badge",
+    );
     expect(positionPill).toHaveTextContent(/\d+ de \d+/i);
-    expect(within(statusBar).getByTestId("chapter-editor-status-meta-group")).toBeInTheDocument();
-    expect(within(statusBar).getByTestId("chapter-editor-status-pill-chapter")).toHaveTextContent(
-      /Cap[ií]tulo 3/i,
+    expect(
+      within(statusBar).getByTestId("chapter-editor-status-meta-group"),
+    ).toBeInTheDocument();
+    expect(
+      within(statusBar).getByTestId("chapter-editor-status-pill-chapter"),
+    ).toHaveTextContent(/Cap[ií]tulo 3/i);
+    expect(
+      within(statusBar).getByTestId("chapter-editor-status-pill-reading"),
+    ).toHaveTextContent("Com leitura");
+    const chapterPill = within(statusBar).getByTestId(
+      "chapter-editor-status-pill-chapter",
     );
-    expect(within(statusBar).getByTestId("chapter-editor-status-pill-reading")).toHaveTextContent(
-      "Com leitura",
+    const readingPill = within(statusBar).getByTestId(
+      "chapter-editor-status-pill-reading",
     );
-    const chapterPill = within(statusBar).getByTestId("chapter-editor-status-pill-chapter");
-    const readingPill = within(statusBar).getByTestId("chapter-editor-status-pill-reading");
     expect(positionPill).toHaveClass(
       "project-editor-status-bar__pill",
       "project-editor-status-bar__pill--position",
@@ -2551,32 +3017,39 @@ describe("DashboardProjectChapterEditor", () => {
       "project-editor-status-bar__pill--reading",
     );
 
-    expect(screen.getByTestId("chapter-progress-percent")).toHaveTextContent("14%");
-    expect(screen.getByTestId("chapter-progress-stage-chip-traducao")).toHaveAttribute(
-      "aria-label",
-      expect.stringMatching(/Tradução: atual/i),
+    expect(screen.getByTestId("chapter-progress-percent")).toHaveTextContent(
+      "14%",
     );
+    expect(
+      screen.getByTestId("chapter-progress-stage-chip-traducao"),
+    ).toHaveAttribute("aria-label", expect.stringMatching(/Tradução: atual/i));
 
     fireEvent.click(screen.getByTestId("chapter-progress-toggle-traducao"));
 
-    expect(screen.getByTestId("chapter-progress-percent")).toHaveTextContent("29%");
-    expect(screen.getByTestId("chapter-progress-stage-chip-limpeza")).toHaveAttribute(
-      "aria-label",
-      expect.stringMatching(/Limpeza: atual/i),
+    expect(screen.getByTestId("chapter-progress-percent")).toHaveTextContent(
+      "29%",
     );
+    expect(
+      screen.getByTestId("chapter-progress-stage-chip-limpeza"),
+    ).toHaveAttribute("aria-label", expect.stringMatching(/Limpeza: atual/i));
     fireEvent.change(screen.getByLabelText(/Sinopse/i), {
       target: { value: "Sinopse opcional do capitulo em imagem" },
     });
 
-    fireEvent.click(getTopActions().getByRole("button", { name: /Salvar como rascunho/i }));
+    fireEvent.click(
+      getTopActions().getByRole("button", { name: /Salvar como rascunho/i }),
+    );
 
     await waitFor(() => {
       const saveCall = apiFetchMock.mock.calls.find(
         ([, path, options]) =>
-          path === "/api/projects/project-ln-1/chapters/3?volume=1" && options?.method === "PUT",
+          path === "/api/projects/project-ln-1/chapters/3?volume=1" &&
+          options?.method === "PUT",
       );
       expect(saveCall).toBeDefined();
-      const payload = (saveCall?.[2] as { json?: Record<string, unknown> } | undefined)?.json;
+      const payload = (
+        saveCall?.[2] as { json?: Record<string, unknown> } | undefined
+      )?.json;
       expect(payload?.chapter).toEqual(
         expect.objectContaining({
           completedStages: ["aguardando-raw", "traducao"],
@@ -2623,10 +3096,13 @@ describe("DashboardProjectChapterEditor", () => {
 
     await waitFor(() => {
       const saveCall = apiFetchMock.mock.calls.find(
-        ([, path, options]) => path === "/api/projects/project-ln-1" && options?.method === "PUT",
+        ([, path, options]) =>
+          path === "/api/projects/project-ln-1" && options?.method === "PUT",
       );
       expect(saveCall).toBeDefined();
-      const payload = (saveCall?.[2] as { json?: Record<string, unknown> } | undefined)?.json;
+      const payload = (
+        saveCall?.[2] as { json?: Record<string, unknown> } | undefined
+      )?.json;
       expect(payload?.episodeDownloads).toEqual(
         expect.arrayContaining([
           expect.objectContaining({
@@ -2654,33 +3130,45 @@ describe("DashboardProjectChapterEditor", () => {
         onRequestNavigateToUploads?: () => boolean | Promise<boolean>;
       };
     };
-    expect(lexicalProps.imageLibraryOptions?.onRequestNavigateToUploads).toEqual(
-      expect.any(Function),
-    );
+    expect(
+      lexicalProps.imageLibraryOptions?.onRequestNavigateToUploads,
+    ).toEqual(expect.any(Function));
 
     fireEvent.change(screen.getByTestId("mock-lexical"), {
       target: { value: "Conteudo alterado" },
     });
 
-    fireEvent.click((await screen.findAllByRole("button", { name: "Biblioteca" }))[0]);
+    fireEvent.click(
+      (await screen.findAllByRole("button", { name: "Biblioteca" }))[0],
+    );
     await screen.findByTestId("image-library-dialog");
 
     const dialogProps = getLastItem(imageLibraryPropsSpy.mock.calls)?.[0] as {
       onRequestNavigateToUploads?: () => boolean | Promise<boolean>;
     };
-    expect(dialogProps.onRequestNavigateToUploads).toEqual(expect.any(Function));
+    expect(dialogProps.onRequestNavigateToUploads).toEqual(
+      expect.any(Function),
+    );
 
     const navigateToUploadsPromise = dialogProps.onRequestNavigateToUploads?.();
 
     const leaveDialog = await findLeaveDialog();
     expect(
-      within(leaveDialog).getByRole("button", { name: /Descartar e continuar/i }),
+      within(leaveDialog).getByRole("button", {
+        name: /Descartar e continuar/i,
+      }),
     ).toBeInTheDocument();
-    fireEvent.click(within(leaveDialog).getByRole("button", { name: /Descartar e continuar/i }));
+    fireEvent.click(
+      within(leaveDialog).getByRole("button", {
+        name: /Descartar e continuar/i,
+      }),
+    );
 
     await navigateToUploadsPromise;
     await waitFor(() => {
-      expect(screen.getByTestId("location-pathname")).toHaveTextContent("/dashboard/uploads");
+      expect(screen.getByTestId("location-pathname")).toHaveTextContent(
+        "/dashboard/uploads",
+      );
     });
   });
   it("mostra acoes contextuais de rascunho no topo para capitulos draft", async () => {
@@ -2691,11 +3179,15 @@ describe("DashboardProjectChapterEditor", () => {
     expect(
       getTopActions().getByRole("button", { name: /Salvar como rascunho/i }),
     ).toBeInTheDocument();
-    expect(getTopActions().getByRole("button", { name: /Publicar/i })).toBeInTheDocument();
+    expect(
+      getTopActions().getByRole("button", { name: /Publicar/i }),
+    ).toBeInTheDocument();
     expect(
       getTopActions().queryByRole("button", { name: /Mover para rascunho/i }),
     ).not.toBeInTheDocument();
-    expect(screen.queryByTestId("chapter-editor-footer-actions")).not.toBeInTheDocument();
+    expect(
+      screen.queryByTestId("chapter-editor-footer-actions"),
+    ).not.toBeInTheDocument();
   });
   it("simplifica a identidade do capítulo e remove o subtipo manual", async () => {
     setupApiMock();
@@ -2713,17 +3205,26 @@ describe("DashboardProjectChapterEditor", () => {
     await screen.findByRole("heading", { name: /Gerenciamento de Conteúdo/i });
     openIdentityAccordion();
 
-    fireEvent.change(screen.getByLabelText("Capítulo"), { target: { value: "-3" } });
-    fireEvent.change(screen.getByLabelText("Volume"), { target: { value: "-1" } });
-    fireEvent.click(getTopActions().getByRole("button", { name: /Salvar altera/i }));
+    fireEvent.change(screen.getByLabelText("Capítulo"), {
+      target: { value: "-3" },
+    });
+    fireEvent.change(screen.getByLabelText("Volume"), {
+      target: { value: "-1" },
+    });
+    fireEvent.click(
+      getTopActions().getByRole("button", { name: /Salvar altera/i }),
+    );
 
     await waitFor(() => {
       const saveCall = apiFetchMock.mock.calls.find(
         ([, path, options]) =>
-          path === "/api/projects/project-ln-1/chapters/1?volume=2" && options?.method === "PUT",
+          path === "/api/projects/project-ln-1/chapters/1?volume=2" &&
+          options?.method === "PUT",
       );
       expect(saveCall).toBeDefined();
-      const payload = (saveCall?.[2] as { json?: Record<string, unknown> } | undefined)?.json;
+      const payload = (
+        saveCall?.[2] as { json?: Record<string, unknown> } | undefined
+      )?.json;
       expect(payload?.chapter).toEqual(
         expect.objectContaining({
           number: 1,
@@ -2788,7 +3289,9 @@ describe("DashboardProjectChapterEditor", () => {
     const contentTrigger = screen.getByTestId("chapter-content-trigger");
     const contentSection = screen.getByTestId("chapter-content-section");
 
-    fireEvent.change(lexicalEditor, { target: { value: "Novo trecho do capítulo" } });
+    fireEvent.change(lexicalEditor, {
+      target: { value: "Novo trecho do capítulo" },
+    });
     expect(lexicalEditor).toHaveValue("Novo trecho do capítulo");
     expect(contentTrigger).toHaveAttribute("aria-expanded", "true");
     expect(contentSection).toHaveAttribute("data-state", "open");
@@ -2800,13 +3303,17 @@ describe("DashboardProjectChapterEditor", () => {
     expect(contentViewport).toHaveAttribute("data-state", "open");
     expect(contentViewport).toHaveClass("grid-rows-[1fr]", "opacity-100");
     expect(screen.getByTestId("mock-lexical")).toBeInTheDocument();
-    expect(screen.getByTestId("mock-lexical")).toHaveValue("Novo trecho do capítulo");
+    expect(screen.getByTestId("mock-lexical")).toHaveValue(
+      "Novo trecho do capítulo",
+    );
 
     fireEvent.click(contentTrigger);
     expect(contentTrigger).toHaveAttribute("aria-expanded", "true");
     expect(contentSection).toHaveAttribute("data-state", "open");
     expect(contentBody).toHaveAttribute("aria-hidden", "false");
-    expect(screen.getByTestId("mock-lexical")).toHaveValue("Novo trecho do capítulo");
+    expect(screen.getByTestId("mock-lexical")).toHaveValue(
+      "Novo trecho do capítulo",
+    );
   });
 
   it("alterna o grupo do volume ao clicar no volume e mantém a seleção", async () => {
@@ -2836,17 +3343,23 @@ describe("DashboardProjectChapterEditor", () => {
     await screen.findByTestId("chapter-structure-section");
 
     const volumeToggle = screen.getByTestId("chapter-structure-group-toggle-2");
-    expect(screen.queryByTestId("chapter-volume-editor")).not.toBeInTheDocument();
+    expect(
+      screen.queryByTestId("chapter-volume-editor"),
+    ).not.toBeInTheDocument();
     expectStructureGroupNotSelected("2");
 
     fireEvent.click(volumeToggle);
     expect(volumeToggle).toHaveAttribute("aria-expanded", "false");
-    expect(screen.queryByTestId("chapter-volume-editor")).not.toBeInTheDocument();
+    expect(
+      screen.queryByTestId("chapter-volume-editor"),
+    ).not.toBeInTheDocument();
     expectStructureGroupNotSelected("2");
 
     fireEvent.click(volumeToggle);
     expect(volumeToggle).toHaveAttribute("aria-expanded", "true");
-    expect(screen.queryByTestId("chapter-volume-editor")).not.toBeInTheDocument();
+    expect(
+      screen.queryByTestId("chapter-volume-editor"),
+    ).not.toBeInTheDocument();
     expectStructureGroupNotSelected("2");
   });
 
@@ -2870,7 +3383,9 @@ describe("DashboardProjectChapterEditor", () => {
     expect(screen.getByTestId("location-pathname")).toHaveTextContent(
       "/dashboard/projetos/project-ln-1/capitulos",
     );
-    expect(screen.queryByTestId("chapter-unsaved-leave-dialog")).not.toBeInTheDocument();
+    expect(
+      screen.queryByTestId("chapter-unsaved-leave-dialog"),
+    ).not.toBeInTheDocument();
     expect(
       within(screen.getByTestId("chapter-volume-editor")).getByText("Volume 2"),
     ).toBeInTheDocument();
@@ -2891,7 +3406,9 @@ describe("DashboardProjectChapterEditor", () => {
     expect(screen.getByTestId("location-pathname")).toHaveTextContent(
       "/dashboard/projetos/project-ln-1/capitulos/1",
     );
-    expect(screen.queryByTestId("chapter-unsaved-leave-dialog")).not.toBeInTheDocument();
+    expect(
+      screen.queryByTestId("chapter-unsaved-leave-dialog"),
+    ).not.toBeInTheDocument();
   });
 
   it("mantém múltiplos grupos da estrutura abertos ao expandir outro grupo e abrir outro capítulo", async () => {
@@ -2919,8 +3436,12 @@ describe("DashboardProjectChapterEditor", () => {
     renderEditor("/dashboard/projetos/project-ln-1/capitulos");
     await screen.findByTestId("chapter-structure-section");
 
-    const volumeTwoToggle = screen.getByTestId("chapter-structure-group-toggle-2");
-    const noVolumeToggle = screen.getByTestId("chapter-structure-group-toggle-none");
+    const volumeTwoToggle = screen.getByTestId(
+      "chapter-structure-group-toggle-2",
+    );
+    const noVolumeToggle = screen.getByTestId(
+      "chapter-structure-group-toggle-none",
+    );
     expect(volumeTwoToggle).toHaveAttribute("aria-expanded", "true");
     expect(noVolumeToggle).toHaveAttribute("aria-expanded", "false");
 
@@ -2928,7 +3449,9 @@ describe("DashboardProjectChapterEditor", () => {
     expect(volumeTwoToggle).toHaveAttribute("aria-expanded", "true");
     expect(noVolumeToggle).toHaveAttribute("aria-expanded", "true");
 
-    fireEvent.click(screen.getByTestId("chapter-structure-episode-open-3:none"));
+    fireEvent.click(
+      screen.getByTestId("chapter-structure-episode-open-3:none"),
+    );
 
     await waitFor(() => {
       expect(screen.getByTestId("location-pathname").textContent).toBe(
@@ -2946,9 +3469,12 @@ describe("DashboardProjectChapterEditor", () => {
     renderEditor("/dashboard/projetos/project-ln-1/capitulos");
     await screen.findByTestId("chapter-structure-section");
     fireEvent.click(
-      within(screen.getByTestId("chapter-structure-section")).getByRole("button", {
-        name: /Adicionar volume/i,
-      }),
+      within(screen.getByTestId("chapter-structure-section")).getByRole(
+        "button",
+        {
+          name: /Adicionar volume/i,
+        },
+      ),
     );
     expect(screen.getByTestId("chapter-structure-group-1")).toBeInTheDocument();
     const workspace = screen.getByTestId("chapter-editor-workspace");
@@ -2956,14 +3482,17 @@ describe("DashboardProjectChapterEditor", () => {
     expect(
       within(screen.getByTestId("chapter-volume-editor")).getByText("Volume 1"),
     ).toBeInTheDocument();
-    expect(Array.from(screen.getByTestId("chapter-editor-main-column").children)).toEqual([
-      workspace,
-    ]);
+    expect(
+      Array.from(screen.getByTestId("chapter-editor-main-column").children),
+    ).toEqual([workspace]);
     expect(Array.from(workspace.children)).toEqual([
       screen.getByTestId("chapter-volume-accordion"),
       screen.getByTestId("chapter-epub-tools"),
     ]);
-    expect(screen.getByTestId("chapter-volume-trigger")).toHaveAttribute("aria-expanded", "false");
+    expect(screen.getByTestId("chapter-volume-trigger")).toHaveAttribute(
+      "aria-expanded",
+      "false",
+    );
     openVolumeAccordion();
     expect(
       within(screen.getByTestId("chapter-volume-editor")).getByText(
@@ -2982,16 +3511,23 @@ describe("DashboardProjectChapterEditor", () => {
     fireEvent.change(screen.getByLabelText("Sinopse do volume"), {
       target: { value: "Sinopse do volume 2" },
     });
-    const saveVolumesButton = await screen.findByRole("button", { name: /Salvar volumes/i });
-    expect(screen.getByTestId("chapter-editor-top-actions")).toContainElement(saveVolumesButton);
+    const saveVolumesButton = await screen.findByRole("button", {
+      name: /Salvar volumes/i,
+    });
+    expect(screen.getByTestId("chapter-editor-top-actions")).toContainElement(
+      saveVolumesButton,
+    );
     expect(saveVolumesButton).toBeEnabled();
     fireEvent.click(saveVolumesButton);
     await waitFor(() => {
       const saveCall = apiFetchMock.mock.calls.find(
-        ([, path, options]) => path === "/api/projects/project-ln-1" && options?.method === "PUT",
+        ([, path, options]) =>
+          path === "/api/projects/project-ln-1" && options?.method === "PUT",
       );
       expect(saveCall).toBeDefined();
-      const payload = (saveCall?.[2] as { json?: Record<string, unknown> } | undefined)?.json;
+      const payload = (
+        saveCall?.[2] as { json?: Record<string, unknown> } | undefined
+      )?.json;
       expect(payload?.volumeEntries).toEqual(
         expect.arrayContaining([
           expect.objectContaining({
@@ -3017,7 +3553,8 @@ describe("DashboardProjectChapterEditor", () => {
     await waitFor(() => {
       expect(
         apiFetchMock.mock.calls.some(
-          ([, path, options]) => path === "/api/projects/project-ln-1" && options?.method === "PUT",
+          ([, path, options]) =>
+            path === "/api/projects/project-ln-1" && options?.method === "PUT",
         ),
       ).toBe(true);
     });
@@ -3038,11 +3575,17 @@ describe("DashboardProjectChapterEditor", () => {
     fireEvent.click(screen.getByTestId("chapter-structure-episode-open-1:2"));
     let leaveDialog = await findLeaveDialog();
     expect(
-      within(leaveDialog).getByRole("button", { name: /Salvar volume e continuar/i }),
+      within(leaveDialog).getByRole("button", {
+        name: /Salvar volume e continuar/i,
+      }),
     ).toBeInTheDocument();
-    fireEvent.click(within(leaveDialog).getByRole("button", { name: /Cancelar/i }));
+    fireEvent.click(
+      within(leaveDialog).getByRole("button", { name: /Cancelar/i }),
+    );
     await waitFor(() => {
-      expect(screen.queryByTestId("chapter-unsaved-leave-dialog")).not.toBeInTheDocument();
+      expect(
+        screen.queryByTestId("chapter-unsaved-leave-dialog"),
+      ).not.toBeInTheDocument();
     });
     expect(screen.getByTestId("location-pathname").textContent).toBe(
       "/dashboard/projetos/project-ln-1/capitulos",
@@ -3051,7 +3594,9 @@ describe("DashboardProjectChapterEditor", () => {
     fireEvent.click(screen.getByTestId("chapter-structure-episode-open-1:2"));
     leaveDialog = await findLeaveDialog();
     fireEvent.click(
-      within(leaveDialog).getByRole("button", { name: /Salvar volume e continuar/i }),
+      within(leaveDialog).getByRole("button", {
+        name: /Salvar volume e continuar/i,
+      }),
     );
 
     await waitFor(() => {
@@ -3061,10 +3606,13 @@ describe("DashboardProjectChapterEditor", () => {
     });
 
     const saveCall = apiFetchMock.mock.calls.find(
-      ([, path, options]) => path === "/api/projects/project-ln-1" && options?.method === "PUT",
+      ([, path, options]) =>
+        path === "/api/projects/project-ln-1" && options?.method === "PUT",
     );
     expect(saveCall).toBeDefined();
-    const payload = (saveCall?.[2] as { json?: Record<string, unknown> } | undefined)?.json;
+    const payload = (
+      saveCall?.[2] as { json?: Record<string, unknown> } | undefined
+    )?.json;
     expect(payload?.volumeEntries).toEqual(
       expect.arrayContaining([
         expect.objectContaining({
@@ -3097,11 +3645,21 @@ describe("DashboardProjectChapterEditor", () => {
       target: { value: "Excluir este volume" },
     });
     const volumeEditor = screen.getByTestId("chapter-volume-editor");
-    const destructiveFooter = within(volumeEditor).getByTestId("chapter-volume-destructive-footer");
-    fireEvent.click(within(destructiveFooter).getByRole("button", { name: /Excluir volume/i }));
-    expect(screen.getByRole("heading", { name: /Excluir volume\?/i })).toBeInTheDocument();
+    const destructiveFooter = within(volumeEditor).getByTestId(
+      "chapter-volume-destructive-footer",
+    );
+    fireEvent.click(
+      within(destructiveFooter).getByRole("button", {
+        name: /Excluir volume/i,
+      }),
+    );
     expect(
-      screen.getByText(/Isso também excluirá 2 capítulo\(s\) vinculado\(s\)\./i),
+      screen.getByRole("heading", { name: /Excluir volume\?/i }),
+    ).toBeInTheDocument();
+    expect(
+      screen.getByText(
+        /Isso também excluirá 2 capítulo\(s\) vinculado\(s\)\./i,
+      ),
     ).toBeInTheDocument();
     expect(
       screen.getByText(
@@ -3111,10 +3669,13 @@ describe("DashboardProjectChapterEditor", () => {
     fireEvent.click(screen.getByRole("button", { name: /^Excluir$/i }));
     await waitFor(() => {
       const saveCall = apiFetchMock.mock.calls.find(
-        ([, path, options]) => path === "/api/projects/project-ln-1" && options?.method === "PUT",
+        ([, path, options]) =>
+          path === "/api/projects/project-ln-1" && options?.method === "PUT",
       );
       expect(saveCall).toBeDefined();
-      const payload = (saveCall?.[2] as { json?: Record<string, unknown> } | undefined)?.json;
+      const payload = (
+        saveCall?.[2] as { json?: Record<string, unknown> } | undefined
+      )?.json;
       expect(payload?.volumeEntries).toEqual([]);
       expect(payload?.episodeDownloads).toEqual([]);
     });
@@ -3123,7 +3684,9 @@ describe("DashboardProjectChapterEditor", () => {
         "/dashboard/projetos/project-ln-1/capitulos",
       );
     });
-    expect(screen.queryByTestId("chapter-volume-editor")).not.toBeInTheDocument();
+    expect(
+      screen.queryByTestId("chapter-volume-editor"),
+    ).not.toBeInTheDocument();
   });
 
   it("mostra Fechar volume na barra inferior e limpa a seleção local", async () => {
@@ -3134,14 +3697,24 @@ describe("DashboardProjectChapterEditor", () => {
     await screen.findByTestId("chapter-volume-editor");
     const closeVolumeButton = screen.getByTestId("chapter-close-volume-button");
     expect(
-      within(screen.getByTestId("chapter-editor-status-bar")).getByText("Volume 2"),
+      within(screen.getByTestId("chapter-editor-status-bar")).getByText(
+        "Volume 2",
+      ),
     ).toBeInTheDocument();
-    expect(screen.queryByTestId("chapter-editor-status-meta-group")).not.toBeInTheDocument();
-    expect(screen.queryByTestId("chapter-editor-status-pill-chapter")).not.toBeInTheDocument();
-    expect(screen.queryByTestId("chapter-editor-status-pill-reading")).not.toBeInTheDocument();
+    expect(
+      screen.queryByTestId("chapter-editor-status-meta-group"),
+    ).not.toBeInTheDocument();
+    expect(
+      screen.queryByTestId("chapter-editor-status-pill-chapter"),
+    ).not.toBeInTheDocument();
+    expect(
+      screen.queryByTestId("chapter-editor-status-pill-reading"),
+    ).not.toBeInTheDocument();
     fireEvent.click(closeVolumeButton);
     await waitFor(() => {
-      expect(screen.queryByTestId("chapter-volume-editor")).not.toBeInTheDocument();
+      expect(
+        screen.queryByTestId("chapter-volume-editor"),
+      ).not.toBeInTheDocument();
     });
   });
 
@@ -3158,18 +3731,28 @@ describe("DashboardProjectChapterEditor", () => {
 
     fireEvent.click(screen.getByTestId("chapter-close-volume-button"));
     let leaveDialog = await findLeaveDialog();
-    fireEvent.click(within(leaveDialog).getByRole("button", { name: /Cancelar/i }));
+    fireEvent.click(
+      within(leaveDialog).getByRole("button", { name: /Cancelar/i }),
+    );
     await waitFor(() => {
-      expect(screen.queryByTestId("chapter-unsaved-leave-dialog")).not.toBeInTheDocument();
+      expect(
+        screen.queryByTestId("chapter-unsaved-leave-dialog"),
+      ).not.toBeInTheDocument();
     });
     expect(screen.getByTestId("chapter-volume-editor")).toBeInTheDocument();
 
     fireEvent.click(screen.getByTestId("chapter-close-volume-button"));
     leaveDialog = await findLeaveDialog();
-    fireEvent.click(within(leaveDialog).getByRole("button", { name: /Descartar e continuar/i }));
+    fireEvent.click(
+      within(leaveDialog).getByRole("button", {
+        name: /Descartar e continuar/i,
+      }),
+    );
 
     await waitFor(() => {
-      expect(screen.queryByTestId("chapter-volume-editor")).not.toBeInTheDocument();
+      expect(
+        screen.queryByTestId("chapter-volume-editor"),
+      ).not.toBeInTheDocument();
     });
   });
 
@@ -3184,7 +3767,9 @@ describe("DashboardProjectChapterEditor", () => {
       );
     });
     expect(screen.getByTestId("location-search").textContent).toBe("?volume=2");
-    expect(screen.queryByTestId("chapter-volume-editor")).not.toBeInTheDocument();
+    expect(
+      screen.queryByTestId("chapter-volume-editor"),
+    ).not.toBeInTheDocument();
     expect(screen.getAllByText("Volume 2").length).toBeGreaterThan(0);
   });
 
@@ -3212,15 +3797,21 @@ describe("DashboardProjectChapterEditor", () => {
       within(screen.getByTestId("chapter-volume-editor")).getByText("Volume 2"),
     ).toBeInTheDocument();
 
-    fireEvent.click(screen.getByRole("button", { name: /Alternar Sem volume/i }));
-    fireEvent.click(screen.getByTestId("chapter-structure-episode-open-3:none"));
+    fireEvent.click(
+      screen.getByRole("button", { name: /Alternar Sem volume/i }),
+    );
+    fireEvent.click(
+      screen.getByTestId("chapter-structure-episode-open-3:none"),
+    );
     await waitFor(() => {
       expect(screen.getByTestId("location-pathname").textContent).toBe(
         "/dashboard/projetos/project-ln-1/capitulos/3",
       );
     });
     expect(screen.getByTestId("location-search").textContent).toBe("");
-    expect(screen.queryByTestId("chapter-volume-editor")).not.toBeInTheDocument();
+    expect(
+      screen.queryByTestId("chapter-volume-editor"),
+    ).not.toBeInTheDocument();
   });
 
   it("não renderiza o editor de volume quando o capítulo ativo está sem volume", async () => {
@@ -3241,12 +3832,18 @@ describe("DashboardProjectChapterEditor", () => {
     await screen.findByRole("heading", { name: /Gerenciamento de Conteúdo/i });
 
     const workspace = screen.getByTestId("chapter-editor-workspace");
-    expect(screen.queryByTestId("chapter-volume-editor")).not.toBeInTheDocument();
-    expect(Array.from(screen.getByTestId("chapter-editor-main-column").children)).toEqual([
-      workspace,
-    ]);
-    expect(workspace).toContainElement(screen.getByTestId("chapter-identity-accordion"));
-    expect(workspace).toContainElement(screen.getByTestId("chapter-content-accordion"));
+    expect(
+      screen.queryByTestId("chapter-volume-editor"),
+    ).not.toBeInTheDocument();
+    expect(
+      Array.from(screen.getByTestId("chapter-editor-main-column").children),
+    ).toEqual([workspace]);
+    expect(workspace).toContainElement(
+      screen.getByTestId("chapter-identity-accordion"),
+    );
+    expect(workspace).toContainElement(
+      screen.getByTestId("chapter-content-accordion"),
+    );
   });
 
   it("leva ao neutro e preserva o volume selecionado ao trocar de volume com outro capítulo aberto", async () => {
@@ -3352,15 +3949,22 @@ describe("DashboardProjectChapterEditor", () => {
     renderEditor("/dashboard/projetos/project-ln-1/capitulos/1?volume=2");
     await screen.findByRole("heading", { name: /Gerenciamento de Conte/i });
     openIdentityAccordion();
-    fireEvent.change(document.getElementById("chapter-title-standard") as HTMLInputElement, {
-      target: { value: "Capítulo pendente" },
-    });
+    fireEvent.change(
+      document.getElementById("chapter-title-standard") as HTMLInputElement,
+      {
+        target: { value: "Capítulo pendente" },
+      },
+    );
 
     fireEvent.click(screen.getByTestId("chapter-structure-select-4"));
     let leaveDialog = await findLeaveDialog();
-    fireEvent.click(within(leaveDialog).getByRole("button", { name: /Cancelar/i }));
+    fireEvent.click(
+      within(leaveDialog).getByRole("button", { name: /Cancelar/i }),
+    );
     await waitFor(() => {
-      expect(screen.queryByTestId("chapter-unsaved-leave-dialog")).not.toBeInTheDocument();
+      expect(
+        screen.queryByTestId("chapter-unsaved-leave-dialog"),
+      ).not.toBeInTheDocument();
     });
     expect(screen.getByTestId("location-pathname").textContent).toBe(
       "/dashboard/projetos/project-ln-1/capitulos/1",
@@ -3369,7 +3973,11 @@ describe("DashboardProjectChapterEditor", () => {
 
     fireEvent.click(screen.getByTestId("chapter-structure-select-4"));
     leaveDialog = await findLeaveDialog();
-    fireEvent.click(within(leaveDialog).getByRole("button", { name: /Publicar e continuar/i }));
+    fireEvent.click(
+      within(leaveDialog).getByRole("button", {
+        name: /Publicar e continuar/i,
+      }),
+    );
 
     await waitFor(() => {
       expect(screen.getByTestId("location-pathname").textContent).toBe(
@@ -3383,10 +3991,13 @@ describe("DashboardProjectChapterEditor", () => {
 
     const saveCall = apiFetchMock.mock.calls.find(
       ([, path, options]) =>
-        path === "/api/projects/project-ln-1/chapters/1?volume=2" && options?.method === "PUT",
+        path === "/api/projects/project-ln-1/chapters/1?volume=2" &&
+        options?.method === "PUT",
     );
     expect(saveCall).toBeDefined();
-    const payload = (saveCall?.[2] as { json?: Record<string, unknown> } | undefined)?.json;
+    const payload = (
+      saveCall?.[2] as { json?: Record<string, unknown> } | undefined
+    )?.json;
     expect(payload?.chapter).toEqual(
       expect.objectContaining({
         publicationStatus: "published",
@@ -3399,14 +4010,19 @@ describe("DashboardProjectChapterEditor", () => {
     renderEditor("/dashboard/projetos/project-ln-1/capitulos/2?volume=2");
     await screen.findByRole("heading", { name: /Gerenciamento de Conte/i });
     openIdentityAccordion();
-    fireEvent.change(document.getElementById("chapter-title-standard") as HTMLInputElement, {
-      target: { value: "Capítulo 2 revisado antes do novo" },
-    });
+    fireEvent.change(
+      document.getElementById("chapter-title-standard") as HTMLInputElement,
+      {
+        target: { value: "Capítulo 2 revisado antes do novo" },
+      },
+    );
 
     fireEvent.click(screen.getByTestId("chapter-structure-add-chapter-2"));
     const leaveDialog = await findLeaveDialog();
     fireEvent.click(
-      within(leaveDialog).getByRole("button", { name: /Salvar como rascunho e continuar/i }),
+      within(leaveDialog).getByRole("button", {
+        name: /Salvar como rascunho e continuar/i,
+      }),
     );
 
     await waitFor(() => {
@@ -3417,15 +4033,19 @@ describe("DashboardProjectChapterEditor", () => {
 
     const chapterSaveCall = apiFetchMock.mock.calls.find(
       ([, path, options]) =>
-        path === "/api/projects/project-ln-1/chapters/2?volume=2" && options?.method === "PUT",
+        path === "/api/projects/project-ln-1/chapters/2?volume=2" &&
+        options?.method === "PUT",
     );
     expect(chapterSaveCall).toBeDefined();
 
     const createCall = apiFetchMock.mock.calls.find(
-      ([, path, options]) => path === "/api/projects/project-ln-1" && options?.method === "PUT",
+      ([, path, options]) =>
+        path === "/api/projects/project-ln-1" && options?.method === "PUT",
     );
     expect(createCall).toBeDefined();
-    const createPayload = (createCall?.[2] as { json?: Record<string, unknown> } | undefined)?.json;
+    const createPayload = (
+      createCall?.[2] as { json?: Record<string, unknown> } | undefined
+    )?.json;
     expect(createPayload?.episodeDownloads).toEqual(
       expect.arrayContaining([
         expect.objectContaining({
@@ -3450,10 +4070,13 @@ describe("DashboardProjectChapterEditor", () => {
 
     await waitFor(() => {
       const saveCall = apiFetchMock.mock.calls.find(
-        ([, path, options]) => path === "/api/projects/project-ln-1" && options?.method === "PUT",
+        ([, path, options]) =>
+          path === "/api/projects/project-ln-1" && options?.method === "PUT",
       );
       expect(saveCall).toBeDefined();
-      const payload = (saveCall?.[2] as { json?: Record<string, unknown> } | undefined)?.json;
+      const payload = (
+        saveCall?.[2] as { json?: Record<string, unknown> } | undefined
+      )?.json;
       expect(payload?.episodeDownloads).toEqual(
         expect.arrayContaining([
           expect.objectContaining({
@@ -3489,9 +4112,15 @@ describe("DashboardProjectChapterEditor", () => {
     });
     expect(screen.getByTestId("location-search").textContent).toBe("?volume=2");
     expect(screen.getByTestId("chapter-progress-section")).toBeInTheDocument();
-    expect(screen.getByTestId("chapter-progress-percent")).toHaveTextContent("0%");
-    expect(screen.getByTestId("chapter-progress-stage-list")).toBeInTheDocument();
-    expect(screen.getByTestId("chapter-progress-stage-chip-aguardando-raw")).toHaveAttribute(
+    expect(screen.getByTestId("chapter-progress-percent")).toHaveTextContent(
+      "0%",
+    );
+    expect(
+      screen.getByTestId("chapter-progress-stage-list"),
+    ).toBeInTheDocument();
+    expect(
+      screen.getByTestId("chapter-progress-stage-chip-aguardando-raw"),
+    ).toHaveAttribute(
       "aria-label",
       expect.stringMatching(/Aguardando Raw: atual/i),
     );
@@ -3538,9 +4167,15 @@ describe("DashboardProjectChapterEditor", () => {
     });
     expect(screen.getByTestId("location-search").textContent).toBe("?volume=1");
     expect(screen.getByTestId("chapter-progress-section")).toBeInTheDocument();
-    expect(screen.getByTestId("chapter-progress-percent")).toHaveTextContent("0%");
-    expect(screen.getByTestId("chapter-progress-stage-list")).toBeInTheDocument();
-    expect(screen.getByTestId("chapter-progress-stage-chip-aguardando-raw")).toHaveAttribute(
+    expect(screen.getByTestId("chapter-progress-percent")).toHaveTextContent(
+      "0%",
+    );
+    expect(
+      screen.getByTestId("chapter-progress-stage-list"),
+    ).toBeInTheDocument();
+    expect(
+      screen.getByTestId("chapter-progress-stage-chip-aguardando-raw"),
+    ).toHaveAttribute(
       "aria-label",
       expect.stringMatching(/Aguardando Raw: atual/i),
     );
@@ -3578,7 +4213,9 @@ describe("DashboardProjectChapterEditor", () => {
       project: mangaProject,
       projectSaveResponse: ({ payload, project }) => {
         const incomingEpisodes = (
-          (payload.episodeDownloads as Array<Record<string, unknown>> | undefined) || []
+          (payload.episodeDownloads as
+            | Array<Record<string, unknown>>
+            | undefined) || []
         ).map((episode) => {
           if (Number(episode.number) === 2 && Number(episode.volume) === 1) {
             const { publicationStatus, ...rest } = episode;
@@ -3608,9 +4245,15 @@ describe("DashboardProjectChapterEditor", () => {
     });
     expect(screen.getByTestId("location-search").textContent).toBe("?volume=1");
     expect(screen.getByTestId("chapter-progress-section")).toBeInTheDocument();
-    expect(screen.getByTestId("chapter-progress-percent")).toHaveTextContent("0%");
-    expect(screen.getByTestId("chapter-progress-stage-list")).toBeInTheDocument();
-    expect(screen.getByTestId("chapter-progress-stage-chip-aguardando-raw")).toHaveAttribute(
+    expect(screen.getByTestId("chapter-progress-percent")).toHaveTextContent(
+      "0%",
+    );
+    expect(
+      screen.getByTestId("chapter-progress-stage-list"),
+    ).toBeInTheDocument();
+    expect(
+      screen.getByTestId("chapter-progress-stage-chip-aguardando-raw"),
+    ).toHaveAttribute(
       "aria-label",
       expect.stringMatching(/Aguardando Raw: atual/i),
     );
@@ -3628,10 +4271,13 @@ describe("DashboardProjectChapterEditor", () => {
 
     await waitFor(() => {
       const saveCall = apiFetchMock.mock.calls.find(
-        ([, path, options]) => path === "/api/projects/project-ln-1" && options?.method === "PUT",
+        ([, path, options]) =>
+          path === "/api/projects/project-ln-1" && options?.method === "PUT",
       );
       expect(saveCall).toBeDefined();
-      const payload = (saveCall?.[2] as { json?: Record<string, unknown> } | undefined)?.json;
+      const payload = (
+        saveCall?.[2] as { json?: Record<string, unknown> } | undefined
+      )?.json;
       expect(payload?.episodeDownloads).toEqual(
         expect.arrayContaining([
           expect.objectContaining({
@@ -3657,10 +4303,18 @@ describe("DashboardProjectChapterEditor", () => {
     renderEditor();
     await screen.findByRole("heading", { name: /Gerenciamento de Conteúdo/i });
     openIdentityAccordion();
-    fireEvent.change(screen.getByLabelText("Título"), { target: { value: "Capítulo 3" } });
-    fireEvent.change(screen.getByLabelText("Capítulo"), { target: { value: "3" } });
-    fireEvent.change(screen.getByLabelText("Volume"), { target: { value: "5" } });
-    fireEvent.click(getTopActions().getByRole("button", { name: /Salvar altera/i }));
+    fireEvent.change(screen.getByLabelText("Título"), {
+      target: { value: "Capítulo 3" },
+    });
+    fireEvent.change(screen.getByLabelText("Capítulo"), {
+      target: { value: "3" },
+    });
+    fireEvent.change(screen.getByLabelText("Volume"), {
+      target: { value: "5" },
+    });
+    fireEvent.click(
+      getTopActions().getByRole("button", { name: /Salvar altera/i }),
+    );
     await waitFor(() => {
       expect(screen.getByTestId("location-pathname").textContent).toBe(
         "/dashboard/projetos/project-ln-1/capitulos/3",
@@ -3671,16 +4325,25 @@ describe("DashboardProjectChapterEditor", () => {
   it("bloqueia o save manual quando a URL do editor ficaria ambigua sem volume", async () => {
     setupApiMock({ project: buildAmbiguousRouteSaveProject() });
     renderEditor("/dashboard/projetos/project-ln-1/capitulos/3");
-    await screen.findByRole("heading", { name: /Gerenciamento de Conte\u00fado/i });
+    await screen.findByRole("heading", {
+      name: /Gerenciamento de Conte\u00fado/i,
+    });
     openIdentityAccordion();
 
-    fireEvent.change(document.getElementById("chapter-number-standard") as HTMLInputElement, {
-      target: { value: "1" },
-    });
-    fireEvent.click(getTopActions().getByRole("button", { name: /Salvar altera/i }));
+    fireEvent.change(
+      document.getElementById("chapter-number-standard") as HTMLInputElement,
+      {
+        target: { value: "1" },
+      },
+    );
+    fireEvent.click(
+      getTopActions().getByRole("button", { name: /Salvar altera/i }),
+    );
 
     const warningDialog = await findVolumeRequiredSaveDialog();
-    expect(within(warningDialog).getByText("Volume obrigat\u00f3rio")).toBeInTheDocument();
+    expect(
+      within(warningDialog).getByText("Volume obrigat\u00f3rio"),
+    ).toBeInTheDocument();
     expect(hasChapterSaveRequest()).toBe(false);
     expect(screen.getByTestId("location-pathname").textContent).toBe(
       "/dashboard/projetos/project-ln-1/capitulos/3",
@@ -3691,16 +4354,25 @@ describe("DashboardProjectChapterEditor", () => {
   it("bloqueia a acao secundaria quando a URL do editor ficaria ambigua sem volume", async () => {
     setupApiMock({ project: buildAmbiguousRouteSaveProject() });
     renderEditor("/dashboard/projetos/project-ln-1/capitulos/3");
-    await screen.findByRole("heading", { name: /Gerenciamento de Conte\u00fado/i });
+    await screen.findByRole("heading", {
+      name: /Gerenciamento de Conte\u00fado/i,
+    });
     openIdentityAccordion();
 
-    fireEvent.change(document.getElementById("chapter-number-standard") as HTMLInputElement, {
-      target: { value: "1" },
-    });
-    fireEvent.click(getTopActions().getByRole("button", { name: /Mover para rascunho/i }));
+    fireEvent.change(
+      document.getElementById("chapter-number-standard") as HTMLInputElement,
+      {
+        target: { value: "1" },
+      },
+    );
+    fireEvent.click(
+      getTopActions().getByRole("button", { name: /Mover para rascunho/i }),
+    );
 
     const warningDialog = await findVolumeRequiredSaveDialog();
-    expect(within(warningDialog).getByText("Volume obrigat\u00f3rio")).toBeInTheDocument();
+    expect(
+      within(warningDialog).getByText("Volume obrigat\u00f3rio"),
+    ).toBeInTheDocument();
     expect(hasChapterSaveRequest()).toBe(false);
     expect(screen.getByTestId("location-pathname").textContent).toBe(
       "/dashboard/projetos/project-ln-1/capitulos/3",
@@ -3710,16 +4382,23 @@ describe("DashboardProjectChapterEditor", () => {
   it("bloqueia Ctrl+S quando a URL do editor ficaria ambigua sem volume", async () => {
     setupApiMock({ project: buildAmbiguousRouteSaveProject() });
     renderEditor("/dashboard/projetos/project-ln-1/capitulos/3");
-    await screen.findByRole("heading", { name: /Gerenciamento de Conte\u00fado/i });
+    await screen.findByRole("heading", {
+      name: /Gerenciamento de Conte\u00fado/i,
+    });
     openIdentityAccordion();
 
-    fireEvent.change(document.getElementById("chapter-number-standard") as HTMLInputElement, {
-      target: { value: "1" },
-    });
+    fireEvent.change(
+      document.getElementById("chapter-number-standard") as HTMLInputElement,
+      {
+        target: { value: "1" },
+      },
+    );
     fireEvent.keyDown(window, { key: "s", ctrlKey: true });
 
     const warningDialog = await findVolumeRequiredSaveDialog();
-    expect(within(warningDialog).getByText("Volume obrigat\u00f3rio")).toBeInTheDocument();
+    expect(
+      within(warningDialog).getByText("Volume obrigat\u00f3rio"),
+    ).toBeInTheDocument();
     expect(hasChapterSaveRequest()).toBe(false);
     expect(screen.getByTestId("location-pathname").textContent).toBe(
       "/dashboard/projetos/project-ln-1/capitulos/3",
@@ -3729,21 +4408,34 @@ describe("DashboardProjectChapterEditor", () => {
   it("fecha o leave dialog e abre o aviso quando salvar e continuar cairia em rota ambigua", async () => {
     setupApiMock({ project: buildAmbiguousRouteSaveProject() });
     renderEditor("/dashboard/projetos/project-ln-1/capitulos/3");
-    await screen.findByRole("heading", { name: /Gerenciamento de Conte\u00fado/i });
+    await screen.findByRole("heading", {
+      name: /Gerenciamento de Conte\u00fado/i,
+    });
     openIdentityAccordion();
 
-    fireEvent.change(document.getElementById("chapter-number-standard") as HTMLInputElement, {
-      target: { value: "1" },
-    });
+    fireEvent.change(
+      document.getElementById("chapter-number-standard") as HTMLInputElement,
+      {
+        target: { value: "1" },
+      },
+    );
     fireEvent.click(screen.getByRole("button", { name: /Fechar cap/i }));
 
     const leaveDialog = await findLeaveDialog();
-    fireEvent.click(within(leaveDialog).getByRole("button", { name: /Publicar e continuar/i }));
+    fireEvent.click(
+      within(leaveDialog).getByRole("button", {
+        name: /Publicar e continuar/i,
+      }),
+    );
 
     const warningDialog = await findVolumeRequiredSaveDialog();
-    expect(within(warningDialog).getByText("Volume obrigat\u00f3rio")).toBeInTheDocument();
+    expect(
+      within(warningDialog).getByText("Volume obrigat\u00f3rio"),
+    ).toBeInTheDocument();
     await waitFor(() => {
-      expect(screen.queryByTestId("chapter-unsaved-leave-dialog")).not.toBeInTheDocument();
+      expect(
+        screen.queryByTestId("chapter-unsaved-leave-dialog"),
+      ).not.toBeInTheDocument();
     });
     expect(hasChapterSaveRequest()).toBe(false);
     expect(screen.getByTestId("location-pathname").textContent).toBe(
@@ -3777,10 +4469,11 @@ describe("DashboardProjectChapterEditor", () => {
           project: {
             ...ambiguousProject,
             revision: "rev-2",
-            episodeDownloads: ambiguousProject.episodeDownloads.map((episode) =>
-              Number(episode.number) === 1 && Number(episode.volume) === 2
-                ? { ...episode, ...nextChapter }
-                : episode,
+            episodeDownloads: ambiguousProject.episodeDownloads.map(
+              (episode) =>
+                Number(episode.number) === 1 && Number(episode.volume) === 2
+                  ? { ...episode, ...nextChapter }
+                  : episode,
             ),
           },
           chapter: {
@@ -3795,13 +4488,17 @@ describe("DashboardProjectChapterEditor", () => {
     fireEvent.change(screen.getByLabelText("Título"), {
       target: { value: "Capítulo 1 revisado" },
     });
-    fireEvent.click(getTopActions().getByRole("button", { name: /Salvar altera/i }));
+    fireEvent.click(
+      getTopActions().getByRole("button", { name: /Salvar altera/i }),
+    );
 
     await waitFor(() => {
       expect(screen.getByTestId("location-pathname").textContent).toBe(
         "/dashboard/projetos/project-ln-1/capitulos/1",
       );
-      expect(screen.getByTestId("location-search").textContent).toBe("?volume=2");
+      expect(screen.getByTestId("location-search").textContent).toBe(
+        "?volume=2",
+      );
     });
   });
 
@@ -3830,10 +4527,11 @@ describe("DashboardProjectChapterEditor", () => {
           project: {
             ...zeroVolumeProject,
             revision: "rev-2",
-            episodeDownloads: zeroVolumeProject.episodeDownloads.map((episode) =>
-              Number(episode.number) === 1 && Number(episode.volume) === 0
-                ? { ...episode, ...nextChapter, volume: 0 }
-                : episode,
+            episodeDownloads: zeroVolumeProject.episodeDownloads.map(
+              (episode) =>
+                Number(episode.number) === 1 && Number(episode.volume) === 0
+                  ? { ...episode, ...nextChapter, volume: 0 }
+                  : episode,
             ),
           },
           chapter: {
@@ -3848,13 +4546,17 @@ describe("DashboardProjectChapterEditor", () => {
     fireEvent.change(screen.getByLabelText("Título"), {
       target: { value: "Capítulo 1 - legado revisado" },
     });
-    fireEvent.click(getTopActions().getByRole("button", { name: /Salvar altera/i }));
+    fireEvent.click(
+      getTopActions().getByRole("button", { name: /Salvar altera/i }),
+    );
 
     await waitFor(() => {
       expect(screen.getByTestId("location-pathname").textContent).toBe(
         "/dashboard/projetos/project-ln-1/capitulos/1",
       );
-      expect(screen.getByTestId("location-search").textContent).toBe("?volume=0");
+      expect(screen.getByTestId("location-search").textContent).toBe(
+        "?volume=0",
+      );
     });
   });
 
@@ -3865,15 +4567,16 @@ describe("DashboardProjectChapterEditor", () => {
           project: {
             ...baseProject,
             revision: "rev-2",
-            episodeDownloads: baseProject.episodeDownloads.map((episode, index) =>
-              index === 0
-                ? {
-                    ...episode,
-                    ...nextChapter,
-                    number: 3,
-                    volume: undefined,
-                  }
-                : episode,
+            episodeDownloads: baseProject.episodeDownloads.map(
+              (episode, index) =>
+                index === 0
+                  ? {
+                      ...episode,
+                      ...nextChapter,
+                      number: 3,
+                      volume: undefined,
+                    }
+                  : episode,
             ),
           },
           chapter: {
@@ -3886,15 +4589,23 @@ describe("DashboardProjectChapterEditor", () => {
     renderEditor();
     await screen.findByRole("heading", { name: /Gerenciamento de Conteúdo/i });
     openIdentityAccordion();
-    fireEvent.change(screen.getByLabelText("Capítulo"), { target: { value: "3" } });
-    fireEvent.change(screen.getByLabelText("Volume"), { target: { value: "5" } });
-    fireEvent.click(getTopActions().getByRole("button", { name: /Salvar altera/i }));
+    fireEvent.change(screen.getByLabelText("Capítulo"), {
+      target: { value: "3" },
+    });
+    fireEvent.change(screen.getByLabelText("Volume"), {
+      target: { value: "5" },
+    });
+    fireEvent.click(
+      getTopActions().getByRole("button", { name: /Salvar altera/i }),
+    );
 
     await waitFor(() => {
       expect(screen.getByTestId("location-pathname").textContent).toBe(
         "/dashboard/projetos/project-ln-1/capitulos/3",
       );
-      expect(screen.getByTestId("location-search").textContent).toBe("?volume=5");
+      expect(screen.getByTestId("location-search").textContent).toBe(
+        "?volume=5",
+      );
     });
   });
 
@@ -3904,16 +4615,23 @@ describe("DashboardProjectChapterEditor", () => {
     await screen.findByRole("heading", { name: /Gerenciamento de Conteúdo/i });
 
     openIdentityAccordion();
-    fireEvent.change(screen.getByLabelText("Título"), { target: { value: "Capítulo 2 revisado" } });
-    fireEvent.click(getTopActions().getByRole("button", { name: /Salvar como rascunho/i }));
+    fireEvent.change(screen.getByLabelText("Título"), {
+      target: { value: "Capítulo 2 revisado" },
+    });
+    fireEvent.click(
+      getTopActions().getByRole("button", { name: /Salvar como rascunho/i }),
+    );
 
     await waitFor(() => {
       const saveCall = apiFetchMock.mock.calls.find(
         ([, path, options]) =>
-          path === "/api/projects/project-ln-1/chapters/2?volume=2" && options?.method === "PUT",
+          path === "/api/projects/project-ln-1/chapters/2?volume=2" &&
+          options?.method === "PUT",
       );
       expect(saveCall).toBeDefined();
-      const payload = (saveCall?.[2] as { json?: Record<string, unknown> } | undefined)?.json;
+      const payload = (
+        saveCall?.[2] as { json?: Record<string, unknown> } | undefined
+      )?.json;
       expect(payload?.chapter).toEqual(
         expect.objectContaining({
           title: "Capítulo 2 revisado",
@@ -3936,10 +4654,13 @@ describe("DashboardProjectChapterEditor", () => {
     await waitFor(() => {
       const saveCall = apiFetchMock.mock.calls.find(
         ([, path, options]) =>
-          path === "/api/projects/project-ln-1/chapters/2?volume=2" && options?.method === "PUT",
+          path === "/api/projects/project-ln-1/chapters/2?volume=2" &&
+          options?.method === "PUT",
       );
       expect(saveCall).toBeDefined();
-      const payload = (saveCall?.[2] as { json?: Record<string, unknown> } | undefined)?.json;
+      const payload = (
+        saveCall?.[2] as { json?: Record<string, unknown> } | undefined
+      )?.json;
       expect(payload?.chapter).toEqual(
         expect.objectContaining({
           publicationStatus: "published",
@@ -3966,7 +4687,8 @@ describe("DashboardProjectChapterEditor", () => {
     expect(
       apiFetchMock.mock.calls.some(
         ([, path, options]) =>
-          path === "/api/projects/project-ln-1/chapters/2?volume=2" && options?.method === "PUT",
+          path === "/api/projects/project-ln-1/chapters/2?volume=2" &&
+          options?.method === "PUT",
       ),
     ).toBe(false);
   });
@@ -3997,10 +4719,11 @@ describe("DashboardProjectChapterEditor", () => {
           project: {
             ...ambiguousProject,
             revision: "rev-2",
-            episodeDownloads: ambiguousProject.episodeDownloads.map((episode) =>
-              Number(episode.number) === 1 && Number(episode.volume) === 2
-                ? { ...episode, ...nextChapter }
-                : episode,
+            episodeDownloads: ambiguousProject.episodeDownloads.map(
+              (episode) =>
+                Number(episode.number) === 1 && Number(episode.volume) === 2
+                  ? { ...episode, ...nextChapter }
+                  : episode,
             ),
           },
           chapter: {
@@ -4012,13 +4735,17 @@ describe("DashboardProjectChapterEditor", () => {
     renderEditor("/dashboard/projetos/project-ln-1/capitulos/1?volume=2");
     await screen.findByRole("heading", { name: /Gerenciamento de Conteúdo/i });
 
-    fireEvent.click(getTopActions().getByRole("button", { name: /Mover para rascunho/i }));
+    fireEvent.click(
+      getTopActions().getByRole("button", { name: /Mover para rascunho/i }),
+    );
 
     await waitFor(() => {
       expect(screen.getByTestId("location-pathname").textContent).toBe(
         "/dashboard/projetos/project-ln-1/capitulos/1",
       );
-      expect(screen.getByTestId("location-search").textContent).toBe("?volume=2");
+      expect(screen.getByTestId("location-search").textContent).toBe(
+        "?volume=2",
+      );
     });
   });
 
@@ -4048,10 +4775,11 @@ describe("DashboardProjectChapterEditor", () => {
           project: {
             ...zeroVolumeProject,
             revision: "rev-2",
-            episodeDownloads: zeroVolumeProject.episodeDownloads.map((episode) =>
-              Number(episode.number) === 1 && Number(episode.volume) === 0
-                ? { ...episode, ...nextChapter, volume: 0 }
-                : episode,
+            episodeDownloads: zeroVolumeProject.episodeDownloads.map(
+              (episode) =>
+                Number(episode.number) === 1 && Number(episode.volume) === 0
+                  ? { ...episode, ...nextChapter, volume: 0 }
+                  : episode,
             ),
           },
           chapter: {
@@ -4063,13 +4791,17 @@ describe("DashboardProjectChapterEditor", () => {
     renderEditor("/dashboard/projetos/project-ln-1/capitulos/1?volume=0");
     await screen.findByRole("heading", { name: /Gerenciamento de Conteúdo/i });
 
-    fireEvent.click(getTopActions().getByRole("button", { name: /Mover para rascunho/i }));
+    fireEvent.click(
+      getTopActions().getByRole("button", { name: /Mover para rascunho/i }),
+    );
 
     await waitFor(() => {
       expect(screen.getByTestId("location-pathname").textContent).toBe(
         "/dashboard/projetos/project-ln-1/capitulos/1",
       );
-      expect(screen.getByTestId("location-search").textContent).toBe("?volume=0");
+      expect(screen.getByTestId("location-search").textContent).toBe(
+        "?volume=0",
+      );
     });
   });
 
@@ -4078,15 +4810,20 @@ describe("DashboardProjectChapterEditor", () => {
     renderEditor();
     await screen.findByRole("heading", { name: /Gerenciamento de Conteúdo/i });
 
-    fireEvent.click(getTopActions().getByRole("button", { name: /Mover para rascunho/i }));
+    fireEvent.click(
+      getTopActions().getByRole("button", { name: /Mover para rascunho/i }),
+    );
 
     await waitFor(() => {
       const saveCall = apiFetchMock.mock.calls.find(
         ([, path, options]) =>
-          path === "/api/projects/project-ln-1/chapters/1?volume=2" && options?.method === "PUT",
+          path === "/api/projects/project-ln-1/chapters/1?volume=2" &&
+          options?.method === "PUT",
       );
       expect(saveCall).toBeDefined();
-      const payload = (saveCall?.[2] as { json?: Record<string, unknown> } | undefined)?.json;
+      const payload = (
+        saveCall?.[2] as { json?: Record<string, unknown> } | undefined
+      )?.json;
       expect(payload?.chapter).toEqual(
         expect.objectContaining({
           publicationStatus: "draft",
@@ -4100,16 +4837,23 @@ describe("DashboardProjectChapterEditor", () => {
     renderEditor("/dashboard/projetos/project-ln-1/capitulos/2?volume=2");
     await screen.findByRole("heading", { name: /Gerenciamento de Conteúdo/i });
     openIdentityAccordion();
-    expect(screen.getByLabelText("Título").parentElement?.className).toContain("gap-2");
-    fireEvent.change(screen.getByLabelText("Título"), { target: { value: "Capítulo revisado" } });
+    expect(screen.getByLabelText("Título").parentElement?.className).toContain(
+      "gap-2",
+    );
+    fireEvent.change(screen.getByLabelText("Título"), {
+      target: { value: "Capítulo revisado" },
+    });
     fireEvent.keyDown(window, { key: "s", ctrlKey: true });
     await waitFor(() => {
       const saveCall = apiFetchMock.mock.calls.find(
         ([, path, options]) =>
-          path === "/api/projects/project-ln-1/chapters/2?volume=2" && options?.method === "PUT",
+          path === "/api/projects/project-ln-1/chapters/2?volume=2" &&
+          options?.method === "PUT",
       );
       expect(saveCall).toBeDefined();
-      const payload = (saveCall?.[2] as { json?: Record<string, unknown> } | undefined)?.json;
+      const payload = (
+        saveCall?.[2] as { json?: Record<string, unknown> } | undefined
+      )?.json;
       expect(payload?.chapter).toEqual(
         expect.objectContaining({
           title: "Capítulo revisado",
@@ -4124,15 +4868,22 @@ describe("DashboardProjectChapterEditor", () => {
     renderEditor();
     await screen.findByRole("heading", { name: /Gerenciamento de Conte/i });
     openIdentityAccordion();
-    fireEvent.change(document.getElementById("chapter-title-standard") as HTMLInputElement, {
-      target: { value: "Capítulo pendente" },
-    });
+    fireEvent.change(
+      document.getElementById("chapter-title-standard") as HTMLInputElement,
+      {
+        target: { value: "Capítulo pendente" },
+      },
+    );
 
     fireEvent.click(screen.getByRole("button", { name: /Fechar cap/i }));
     let leaveDialog = await findLeaveDialog();
-    fireEvent.click(within(leaveDialog).getByRole("button", { name: /Cancelar/i }));
+    fireEvent.click(
+      within(leaveDialog).getByRole("button", { name: /Cancelar/i }),
+    );
     await waitFor(() => {
-      expect(screen.queryByTestId("chapter-unsaved-leave-dialog")).not.toBeInTheDocument();
+      expect(
+        screen.queryByTestId("chapter-unsaved-leave-dialog"),
+      ).not.toBeInTheDocument();
     });
     expect(screen.getByTestId("location-pathname").textContent).toBe(
       "/dashboard/projetos/project-ln-1/capitulos/1",
@@ -4140,7 +4891,11 @@ describe("DashboardProjectChapterEditor", () => {
 
     fireEvent.click(screen.getByRole("button", { name: /Fechar cap/i }));
     leaveDialog = await findLeaveDialog();
-    fireEvent.click(within(leaveDialog).getByRole("button", { name: /Descartar e continuar/i }));
+    fireEvent.click(
+      within(leaveDialog).getByRole("button", {
+        name: /Descartar e continuar/i,
+      }),
+    );
 
     await waitFor(() => {
       expect(screen.getByTestId("location-pathname").textContent).toBe(
@@ -4154,9 +4909,13 @@ describe("DashboardProjectChapterEditor", () => {
     renderEditor();
     await screen.findByRole("heading", { name: /Gerenciamento de Conteúdo/i });
     openIdentityAccordion();
-    fireEvent.change(screen.getByLabelText("Título"), { target: { value: "Capítulo pendente" } });
+    fireEvent.change(screen.getByLabelText("Título"), {
+      target: { value: "Capítulo pendente" },
+    });
     fireEvent.click(screen.getByRole("button", { name: /Excluir capítulo/i }));
-    expect(screen.getByRole("heading", { name: /Excluir capítulo\?/i })).toBeInTheDocument();
+    expect(
+      screen.getByRole("heading", { name: /Excluir capítulo\?/i }),
+    ).toBeInTheDocument();
     expect(
       screen.getByText(
         /As alterações atuais da página serão aplicadas imediatamente junto com a exclusão\./i,
@@ -4165,10 +4924,13 @@ describe("DashboardProjectChapterEditor", () => {
     fireEvent.click(screen.getByRole("button", { name: /^Excluir$/i }));
     await waitFor(() => {
       const saveCall = apiFetchMock.mock.calls.find(
-        ([, path, options]) => path === "/api/projects/project-ln-1" && options?.method === "PUT",
+        ([, path, options]) =>
+          path === "/api/projects/project-ln-1" && options?.method === "PUT",
       );
       expect(saveCall).toBeDefined();
-      const payload = (saveCall?.[2] as { json?: Record<string, unknown> } | undefined)?.json;
+      const payload = (
+        saveCall?.[2] as { json?: Record<string, unknown> } | undefined
+      )?.json;
       expect(payload?.episodeDownloads).toEqual([
         expect.objectContaining({
           number: 2,
@@ -4192,13 +4954,17 @@ describe("DashboardProjectChapterEditor", () => {
       "h-10",
     );
     expectStableDashboardActionButton(
-      within(epubTools).getByRole("button", { name: /Exportar volume em EPUB/i }),
+      within(epubTools).getByRole("button", {
+        name: /Exportar volume em EPUB/i,
+      }),
       "h-10",
     );
     const fileInput = document.getElementById(
       "chapter-editor-epub-import-file",
     ) as HTMLInputElement;
-    const file = new File(["epub"], "novo.epub", { type: "application/epub+zip" });
+    const file = new File(["epub"], "novo.epub", {
+      type: "application/epub+zip",
+    });
     fireEvent.change(fileInput, { target: { files: [file] } });
     fireEvent.click(
       within(screen.getByTestId("chapter-epub-tools")).getByRole("button", {
@@ -4208,7 +4974,8 @@ describe("DashboardProjectChapterEditor", () => {
     await waitFor(() => {
       expect(
         apiFetchMock.mock.calls.some(
-          ([, path, options]) => path === "/api/projects/project-ln-1" && options?.method === "PUT",
+          ([, path, options]) =>
+            path === "/api/projects/project-ln-1" && options?.method === "PUT",
         ),
       ).toBe(true);
     });
@@ -4249,7 +5016,9 @@ describe("DashboardProjectChapterEditor", () => {
     const fileInput = document.getElementById(
       "chapter-editor-epub-import-file",
     ) as HTMLInputElement;
-    const file = new File(["epub"], "sem-summary.epub", { type: "application/epub+zip" });
+    const file = new File(["epub"], "sem-summary.epub", {
+      type: "application/epub+zip",
+    });
     fireEvent.change(fileInput, { target: { files: [file] } });
     fireEvent.click(
       within(screen.getByTestId("chapter-epub-tools")).getByRole("button", {
@@ -4283,7 +5052,9 @@ describe("DashboardProjectChapterEditor", () => {
     const fileInput = document.getElementById(
       "chapter-editor-epub-import-file",
     ) as HTMLInputElement;
-    const file = new File(["epub"], "novo.epub", { type: "application/epub+zip" });
+    const file = new File(["epub"], "novo.epub", {
+      type: "application/epub+zip",
+    });
     fireEvent.change(fileInput, { target: { files: [file] } });
     fireEvent.click(
       within(screen.getByTestId("chapter-epub-tools")).getByRole("button", {
@@ -4292,7 +5063,9 @@ describe("DashboardProjectChapterEditor", () => {
     );
     await waitFor(() => {
       expect(
-        apiFetchMock.mock.calls.some(([, path]) => path === "/api/projects/epub/import/jobs"),
+        apiFetchMock.mock.calls.some(
+          ([, path]) => path === "/api/projects/epub/import/jobs",
+        ),
       ).toBe(true);
       expect(
         apiFetchMock.mock.calls.some(([, path]) =>
@@ -4301,13 +5074,15 @@ describe("DashboardProjectChapterEditor", () => {
       ).toBe(true);
       expect(
         apiFetchMock.mock.calls.some(
-          ([, path, options]) => path === "/api/projects/project-ln-1" && options?.method === "PUT",
+          ([, path, options]) =>
+            path === "/api/projects/project-ln-1" && options?.method === "PUT",
         ),
       ).toBe(true);
     });
     expect(
       apiFetchMock.mock.calls.some(
-        ([, path, options]) => path === "/api/projects/epub/import" && options?.method === "POST",
+        ([, path, options]) =>
+          path === "/api/projects/epub/import" && options?.method === "POST",
       ),
     ).toBe(false);
     await waitFor(() => {
@@ -4322,14 +5097,20 @@ describe("DashboardProjectChapterEditor", () => {
       capabilities: {
         project_epub_import_async: true,
       },
-      epubImportJobCreateResponse: mockJsonResponse(false, { error: "not_found" }, 404),
+      epubImportJobCreateResponse: mockJsonResponse(
+        false,
+        { error: "not_found" },
+        404,
+      ),
     });
     renderEditor("/dashboard/projetos/project-ln-1/capitulos");
     await screen.findByTestId("chapter-epub-tools");
     const fileInput = document.getElementById(
       "chapter-editor-epub-import-file",
     ) as HTMLInputElement;
-    const file = new File(["epub"], "fallback.epub", { type: "application/epub+zip" });
+    const file = new File(["epub"], "fallback.epub", {
+      type: "application/epub+zip",
+    });
     fireEvent.change(fileInput, { target: { files: [file] } });
     fireEvent.click(
       within(screen.getByTestId("chapter-epub-tools")).getByRole("button", {
@@ -4339,7 +5120,8 @@ describe("DashboardProjectChapterEditor", () => {
     await waitFor(() => {
       expect(
         apiFetchMock.mock.calls.some(
-          ([, path, options]) => path === "/api/projects/epub/import" && options?.method === "POST",
+          ([, path, options]) =>
+            path === "/api/projects/epub/import" && options?.method === "POST",
         ),
       ).toBe(true);
     });
@@ -4347,13 +5129,17 @@ describe("DashboardProjectChapterEditor", () => {
 
   it("exporta EPUB no estado neutro usando o snapshot atual da página", async () => {
     const anchorClick = vi.fn();
-    const clickSpy = vi.spyOn(HTMLAnchorElement.prototype, "click").mockImplementation(anchorClick);
+    const clickSpy = vi
+      .spyOn(HTMLAnchorElement.prototype, "click")
+      .mockImplementation(anchorClick);
 
     setupApiMock();
     renderEditor("/dashboard/projetos/project-ln-1/capitulos");
     const epubTools = await screen.findByTestId("chapter-epub-tools");
     expectStableDashboardActionButton(
-      within(epubTools).getByRole("button", { name: /Exportar volume em EPUB/i }),
+      within(epubTools).getByRole("button", {
+        name: /Exportar volume em EPUB/i,
+      }),
       "h-10",
     );
     fireEvent.click(screen.getByTestId("chapter-structure-select-2"));
@@ -4369,7 +5155,8 @@ describe("DashboardProjectChapterEditor", () => {
     );
     await waitFor(() => {
       const exportCall = apiFetchMock.mock.calls.find(
-        ([, path, options]) => path === "/api/projects/epub/export" && options?.method === "POST",
+        ([, path, options]) =>
+          path === "/api/projects/epub/export" && options?.method === "POST",
       );
       expect(exportCall).toBeDefined();
       const body = JSON.parse(String(exportCall?.[2]?.body || "{}"));
@@ -4393,7 +5180,9 @@ describe("DashboardProjectChapterEditor", () => {
     setupApiMock({ contractOk: false });
     renderEditor("/dashboard/projetos/project-ln-1/capitulos");
     await screen.findByTestId("chapter-epub-tools");
-    expect(screen.getByText(/Não foi possível confirmar o suporte EPUB/i)).toBeInTheDocument();
+    expect(
+      screen.getByText(/Não foi possível confirmar o suporte EPUB/i),
+    ).toBeInTheDocument();
   });
 
   it("permite acessar o editor com grant de projetos sem permissions legadas", async () => {
@@ -4435,8 +5224,18 @@ describe("DashboardProjectChapterEditor", () => {
     setupApiMock({
       project: buildProject({
         episodeDownloads: [
-          { ...baseProject.episodeDownloads[0], number: 1, volume: 1, title: "Capítulo 1 V1" },
-          { ...baseProject.episodeDownloads[0], number: 1, volume: 2, title: "Capítulo 1 V2" },
+          {
+            ...baseProject.episodeDownloads[0],
+            number: 1,
+            volume: 1,
+            title: "Capítulo 1 V1",
+          },
+          {
+            ...baseProject.episodeDownloads[0],
+            number: 1,
+            volume: 2,
+            title: "Capítulo 1 V2",
+          },
         ],
       }),
     });
@@ -4472,10 +5271,13 @@ describe("DashboardProjectChapterEditor", () => {
         const testId = this.getAttribute("data-testid");
         if (testId === "chapter-structure-group-4") {
           const pathname =
-            document.querySelector<HTMLElement>("[data-testid='location-pathname']")?.textContent ||
-            "";
+            document.querySelector<HTMLElement>(
+              "[data-testid='location-pathname']",
+            )?.textContent || "";
           return createMockDomRect(
-            pathname === "/dashboard/projetos/project-ln-1/capitulos" ? 120 : 260,
+            pathname === "/dashboard/projetos/project-ln-1/capitulos"
+              ? 120
+              : 260,
           );
         }
         return createMockDomRect(0);
@@ -4493,7 +5295,11 @@ describe("DashboardProjectChapterEditor", () => {
       );
     });
     await waitFor(() => {
-      expect(scrollByMock).toHaveBeenCalledWith({ top: -140, left: 0, behavior: "auto" });
+      expect(scrollByMock).toHaveBeenCalledWith({
+        top: -140,
+        left: 0,
+        behavior: "auto",
+      });
     });
 
     scrollByMock.mockClear();
@@ -4539,18 +5345,23 @@ describe("DashboardProjectChapterEditor", () => {
 
     await waitFor(() => {
       const saveCall = apiFetchMock.mock.calls.find(
-        ([, path, options]) => path === "/api/projects/project-ln-1" && options?.method === "PUT",
+        ([, path, options]) =>
+          path === "/api/projects/project-ln-1" && options?.method === "PUT",
       );
       expect(saveCall).toBeDefined();
-      const payload = (saveCall?.[2] as { json?: Record<string, unknown> } | undefined)?.json;
+      const payload = (
+        saveCall?.[2] as { json?: Record<string, unknown> } | undefined
+      )?.json;
       expect(
-        ((payload?.episodeDownloads as Array<Record<string, unknown>> | undefined) || []).map(
-          (episode) => ({
-            number: episode.number,
-            volume: episode.volume,
-            readingOrder: episode.readingOrder,
-          }),
-        ),
+        (
+          (payload?.episodeDownloads as
+            | Array<Record<string, unknown>>
+            | undefined) || []
+        ).map((episode) => ({
+          number: episode.number,
+          volume: episode.volume,
+          readingOrder: episode.readingOrder,
+        })),
       ).toEqual([
         { number: 1, volume: 1, readingOrder: 1 },
         { number: 2, volume: 1, readingOrder: 2 },
@@ -4646,6 +5457,8 @@ describe("DashboardProjectChapterEditor", () => {
     });
 
     expect(screen.getByTestId("location-search").textContent).toBe("");
-    expect(screen.queryByTestId("chapter-volume-editor")).not.toBeInTheDocument();
+    expect(
+      screen.queryByTestId("chapter-volume-editor"),
+    ).not.toBeInTheDocument();
   });
 });

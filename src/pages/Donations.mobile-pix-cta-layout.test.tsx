@@ -94,7 +94,9 @@ describe("Donations mobile PIX CTA layout", () => {
   it("aplica botao de copiar chave PIX full width no mobile e auto no desktop", async () => {
     render(<Donations />);
 
-    expect(document.querySelector(".public-page-hero")).not.toBeNull();
+    const heroSection = document.querySelector("section.relative.overflow-hidden") as HTMLElement | null;
+    expect(heroSection).not.toBeNull();
+    expect(heroSection?.className).toContain("[background-image:var(--gradient-public-hero)]");
     expect(screen.queryByText(/^Equipe$/)).not.toBeInTheDocument();
     expect(screen.queryByText(/^Recrutamento$/)).not.toBeInTheDocument();
 

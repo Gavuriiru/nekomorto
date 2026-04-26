@@ -65,6 +65,12 @@ const dashboardUser = {
   name: "Admin",
   username: "admin",
   permissions: ["*"],
+  grants: {
+    analytics: true,
+    comentarios: true,
+    projetos: true,
+    audit_log: true,
+  },
 };
 
 const buildOverviewPayload = (overrides: Record<string, unknown> = {}) => ({
@@ -234,7 +240,13 @@ describe("Dashboard overview async states", () => {
       username: "admin",
       avatarUrl: null,
       permissions: ["*"],
-      grants: { usuarios_acesso: true },
+      grants: {
+        analytics: true,
+        comentarios: true,
+        projetos: true,
+        audit_log: true,
+        usuarios: true,
+      },
     };
 
     render(
@@ -571,7 +583,13 @@ describe("Dashboard overview async states", () => {
   it("preserva a contagem de acessos no ranking de projetos", async () => {
     (window as Window & { __BOOTSTRAP_PUBLIC_ME__?: unknown }).__BOOTSTRAP_PUBLIC_ME__ = {
       ...dashboardUser,
-      grants: { usuarios_acesso: true },
+      grants: {
+        analytics: true,
+        comentarios: true,
+        projetos: true,
+        audit_log: true,
+        usuarios: true,
+      },
     };
     installDashboardApiMock({
       preferencesResponse: mockJsonResponse(true, {
@@ -652,7 +670,13 @@ describe("Dashboard overview async states", () => {
   it("uniformiza os CTAs principais da home sem herdar classes de button", async () => {
     (window as Window & { __BOOTSTRAP_PUBLIC_ME__?: unknown }).__BOOTSTRAP_PUBLIC_ME__ = {
       ...dashboardUser,
-      grants: { usuarios_acesso: true },
+      grants: {
+        analytics: true,
+        comentarios: true,
+        projetos: true,
+        audit_log: true,
+        usuarios: true,
+      },
     };
     installDashboardApiMock({
       preferencesResponse: mockJsonResponse(true, {
@@ -716,6 +740,9 @@ describe("Dashboard overview async states", () => {
     );
 
     await screen.findByRole("heading", { name: /Painel de controle da comunidade/i });
+    await waitFor(() => {
+      expect(screen.queryByTestId("dashboard-loading-skeleton")).not.toBeInTheDocument();
+    });
 
     expectOverviewActionLinkClasses(screen.getByRole("link", { name: "Ver analytics completos" }));
     expectOverviewActionLinkClasses(

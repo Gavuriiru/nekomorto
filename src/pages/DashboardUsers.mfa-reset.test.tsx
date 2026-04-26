@@ -113,16 +113,15 @@ describe("DashboardUsers admin V2F reset", () => {
     toastMock.mockReset();
   });
 
-  it("shows the reset action for owners editing another user even without usuarios_acesso", async () => {
+  it("shows the reset action for owners editing another user even without usuarios", async () => {
     configureApiFetch({
       currentUser: {
         id: "owner-2",
         name: "Dona Secundaria",
         username: "owner2",
         primaryOwnerId: "owner-1",
-        grants: {
-          usuarios_basico: true,
-          usuarios_acesso: false,
+    grants: {
+          usuarios: true,
         },
       },
       users: [
@@ -180,9 +179,8 @@ describe("DashboardUsers admin V2F reset", () => {
         name: "Admin",
         username: "admin",
         accessRole: "admin",
-        grants: {
-          usuarios_basico: true,
-          usuarios_acesso: true,
+    grants: {
+          usuarios: true,
         },
       },
       users: [
@@ -211,9 +209,8 @@ describe("DashboardUsers admin V2F reset", () => {
         name: "Dona",
         username: "owner1",
         primaryOwnerId: "owner-1",
-        grants: {
-          usuarios_basico: true,
-          usuarios_acesso: true,
+    grants: {
+          usuarios: true,
         },
       },
       users: [buildUser({ id: "owner-1", name: "Dona", order: 0 })],
@@ -239,9 +236,8 @@ describe("DashboardUsers admin V2F reset", () => {
         name: "Dona Secundaria",
         username: "owner2",
         primaryOwnerId: "owner-1",
-        grants: {
-          usuarios_basico: true,
-          usuarios_acesso: false,
+    grants: {
+          usuarios: true,
         },
       },
       users: [

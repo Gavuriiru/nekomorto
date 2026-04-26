@@ -12,6 +12,7 @@ import { useSiteSettings } from "@/hooks/use-site-settings";
 import {
   buildDashboardMenuFromGrants,
   getFirstAllowedDashboardRoute,
+  resolveAccessRole,
   resolveGrants,
 } from "@/lib/access-control";
 import { getApiBase } from "@/lib/api-base";
@@ -403,12 +404,17 @@ const Header = ({
       return [];
     }
     const grants = resolveGrants(currentUser);
-    return buildDashboardMenuFromGrants(dashboardMenuItems, grants);
+    return buildDashboardMenuFromGrants(dashboardMenuItems, grants, {
+      accessRole: resolveAccessRole(currentUser),
+    });
   }, [currentUser, dashboardMenuItems]);
   const dashboardHomeHref = useMemo(
     () =>
       currentUser
-        ? getFirstAllowedDashboardRoute(resolveGrants(currentUser), { allowUsersForSelf: true })
+        ? getFirstAllowedDashboardRoute(resolveGrants(currentUser), {
+            accessRole: resolveAccessRole(currentUser),
+            allowUsersForSelf: true,
+          })
         : "/dashboard",
     [currentUser],
   );

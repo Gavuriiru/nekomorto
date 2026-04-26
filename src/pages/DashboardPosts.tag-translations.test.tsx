@@ -106,6 +106,7 @@ describe("DashboardPosts tags translation", () => {
           name: "Admin",
           username: "admin",
           permissions: ["posts"],
+    grants: { posts: true },
         });
       }
       if (path === "/api/projects" && method === "GET") {
@@ -298,6 +299,7 @@ describe("DashboardPosts tags translation", () => {
           name: "Admin",
           username: "admin",
           permissions: ["posts"],
+    grants: { posts: true },
         });
       }
       if (path === "/api/projects" && method === "GET") {

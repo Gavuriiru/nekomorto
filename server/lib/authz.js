@@ -21,8 +21,7 @@ export const PermissionId = freeze({
   PAGINAS: "paginas",
   UPLOADS: "uploads",
   ANALYTICS: "analytics",
-  USUARIOS_BASICO: "usuarios_basico",
-  USUARIOS_ACESSO: "usuarios_acesso",
+  USUARIOS: "usuarios",
   CONFIGURACOES: "configuracoes",
   AUDIT_LOG: "audit_log",
   INTEGRACOES: "integracoes",
@@ -35,8 +34,7 @@ export const PERMISSION_IDS = freeze([
   PermissionId.PAGINAS,
   PermissionId.UPLOADS,
   PermissionId.ANALYTICS,
-  PermissionId.USUARIOS_BASICO,
-  PermissionId.USUARIOS_ACESSO,
+  PermissionId.USUARIOS,
   PermissionId.CONFIGURACOES,
   PermissionId.AUDIT_LOG,
   PermissionId.INTEGRACOES,
@@ -52,7 +50,7 @@ const DEFAULT_ADMIN_PERMISSIONS = freeze([
   PermissionId.PAGINAS,
   PermissionId.UPLOADS,
   PermissionId.ANALYTICS,
-  PermissionId.USUARIOS_BASICO,
+  PermissionId.USUARIOS,
 ]);
 
 const DEFAULT_PERMISSIONS_BY_ROLE = freeze({
@@ -63,7 +61,8 @@ const DEFAULT_PERMISSIONS_BY_ROLE = freeze({
 });
 
 const LEGACY_PERMISSION_ALIASES = freeze({
-  usuarios: [PermissionId.USUARIOS_BASICO, PermissionId.USUARIOS_ACESSO],
+  usuarios_basico: [PermissionId.USUARIOS],
+  usuarios_acesso: [PermissionId.USUARIOS],
 });
 
 export const BASIC_PROFILE_FIELDS = freeze([
@@ -167,7 +166,11 @@ export const computeEffectiveAccessRole = ({
   if (normalizedUserId && owners.includes(normalizedUserId)) {
     return AccessRole.OWNER_SECONDARY;
   }
-  return normalizeAccessRole(accessRole, AccessRole.NORMAL);
+  const normalizedAccessRole = normalizeAccessRole(accessRole, AccessRole.NORMAL);
+  if (isOwnerAccessRole(normalizedAccessRole)) {
+    return AccessRole.NORMAL;
+  }
+  return normalizedAccessRole;
 };
 
 const buildEmptyGrants = () =>

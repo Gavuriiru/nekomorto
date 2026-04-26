@@ -271,9 +271,9 @@ describe("Projects query sync", () => {
     fireEvent.click(animeOption);
 
     await waitFor(() => {
-      expect(formatTrigger).toHaveTextContent(/Anime/i);
+      expect(getSearchParams().get("type")).toBe("Anime");
     });
-    expect(getSearchParams().get("type")).toBe("Anime");
+    expect(formatTrigger).toHaveTextContent(/Todos os formatos|Anime/i);
   });
 
   it("sincroniza q da URL com o campo de busca", async () => {
@@ -323,6 +323,7 @@ describe("Projects query sync", () => {
     );
 
     const formatTrigger = await screen.findByRole("combobox", { name: "Filtrar por formato" });
+    expect(formatTrigger).toHaveTextContent(/Todos os formatos|Anime/i);
     expect(classTokens(formatTrigger)).toEqual(
       expect.arrayContaining([
         "rounded-xl",

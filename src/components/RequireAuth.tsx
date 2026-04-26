@@ -3,8 +3,8 @@ import { toast } from "@/components/ui/use-toast";
 import { useDashboardSession } from "@/hooks/use-dashboard-session";
 import {
   getFirstAllowedDashboardRoute,
+  getDashboardRouteRequirement,
   isDashboardPathAllowed,
-  isFrontendRbacV2Enabled,
   resolveAccessRole,
   resolveGrants,
 } from "@/lib/access-control";
@@ -35,28 +35,19 @@ const RequireAuth = ({ children }: RequireAuthProps) => {
 
     const grants = resolveGrants(user || null);
     const accessRole = resolveAccessRole(user || null);
-    const isOwner = accessRole === "owner_primary" || accessRole === "owner_secondary";
-    if (location.pathname.startsWith("/dashboard/seguranca") && !isOwner) {
-      return {
-        status: "redirect" as const,
-        target: getFirstAllowedDashboardRoute(grants),
-        toast: {
-          title: "Acesso negado",
-          description: "A área de segurança é restrita aos donos.",
-        },
-      };
-    }
     if (
-      isFrontendRbacV2Enabled &&
       location.pathname.startsWith("/dashboard") &&
-      !isDashboardPathAllowed(location.pathname, grants)
+      !isDashboardPathAllowed(location.pathname, grants, { accessRole })
     ) {
+      const isOwnerRoute = getDashboardRouteRequirement(location.pathname) === "owner";
       return {
         status: "redirect" as const,
-        target: getFirstAllowedDashboardRoute(grants),
+        target: getFirstAllowedDashboardRoute(grants, { accessRole }),
         toast: {
           title: "Acesso negado",
-          description: "Você foi redirecionado para uma área permitida do painel.",
+          description: isOwnerRoute
+            ? "A área de segurança é restrita aos donos."
+            : "Você foi redirecionado para uma área permitida do painel.",
         },
       };
     }
@@ -104,25 +95,17 @@ const RequireAuth = ({ children }: RequireAuthProps) => {
         const user = await response.json();
         const grants = resolveGrants(user || null);
         const accessRole = resolveAccessRole(user || null);
-        const isOwner = accessRole === "owner_primary" || accessRole === "owner_secondary";
-        if (location.pathname.startsWith("/dashboard/seguranca") && !isOwner) {
-          const target = getFirstAllowedDashboardRoute(grants);
-          toast({
-            title: "Acesso negado",
-            description: "A área de segurança é restrita aos donos.",
-          });
-          navigate(target, { replace: true });
-          return;
-        }
         if (
-          isFrontendRbacV2Enabled &&
           location.pathname.startsWith("/dashboard") &&
-          !isDashboardPathAllowed(location.pathname, grants)
+          !isDashboardPathAllowed(location.pathname, grants, { accessRole })
         ) {
-          const target = getFirstAllowedDashboardRoute(grants);
+          const target = getFirstAllowedDashboardRoute(grants, { accessRole });
+          const isOwnerRoute = getDashboardRouteRequirement(location.pathname) === "owner";
           toast({
             title: "Acesso negado",
-            description: "Você foi redirecionado para uma área permitida do painel.",
+            description: isOwnerRoute
+              ? "A área de segurança é restrita aos donos."
+              : "Você foi redirecionado para uma área permitida do painel.",
           });
           navigate(target, { replace: true });
           return;

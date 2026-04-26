@@ -5,7 +5,7 @@
 @source not "./**/*.test.tsx";
 
 @theme inline {
-  --font-sans: "Inter", sans-serif;
+  --font-sans: "Geist", "Inter", sans-serif;
 
   --color-background: hsl(var(--background));
   --color-foreground: hsl(var(--foreground));
@@ -48,8 +48,8 @@
   --radius-md: calc(var(--radius) - 2px);
   --radius-lg: var(--radius);
 
-  --animate-fade-in: fade-in var(--dashboard-motion-enter-duration, 0.8s) ease-out forwards;
-  --animate-slide-up: slide-up var(--dashboard-motion-enter-duration, 0.8s) ease-out forwards;
+  --animate-fade-in: fade-in var(--dashboard-motion-enter-duration, 150ms) ease-out both;
+  --animate-slide-up: slide-up var(--dashboard-motion-enter-duration, 150ms) ease-out both;
   --animate-spin-slow: spin-slow 14s linear infinite;
 
   @keyframes fade-in {
@@ -65,7 +65,7 @@
   @keyframes slide-up {
     from {
       opacity: 0;
-      transform: translateY(30px);
+      transform: translateY(4px);
     }
 
     to {
@@ -89,6 +89,14 @@
   position: relative;
   z-index: 1;
   overflow-x: clip;
+}
+
+.shadow-floating-soft {
+  box-shadow: 0 12px 32px -24px rgba(0, 0, 0, 0.2);
+}
+
+.shadow-floating-soft-lg {
+  box-shadow: 0 22px 52px -34px rgba(0, 0, 0, 0.22);
 }
 
 .no-scrollbar::-webkit-scrollbar {
@@ -348,7 +356,7 @@
     --badge-neutral-fg: 0 0% 98%;
     --badge-neutral-border: 220 18% 52%;
 
-    --radius: 0.75rem;
+    --radius: 0.5rem;
 
     /* Custom gradients */
     --gradient-hero: linear-gradient(180deg, hsl(220 12% 7% / 0.3) 0%, hsl(220 12% 7% / 0.95) 100%);
@@ -363,25 +371,9 @@
       hsl(280 80% 60%) 84%,
       hsl(320 80% 60%) 100%
     );
-    --gradient-card: linear-gradient(135deg, hsl(220 10% 12%) 0%, hsl(220 12% 9%) 100%);
-    --gradient-surface:
-      radial-gradient(140% 88% at 50% 34%, hsl(var(--primary) / 0.22) 0%, transparent 58%),
-      radial-gradient(110% 72% at 50% 62%, hsl(var(--accent) / 0.16) 0%, transparent 66%),
-      linear-gradient(
-        180deg,
-        hsl(var(--background)) 0%,
-        hsl(var(--background) / 0.94) 46%,
-        hsl(var(--background)) 100%
-      );
-    --gradient-public-hero:
-      radial-gradient(92% 110% at -8% 18%, hsl(var(--primary) / 0.24) 0%, transparent 58%),
-      radial-gradient(82% 100% at 108% 22%, hsl(var(--accent) / 0.18) 0%, transparent 60%),
-      linear-gradient(
-        180deg,
-        hsl(var(--primary) / 0.12) 0%,
-        hsl(var(--background) / 0.94) 42%,
-        hsl(var(--background)) 100%
-      );
+    --gradient-card: hsl(var(--card));
+    --gradient-surface: hsl(var(--background));
+    --gradient-public-hero: hsl(var(--background));
 
     --sidebar-background: 220 10% 11%;
     --sidebar-foreground: 0 0% 100%;
@@ -833,7 +825,7 @@
 
   [data-dashboard-motion="true"] [data-reveal]:not(.reveal-visible) .animate-slide-up {
     opacity: 0;
-    transform: translateY(30px);
+    transform: translateY(4px);
   }
 
   @media (prefers-reduced-motion: reduce) {
@@ -916,162 +908,73 @@
   }
 
   .stacked-surface {
-    --stacked-surface-shadow-rest: 0 8px 20px -14px rgba(0, 0, 0, 0.16);
-    --stacked-surface-shadow-active: 0 12px 24px -18px rgba(0, 0, 0, 0.2);
-    --stacked-surface-lift-distance: -2px;
+    --stacked-surface-shadow-rest: 0 1px 3px rgba(0, 0, 0, 0.1);
+    --stacked-surface-shadow-active: 0 4px 6px rgba(0, 0, 0, 0.15);
     box-shadow: var(--stacked-surface-shadow-rest);
   }
 
   .stacked-surface--public {
-    --stacked-surface-shadow-rest: 0 8px 18px -14px rgba(0, 0, 0, 0.15);
-    --stacked-surface-shadow-active: 0 11px 22px -18px rgba(0, 0, 0, 0.18);
+    --stacked-surface-shadow-rest: 0 1px 3px rgba(0, 0, 0, 0.1);
+    --stacked-surface-shadow-active: 0 4px 6px rgba(0, 0, 0, 0.15);
   }
 
   .stacked-surface--dashboard {
-    --stacked-surface-shadow-rest: 0 10px 22px -18px rgba(0, 0, 0, 0.32);
-    --stacked-surface-shadow-active: 0 14px 28px -22px rgba(0, 0, 0, 0.34);
+    --stacked-surface-shadow-rest: 0 1px 3px rgba(0, 0, 0, 0.1);
+    --stacked-surface-shadow-active: 0 4px 6px rgba(0, 0, 0, 0.15);
   }
 
   .stacked-surface--interactive {
-    transition-property: transform, box-shadow, background-color, border-color, color, opacity;
-    transition-duration: var(--interactive-duration-medium);
+    transition-property: background-color, border-color, color, opacity;
+    transition-duration: 150ms;
     transition-timing-function: var(--interactive-ease-standard);
-    will-change: transform;
   }
 
   .stacked-surface--interactive:focus-visible,
   .stacked-surface--interactive:focus-within {
-    transform: translateY(var(--stacked-surface-lift-distance));
     box-shadow: var(--stacked-surface-shadow-active);
+    border-color: hsl(var(--primary) / 0.5);
   }
 
   @media (hover: hover) and (pointer: fine) {
     .stacked-surface--interactive:hover {
-      transform: translateY(var(--stacked-surface-lift-distance));
       box-shadow: var(--stacked-surface-shadow-active);
+      border-color: hsl(var(--primary) / 0.5);
     }
   }
 
-  .shadow-dashboard-list-card {
-    box-shadow: 0 12px 28px -24px rgba(0, 0, 0, 0.45);
-  }
-
-  .shadow-dashboard-surface {
-    box-shadow: 0 16px 36px -28px rgba(0, 0, 0, 0.45);
-  }
-
-  .shadow-dashboard-inset-surface {
-    box-shadow: 0 18px 38px -30px rgba(0, 0, 0, 0.45);
-  }
-
-  .shadow-dedicated-editor-meta {
-    box-shadow: 0 16px 40px -36px rgba(0, 0, 0, 0.45);
-  }
-
-  .shadow-dedicated-editor-sticky {
-    box-shadow: 0 16px 42px -38px rgba(0, 0, 0, 0.4);
-  }
-
-  .shadow-editor-epub-tools {
-    box-shadow: 0 16px 44px -38px rgba(0, 0, 0, 0.4);
-  }
-
-  .shadow-editor-nested-card {
-    box-shadow: 0 14px 38px -32px rgba(0, 0, 0, 0.42);
-  }
-
-  .shadow-editor-section {
-    box-shadow: 0 14px 38px -32px rgba(0, 0, 0, 0.38);
-  }
-
-  .shadow-editor-surface {
-    box-shadow: 0 16px 42px -36px rgba(0, 0, 0, 0.4);
-  }
-
-  .shadow-floating-soft {
-    box-shadow: 0 12px 32px -24px rgba(0, 0, 0, 0.2);
-  }
-
-  .shadow-floating-soft-lg {
-    box-shadow: 0 22px 52px -34px rgba(0, 0, 0, 0.22);
-  }
-
-  .shadow-manga-page-active {
-    box-shadow: 0 18px 46px -28px rgba(0, 0, 0, 0.55);
-  }
-
-  .shadow-manga-page-dragging {
-    box-shadow: 0 24px 60px -30px rgba(0, 0, 0, 0.45);
-  }
-
-  .shadow-post-card {
-    box-shadow: 0 20px 60px -40px rgba(0, 0, 0, 0.75);
+  /* Unified minimal shadow for all previously bloated shadows */
+  [class*="shadow-dashboard-"],
+  [class*="shadow-dedicated-"],
+  [class*="shadow-editor-"],
+  [class*="shadow-floating-"],
+  [class*="shadow-manga-"],
+  [class*="shadow-post-"],
+  [class*="shadow-profile-"],
+  [class*="shadow-public-"],
+  [class*="shadow-project-"],
+  [class*="shadow-reader-"] {
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1), 0 1px 2px rgba(0, 0, 0, 0.06);
   }
 
   .shadow-primary-glow {
-    box-shadow: 0 0 24px -10px hsl(var(--primary));
-  }
-
-  .shadow-profile-avatar {
-    box-shadow: 0 8px 24px -12px rgba(0, 0, 0, 0.15);
-  }
-
-  .shadow-profile-card {
-    box-shadow: 0 8px 24px -12px rgba(0, 0, 0, 0.15);
-  }
-
-  .shadow-public-card {
-    box-shadow: 0 8px 24px -12px rgba(0, 0, 0, 0.15);
-  }
-
-  .shadow-project-cover-card {
-    box-shadow: 0 8px 24px -12px rgba(0, 0, 0, 0.15);
-  }
-
-  .shadow-project-details-card {
-    box-shadow: 0 8px 24px -12px rgba(0, 0, 0, 0.15);
-  }
-
-  .shadow-project-download-card {
-    box-shadow: 0 8px 24px -12px rgba(0, 0, 0, 0.15);
-  }
-
-  .shadow-reader-active-control {
-    box-shadow: 0 20px 42px -28px hsl(var(--foreground) / 0.72);
-  }
-
-  .shadow-reader-control {
-    box-shadow: 0 14px 30px -24px rgba(0, 0, 0, 0.65);
-  }
-
-  .shadow-reader-menu {
-    box-shadow: 0 28px 90px -42px rgba(0, 0, 0, 0.72);
-  }
-
-  .shadow-reader-panel {
-    box-shadow: 0 18px 46px -34px rgba(0, 0, 0, 0.58);
+    box-shadow: 0 0 12px -4px hsl(var(--primary));
   }
 
   .home-card-media-transition {
-    transition-property: transform, opacity;
-    transition-duration: 300ms;
+    transition-property: opacity;
+    transition-duration: 150ms;
     transition-timing-function: var(--interactive-ease-standard);
   }
 
   .interactive-lift-md {
-    will-change: transform;
-  }
-
-  .interactive-lift-md {
-    --interactive-lift-distance: -4px;
-    --interactive-lift-shadow: 0 12px 28px -24px rgba(0, 0, 0, 0.28);
+    transition-property: background-color, border-color, color, opacity;
+    transition-duration: 150ms;
   }
 
   @media (prefers-reduced-motion: no-preference) {
     .interactive-lift-md:hover,
     .interactive-lift-md:focus-visible {
-      transform: translateY(var(--interactive-lift-distance));
-      box-shadow: var(--interactive-lift-shadow);
+      border-color: hsl(var(--primary) / 0.4);
     }
   }
 

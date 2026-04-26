@@ -80,8 +80,16 @@ describe("DashboardSessionProvider", () => {
     const { rerender } = renderProvider(0);
 
     expect(screen.getByTestId("session-probe")).toHaveAttribute("data-user", "admin");
-    expect(screen.getByTestId("session-probe")).toHaveAttribute("data-loading", "false");
-    expect(screen.getByTestId("session-probe")).toHaveAttribute("data-resolved", "true");
+    expect(screen.getByTestId("session-probe")).toHaveAttribute("data-loading", "true");
+    expect(screen.getByTestId("session-probe")).toHaveAttribute("data-resolved", "false");
+
+    await waitFor(() => {
+      expect(apiFetchMock).toHaveBeenCalledTimes(1);
+    });
+
+    expect(screen.getByTestId("session-probe")).toHaveAttribute("data-user", "admin");
+    expect(screen.getByTestId("session-probe")).toHaveAttribute("data-loading", "true");
+    expect(screen.getByTestId("session-probe")).toHaveAttribute("data-resolved", "false");
 
     await waitFor(() => {
       expect(apiFetchMock).toHaveBeenCalledTimes(1);
@@ -94,7 +102,7 @@ describe("DashboardSessionProvider", () => {
       </DashboardSessionProvider>,
     );
 
-    expect(screen.getByTestId("session-probe")).toHaveAttribute("data-loading", "false");
+    expect(screen.getByTestId("session-probe")).toHaveAttribute("data-loading", "true");
 
     await waitFor(() => {
       expect(apiFetchMock).toHaveBeenCalledTimes(1);

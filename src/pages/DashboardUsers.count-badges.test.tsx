@@ -56,7 +56,8 @@ const usersPayload = {
       avatarUrl: null,
       socials: [],
       status: "active",
-      permissions: ["usuarios_basico"],
+      permissions: ["usuarios"],
+    grants: { usuarios: true },
       roles: [],
       accessRole: "admin",
       order: 0,
@@ -69,7 +70,8 @@ const usersPayload = {
       avatarUrl: null,
       socials: [],
       status: "retired",
-      permissions: ["usuarios_basico"],
+      permissions: ["usuarios"],
+    grants: { usuarios: true },
       roles: [],
       accessRole: "admin",
       order: 1,
@@ -91,9 +93,8 @@ const mockLoadedRequests = () => {
         name: "Admin",
         username: "admin",
         accessRole: "admin",
-        grants: {
-          usuarios_basico: true,
-          usuarios_acesso: true,
+    grants: {
+          usuarios: true,
         },
         ownerIds: [],
         primaryOwnerId: null,
@@ -131,9 +132,8 @@ describe("DashboardUsers count badges", () => {
           name: "Admin",
           username: "admin",
           accessRole: "admin",
-          grants: {
-            usuarios_basico: true,
-            usuarios_acesso: true,
+      grants: {
+            usuarios: true,
           },
           ownerIds: [],
           primaryOwnerId: null,

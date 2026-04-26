@@ -82,7 +82,8 @@ describe("DashboardUsers load error", () => {
               avatarUrl: null,
               socials: [],
               status: "active",
-              permissions: ["usuarios_basico"],
+              permissions: ["usuarios"],
+    grants: { usuarios: true },
               roles: [],
               accessRole: "admin",
               order: 0,
@@ -98,9 +99,8 @@ describe("DashboardUsers load error", () => {
           name: "Admin",
           username: "admin",
           accessRole: "admin",
-          grants: {
-            usuarios_basico: true,
-            usuarios_acesso: true,
+      grants: {
+            usuarios: true,
           },
           ownerIds: [],
           primaryOwnerId: null,

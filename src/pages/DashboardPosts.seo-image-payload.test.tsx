@@ -117,6 +117,7 @@ describe("DashboardPosts cover image payload", () => {
           name: "Admin",
           username: "admin",
           permissions: ["posts"],
+    grants: { posts: true },
         });
       }
       if (path === "/api/projects" && method === "GET") {

@@ -83,7 +83,7 @@ const DEFAULT_ADMIN_PERMISSIONS: ReadonlyArray<(typeof permissionIds)[number]> =
   "paginas",
   "uploads",
   "analytics",
-  "usuarios_basico",
+  "usuarios",
 ];
 type FavoriteWorkCategory = (typeof FAVORITE_WORK_CATEGORIES)[number];
 type FavoriteWorksByCategory = Record<FavoriteWorkCategory, string[]>;
@@ -228,8 +228,7 @@ const permissionOptions: Array<{ id: (typeof permissionIds)[number]; label: stri
   { id: "paginas", label: "Páginas" },
   { id: "uploads", label: "Uploads" },
   { id: "analytics", label: "Análises" },
-  { id: "usuarios_basico", label: "Usuários (básico)" },
-  { id: "usuarios_acesso", label: "Usuários (acesso)" },
+  { id: "usuarios", label: "Usuários" },
   { id: "configuracoes", label: "Configurações" },
   { id: "audit_log", label: "Auditoria" },
   { id: "integracoes", label: "Integrações" },
@@ -536,11 +535,9 @@ const DashboardUsers = () => {
   const isPrimaryOwnerActor = actorAccessRole === "owner_primary";
   const isSecondaryOwnerActor = actorAccessRole === "owner_secondary";
   const isAdminActor = actorAccessRole === "admin";
-  const actorCanUsersBasic = currentUser?.grants?.usuarios_basico === true;
-  const actorCanUsersAccess = currentUser?.grants?.usuarios_acesso === true;
+  const actorCanUsers = currentUser?.grants?.usuarios === true;
   const actorCanUploadManagement = currentUser?.grants?.uploads === true;
-  const canManageUsers =
-    actorCanUsersAccess && (isPrimaryOwnerActor || isSecondaryOwnerActor || isAdminActor);
+  const canManageUsers = actorCanUsers && (isPrimaryOwnerActor || isSecondaryOwnerActor || isAdminActor);
   const canManageOwners = isPrimaryOwnerActor;
   const isOwnerUser = useCallback(
     (user: UserRecord | null | undefined) => {
@@ -680,23 +677,18 @@ const DashboardUsers = () => {
   const canEditBasicFields = !editingUser
     ? canCreateUsers
     : isEditingSelf ||
-    (actorCanUsersBasic &&
+    (actorCanUsers &&
       (isPrimaryOwnerActor ||
         (isSecondaryOwnerActor && !isOwnerRecord) ||
         (isAdminActor && !isOwnerRecord)));
   const canEditRoles = !editingUser
     ? canCreateUsers
-    : actorCanUsersAccess &&
+    : actorCanUsers &&
     (isPrimaryOwnerActor ||
       (isSecondaryOwnerActor && !isOwnerRecord) ||
       (isAdminActor && !isOwnerRecord));
-  const canEditAccessControls = !editingUser
-    ? canCreateUsers
-    : actorCanUsersAccess &&
-    (isPrimaryOwnerActor ||
-      (isSecondaryOwnerActor && !isOwnerRecord) ||
-      (isAdminActor && !isOwnerRecord));
-  const canEditStatus = canEditAccessControls && !isEditingSelf && !isPrimaryOwnerRecord;
+  const canEditAccessControls = !editingUser ? canCreateUsers && isPrimaryOwnerActor : isPrimaryOwnerActor;
+  const canEditStatus = canEditRoles && !isEditingSelf && !isPrimaryOwnerRecord;
   const basicProfileOnlyEdit = Boolean(editingUser && canEditBasicFields && !canEditAccessControls);
   const canResetManagedUserTotp = Boolean(
     editingUser && isDialogOpen && !isEditingSelf && (isPrimaryOwnerActor || isSecondaryOwnerActor),
@@ -1223,7 +1215,7 @@ const DashboardUsers = () => {
     if (currentUser.id === user.id) {
       return true;
     }
-    if (!actorCanUsersBasic) {
+    if (!actorCanUsers) {
       return false;
     }
     if (isPrimaryOwnerActor) {
@@ -1263,7 +1255,7 @@ const DashboardUsers = () => {
       roles: stripOwnerRole(formState.roles),
       accessRole: normalizedAccessRole,
       status: canEditStatus ? formState.status : "active",
-      permissions: canEditAccessControls ? normalizedPermissions : [],
+      ...(canEditAccessControls ? { permissions: normalizedPermissions } : {}),
     };
     const payload = (() => {
       if (!editingUser) {
@@ -1271,6 +1263,15 @@ const DashboardUsers = () => {
       }
       if (canEditAccessControls) {
         return basePayload;
+      }
+      if (canEditRoles || canEditStatus) {
+        const rolePayload: Record<string, unknown> = {
+          ...basePayload,
+        };
+        if (!canEditStatus) {
+          rolePayload.status = "active";
+        }
+        return rolePayload;
       }
       return {
         name: basePayload.name,
@@ -1695,7 +1696,7 @@ const DashboardUsers = () => {
       ? user.roles || []
       : stripOwnerRole(user.roles || []);
     const userCardClassName = [
-      `relative min-w-0 overflow-hidden ${dashboardPageLayoutTokens.surfaceSolid} p-5 animate-slide-up opacity-0`,
+      `relative min-w-0 overflow-hidden ${dashboardPageLayoutTokens.surfaceSolid} p-5 animate-slide-up`,
       !isRetired ? `transition ${dashboardStrongSurfaceHoverClassName} hover:bg-primary/5` : "",
       isLoneLastCard ? "lg:col-span-2 lg:mx-auto lg:w-[calc(50%-0.5rem)]" : "",
     ]
@@ -1827,7 +1828,7 @@ const DashboardUsers = () => {
                   Gestão de Usuários
                 </h1>
                 <p
-                  className="mt-2 text-sm text-muted-foreground animate-slide-up opacity-0"
+                  className="mt-2 text-sm text-muted-foreground animate-slide-up"
                   style={dashboardAnimationDelay(dashboardMotionDelays.headerDescriptionMs)}
                 >
                   Reordene arrastando ou pelos botões para refletir a ordem na página pública.

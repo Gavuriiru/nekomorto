@@ -79,7 +79,7 @@ describe("DashboardPages image library context", () => {
           id: "user-1",
           name: "Admin",
           username: "admin",
-          grants: {
+      grants: {
             paginas: true,
             posts: false,
             projetos: false,
@@ -123,7 +123,7 @@ describe("DashboardPages image library context", () => {
           id: "user-1",
           name: "Admin",
           username: "admin",
-          grants: {
+      grants: {
             paginas: true,
             posts: true,
             projetos: true,

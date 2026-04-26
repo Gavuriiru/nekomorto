@@ -1,74 +1,140 @@
-import type { GrantMap } from "@/lib/access-control";
-import { afterEach, describe, expect, it, vi } from "vitest";
+import type { AccessRole, GrantMap, PermissionId } from "@/lib/access-control";
+import { describe, expect, it } from "vitest";
 
-const loadAccessControl = async (enabled: boolean) => {
-  vi.resetModules();
-  vi.stubEnv("VITE_RBAC_V2_ENABLED", enabled ? "true" : "false");
-  return import("@/lib/access-control");
+import {
+  buildDashboardMenuFromGrants,
+  canManagePostsAccess,
+  canManageProjectsAccess,
+  getFirstAllowedDashboardRoute,
+  isDashboardHrefAllowed,
+  isDashboardPathAllowed,
+  permissionIds,
+  resolveAccessRole,
+  resolveGrants,
+} from "@/lib/access-control";
+
+const grantsWith = (...allowed: PermissionId[]): GrantMap => {
+  const grants = Object.fromEntries(permissionIds.map((id) => [id, false])) as GrantMap;
+  allowed.forEach((permission) => {
+    grants[permission] = true;
+  });
+  return grants;
 };
 
-afterEach(() => {
-  vi.unstubAllEnvs();
-});
+const expectRouteAccess = ({
+  allow,
+  deny,
+  grants,
+  role = "normal",
+}: {
+  allow: string[];
+  deny: string[];
+  grants: GrantMap;
+  role?: AccessRole;
+}) => {
+  allow.forEach((href) => expect(isDashboardHrefAllowed(href, grants, { accessRole: role })).toBe(true));
+  deny.forEach((href) => expect(isDashboardHrefAllowed(href, grants, { accessRole: role })).toBe(false));
+};
 
-describe("access-control RBAC V2", () => {
-  it("hides restricted dashboard routes when V2 is enabled", async () => {
-    const access = await loadAccessControl(true);
-    const grants = Object.fromEntries(access.permissionIds.map((id) => [id, false])) as GrantMap;
-    grants.posts = true;
+describe("access-control dashboard RBAC", () => {
+  it("uses explicit grants only for dashboard access", () => {
+    const matrix: Array<{ grant: PermissionId; allow: string[]; deny: string[] }> = [
+      {
+        grant: "posts",
+        allow: ["/dashboard/posts"],
+        deny: ["/dashboard/comentarios", "/dashboard/analytics", "/dashboard/uploads"],
+      },
+      {
+        grant: "projetos",
+        allow: ["/dashboard/projetos"],
+        deny: [
+          "/dashboard/comentarios",
+          "/dashboard/analytics",
+          "/dashboard/webhooks",
+          "/dashboard/uploads",
+        ],
+      },
+      {
+        grant: "comentarios",
+        allow: ["/dashboard/comentarios"],
+        deny: ["/dashboard/analytics"],
+      },
+      {
+        grant: "configuracoes",
+        allow: ["/dashboard/configuracoes", "/dashboard/redirecionamentos"],
+        deny: ["/dashboard/webhooks", "/dashboard/uploads"],
+      },
+      {
+        grant: "uploads",
+        allow: ["/dashboard/uploads"],
+        deny: ["/dashboard/posts", "/dashboard/projetos", "/dashboard/configuracoes"],
+      },
+      {
+        grant: "analytics",
+        allow: ["/dashboard/analytics"],
+        deny: ["/dashboard/posts", "/dashboard/projetos", "/dashboard/comentarios"],
+      },
+      {
+        grant: "integracoes",
+        allow: ["/dashboard/webhooks"],
+        deny: ["/dashboard/projetos", "/dashboard/configuracoes"],
+      },
+      {
+        grant: "audit_log",
+        allow: ["/dashboard/audit-log"],
+        deny: ["/dashboard/seguranca"],
+      },
+      {
+        grant: "usuarios",
+        allow: ["/dashboard/usuarios"],
+        deny: ["/dashboard/seguranca"],
+      },
+    ];
 
-    expect(access.isDashboardHrefAllowed("/dashboard/posts", grants)).toBe(true);
-    expect(access.isDashboardHrefAllowed("/dashboard/comentarios", grants)).toBe(false);
-    expect(access.isDashboardHrefAllowed("/dashboard/usuarios", grants)).toBe(false);
-    expect(access.isDashboardHrefAllowed("/dashboard/webhooks", grants)).toBe(false);
-    expect(access.isDashboardHrefAllowed("/dashboard/redirecionamentos", grants)).toBe(false);
-    grants.integracoes = true;
-    expect(access.isDashboardHrefAllowed("/dashboard/webhooks", grants)).toBe(true);
-    grants.configuracoes = true;
-    expect(access.isDashboardHrefAllowed("/dashboard/redirecionamentos", grants)).toBe(true);
+    matrix.forEach(({ allow, deny, grant }) => expectRouteAccess({ allow, deny, grants: grantsWith(grant) }));
+  });
 
-    const menu = access.buildDashboardMenuFromGrants(
+  it("requires owner role for security", () => {
+    const grants = grantsWith("audit_log", "usuarios");
+
+    expect(isDashboardHrefAllowed("/dashboard/seguranca", grants, { accessRole: "admin" })).toBe(
+      false,
+    );
+    expect(
+      isDashboardPathAllowed("/dashboard/seguranca", grants, { accessRole: "owner_secondary" }),
+    ).toBe(true);
+    expect(getFirstAllowedDashboardRoute(grants, { accessRole: "admin" })).not.toBe(
+      "/dashboard/seguranca",
+    );
+  });
+
+  it("filters menu items with the same route rules", () => {
+    const menu = buildDashboardMenuFromGrants(
       [
         { href: "/dashboard", enabled: true },
         { href: "/dashboard/posts", enabled: true },
         { href: "/dashboard/usuarios", enabled: true },
+        { href: "/dashboard/seguranca", enabled: true },
       ],
-      grants,
+      grantsWith("posts"),
+      { accessRole: "admin" },
     );
+
     expect(menu.map((item) => item.href)).toEqual(["/dashboard", "/dashboard/posts"]);
   });
 
-  it("merges explicit grants into legacy navigation when V2 is disabled", async () => {
-    const access = await loadAccessControl(false);
-    const grants = access.resolveGrants({
-      id: "u-1",
-      permissions: [],
-      grants: {
-        posts: true,
-      },
-    });
-    expect(access.isDashboardHrefAllowed("/dashboard/posts", grants)).toBe(true);
-    expect(access.isDashboardHrefAllowed("/dashboard/usuarios", grants)).toBe(false);
-    expect(access.isDashboardPathAllowed("/dashboard/usuarios", grants)).toBe(true);
+  it("resolves grants from the canonical grants payload only", () => {
     expect(
-      access.buildDashboardMenuFromGrants(
-        [
-          { href: "/dashboard", enabled: true },
-          { href: "/dashboard/posts", enabled: true },
-          { href: "/dashboard/usuarios", enabled: true },
-        ],
-        grants,
-      ),
-    ).toEqual([
-      { href: "/dashboard", enabled: true },
-      { href: "/dashboard/posts", enabled: true },
-    ]);
-    expect(access.getFirstAllowedDashboardRoute(grants)).toBe("/dashboard");
+      resolveGrants({
+        id: "legacy-user",
+        permissions: ["*", "posts", "usuarios_basico"],
+        grants: { posts: true },
+      }),
+    ).toEqual(grantsWith("posts"));
   });
 
-  it("resolves owner role from ownerIds regardless of persisted accessRole", async () => {
-    const access = await loadAccessControl(true);
-    const role = access.resolveAccessRole({
+  it("resolves owner role from ownerIds regardless of persisted accessRole", () => {
+    const role = resolveAccessRole({
       id: "u-1",
       accessRole: "admin",
       ownerIds: ["u-1"],
@@ -77,69 +143,18 @@ describe("access-control RBAC V2", () => {
     expect(role).toBe("owner_primary");
   });
 
-  it("allows project access from explicit grants and ownerIds without legacy permissions", async () => {
-    const access = await loadAccessControl(false);
-
+  it("allows post/project helpers from explicit grants and ownerIds only", () => {
+    expect(canManagePostsAccess({ id: "grant-user", grants: { posts: true } })).toBe(true);
+    expect(canManagePostsAccess({ id: "legacy-post-user", permissions: ["posts"] })).toBe(false);
+    expect(canManageProjectsAccess({ id: "grant-user", grants: { projetos: true } })).toBe(true);
+    expect(canManageProjectsAccess({ id: "legacy-project-user", permissions: ["projetos"] })).toBe(
+      false,
+    );
     expect(
-      access.canManageProjectsAccess({
-        id: "grant-user",
-        permissions: [],
-        grants: { projetos: true },
-      }),
-    ).toBe(true);
-
-    expect(
-      access.canManageProjectsAccess({
+      canManageProjectsAccess({
         id: "owner-user",
-        permissions: [],
         ownerIds: ["owner-user"],
         primaryOwnerId: "other-owner",
-      }),
-    ).toBe(true);
-  });
-
-  it("allows post access from explicit grants and ownerIds without legacy permissions", async () => {
-    const access = await loadAccessControl(false);
-
-    expect(
-      access.canManagePostsAccess({
-        id: "grant-user",
-        permissions: [],
-        grants: { posts: true },
-      }),
-    ).toBe(true);
-
-    expect(
-      access.canManagePostsAccess({
-        id: "owner-user",
-        permissions: [],
-        ownerIds: ["owner-user"],
-        primaryOwnerId: "other-owner",
-      }),
-    ).toBe(true);
-  });
-
-  it("preserves legacy permission access for posts and projects when V2 is enabled", async () => {
-    const access = await loadAccessControl(true);
-
-    expect(
-      access.canManagePostsAccess({
-        id: "legacy-post-user",
-        permissions: ["posts"],
-      }),
-    ).toBe(true);
-
-    expect(
-      access.canManagePostsAccess({
-        id: "legacy-admin-user",
-        permissions: ["*"],
-      }),
-    ).toBe(true);
-
-    expect(
-      access.canManageProjectsAccess({
-        id: "legacy-project-user",
-        permissions: ["projetos"],
       }),
     ).toBe(true);
   });

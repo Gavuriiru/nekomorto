@@ -263,7 +263,9 @@ describe("Team mobile social layout", () => {
       </MemoryRouter>,
     );
 
-    expect(document.querySelector(".public-page-hero")).not.toBeNull();
+    const heroSection = document.querySelector("section.relative.overflow-hidden") as HTMLElement | null;
+    expect(heroSection).not.toBeNull();
+    expect(heroSection?.className).toContain("[background-image:var(--gradient-public-hero)]");
     expect(screen.getByText("Equipe")).toBeInTheDocument();
     expect(
       screen.getByRole("heading", {

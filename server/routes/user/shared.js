@@ -99,18 +99,17 @@ export const resolveManagedUserActorCapabilities = ({
 }) => {
   const accessRole = actorContext?.accessRole;
 
+  const actorCanUsers = can({
+    grants: actorContext?.grants,
+    permissionId: PermissionId.USUARIOS,
+  });
+
   return {
     actorIsAdmin: accessRole === AccessRole.ADMIN,
     actorIsPrimary: accessRole === AccessRole.OWNER_PRIMARY,
     actorIsSecondary: accessRole === AccessRole.OWNER_SECONDARY,
-    actorCanUsersAccess: can({
-      grants: actorContext?.grants,
-      permissionId: PermissionId.USUARIOS_ACESSO,
-    }),
-    actorCanUsersBasic: can({
-      grants: actorContext?.grants,
-      permissionId: PermissionId.USUARIOS_BASICO,
-    }),
+    actorCanUsersAccess: actorCanUsers,
+    actorCanUsersBasic: actorCanUsers,
   };
 };
 
@@ -121,12 +120,16 @@ export const canManageUsersAccessWithOwnerGovernance = ({
   can,
 }) => {
   const accessRole = actorContext?.accessRole;
-  if (accessRole !== AccessRole.OWNER_PRIMARY && accessRole !== AccessRole.OWNER_SECONDARY) {
+  if (
+    accessRole !== AccessRole.OWNER_PRIMARY &&
+    accessRole !== AccessRole.OWNER_SECONDARY &&
+    accessRole !== AccessRole.ADMIN
+  ) {
     return false;
   }
   return can({
     grants: actorContext?.grants,
-    permissionId: PermissionId.USUARIOS_ACESSO,
+    permissionId: PermissionId.USUARIOS,
   });
 };
 
@@ -216,35 +219,31 @@ export const getManagedUserUpdateAuthorizationError = ({
   update,
 }) => {
   const updateKeys = Object.keys(update || {});
-  const touchesBasicFields = updateKeys.some((field) => isBasicProfileField(field));
   const touchesAccessFields = updateKeys.some((field) => !isBasicProfileField(field));
   const {
-    actorCanUsersAccess,
     actorCanUsersBasic,
     actorIsAdmin,
     actorIsPrimary,
     actorIsSecondary,
   } = actorCapabilities;
 
-  if (!actorIsPrimary && !actorIsSecondary && !actorIsAdmin) {
-    return "forbidden";
+  if (!actorCanUsersBasic) {
+    return "users_permission_required";
   }
   if (targetContext?.isOwner && !actorIsPrimary) {
     return "owner_update_forbidden";
   }
-  if (actorIsAdmin) {
-    if (!actorCanUsersBasic) {
-      return "users_basic_permission_required";
-    }
-    if (updateKeys.some((field) => !isBasicProfileField(field))) {
-      return "basic_fields_only";
-    }
+  const touchesPermissionFields = updateKeys.includes("permissions");
+  const touchesRoleFields = updateKeys.some((field) => ["roles", "accessRole", "status"].includes(field));
+  const actorCanManageRoles = actorIsPrimary || actorIsSecondary || actorIsAdmin;
+  if (touchesPermissionFields && !actorIsPrimary) {
+    return "owner_permission_required";
   }
-  if ((actorIsPrimary || actorIsSecondary) && touchesBasicFields && !actorCanUsersBasic) {
-    return "users_basic_permission_required";
+  if (touchesRoleFields && !actorCanManageRoles) {
+    return "admin_role_required";
   }
-  if ((actorIsPrimary || actorIsSecondary) && touchesAccessFields && !actorCanUsersAccess) {
-    return "users_access_permission_required";
+  if (touchesAccessFields && !touchesPermissionFields && !touchesRoleFields && !actorCanManageRoles) {
+    return "basic_fields_only";
   }
 
   if (targetContext?.isPrimaryOwner) {
@@ -291,9 +290,9 @@ export const getManagedUserDeleteAuthorizationError = ({
   targetContext,
   targetId,
 }) => {
-  const { actorCanUsersAccess, actorIsPrimary, actorIsSecondary } = actorCapabilities;
+  const { actorCanUsersAccess, actorIsAdmin, actorIsPrimary, actorIsSecondary } = actorCapabilities;
 
-  if ((!actorIsPrimary && !actorIsSecondary) || !actorCanUsersAccess) {
+  if (!actorCanUsersAccess || (!actorIsPrimary && !actorIsSecondary && !actorIsAdmin)) {
     return "forbidden";
   }
   if (targetContext?.isPrimaryOwner || (primaryOwnerId && String(primaryOwnerId) === targetId)) {
@@ -501,11 +500,8 @@ export const buildRbacManagedUserUpdate = ({
     updated.status = existing.status;
     updated.roles = existing.roles;
   }
-  if (actorIsAdmin) {
+  if (!actorIsPrimary) {
     updated.permissions = existing.permissions;
-    updated.accessRole = existing.accessRole;
-    updated.status = existing.status;
-    updated.roles = existing.roles;
   }
 
   return updated;

@@ -35,6 +35,7 @@ import { useDashboardRefreshToast } from "@/hooks/use-dashboard-refresh-toast";
 import { usePageMeta } from "@/hooks/use-page-meta";
 import { getApiBase } from "@/lib/api-base";
 import { apiFetch } from "@/lib/api-client";
+import { resolveGrants } from "@/lib/access-control";
 import { Loader2, Plus, RotateCcw, Save, Send, Trash2 } from "lucide-react";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useNavigate } from "react-router-dom";
@@ -891,17 +892,10 @@ const DashboardWebhooks = () => {
     revisionRef.current = revision;
   }, [revision]);
 
-  const canManageIntegrations = useMemo(() => {
-    const grants =
-      currentUser?.grants && typeof currentUser.grants === "object" ? currentUser.grants : {};
-    const permissions = Array.isArray(currentUser?.permissions) ? currentUser.permissions : [];
-    const hasPermission = (permission: "integracoes" | "configuracoes" | "projetos") =>
-      grants[permission] === true || permissions.includes(permission) || permissions.includes("*");
-
-    return (
-      hasPermission("integracoes") || hasPermission("configuracoes") || hasPermission("projetos")
-    );
-  }, [currentUser]);
+  const canManageIntegrations = useMemo(
+    () => resolveGrants(currentUser || null).integracoes === true,
+    [currentUser],
+  );
 
   const isSectionOpen = useCallback(
     (sectionKey: SaveSectionKey | ChannelKey) => openSections.includes(sectionKey),

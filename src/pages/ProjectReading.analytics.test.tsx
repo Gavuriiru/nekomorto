@@ -1,4 +1,10 @@
-import { fireEvent, render, screen, waitFor, within } from "@testing-library/react";
+import {
+  fireEvent,
+  render,
+  screen,
+  waitFor,
+  within,
+} from "@testing-library/react";
 import { MemoryRouter, useLocation, useNavigationType } from "react-router-dom";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
@@ -23,7 +29,10 @@ vi.mock("@/hooks/use-page-meta", () => ({
 }));
 
 vi.mock("react-router-dom", async () => {
-  const actual = await vi.importActual<typeof import("react-router-dom")>("react-router-dom");
+  const actual =
+    await vi.importActual<typeof import("react-router-dom")>(
+      "react-router-dom",
+    );
   return {
     ...actual,
     useParams: () => {
@@ -99,7 +108,11 @@ vi.mock("@/components/WorkStatusCard", () => ({
   default: () => <div data-testid="work-status-card" />,
 }));
 
-const mockJsonResponse = (ok: boolean, payload: unknown, status = ok ? 200 : 500) =>
+const mockJsonResponse = (
+  ok: boolean,
+  payload: unknown,
+  status = ok ? 200 : 500,
+) =>
   ({
     ok,
     status,
@@ -119,42 +132,42 @@ const mockRectsByTestId = (
     }
   >,
 ) =>
-  vi.spyOn(HTMLElement.prototype, "getBoundingClientRect").mockImplementation(function (
-    this: HTMLElement,
-  ) {
-    const testId = this.getAttribute("data-testid");
-    const rect = testId ? rects[testId] : undefined;
-    if (!rect) {
+  vi
+    .spyOn(HTMLElement.prototype, "getBoundingClientRect")
+    .mockImplementation(function (this: HTMLElement) {
+      const testId = this.getAttribute("data-testid");
+      const rect = testId ? rects[testId] : undefined;
+      if (!rect) {
+        return {
+          x: 0,
+          y: 0,
+          top: 0,
+          bottom: 0,
+          left: 0,
+          right: 0,
+          width: 0,
+          height: 0,
+          toJSON: () => ({}),
+        } as DOMRect;
+      }
+
+      const left = rect.left ?? 0;
+      const right = rect.right ?? left + (rect.width ?? 0);
+      const width = rect.width ?? Math.max(right - left, 0);
+      const height = rect.height ?? Math.max(rect.bottom - rect.top, 0);
+
       return {
-        x: 0,
-        y: 0,
-        top: 0,
-        bottom: 0,
-        left: 0,
-        right: 0,
-        width: 0,
-        height: 0,
+        x: left,
+        y: rect.top,
+        top: rect.top,
+        bottom: rect.bottom,
+        left,
+        right,
+        width,
+        height,
         toJSON: () => ({}),
       } as DOMRect;
-    }
-
-    const left = rect.left ?? 0;
-    const right = rect.right ?? left + (rect.width ?? 0);
-    const width = rect.width ?? Math.max(right - left, 0);
-    const height = rect.height ?? Math.max(rect.bottom - rect.top, 0);
-
-    return {
-      x: left,
-      y: rect.top,
-      top: rect.top,
-      bottom: rect.bottom,
-      left,
-      right,
-      width,
-      height,
-      toJSON: () => ({}),
-    } as DOMRect;
-  });
+    });
 
 const ProjectReadingLocationProbe = () => {
   const location = useLocation();
@@ -162,7 +175,9 @@ const ProjectReadingLocationProbe = () => {
 
   return (
     <>
-      <div data-testid="project-reading-location-pathname">{location.pathname}</div>
+      <div data-testid="project-reading-location-pathname">
+        {location.pathname}
+      </div>
       <div data-testid="project-reading-location-search">{location.search}</div>
       <div data-testid="project-reading-location-hash">{location.hash}</div>
       <div data-testid="project-reading-location-action">{navigationType}</div>
@@ -170,7 +185,9 @@ const ProjectReadingLocationProbe = () => {
   );
 };
 
-const createReadingEpisodeFixture = (overrides: Partial<ProjectEpisode> = {}): ProjectEpisode => ({
+const createReadingEpisodeFixture = (
+  overrides: Partial<ProjectEpisode> = {},
+): ProjectEpisode => ({
   number: 1,
   title: "Capitulo 1",
   synopsis: "",
@@ -181,9 +198,12 @@ const createReadingEpisodeFixture = (overrides: Partial<ProjectEpisode> = {}): P
   ...overrides,
 });
 
-type ProjectEpisodeFixture = Partial<ProjectEpisode> & Pick<ProjectEpisode, "number" | "title">;
+type ProjectEpisodeFixture = Partial<ProjectEpisode> &
+  Pick<ProjectEpisode, "number" | "title">;
 
-const createProjectFixture = (episodeDownloads?: ProjectEpisodeFixture[]): Project => ({
+const createProjectFixture = (
+  episodeDownloads?: ProjectEpisodeFixture[],
+): Project => ({
   id: "projeto-teste",
   title: "Projeto Teste",
   synopsis: "Sinopse",
@@ -202,7 +222,9 @@ const createProjectFixture = (episodeDownloads?: ProjectEpisodeFixture[]): Proje
   staff: [],
   volumeEntries: [],
   volumeCovers: [],
-  episodeDownloads: episodeDownloads?.map((episode) => createReadingEpisodeFixture(episode)) || [
+  episodeDownloads: episodeDownloads?.map((episode) =>
+    createReadingEpisodeFixture(episode),
+  ) || [
     createReadingEpisodeFixture({
       number: 1,
       volume: 2,
@@ -274,7 +296,8 @@ const setupProjectReadingApiMock = (
 ) => {
   const project = options?.project || createProjectFixture(episodeDownloads);
   const chapterEndpoint =
-    options?.chapterEndpoint || "/api/public/projects/projeto-teste/chapters/1?volume=2";
+    options?.chapterEndpoint ||
+    "/api/public/projects/projeto-teste/chapters/1?volume=2";
   const chapterResponse =
     options?.chapterResponse === undefined
       ? {
@@ -324,7 +347,9 @@ const setupProjectReadingApiMock = (
         episodeDownloads: Array.isArray(project.episodeDownloads)
           ? project.episodeDownloads.map((entry) => ({
               number: Number(entry.number || 0),
-              volume: Number.isFinite(Number(entry.volume)) ? Number(entry.volume) : undefined,
+              volume: Number.isFinite(Number(entry.volume))
+                ? Number(entry.volume)
+                : undefined,
               title: String(entry.title || ""),
               content: typeof entry.content === "string" ? entry.content : "",
               contentFormat:
@@ -345,28 +370,36 @@ const setupProjectReadingApiMock = (
               sourceType: String(entry.sourceType || ""),
               sources: Array.isArray(entry.sources) ? entry.sources : [],
               progressStage: String(entry.progressStage || ""),
-              completedStages: Array.isArray(entry.completedStages) ? entry.completedStages : [],
+              completedStages: Array.isArray(entry.completedStages)
+                ? entry.completedStages
+                : [],
               chapterUpdatedAt: String(entry.chapterUpdatedAt || ""),
               hasContent:
                 Boolean((entry as { hasContent?: boolean }).hasContent) ||
-                (typeof entry.content === "string" && entry.content.trim().length > 0),
+                (typeof entry.content === "string" &&
+                  entry.content.trim().length > 0),
               entryKind:
                 String((entry as { entryKind?: string }).entryKind || "")
                   .trim()
                   .toLowerCase() === "extra"
                   ? "extra"
                   : "main",
-              entrySubtype: String((entry as { entrySubtype?: string }).entrySubtype || ""),
+              entrySubtype: String(
+                (entry as { entrySubtype?: string }).entrySubtype || "",
+              ),
               readingOrder: Number.isFinite(Number(entry.readingOrder))
                 ? Number(entry.readingOrder)
                 : undefined,
-              displayLabel: String((entry as { displayLabel?: string }).displayLabel || ""),
+              displayLabel: String(
+                (entry as { displayLabel?: string }).displayLabel || "",
+              ),
             }))
           : [],
         views: 0,
         viewsDaily: {},
         readerConfig:
-          (project as { readerConfig?: Record<string, unknown> }).readerConfig || undefined,
+          (project as { readerConfig?: Record<string, unknown> })
+            .readerConfig || undefined,
       },
     ],
     posts: [],
@@ -389,10 +422,15 @@ const setupProjectReadingApiMock = (
         name: "Admin",
         username: "admin",
         permissions,
+        grants: { projetos: permissions.includes("projetos") || permissions.includes("*") },
       }
     : null;
   apiFetchMock.mockImplementation(
-    async (_apiBase: string, endpoint: string, requestOptions?: RequestInit) => {
+    async (
+      _apiBase: string,
+      endpoint: string,
+      requestOptions?: RequestInit,
+    ) => {
       if (
         endpoint === "/api/public/projects/projeto-teste" &&
         (!requestOptions?.method || requestOptions.method === "GET")
@@ -408,7 +446,10 @@ const setupProjectReadingApiMock = (
           readerConfig: options?.readerConfig || undefined,
         });
       }
-      if (endpoint === PUBLIC_ANALYTICS_INGEST_PATH && requestOptions?.method === "POST") {
+      if (
+        endpoint === PUBLIC_ANALYTICS_INGEST_PATH &&
+        requestOptions?.method === "POST"
+      ) {
         return mockJsonResponse(true, { ok: true });
       }
       return mockJsonResponse(false, { error: "not_found" }, 404);
@@ -463,7 +504,9 @@ describe("ProjectReading analytics", () => {
     setupProjectReadingApiMock();
 
     render(
-      <MemoryRouter initialEntries={["/projeto/projeto-teste/leitura/1?volume=2"]}>
+      <MemoryRouter
+        initialEntries={["/projeto/projeto-teste/leitura/1?volume=2"]}
+      >
         <ProjectReading />
       </MemoryRouter>,
     );
@@ -494,7 +537,10 @@ describe("ProjectReading analytics", () => {
     }
     apiFetchMock.mockImplementation(
       async (apiBase: string, endpoint: string, options?: RequestInit) => {
-        if (endpoint === PUBLIC_ANALYTICS_INGEST_PATH && options?.method === "POST") {
+        if (
+          endpoint === PUBLIC_ANALYTICS_INGEST_PATH &&
+          options?.method === "POST"
+        ) {
           throw new TypeError("Failed to fetch");
         }
         return baseImplementation(apiBase, endpoint, options);
@@ -502,12 +548,16 @@ describe("ProjectReading analytics", () => {
     );
 
     render(
-      <MemoryRouter initialEntries={["/projeto/projeto-teste/leitura/1?volume=2"]}>
+      <MemoryRouter
+        initialEntries={["/projeto/projeto-teste/leitura/1?volume=2"]}
+      >
         <ProjectReading />
       </MemoryRouter>,
     );
 
-    expect(await screen.findByRole("heading", { name: /Cap.*tulo 1/i })).toBeInTheDocument();
+    expect(
+      await screen.findByRole("heading", { name: /Cap.*tulo 1/i }),
+    ).toBeInTheDocument();
     expect(await screen.findByTestId("lexical-viewer")).toBeInTheDocument();
 
     await waitFor(() => {
@@ -524,7 +574,9 @@ describe("ProjectReading analytics", () => {
     window.localStorage.setItem("reading.any-value", "1");
 
     render(
-      <MemoryRouter initialEntries={["/projeto/projeto-teste/leitura/1?volume=2"]}>
+      <MemoryRouter
+        initialEntries={["/projeto/projeto-teste/leitura/1?volume=2"]}
+      >
         <ProjectReading />
       </MemoryRouter>,
     );
@@ -536,7 +588,9 @@ describe("ProjectReading analytics", () => {
     expect(screen.queryByText("Contraste")).not.toBeInTheDocument();
     expect(screen.queryByText("Largura")).not.toBeInTheDocument();
     expect(screen.queryByText("Tamanho")).not.toBeInTheDocument();
-    expect(screen.queryByRole("button", { name: /Restaurar padr.o/i })).not.toBeInTheDocument();
+    expect(
+      screen.queryByRole("button", { name: /Restaurar padr.o/i }),
+    ).not.toBeInTheDocument();
   });
 
   it("restaura o hero dedicado do light novel e a navegacao textual entre capitulos", async () => {
@@ -558,17 +612,26 @@ describe("ProjectReading analytics", () => {
     ]);
 
     const { container } = render(
-      <MemoryRouter initialEntries={["/projeto/projeto-teste/leitura/1?volume=2"]}>
+      <MemoryRouter
+        initialEntries={["/projeto/projeto-teste/leitura/1?volume=2"]}
+      >
         <ProjectReading />
       </MemoryRouter>,
     );
 
     await screen.findByRole("heading", { name: /Cap.*tulo 1/i });
 
-    expect(screen.queryByRole("navigation", { name: /breadcrumb/i })).not.toBeInTheDocument();
-    expect(screen.queryByText(/Leitura de Light Novel/i)).not.toBeInTheDocument();
+    expect(
+      screen.queryByRole("navigation", { name: /breadcrumb/i }),
+    ).not.toBeInTheDocument();
+    expect(
+      screen.queryByText(/Leitura de Light Novel/i),
+    ).not.toBeInTheDocument();
     expect(screen.queryByText(/Volume 1/i)).not.toBeInTheDocument();
-    expect(screen.getByTestId("public-header")).toHaveAttribute("data-variant", "fixed");
+    expect(screen.getByTestId("public-header")).toHaveAttribute(
+      "data-variant",
+      "fixed",
+    );
     expect(screen.getByTestId("public-footer")).toBeInTheDocument();
 
     const hero = screen.getByTestId("project-reading-hero");
@@ -577,23 +640,31 @@ describe("ProjectReading analytics", () => {
     expect(within(hero).getByText("Resumo do capitulo")).toBeInTheDocument();
     expect(within(hero).getByText("Light Novel")).toBeInTheDocument();
     expect(within(hero).getByText(/Vol\. 2/i)).toBeInTheDocument();
-    expect(within(hero).getByRole("link", { name: /Voltar ao projeto/i })).toHaveAttribute(
-      "href",
-      "/projeto/projeto-teste",
-    );
-    expect(within(hero).queryByRole("link", { name: /Editar cap.tulo/i })).not.toBeInTheDocument();
-    expect(screen.queryByTestId("project-reading-info-bar")).not.toBeInTheDocument();
+    expect(
+      within(hero).getByRole("link", { name: /Voltar ao projeto/i }),
+    ).toHaveAttribute("href", "/projeto/projeto-teste");
+    expect(
+      within(hero).queryByRole("link", { name: /Editar cap.tulo/i }),
+    ).not.toBeInTheDocument();
+    expect(
+      screen.queryByTestId("project-reading-info-bar"),
+    ).not.toBeInTheDocument();
     const chapterNav = screen.getByTestId("project-reading-chapter-nav");
     expect(
       within(chapterNav).queryByRole("link", { name: /Cap.*tulo anterior/i }),
     ).not.toBeInTheDocument();
-    expect(within(chapterNav).getByRole("link", { name: /Pr.ximo cap.*tulo/i })).toHaveAttribute(
-      "href",
-      "/projeto/projeto-teste/leitura/2?volume=2",
-    );
-    expect(screen.queryByTestId("project-reading-comments-handoff")).not.toBeInTheDocument();
-    expect(screen.getByTestId("project-reading-comments-sentinel")).toBeInTheDocument();
-    expect(document.querySelector(".project-reading-reader-shell")).not.toBeNull();
+    expect(
+      within(chapterNav).getByRole("link", { name: /Pr.ximo cap.*tulo/i }),
+    ).toHaveAttribute("href", "/projeto/projeto-teste/leitura/2?volume=2");
+    expect(
+      screen.queryByTestId("project-reading-comments-handoff"),
+    ).not.toBeInTheDocument();
+    expect(
+      screen.getByTestId("project-reading-comments-sentinel"),
+    ).toBeInTheDocument();
+    expect(
+      document.querySelector(".project-reading-reader-shell"),
+    ).not.toBeNull();
     expect(container.firstElementChild).not.toHaveClass("pt-20", "md:pt-24");
   });
 
@@ -601,7 +672,9 @@ describe("ProjectReading analytics", () => {
     setupProjectReadingApiMock(undefined, ["projetos"]);
 
     render(
-      <MemoryRouter initialEntries={["/projeto/projeto-teste/leitura/1?volume=2"]}>
+      <MemoryRouter
+        initialEntries={["/projeto/projeto-teste/leitura/1?volume=2"]}
+      >
         <ProjectReading />
       </MemoryRouter>,
     );
@@ -648,7 +721,9 @@ describe("ProjectReading analytics", () => {
     );
 
     render(
-      <MemoryRouter initialEntries={["/projeto/projeto-teste/leitura/1?volume=2"]}>
+      <MemoryRouter
+        initialEntries={["/projeto/projeto-teste/leitura/1?volume=2"]}
+      >
         <ProjectReading />
       </MemoryRouter>,
     );
@@ -683,7 +758,8 @@ describe("ProjectReading analytics", () => {
       ],
       ["projetos"],
       {
-        chapterEndpoint: "/api/public/projects/projeto-teste/chapters/1?volume=0",
+        chapterEndpoint:
+          "/api/public/projects/projeto-teste/chapters/1?volume=0",
         chapterResponse: {
           number: 1,
           title: "Capitulo 1 - Publico",
@@ -695,7 +771,9 @@ describe("ProjectReading analytics", () => {
     );
 
     render(
-      <MemoryRouter initialEntries={["/projeto/projeto-teste/leitura/1?volume=0"]}>
+      <MemoryRouter
+        initialEntries={["/projeto/projeto-teste/leitura/1?volume=0"]}
+      >
         <ProjectReading />
       </MemoryRouter>,
     );
@@ -747,20 +825,26 @@ describe("ProjectReading analytics", () => {
     );
 
     await screen.findByTestId("project-reading-hero");
-    expect(screen.queryByRole("link", { name: /Editar cap.tulo/i })).not.toBeInTheDocument();
+    expect(
+      screen.queryByRole("link", { name: /Editar cap.tulo/i }),
+    ).not.toBeInTheDocument();
   });
 
   it("nao exibe CTA de editar capitulo sem permissao", async () => {
     setupProjectReadingApiMock(undefined, ["posts"]);
 
     render(
-      <MemoryRouter initialEntries={["/projeto/projeto-teste/leitura/1?volume=2"]}>
+      <MemoryRouter
+        initialEntries={["/projeto/projeto-teste/leitura/1?volume=2"]}
+      >
         <ProjectReading />
       </MemoryRouter>,
     );
 
     await screen.findByRole("heading", { name: /Cap.*tulo 1/i });
-    expect(screen.queryByRole("link", { name: /Editar cap.tulo/i })).not.toBeInTheDocument();
+    expect(
+      screen.queryByRole("link", { name: /Editar cap.tulo/i }),
+    ).not.toBeInTheDocument();
   });
 
   it("mantem a acao de retorno no hero e deixa os controles do reader no menu em-stage", async () => {
@@ -812,7 +896,9 @@ describe("ProjectReading analytics", () => {
     });
 
     render(
-      <MemoryRouter initialEntries={["/projeto/projeto-teste/leitura/1?volume=2"]}>
+      <MemoryRouter
+        initialEntries={["/projeto/projeto-teste/leitura/1?volume=2"]}
+      >
         <ProjectReading />
       </MemoryRouter>,
     );
@@ -824,16 +910,26 @@ describe("ProjectReading analytics", () => {
     const readerShell = screen.getByTestId("project-reading-full-bleed-shell");
     const readerBar = screen.getByTestId("project-reading-reader-bar");
     const infoBar = screen.getByTestId("project-reading-info-bar");
-    const contextRow = within(infoBar).getByTestId("project-reading-context-row");
-    const projectTitle = within(infoBar).getByTestId("project-reading-project-title");
-    const chapterContext = within(infoBar).getByTestId("project-reading-chapter-context");
+    const contextRow = within(infoBar).getByTestId(
+      "project-reading-context-row",
+    );
+    const projectTitle = within(infoBar).getByTestId(
+      "project-reading-project-title",
+    );
+    const chapterContext = within(infoBar).getByTestId(
+      "project-reading-chapter-context",
+    );
     const synopsis = within(infoBar).getByTestId("project-reading-synopsis");
     const actions = within(infoBar).getByTestId("project-reading-actions");
     const heading = within(readerBar).getByRole("heading", {
       name: /Cap.*tulo 1/i,
     });
-    const commentsHandoff = screen.getByTestId("project-reading-comments-handoff");
-    const commentsSentinel = screen.getByTestId("project-reading-comments-sentinel");
+    const commentsHandoff = screen.getByTestId(
+      "project-reading-comments-handoff",
+    );
+    const commentsSentinel = screen.getByTestId(
+      "project-reading-comments-sentinel",
+    );
 
     expect(firstFold).toHaveClass("project-reading-first-fold", "min-h-screen");
     expect(imageLayout).toHaveClass("flex", "min-h-0", "flex-1", "flex-col");
@@ -844,7 +940,9 @@ describe("ProjectReading analytics", () => {
     expect(publicHeader).toHaveAttribute("data-show-bottom-gradient", "true");
     expect(firstFold).not.toHaveAttribute("data-site-header-attached");
     await waitFor(() => {
-      expect(screen.getByTestId("project-reading-site-header-offset").style.height).toBe("96px");
+      expect(
+        screen.getByTestId("project-reading-site-header-offset").style.height,
+      ).toBe("96px");
     });
     expect(readerShell).toHaveClass("w-full");
     expect(readerShell).toHaveClass("gap-2", "md:gap-3");
@@ -856,12 +954,15 @@ describe("ProjectReading analytics", () => {
     expect(projectTitle).toHaveClass("project-reading-masthead__overline");
     expect(chapterContext).toHaveTextContent(/Cap.*tulo 1/i);
     expect(contextRow).toBeInTheDocument();
-    expect(within(infoBar).queryByTestId("project-reading-project-type")).not.toBeInTheDocument();
-    expect(within(actions).getByRole("link", { name: /Voltar ao projeto/i })).toHaveAttribute(
-      "href",
-      "/projeto/projeto-teste",
-    );
-    expect(within(actions).getByRole("link", { name: /Voltar ao projeto/i })).toHaveClass(
+    expect(
+      within(infoBar).queryByTestId("project-reading-project-type"),
+    ).not.toBeInTheDocument();
+    expect(
+      within(actions).getByRole("link", { name: /Voltar ao projeto/i }),
+    ).toHaveAttribute("href", "/projeto/projeto-teste");
+    expect(
+      within(actions).getByRole("link", { name: /Voltar ao projeto/i }),
+    ).toHaveClass(
       "project-reading-action-btn",
       "project-reading-action-btn--secondary",
     );
@@ -872,42 +973,56 @@ describe("ProjectReading analytics", () => {
     expect(heading).toBeInTheDocument();
     expect(heading).toHaveClass("project-reading-masthead__title");
     expect(synopsis).toHaveClass("project-reading-masthead__synopsis");
-    expect(within(infoBar).queryByTestId("project-reading-meta-row")).not.toBeInTheDocument();
     expect(
-      projectTitle.compareDocumentPosition(chapterContext) & Node.DOCUMENT_POSITION_FOLLOWING,
+      within(infoBar).queryByTestId("project-reading-meta-row"),
+    ).not.toBeInTheDocument();
+    expect(
+      projectTitle.compareDocumentPosition(chapterContext) &
+        Node.DOCUMENT_POSITION_FOLLOWING,
     ).toBeTruthy();
     expect(
-      chapterContext.compareDocumentPosition(synopsis) & Node.DOCUMENT_POSITION_FOLLOWING,
+      chapterContext.compareDocumentPosition(synopsis) &
+        Node.DOCUMENT_POSITION_FOLLOWING,
     ).toBeTruthy();
     expect(commentsHandoff.style.minHeight).toBe("5rem");
     expect(
-      publicHeader.compareDocumentPosition(infoBar) & Node.DOCUMENT_POSITION_FOLLOWING,
+      publicHeader.compareDocumentPosition(infoBar) &
+        Node.DOCUMENT_POSITION_FOLLOWING,
     ).toBeTruthy();
     expect(
-      infoBar.compareDocumentPosition(screen.getByTestId("project-reading-stage")) &
-        Node.DOCUMENT_POSITION_FOLLOWING,
+      infoBar.compareDocumentPosition(
+        screen.getByTestId("project-reading-stage"),
+      ) & Node.DOCUMENT_POSITION_FOLLOWING,
     ).toBeTruthy();
     expect(firstFold.contains(imageLayout)).toBe(true);
     expect(firstFold.contains(commentsHandoff)).toBe(false);
     expect(
-      firstFold.compareDocumentPosition(commentsHandoff) & Node.DOCUMENT_POSITION_FOLLOWING,
+      firstFold.compareDocumentPosition(commentsHandoff) &
+        Node.DOCUMENT_POSITION_FOLLOWING,
     ).toBeTruthy();
     expect(
-      commentsHandoff.compareDocumentPosition(commentsSentinel) & Node.DOCUMENT_POSITION_FOLLOWING,
+      commentsHandoff.compareDocumentPosition(commentsSentinel) &
+        Node.DOCUMENT_POSITION_FOLLOWING,
     ).toBeTruthy();
 
     await waitFor(() => {
       expect(readerShell.style.minHeight).toMatch(/px$/);
     });
 
-    expect(screen.queryByTestId("project-reading-chapter-nav")).not.toBeInTheDocument();
-    expect(screen.queryByTestId("project-reader-sidebar")).not.toBeInTheDocument();
+    expect(
+      screen.queryByTestId("project-reading-chapter-nav"),
+    ).not.toBeInTheDocument();
+    expect(
+      screen.queryByTestId("project-reader-sidebar"),
+    ).not.toBeInTheDocument();
     expect(
       screen
         .getByTestId("project-reading-stage")
         .contains(screen.getByTestId("project-reader-menu-button")),
     ).toBe(true);
-    expect(infoBar.contains(screen.getByTestId("project-reader-menu-button"))).toBe(false);
+    expect(
+      infoBar.contains(screen.getByTestId("project-reader-menu-button")),
+    ).toBe(false);
 
     fireEvent.click(screen.getByTestId("project-reader-menu-button"));
     expect(await screen.findByText("Leitor")).toBeInTheDocument();
@@ -917,8 +1032,12 @@ describe("ProjectReading analytics", () => {
         .getByTestId("project-reading-stage")
         .contains(screen.getByTestId("project-reader-sidebar")),
     ).toBe(true);
-    expect(screen.getByRole("combobox", { name: /Selecionar cap.tulo/i })).toBeInTheDocument();
-    expect(screen.getByRole("combobox", { name: /Selecionar p.gina/i })).toBeInTheDocument();
+    expect(
+      screen.getByRole("combobox", { name: /Selecionar cap.tulo/i }),
+    ).toBeInTheDocument();
+    expect(
+      screen.getByRole("combobox", { name: /Selecionar p.gina/i }),
+    ).toBeInTheDocument();
     expect(
       within(screen.getByTestId("project-reader-sidebar")).queryByRole("link", {
         name: /Voltar ao projeto/i,
@@ -950,7 +1069,9 @@ describe("ProjectReading analytics", () => {
       title: "Capitulo 1",
       synopsis: "Resumo do capitulo",
       contentFormat: "images",
-      pages: [{ position: 0, imageUrl: "/uploads/projects/projeto-teste/page-1.jpg" }],
+      pages: [
+        { position: 0, imageUrl: "/uploads/projects/projeto-teste/page-1.jpg" },
+      ],
       pageCount: 1,
       hasPages: true,
     };
@@ -969,13 +1090,17 @@ describe("ProjectReading analytics", () => {
     });
 
     const viewportRender = render(
-      <MemoryRouter initialEntries={["/projeto/projeto-teste/leitura/1?volume=2"]}>
+      <MemoryRouter
+        initialEntries={["/projeto/projeto-teste/leitura/1?volume=2"]}
+      >
         <ProjectReading />
       </MemoryRouter>,
     );
 
     await screen.findByTestId("project-reading-stage");
-    expect(screen.getByTestId("project-reading-first-fold")).toBeInTheDocument();
+    expect(
+      screen.getByTestId("project-reading-first-fold"),
+    ).toBeInTheDocument();
     expect(screen.getByTestId("public-header")).toBeInTheDocument();
     expect(screen.getByTestId("public-footer")).toBeInTheDocument();
     viewportRender.unmount();
@@ -994,17 +1119,30 @@ describe("ProjectReading analytics", () => {
     });
 
     render(
-      <MemoryRouter initialEntries={["/projeto/projeto-teste/leitura/1?volume=2"]}>
+      <MemoryRouter
+        initialEntries={["/projeto/projeto-teste/leitura/1?volume=2"]}
+      >
         <ProjectReading />
       </MemoryRouter>,
     );
 
-    const imageLayout = await screen.findByTestId("project-reading-images-layout");
-    expect(screen.queryByTestId("project-reading-first-fold")).not.toBeInTheDocument();
-    expect(screen.getByTestId("public-header")).toHaveAttribute("data-variant", "static");
-    expect(screen.queryByTestId("project-reading-site-header-offset")).not.toBeInTheDocument();
+    const imageLayout = await screen.findByTestId(
+      "project-reading-images-layout",
+    );
+    expect(
+      screen.queryByTestId("project-reading-first-fold"),
+    ).not.toBeInTheDocument();
+    expect(screen.getByTestId("public-header")).toHaveAttribute(
+      "data-variant",
+      "static",
+    );
+    expect(
+      screen.queryByTestId("project-reading-site-header-offset"),
+    ).not.toBeInTheDocument();
     expect(screen.queryByTestId("public-footer")).not.toBeInTheDocument();
-    expect(imageLayout.parentElement).not.toHaveAttribute("data-site-header-attached");
+    expect(imageLayout.parentElement).not.toHaveAttribute(
+      "data-site-header-attached",
+    );
     expect(imageLayout).toHaveClass("min-h-screen");
     expect(imageLayout).not.toHaveClass("flex-1", "min-h-0");
     expect(screen.getByTestId("project-reading-info-bar")).toHaveAttribute(
@@ -1017,74 +1155,83 @@ describe("ProjectReading analytics", () => {
     );
   });
 
-  it.each([
-    "Manga",
-    "Webtoon",
-  ] as const)("aplica o mesmo wrapper de imagem quando %s recebe o mesmo readerConfig", async (projectType) => {
-    const project = {
-      ...createProjectFixture([
-        {
+  it.each(["Manga", "Webtoon"] as const)(
+    "aplica o mesmo wrapper de imagem quando %s recebe o mesmo readerConfig",
+    async (projectType) => {
+      const project = {
+        ...createProjectFixture([
+          {
+            number: 1,
+            volume: 2,
+            title: "Capitulo 1",
+            synopsis: "Resumo do capitulo",
+            hasPages: true,
+          },
+        ]),
+        type: projectType,
+      };
+
+      setupProjectReadingApiMock(undefined, null, {
+        project,
+        readerConfig: {
+          layout: "scroll-vertical",
+          imageFit: "width",
+          chromeMode: "cinema",
+          viewportMode: "natural",
+          siteHeaderVariant: "static",
+          showSiteFooter: false,
+        },
+        chapterResponse: {
           number: 1,
           volume: 2,
           title: "Capitulo 1",
           synopsis: "Resumo do capitulo",
+          contentFormat: "images",
+          pages: [
+            {
+              position: 0,
+              imageUrl: "/uploads/projects/projeto-teste/page-1.jpg",
+            },
+          ],
+          pageCount: 1,
           hasPages: true,
         },
-      ]),
-      type: projectType,
-    };
+      });
 
-    setupProjectReadingApiMock(undefined, null, {
-      project,
-      readerConfig: {
-        layout: "scroll-vertical",
-        imageFit: "width",
-        chromeMode: "cinema",
-        viewportMode: "natural",
-        siteHeaderVariant: "static",
-        showSiteFooter: false,
-      },
-      chapterResponse: {
-        number: 1,
-        volume: 2,
-        title: "Capitulo 1",
-        synopsis: "Resumo do capitulo",
-        contentFormat: "images",
-        pages: [
-          {
-            position: 0,
-            imageUrl: "/uploads/projects/projeto-teste/page-1.jpg",
-          },
-        ],
-        pageCount: 1,
-        hasPages: true,
-      },
-    });
+      render(
+        <MemoryRouter
+          initialEntries={["/projeto/projeto-teste/leitura/1?volume=2"]}
+        >
+          <ProjectReading />
+        </MemoryRouter>,
+      );
 
-    render(
-      <MemoryRouter initialEntries={["/projeto/projeto-teste/leitura/1?volume=2"]}>
-        <ProjectReading />
-      </MemoryRouter>,
-    );
-
-    const imageLayout = await screen.findByTestId("project-reading-images-layout");
-    expect(screen.queryByTestId("project-reading-first-fold")).not.toBeInTheDocument();
-    expect(screen.getByTestId("public-header")).toHaveAttribute("data-variant", "static");
-    expect(screen.queryByTestId("public-footer")).not.toBeInTheDocument();
-    expect(imageLayout).toHaveClass("flex", "flex-col", "min-h-screen");
-    expect(screen.getByTestId("project-reading-info-bar")).toHaveAttribute(
-      "data-variant",
-      "reader-cinema",
-    );
-    expect(screen.getByTestId("project-reading-stage")).toHaveAttribute(
-      "data-chrome-mode",
-      "cinema",
-    );
-    expect(screen.getByTestId("project-reading-stage")).toHaveAttribute(
-      "data-viewport-mode",
-      "natural",
-    );
-  });
+      const imageLayout = await screen.findByTestId(
+        "project-reading-images-layout",
+      );
+      expect(
+        screen.queryByTestId("project-reading-first-fold"),
+      ).not.toBeInTheDocument();
+      expect(screen.getByTestId("public-header")).toHaveAttribute(
+        "data-variant",
+        "static",
+      );
+      expect(screen.queryByTestId("public-footer")).not.toBeInTheDocument();
+      expect(imageLayout).toHaveClass("flex", "flex-col", "min-h-screen");
+      expect(screen.getByTestId("project-reading-info-bar")).toHaveAttribute(
+        "data-variant",
+        "reader-cinema",
+      );
+      expect(screen.getByTestId("project-reading-stage")).toHaveAttribute(
+        "data-chrome-mode",
+        "cinema",
+      );
+      expect(screen.getByTestId("project-reading-stage")).toHaveAttribute(
+        "data-viewport-mode",
+        "natural",
+      );
+    },
+  );
 
   it("mostra Editar extra no hero do leitor de imagens", async () => {
     const project = {
@@ -1128,15 +1275,19 @@ describe("ProjectReading analytics", () => {
     });
 
     render(
-      <MemoryRouter initialEntries={["/projeto/projeto-teste/leitura/1?volume=2"]}>
+      <MemoryRouter
+        initialEntries={["/projeto/projeto-teste/leitura/1?volume=2"]}
+      >
         <ProjectReading />
       </MemoryRouter>,
     );
 
-    const actions = within(await screen.findByTestId("project-reading-info-bar")).getByTestId(
-      "project-reading-actions",
-    );
-    expect(within(actions).getByRole("link", { name: /Editar extra/i })).toHaveAttribute(
+    const actions = within(
+      await screen.findByTestId("project-reading-info-bar"),
+    ).getByTestId("project-reading-actions");
+    expect(
+      within(actions).getByRole("link", { name: /Editar extra/i }),
+    ).toHaveAttribute(
       "href",
       "/dashboard/projetos/projeto-teste/capitulos/1?volume=2",
     );
@@ -1183,7 +1334,9 @@ describe("ProjectReading analytics", () => {
     });
 
     render(
-      <MemoryRouter initialEntries={["/projeto/projeto-teste/leitura/1?volume=2"]}>
+      <MemoryRouter
+        initialEntries={["/projeto/projeto-teste/leitura/1?volume=2"]}
+      >
         <ProjectReading />
       </MemoryRouter>,
     );
@@ -1196,7 +1349,9 @@ describe("ProjectReading analytics", () => {
     });
     fireEvent.click(chapterTrigger);
 
-    expect(await screen.findByRole("option", { name: /Cap.*tulo 2/i })).toBeInTheDocument();
+    expect(
+      await screen.findByRole("option", { name: /Cap.*tulo 2/i }),
+    ).toBeInTheDocument();
   });
 
   it("mantem a mesma ordem de volume zero no menu do image reader", async () => {
@@ -1208,8 +1363,14 @@ describe("ProjectReading analytics", () => {
         synopsis: "Resumo do capitulo 1 v0",
         contentFormat: "images",
         pages: [
-          { position: 0, imageUrl: "/uploads/projects/projeto-teste/ch-1-v-0-1.jpg" },
-          { position: 1, imageUrl: "/uploads/projects/projeto-teste/ch-1-v-0-2.jpg" },
+          {
+            position: 0,
+            imageUrl: "/uploads/projects/projeto-teste/ch-1-v-0-1.jpg",
+          },
+          {
+            position: 1,
+            imageUrl: "/uploads/projects/projeto-teste/ch-1-v-0-2.jpg",
+          },
         ],
         hasPages: true,
       },
@@ -1220,8 +1381,14 @@ describe("ProjectReading analytics", () => {
         synopsis: "Resumo do capitulo 2 v0",
         contentFormat: "images",
         pages: [
-          { position: 0, imageUrl: "/uploads/projects/projeto-teste/ch-2-v-0-1.jpg" },
-          { position: 1, imageUrl: "/uploads/projects/projeto-teste/ch-2-v-0-2.jpg" },
+          {
+            position: 0,
+            imageUrl: "/uploads/projects/projeto-teste/ch-2-v-0-1.jpg",
+          },
+          {
+            position: 1,
+            imageUrl: "/uploads/projects/projeto-teste/ch-2-v-0-2.jpg",
+          },
         ],
         hasPages: true,
       },
@@ -1232,8 +1399,14 @@ describe("ProjectReading analytics", () => {
         synopsis: "Resumo do capitulo 1 v1",
         contentFormat: "images",
         pages: [
-          { position: 0, imageUrl: "/uploads/projects/projeto-teste/ch-1-v-1-1.jpg" },
-          { position: 1, imageUrl: "/uploads/projects/projeto-teste/ch-1-v-1-2.jpg" },
+          {
+            position: 0,
+            imageUrl: "/uploads/projects/projeto-teste/ch-1-v-1-1.jpg",
+          },
+          {
+            position: 1,
+            imageUrl: "/uploads/projects/projeto-teste/ch-1-v-1-2.jpg",
+          },
         ],
         hasPages: true,
       },
@@ -1244,8 +1417,14 @@ describe("ProjectReading analytics", () => {
         synopsis: "Resumo do capitulo 2 v1",
         contentFormat: "images",
         pages: [
-          { position: 0, imageUrl: "/uploads/projects/projeto-teste/ch-2-v-1-1.jpg" },
-          { position: 1, imageUrl: "/uploads/projects/projeto-teste/ch-2-v-1-2.jpg" },
+          {
+            position: 0,
+            imageUrl: "/uploads/projects/projeto-teste/ch-2-v-1-1.jpg",
+          },
+          {
+            position: 1,
+            imageUrl: "/uploads/projects/projeto-teste/ch-2-v-1-2.jpg",
+          },
         ],
         hasPages: true,
       },
@@ -1273,7 +1452,8 @@ describe("ProjectReading analytics", () => {
     apiFetchMock.mockImplementation(
       async (apiBase: string, endpoint: string, options?: RequestInit) => {
         if (
-          endpoint === "/api/public/projects/projeto-teste/chapters/1?volume=1" &&
+          endpoint ===
+            "/api/public/projects/projeto-teste/chapters/1?volume=1" &&
           (!options?.method || options.method === "GET")
         ) {
           return mockJsonResponse(true, {
@@ -1290,7 +1470,9 @@ describe("ProjectReading analytics", () => {
     );
 
     render(
-      <MemoryRouter initialEntries={["/projeto/projeto-teste/leitura/2?volume=0"]}>
+      <MemoryRouter
+        initialEntries={["/projeto/projeto-teste/leitura/2?volume=0"]}
+      >
         <ProjectReading />
         <ProjectReadingLocationProbe />
       </MemoryRouter>,
@@ -1310,19 +1492,24 @@ describe("ProjectReading analytics", () => {
       "project-reading-nav-btn",
       "project-reading-nav-btn--secondary",
     );
-    expect(nextButton).toHaveClass("project-reading-nav-btn", "project-reading-nav-btn--next");
+    expect(nextButton).toHaveClass(
+      "project-reading-nav-btn",
+      "project-reading-nav-btn--next",
+    );
     fireEvent.click(nextButton);
 
     await waitFor(() => {
-      expect(screen.queryByTestId("project-reader-sidebar")).not.toBeInTheDocument();
+      expect(
+        screen.queryByTestId("project-reader-sidebar"),
+      ).not.toBeInTheDocument();
     });
     await waitFor(() => {
-      expect(screen.getByTestId("project-reading-location-pathname").textContent).toBe(
-        "/projeto/projeto-teste/leitura/1",
-      );
-      expect(screen.getByTestId("project-reading-location-search").textContent).toMatch(
-        /^\?volume=1(?:&page=1)?$/,
-      );
+      expect(
+        screen.getByTestId("project-reading-location-pathname").textContent,
+      ).toBe("/projeto/projeto-teste/leitura/1");
+      expect(
+        screen.getByTestId("project-reading-location-search").textContent,
+      ).toMatch(/^\?volume=1(?:&page=1)?$/);
     });
 
     fireEvent.click(screen.getByTestId("project-reader-menu-button"));
@@ -1386,7 +1573,9 @@ describe("ProjectReading analytics", () => {
     });
 
     render(
-      <MemoryRouter initialEntries={["/projeto/projeto-teste/leitura/1?volume=2"]}>
+      <MemoryRouter
+        initialEntries={["/projeto/projeto-teste/leitura/1?volume=2"]}
+      >
         <ProjectReading />
       </MemoryRouter>,
     );
@@ -1437,7 +1626,9 @@ describe("ProjectReading analytics", () => {
     });
 
     render(
-      <MemoryRouter initialEntries={["/projeto/projeto-teste/leitura/1?volume=2"]}>
+      <MemoryRouter
+        initialEntries={["/projeto/projeto-teste/leitura/1?volume=2"]}
+      >
         <ProjectReading />
         <ProjectReadingLocationProbe />
       </MemoryRouter>,
@@ -1446,10 +1637,12 @@ describe("ProjectReading analytics", () => {
     await screen.findByTestId("project-reading-stage");
 
     await waitFor(() => {
-      expect(screen.getByTestId("project-reading-location-search")).toHaveTextContent(
-        "?volume=2&page=1",
-      );
-      expect(screen.getByTestId("project-reading-location-action")).toHaveTextContent("REPLACE");
+      expect(
+        screen.getByTestId("project-reading-location-search"),
+      ).toHaveTextContent("?volume=2&page=1");
+      expect(
+        screen.getByTestId("project-reading-location-action"),
+      ).toHaveTextContent("REPLACE");
     });
   });
 
@@ -1498,7 +1691,9 @@ describe("ProjectReading analytics", () => {
     });
 
     render(
-      <MemoryRouter initialEntries={["/projeto/projeto-teste/leitura/1?volume=2&page=2"]}>
+      <MemoryRouter
+        initialEntries={["/projeto/projeto-teste/leitura/1?volume=2&page=2"]}
+      >
         <ProjectReading />
         <ProjectReadingLocationProbe />
       </MemoryRouter>,
@@ -1507,11 +1702,13 @@ describe("ProjectReading analytics", () => {
     await screen.findByTestId("project-reading-stage");
 
     await waitFor(() => {
-      expect(screen.getByTestId("project-reading-location-search")).toHaveTextContent(
-        "?volume=2&page=2",
-      );
+      expect(
+        screen.getByTestId("project-reading-location-search"),
+      ).toHaveTextContent("?volume=2&page=2");
     });
-    expect(screen.getByTestId("project-reading-location-action")).toHaveTextContent("POP");
+    expect(
+      screen.getByTestId("project-reading-location-action"),
+    ).toHaveTextContent("POP");
   });
 
   it("preserva o fluxo de hash de comentario e nao forca retorno ao palco", async () => {
@@ -1557,7 +1754,11 @@ describe("ProjectReading analytics", () => {
     });
 
     render(
-      <MemoryRouter initialEntries={["/projeto/projeto-teste/leitura/1?volume=2#comment-42"]}>
+      <MemoryRouter
+        initialEntries={[
+          "/projeto/projeto-teste/leitura/1?volume=2#comment-42",
+        ]}
+      >
         <ProjectReading />
       </MemoryRouter>,
     );
@@ -1602,7 +1803,11 @@ describe("ProjectReading analytics", () => {
     });
 
     render(
-      <MemoryRouter initialEntries={["/projeto/projeto-teste/leitura/1?volume=2#comment-42"]}>
+      <MemoryRouter
+        initialEntries={[
+          "/projeto/projeto-teste/leitura/1?volume=2#comment-42",
+        ]}
+      >
         <ProjectReading />
         <ProjectReadingLocationProbe />
       </MemoryRouter>,
@@ -1611,11 +1816,15 @@ describe("ProjectReading analytics", () => {
     await screen.findByTestId("project-reading-stage");
 
     await waitFor(() => {
-      expect(screen.getByTestId("project-reading-location-search")).toHaveTextContent(
-        "?volume=2&page=1",
-      );
-      expect(screen.getByTestId("project-reading-location-hash")).toHaveTextContent("#comment-42");
-      expect(screen.getByTestId("project-reading-location-action")).toHaveTextContent("REPLACE");
+      expect(
+        screen.getByTestId("project-reading-location-search"),
+      ).toHaveTextContent("?volume=2&page=1");
+      expect(
+        screen.getByTestId("project-reading-location-hash"),
+      ).toHaveTextContent("#comment-42");
+      expect(
+        screen.getByTestId("project-reading-location-action"),
+      ).toHaveTextContent("REPLACE");
     });
   });
 
@@ -1666,7 +1875,9 @@ describe("ProjectReading analytics", () => {
     });
 
     render(
-      <MemoryRouter initialEntries={["/projeto/projeto-teste/leitura/1?volume=2"]}>
+      <MemoryRouter
+        initialEntries={["/projeto/projeto-teste/leitura/1?volume=2"]}
+      >
         <ProjectReading />
       </MemoryRouter>,
     );
@@ -1675,7 +1886,9 @@ describe("ProjectReading analytics", () => {
     expect(publicHeader).toHaveAttribute("data-variant", "fixed");
     expect(publicHeader).toHaveAttribute("data-show-bottom-gradient", "true");
     await waitFor(() => {
-      expect(screen.getByTestId("project-reading-site-header-offset").style.height).toBe("96px");
+      expect(
+        screen.getByTestId("project-reading-site-header-offset").style.height,
+      ).toBe("96px");
     });
   });
 
@@ -1721,21 +1934,26 @@ describe("ProjectReading analytics", () => {
     });
 
     render(
-      <MemoryRouter initialEntries={["/projeto/projeto-teste/leitura/1?volume=2"]}>
+      <MemoryRouter
+        initialEntries={["/projeto/projeto-teste/leitura/1?volume=2"]}
+      >
         <ProjectReading />
       </MemoryRouter>,
     );
 
     await screen.findByTestId("project-reading-stage");
 
-    const commentsSentinel = screen.getByTestId("project-reading-comments-sentinel");
+    const commentsSentinel = screen.getByTestId(
+      "project-reading-comments-sentinel",
+    );
     const footer = screen.getByTestId("public-footer");
     const publicHeader = screen.getByTestId("public-header");
 
     expect(publicHeader).toHaveAttribute("data-variant", "static");
     expect(footer).toBeInTheDocument();
     expect(
-      commentsSentinel.compareDocumentPosition(footer) & Node.DOCUMENT_POSITION_FOLLOWING,
+      commentsSentinel.compareDocumentPosition(footer) &
+        Node.DOCUMENT_POSITION_FOLLOWING,
     ).toBeTruthy();
   });
 
@@ -1781,27 +1999,42 @@ describe("ProjectReading analytics", () => {
     });
 
     render(
-      <MemoryRouter initialEntries={["/projeto/projeto-teste/leitura/1?volume=2"]}>
+      <MemoryRouter
+        initialEntries={["/projeto/projeto-teste/leitura/1?volume=2"]}
+      >
         <ProjectReading />
       </MemoryRouter>,
     );
 
-    const imageLayout = await screen.findByTestId("project-reading-images-layout");
+    const imageLayout = await screen.findByTestId(
+      "project-reading-images-layout",
+    );
     const readerShell = screen.getByTestId("project-reading-full-bleed-shell");
     const stage = screen.getByTestId("project-reading-stage");
-    const commentsHandoff = screen.getByTestId("project-reading-comments-handoff");
-    const commentsSentinel = screen.getByTestId("project-reading-comments-sentinel");
+    const commentsHandoff = screen.getByTestId(
+      "project-reading-comments-handoff",
+    );
+    const commentsSentinel = screen.getByTestId(
+      "project-reading-comments-sentinel",
+    );
 
-    expect(screen.getByTestId("public-header")).toHaveAttribute("data-variant", "static");
-    expect(screen.queryByTestId("project-reading-site-header-offset")).not.toBeInTheDocument();
+    expect(screen.getByTestId("public-header")).toHaveAttribute(
+      "data-variant",
+      "static",
+    );
+    expect(
+      screen.queryByTestId("project-reading-site-header-offset"),
+    ).not.toBeInTheDocument();
     expect(imageLayout).toHaveClass("flex", "flex-col", "min-h-screen");
     expect(imageLayout).not.toHaveClass("flex-1", "min-h-0");
     expect(commentsHandoff.style.minHeight).toBe("5rem");
     expect(
-      imageLayout.compareDocumentPosition(commentsHandoff) & Node.DOCUMENT_POSITION_FOLLOWING,
+      imageLayout.compareDocumentPosition(commentsHandoff) &
+        Node.DOCUMENT_POSITION_FOLLOWING,
     ).toBeTruthy();
     expect(
-      commentsHandoff.compareDocumentPosition(commentsSentinel) & Node.DOCUMENT_POSITION_FOLLOWING,
+      commentsHandoff.compareDocumentPosition(commentsSentinel) &
+        Node.DOCUMENT_POSITION_FOLLOWING,
     ).toBeTruthy();
 
     await waitFor(() => {
@@ -1816,17 +2049,26 @@ describe("ProjectReading analytics", () => {
     setupProjectReadingApiMock();
 
     render(
-      <MemoryRouter initialEntries={["/projeto/projeto-teste/leitura/1?volume=2"]}>
+      <MemoryRouter
+        initialEntries={["/projeto/projeto-teste/leitura/1?volume=2"]}
+      >
         <ProjectReading />
       </MemoryRouter>,
     );
 
     await screen.findByTestId("lexical-viewer");
 
-    expect(screen.getByTestId("public-header")).toHaveAttribute("data-variant", "fixed");
+    expect(screen.getByTestId("public-header")).toHaveAttribute(
+      "data-variant",
+      "fixed",
+    );
     expect(screen.getByTestId("public-footer")).toBeInTheDocument();
-    expect(screen.queryByTestId("project-reading-comments-handoff")).not.toBeInTheDocument();
-    expect(screen.getByTestId("project-reading-comments-sentinel")).toBeInTheDocument();
+    expect(
+      screen.queryByTestId("project-reading-comments-handoff"),
+    ).not.toBeInTheDocument();
+    expect(
+      screen.getByTestId("project-reading-comments-sentinel"),
+    ).toBeInTheDocument();
   });
 
   it("ignora capitulos sem leitura na navegacao publica", async () => {
@@ -1850,13 +2092,17 @@ describe("ProjectReading analytics", () => {
     ]);
 
     render(
-      <MemoryRouter initialEntries={["/projeto/projeto-teste/leitura/1?volume=2"]}>
+      <MemoryRouter
+        initialEntries={["/projeto/projeto-teste/leitura/1?volume=2"]}
+      >
         <ProjectReading />
       </MemoryRouter>,
     );
 
     await screen.findByRole("heading", { name: /Cap.*tulo 1/i });
-    expect(screen.queryByRole("link", { name: /Pr.ximo cap.tulo/i })).not.toBeInTheDocument();
+    expect(
+      screen.queryByRole("link", { name: /Pr.ximo cap.tulo/i }),
+    ).not.toBeInTheDocument();
   });
 
   it("coloca capitulos com volume zero no inicio global da navegacao textual", async () => {
@@ -1908,7 +2154,9 @@ describe("ProjectReading analytics", () => {
 
       return render(
         <MemoryRouter
-          initialEntries={[`/projeto/projeto-teste/leitura/${chapterNumber}?volume=${volume}`]}
+          initialEntries={[
+            `/projeto/projeto-teste/leitura/${chapterNumber}?volume=${volume}`,
+          ]}
         >
           <ProjectReading />
         </MemoryRouter>,
@@ -1919,41 +2167,58 @@ describe("ProjectReading analytics", () => {
     expect(
       await screen.findByRole("heading", { name: /Cap.*tulo 1 - Volume 0/i }),
     ).toBeInTheDocument();
-    expect(screen.queryByRole("link", { name: /Cap.tulo anterior/i })).not.toBeInTheDocument();
-    const firstNextLink = screen.getByRole("link", { name: /Pr.ximo cap.tulo/i });
+    expect(
+      screen.queryByRole("link", { name: /Cap.tulo anterior/i }),
+    ).not.toBeInTheDocument();
+    const firstNextLink = screen.getByRole("link", {
+      name: /Pr.ximo cap.tulo/i,
+    });
     expect(firstNextLink).toHaveClass(
       "project-reading-nav-btn",
       "project-reading-nav-btn--next",
       "project-reading-chapter-nav__button--next",
       "ml-auto",
     );
-    expect(firstNextLink).toHaveAttribute("href", "/projeto/projeto-teste/leitura/2?volume=0");
+    expect(firstNextLink).toHaveAttribute(
+      "href",
+      "/projeto/projeto-teste/leitura/2?volume=0",
+    );
     firstRender.unmount();
 
     const secondRender = renderReadingChapter(2, 0);
     expect(
       await screen.findByRole("heading", { name: /Cap.*tulo 2 - Volume 0/i }),
     ).toBeInTheDocument();
-    const secondNextLink = screen.getByRole("link", { name: /Pr.ximo cap.tulo/i });
+    const secondNextLink = screen.getByRole("link", {
+      name: /Pr.ximo cap.tulo/i,
+    });
     expect(secondNextLink).toHaveClass(
       "project-reading-nav-btn",
       "project-reading-nav-btn--next",
       "project-reading-chapter-nav__button--next",
       "ml-auto",
     );
-    expect(secondNextLink).toHaveAttribute("href", "/projeto/projeto-teste/leitura/1?volume=1");
+    expect(secondNextLink).toHaveAttribute(
+      "href",
+      "/projeto/projeto-teste/leitura/1?volume=1",
+    );
     secondRender.unmount();
 
     renderReadingChapter(1, 1);
     expect(
       await screen.findByRole("heading", { name: /Cap.*tulo 1 - Volume 1/i }),
     ).toBeInTheDocument();
-    const previousLink = screen.getByRole("link", { name: /Cap.tulo anterior/i });
+    const previousLink = screen.getByRole("link", {
+      name: /Cap.tulo anterior/i,
+    });
     expect(previousLink).toHaveClass(
       "project-reading-nav-btn",
       "project-reading-nav-btn--secondary",
     );
-    expect(previousLink).toHaveAttribute("href", "/projeto/projeto-teste/leitura/2?volume=0");
+    expect(previousLink).toHaveAttribute(
+      "href",
+      "/projeto/projeto-teste/leitura/2?volume=0",
+    );
   });
 
   it("preserva readingOrder manual antes da regra especial do volume zero", async () => {
@@ -1999,7 +2264,9 @@ describe("ProjectReading analytics", () => {
     });
 
     const firstRender = render(
-      <MemoryRouter initialEntries={["/projeto/projeto-teste/leitura/1?volume=1"]}>
+      <MemoryRouter
+        initialEntries={["/projeto/projeto-teste/leitura/1?volume=1"]}
+      >
         <ProjectReading />
       </MemoryRouter>,
     );
@@ -2007,11 +2274,12 @@ describe("ProjectReading analytics", () => {
     expect(
       await screen.findByRole("heading", { name: /Cap.*tulo 1 - Volume 1/i }),
     ).toBeInTheDocument();
-    expect(screen.queryByRole("link", { name: /Cap.tulo anterior/i })).not.toBeInTheDocument();
-    expect(screen.getByRole("link", { name: /Pr.ximo cap.tulo/i })).toHaveAttribute(
-      "href",
-      "/projeto/projeto-teste/leitura/2?volume=1",
-    );
+    expect(
+      screen.queryByRole("link", { name: /Cap.tulo anterior/i }),
+    ).not.toBeInTheDocument();
+    expect(
+      screen.getByRole("link", { name: /Pr.ximo cap.tulo/i }),
+    ).toHaveAttribute("href", "/projeto/projeto-teste/leitura/2?volume=1");
     firstRender.unmount();
 
     setupProjectReadingApiMock(undefined, null, {
@@ -2025,7 +2293,9 @@ describe("ProjectReading analytics", () => {
     });
 
     render(
-      <MemoryRouter initialEntries={["/projeto/projeto-teste/leitura/1?volume=0"]}>
+      <MemoryRouter
+        initialEntries={["/projeto/projeto-teste/leitura/1?volume=0"]}
+      >
         <ProjectReading />
       </MemoryRouter>,
     );
@@ -2033,11 +2303,12 @@ describe("ProjectReading analytics", () => {
     expect(
       await screen.findByRole("heading", { name: /Cap.*tulo 1 - Volume 0/i }),
     ).toBeInTheDocument();
-    expect(screen.getByRole("link", { name: /Cap.tulo anterior/i })).toHaveAttribute(
-      "href",
-      "/projeto/projeto-teste/leitura/2?volume=1",
-    );
-    expect(screen.queryByRole("link", { name: /Pr.ximo cap.tulo/i })).not.toBeInTheDocument();
+    expect(
+      screen.getByRole("link", { name: /Cap.tulo anterior/i }),
+    ).toHaveAttribute("href", "/projeto/projeto-teste/leitura/2?volume=1");
+    expect(
+      screen.queryByRole("link", { name: /Pr.ximo cap.tulo/i }),
+    ).not.toBeInTheDocument();
   });
 
   it("usa sinopse do volume quando a sinopse do capitulo estiver vazia", async () => {
@@ -2069,7 +2340,8 @@ describe("ProjectReading analytics", () => {
           return mockJsonResponse(true, { project });
         }
         if (
-          endpoint === "/api/public/projects/projeto-teste/chapters/1?volume=2" &&
+          endpoint ===
+            "/api/public/projects/projeto-teste/chapters/1?volume=2" &&
           (!options?.method || options.method === "GET")
         ) {
           return mockJsonResponse(true, {
@@ -2083,10 +2355,16 @@ describe("ProjectReading analytics", () => {
             },
           });
         }
-        if (endpoint === "/api/public/me" && (!options?.method || options.method === "GET")) {
+        if (
+          endpoint === "/api/public/me" &&
+          (!options?.method || options.method === "GET")
+        ) {
           return mockJsonResponse(true, { user: null });
         }
-        if (endpoint === PUBLIC_ANALYTICS_INGEST_PATH && options?.method === "POST") {
+        if (
+          endpoint === PUBLIC_ANALYTICS_INGEST_PATH &&
+          options?.method === "POST"
+        ) {
           return mockJsonResponse(true, { ok: true });
         }
         return mockJsonResponse(false, { error: "not_found" }, 404);
@@ -2094,7 +2372,9 @@ describe("ProjectReading analytics", () => {
     );
 
     render(
-      <MemoryRouter initialEntries={["/projeto/projeto-teste/leitura/1?volume=2"]}>
+      <MemoryRouter
+        initialEntries={["/projeto/projeto-teste/leitura/1?volume=2"]}
+      >
         <ProjectReading />
       </MemoryRouter>,
     );
@@ -2133,7 +2413,8 @@ describe("ProjectReading analytics", () => {
           return mockJsonResponse(true, { project });
         }
         if (
-          endpoint === "/api/public/projects/projeto-teste/chapters/1?volume=2" &&
+          endpoint ===
+            "/api/public/projects/projeto-teste/chapters/1?volume=2" &&
           (!options?.method || options.method === "GET")
         ) {
           return mockJsonResponse(true, {
@@ -2147,10 +2428,16 @@ describe("ProjectReading analytics", () => {
             },
           });
         }
-        if (endpoint === "/api/public/me" && (!options?.method || options.method === "GET")) {
+        if (
+          endpoint === "/api/public/me" &&
+          (!options?.method || options.method === "GET")
+        ) {
           return mockJsonResponse(true, { user: null });
         }
-        if (endpoint === PUBLIC_ANALYTICS_INGEST_PATH && options?.method === "POST") {
+        if (
+          endpoint === PUBLIC_ANALYTICS_INGEST_PATH &&
+          options?.method === "POST"
+        ) {
           return mockJsonResponse(true, { ok: true });
         }
         return mockJsonResponse(false, { error: "not_found" }, 404);
@@ -2158,13 +2445,17 @@ describe("ProjectReading analytics", () => {
     );
 
     render(
-      <MemoryRouter initialEntries={["/projeto/projeto-teste/leitura/1?volume=2"]}>
+      <MemoryRouter
+        initialEntries={["/projeto/projeto-teste/leitura/1?volume=2"]}
+      >
         <ProjectReading />
       </MemoryRouter>,
     );
 
     await screen.findByRole("heading", { name: /Cap.*tulo 1/i });
-    expect(screen.getByText("Sinopse principal do projeto")).toBeInTheDocument();
+    expect(
+      screen.getByText("Sinopse principal do projeto"),
+    ).toBeInTheDocument();
   });
 
   it("prioriza a capa do capitulo no hero do leitor textual", async () => {
@@ -2187,7 +2478,8 @@ describe("ProjectReading analytics", () => {
           return mockJsonResponse(true, { project });
         }
         if (
-          endpoint === "/api/public/projects/projeto-teste/chapters/1?volume=2" &&
+          endpoint ===
+            "/api/public/projects/projeto-teste/chapters/1?volume=2" &&
           (!options?.method || options.method === "GET")
         ) {
           return mockJsonResponse(true, {
@@ -2203,10 +2495,16 @@ describe("ProjectReading analytics", () => {
             },
           });
         }
-        if (endpoint === "/api/public/me" && (!options?.method || options.method === "GET")) {
+        if (
+          endpoint === "/api/public/me" &&
+          (!options?.method || options.method === "GET")
+        ) {
           return mockJsonResponse(true, { user: null });
         }
-        if (endpoint === PUBLIC_ANALYTICS_INGEST_PATH && options?.method === "POST") {
+        if (
+          endpoint === PUBLIC_ANALYTICS_INGEST_PATH &&
+          options?.method === "POST"
+        ) {
           return mockJsonResponse(true, { ok: true });
         }
         return mockJsonResponse(false, { error: "not_found" }, 404);
@@ -2214,14 +2512,20 @@ describe("ProjectReading analytics", () => {
     );
 
     render(
-      <MemoryRouter initialEntries={["/projeto/projeto-teste/leitura/1?volume=2"]}>
+      <MemoryRouter
+        initialEntries={["/projeto/projeto-teste/leitura/1?volume=2"]}
+      >
         <ProjectReading />
       </MemoryRouter>,
     );
 
     await screen.findByRole("heading", { name: /Cap.*tulo 1/i });
-    expect(screen.getByRole("img", { name: "Capa do capitulo 1" })).toBeInTheDocument();
-    expect(screen.queryByRole("img", { name: "Capa do volume 2" })).not.toBeInTheDocument();
+    expect(
+      screen.getByRole("img", { name: "Capa do capitulo 1" }),
+    ).toBeInTheDocument();
+    expect(
+      screen.queryByRole("img", { name: "Capa do volume 2" }),
+    ).not.toBeInTheDocument();
   });
 
   it("usa a capa do volume no hero quando o capitulo nao possui capa propria", async () => {
@@ -2244,7 +2548,8 @@ describe("ProjectReading analytics", () => {
           return mockJsonResponse(true, { project });
         }
         if (
-          endpoint === "/api/public/projects/projeto-teste/chapters/1?volume=2" &&
+          endpoint ===
+            "/api/public/projects/projeto-teste/chapters/1?volume=2" &&
           (!options?.method || options.method === "GET")
         ) {
           return mockJsonResponse(true, {
@@ -2258,10 +2563,16 @@ describe("ProjectReading analytics", () => {
             },
           });
         }
-        if (endpoint === "/api/public/me" && (!options?.method || options.method === "GET")) {
+        if (
+          endpoint === "/api/public/me" &&
+          (!options?.method || options.method === "GET")
+        ) {
           return mockJsonResponse(true, { user: null });
         }
-        if (endpoint === PUBLIC_ANALYTICS_INGEST_PATH && options?.method === "POST") {
+        if (
+          endpoint === PUBLIC_ANALYTICS_INGEST_PATH &&
+          options?.method === "POST"
+        ) {
           return mockJsonResponse(true, { ok: true });
         }
         return mockJsonResponse(false, { error: "not_found" }, 404);
@@ -2269,12 +2580,16 @@ describe("ProjectReading analytics", () => {
     );
 
     render(
-      <MemoryRouter initialEntries={["/projeto/projeto-teste/leitura/1?volume=2"]}>
+      <MemoryRouter
+        initialEntries={["/projeto/projeto-teste/leitura/1?volume=2"]}
+      >
         <ProjectReading />
       </MemoryRouter>,
     );
 
     await screen.findByRole("heading", { name: /Cap.*tulo 1/i });
-    expect(screen.getByRole("img", { name: "Capa do volume 2" })).toBeInTheDocument();
+    expect(
+      screen.getByRole("img", { name: "Capa do volume 2" }),
+    ).toBeInTheDocument();
   });
 });

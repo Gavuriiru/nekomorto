@@ -1,4 +1,4 @@
-﻿import {
+import {
   BookOpen,
   CalendarDays,
   Clock3,
@@ -1065,7 +1065,7 @@ const ProjectPage = () => {
               >
                 <div
                   data-testid="project-hero-cover-frame"
-                  className="overflow-hidden rounded-2xl border border-border/70 bg-secondary/90 shadow-project-cover-card animate-slide-up opacity-0"
+                  className="overflow-hidden rounded-2xl border border-border/70 bg-secondary/90 shadow-project-cover-card animate-slide-up"
                   style={{ aspectRatio: PROJECT_COVER_ASPECT_RATIO }}
                 >
                   <img
@@ -1091,14 +1091,14 @@ const ProjectPage = () => {
                   {project.title}
                 </h1>
                 <p
-                  className="max-w-2xl text-center text-sm text-muted-foreground md:text-left md:text-base animate-slide-up opacity-0"
+                  className="max-w-2xl text-center text-sm text-muted-foreground md:text-left md:text-base animate-slide-up"
                   style={{ animationDelay: "0.2s" }}
                 >
                   {project.synopsis}
                 </p>
                 {project.tags?.length ? (
                   <div
-                    className="flex w-full flex-wrap justify-center gap-2 animate-slide-up opacity-0 md:justify-start"
+                    className="flex w-full flex-wrap justify-center gap-2 animate-slide-up md:justify-start"
                     style={{ animationDelay: "0.3s" }}
                   >
                     {sortedTags.map((tag) => (
@@ -1113,7 +1113,7 @@ const ProjectPage = () => {
                 ) : null}
                 <div
                   data-testid="project-hero-actions-row"
-                  className="flex w-full flex-wrap justify-center gap-3 animate-slide-up opacity-0 md:mt-auto md:justify-start"
+                  className="flex w-full flex-wrap justify-center gap-3 animate-slide-up md:mt-auto md:justify-start"
                   style={{ animationDelay: "0.4s" }}
                 >
                   <Button asChild className="gap-2">

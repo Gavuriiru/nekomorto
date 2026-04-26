@@ -515,7 +515,7 @@ describe("registerUserRoutes", () => {
         avatarUrl: "/uploads/users/updated.png",
         socials: [{ type: "discord", url: "https://discord.gg/new" }],
         favoriteWorks: { manga: ["Naruto"], anime: ["Frieren"] },
-        permissions: ["usuarios_acesso"],
+        permissions: ["usuarios"],
       },
       session: {
         user: {
@@ -530,7 +530,7 @@ describe("registerUserRoutes", () => {
     expect(dependencies.pickBasicProfilePatch).toHaveBeenCalledWith(
       expect.objectContaining({
         name: "Perfil Atualizado",
-        permissions: ["usuarios_acesso"],
+        permissions: ["usuarios"],
       }),
     );
     expect(storedUsers[0]).toEqual(

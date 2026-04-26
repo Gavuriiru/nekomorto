@@ -1,7 +1,10 @@
 import { publicPageLayoutTokens } from "@/components/public-page-tokens";
 import { Badge } from "@/components/ui/badge";
-import "@/styles/public-page-hero.css";
 import type { CSSProperties, ReactNode } from "react";
+
+const heroRootClassName = "relative overflow-hidden bg-background [background-image:var(--gradient-public-hero)] bg-no-repeat";
+const heroInnerClassName = "relative";
+const heroCopyClassName = "max-w-3xl";
 
 type PublicPageHeroProps = {
   badge?: string;
@@ -24,11 +27,11 @@ const PublicPageHero = ({ badge, title, subtitle, badges = [], children }: Publi
   const badgeItems = badges.map((item) => String(item || "").trim()).filter(Boolean);
 
   return (
-    <section className="public-page-hero">
+    <section className={heroRootClassName}>
       <div
-        className={`${publicPageLayoutTokens.sectionBase} public-page-hero__inner max-w-6xl pb-8 pt-20 md:pb-10 md:pt-28`}
+        className={`${publicPageLayoutTokens.sectionBase} ${heroInnerClassName} max-w-6xl pb-8 pt-20 md:pb-10 md:pt-28`}
       >
-        <div className="public-page-hero__copy reveal space-y-4" data-reveal>
+        <div className={`${heroCopyClassName} reveal space-y-4`} data-reveal>
           {badgeLabel ? (
             <Badge
               variant="secondary"
@@ -42,7 +45,7 @@ const PublicPageHero = ({ badge, title, subtitle, badges = [], children }: Publi
           </h1>
           {subtitle ? (
             <p
-              className="text-sm text-muted-foreground md:text-base animate-slide-up opacity-0"
+              className="text-sm text-muted-foreground md:text-base animate-slide-up"
               style={subtitleAnimationDelay}
             >
               {subtitle}
@@ -50,7 +53,7 @@ const PublicPageHero = ({ badge, title, subtitle, badges = [], children }: Publi
           ) : null}
           {badgeItems.length > 0 ? (
             <div
-              className="flex flex-wrap gap-3 animate-slide-up opacity-0"
+              className="flex flex-wrap gap-3 animate-slide-up"
               style={badgesAnimationDelay}
             >
               {badgeItems.map((item) => (

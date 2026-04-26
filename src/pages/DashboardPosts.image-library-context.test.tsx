@@ -96,6 +96,7 @@ const setupApiMock = (config?: { posts?: Array<Record<string, unknown>> }) => {
         name: "Admin",
         username: "admin",
         permissions: ["posts"],
+    grants: { posts: true },
       });
     }
     if (path === "/api/projects" && method === "GET") {

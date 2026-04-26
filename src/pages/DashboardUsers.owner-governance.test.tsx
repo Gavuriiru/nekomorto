@@ -158,9 +158,8 @@ describe("DashboardUsers owner governance", () => {
         name: "Dono Primário",
         username: "owner1",
         primaryOwnerId: "owner-1",
-        grants: {
-          usuarios_basico: true,
-          usuarios_acesso: true,
+    grants: {
+          usuarios: true,
         },
       },
       users: [buildUser({ id: "owner-1", name: "Dono Primário", permissions: ["*"], order: 0 })],
@@ -241,9 +240,8 @@ describe("DashboardUsers owner governance", () => {
         name: "Dono Primário",
         username: "owner1",
         primaryOwnerId: "owner-1",
-        grants: {
-          usuarios_basico: true,
-          usuarios_acesso: true,
+    grants: {
+          usuarios: true,
         },
       },
       users: [
@@ -314,9 +312,8 @@ describe("DashboardUsers owner governance", () => {
         name: "Dono Primário",
         username: "owner1",
         primaryOwnerId: "owner-1",
-        grants: {
-          usuarios_basico: true,
-          usuarios_acesso: true,
+    grants: {
+          usuarios: true,
         },
       },
       users: [
@@ -387,9 +384,8 @@ describe("DashboardUsers owner governance", () => {
         name: "Dono Primário",
         username: "owner1",
         primaryOwnerId: "owner-1",
-        grants: {
-          usuarios_basico: true,
-          usuarios_acesso: true,
+    grants: {
+          usuarios: true,
         },
       },
       users: [buildUser({ id: "owner-1", name: "Dono Primário", permissions: ["*"], order: 0 })],

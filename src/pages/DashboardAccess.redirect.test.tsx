@@ -1,5 +1,5 @@
 import { render, screen, waitFor } from "@testing-library/react";
-import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import { beforeEach, describe, expect, it, vi } from "vitest";
 
 const apiFetchMock = vi.hoisted(() => vi.fn());
 const navigateMock = vi.hoisted(() => vi.fn());
@@ -40,8 +40,7 @@ const emptyGrants = {
   paginas: false,
   uploads: false,
   analytics: false,
-  usuarios_basico: false,
-  usuarios_acesso: false,
+  usuarios: false,
   configuracoes: false,
   audit_log: false,
   integracoes: false,
@@ -50,7 +49,6 @@ const emptyGrants = {
 describe("Dashboard access redirect", () => {
   beforeEach(() => {
     vi.resetModules();
-    vi.stubEnv("VITE_RBAC_V2_ENABLED", "true");
     apiFetchMock.mockReset();
     navigateMock.mockReset();
     toastMock.mockReset();
@@ -58,15 +56,12 @@ describe("Dashboard access redirect", () => {
     locationState.search = "";
   });
 
-  afterEach(() => {
-    vi.unstubAllEnvs();
-  });
 
   it("redirects forbidden dashboard route to first allowed route with toast", async () => {
     apiFetchMock.mockResolvedValue(
       mockJsonResponse(true, {
         id: "user-1",
-        grants: emptyGrants,
+    grants: emptyGrants,
       }),
     );
     const { default: RequireAuth } = await import("@/components/RequireAuth");
@@ -87,11 +82,57 @@ describe("Dashboard access redirect", () => {
     );
   });
 
+  it("redirects admin away from security", async () => {
+    locationState.pathname = "/dashboard/seguranca";
+    apiFetchMock.mockResolvedValue(
+      mockJsonResponse(true, {
+        id: "admin-1",
+        accessRole: "admin",
+    grants: {
+          ...emptyGrants,
+          posts: true,
+        },
+      }),
+    );
+    const { default: RequireAuth } = await import("@/components/RequireAuth");
+
+    render(
+      <RequireAuth>
+        <div>Protected</div>
+      </RequireAuth>,
+    );
+
+    await waitFor(() => {
+      expect(navigateMock).toHaveBeenCalledWith("/dashboard", { replace: true });
+    });
+  });
+
+  it("keeps security route for owner", async () => {
+    locationState.pathname = "/dashboard/seguranca";
+    apiFetchMock.mockResolvedValue(
+      mockJsonResponse(true, {
+        id: "owner-1",
+        accessRole: "owner_primary",
+    grants: emptyGrants,
+      }),
+    );
+    const { default: RequireAuth } = await import("@/components/RequireAuth");
+
+    render(
+      <RequireAuth>
+        <div>Protected</div>
+      </RequireAuth>,
+    );
+
+    expect(await screen.findByText("Protected")).toBeInTheDocument();
+    expect(navigateMock).not.toHaveBeenCalled();
+  });
+
   it("keeps route when grant allows access", async () => {
     apiFetchMock.mockResolvedValue(
       mockJsonResponse(true, {
         id: "user-1",
-        grants: {
+    grants: {
           ...emptyGrants,
           posts: true,
         },

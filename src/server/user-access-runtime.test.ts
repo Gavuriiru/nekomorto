@@ -108,8 +108,7 @@ const createDeps = (overrides = {}) => {
       ANALYTICS: "analytics_v2",
       AUDIT_LOG: "audit_v2",
       INTEGRACOES: "integrations_v2",
-      USUARIOS_BASICO: "users_basic_v2",
-      USUARIOS_ACESSO: "users_access_v2",
+      USUARIOS: "users_v2",
     },
     addOwnerRoleLabel: (roles, isOwnerUser) => (isOwnerUser ? [...roles, "owner"] : roles),
     buildAnalyticsRange: () => ({

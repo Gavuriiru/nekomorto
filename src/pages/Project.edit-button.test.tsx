@@ -29,7 +29,10 @@ vi.mock("@/hooks/use-page-meta", () => ({
 }));
 
 vi.mock("react-router-dom", async () => {
-  const actual = await vi.importActual<typeof import("react-router-dom")>("react-router-dom");
+  const actual =
+    await vi.importActual<typeof import("react-router-dom")>(
+      "react-router-dom",
+    );
   return {
     ...actual,
     useParams: () => ({ slug: "project-1" }),
@@ -44,7 +47,11 @@ vi.mock("@/components/ThemedSvgLogo", () => ({
   default: () => null,
 }));
 
-const mockJsonResponse = (ok: boolean, payload: unknown, status = ok ? 200 : 500) =>
+const mockJsonResponse = (
+  ok: boolean,
+  payload: unknown,
+  status = ok ? 200 : 500,
+) =>
   ({
     ok,
     status,
@@ -102,7 +109,10 @@ const setupApiMock = (currentUser: Record<string, unknown> | null) => {
       if (endpoint === "/api/public/tag-translations" && method === "GET") {
         return mockJsonResponse(true, { tags: {}, genres: {}, staffRoles: {} });
       }
-      if (endpoint === "/api/public/projects/project-1/view" && method === "POST") {
+      if (
+        endpoint === "/api/public/projects/project-1/view" &&
+        method === "POST"
+      ) {
         return mockJsonResponse(true, { views: 1 });
       }
       if (endpoint === "/api/public/me" && method === "GET") {
@@ -131,7 +141,7 @@ describe("Project edit button", () => {
   });
 
   it("exibe botao de editar para usuario com permissao de projetos", async () => {
-    setupApiMock({ permissions: ["projetos"] });
+    setupApiMock({ permissions: ["projetos"], grants: { projetos: true } });
 
     render(
       <MemoryRouter>
@@ -140,8 +150,13 @@ describe("Project edit button", () => {
     );
 
     await screen.findByRole("heading", { name: "Projeto Teste" });
-    const editLink = await screen.findByRole("link", { name: "Editar projeto" });
-    expect(editLink).toHaveAttribute("href", "/dashboard/projetos?edit=project-1");
+    const editLink = await screen.findByRole("link", {
+      name: "Editar projeto",
+    });
+    expect(editLink).toHaveAttribute(
+      "href",
+      "/dashboard/projetos?edit=project-1",
+    );
   });
 
   it("nao exibe botao de editar quando nao ha usuario logado", async () => {
@@ -154,7 +169,9 @@ describe("Project edit button", () => {
     );
 
     await screen.findByRole("heading", { name: "Projeto Teste" });
-    expect(screen.queryByRole("link", { name: "Editar projeto" })).not.toBeInTheDocument();
+    expect(
+      screen.queryByRole("link", { name: "Editar projeto" }),
+    ).not.toBeInTheDocument();
   });
 
   it("nao exibe botao de editar sem permissao de projetos", async () => {
@@ -167,7 +184,9 @@ describe("Project edit button", () => {
     );
 
     await screen.findByRole("heading", { name: "Projeto Teste" });
-    expect(screen.queryByRole("link", { name: "Editar projeto" })).not.toBeInTheDocument();
+    expect(
+      screen.queryByRole("link", { name: "Editar projeto" }),
+    ).not.toBeInTheDocument();
   });
 
   it("exibe botao de editar para usuario com grant de projetos sem permissions legadas", async () => {
@@ -183,8 +202,13 @@ describe("Project edit button", () => {
     );
 
     await screen.findByRole("heading", { name: "Projeto Teste" });
-    const editLink = await screen.findByRole("link", { name: "Editar projeto" });
-    expect(editLink).toHaveAttribute("href", "/dashboard/projetos?edit=project-1");
+    const editLink = await screen.findByRole("link", {
+      name: "Editar projeto",
+    });
+    expect(editLink).toHaveAttribute(
+      "href",
+      "/dashboard/projetos?edit=project-1",
+    );
   });
 
   it("exibe botao de editar para owner secundario sem permissions legadas", async () => {
@@ -203,7 +227,12 @@ describe("Project edit button", () => {
     );
 
     await screen.findByRole("heading", { name: "Projeto Teste" });
-    const editLink = await screen.findByRole("link", { name: "Editar projeto" });
-    expect(editLink).toHaveAttribute("href", "/dashboard/projetos?edit=project-1");
+    const editLink = await screen.findByRole("link", {
+      name: "Editar projeto",
+    });
+    expect(editLink).toHaveAttribute(
+      "href",
+      "/dashboard/projetos?edit=project-1",
+    );
   });
 });

@@ -176,7 +176,7 @@ export const registerUserManagementRoutes = ({
       normalizeAccessRole,
       normalizeAvatarDisplay,
       order: users.length,
-      permissions,
+      permissions: actorContext.accessRole === AccessRole.OWNER_PRIMARY ? permissions : [],
       phrase,
       removeOwnerRoleLabel,
       roles,

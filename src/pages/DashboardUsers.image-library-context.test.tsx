@@ -78,8 +78,8 @@ describe("DashboardUsers image library context", () => {
           id: "user-1",
           name: "Admin",
           username: "admin",
-          grants: {
-            usuarios_basico: true,
+      grants: {
+            usuarios: true,
             uploads: false,
           },
         });
@@ -156,8 +156,8 @@ describe("DashboardUsers image library context", () => {
           id: "user-1",
           name: "Admin",
           username: "admin",
-          grants: {
-            usuarios_basico: true,
+      grants: {
+            usuarios: true,
             posts: true,
             projetos: true,
             uploads: true,

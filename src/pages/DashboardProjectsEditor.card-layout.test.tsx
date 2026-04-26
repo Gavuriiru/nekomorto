@@ -142,6 +142,7 @@ const setupApiMock = ({
         name: "Admin",
         username: "admin",
         permissions: ["projetos"],
+    grants: { projetos: true },
       });
     }
     if (path === "/api/contracts/v1.json" && method === "GET") {

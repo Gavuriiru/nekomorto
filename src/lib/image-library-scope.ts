@@ -32,7 +32,7 @@ const isFolderAllowedByGrants = (
     return grants?.projetos === true;
   }
   if (root === "users") {
-    return grants?.usuarios_basico === true || allowUsersSelf;
+    return grants?.usuarios === true || allowUsersSelf;
   }
   if (root === "shared") {
     return grants?.paginas === true || grants?.posts === true || grants?.configuracoes === true;

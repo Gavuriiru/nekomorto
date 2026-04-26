@@ -6,7 +6,7 @@ import {
 } from "../../server/lib/avatar-upload-scope.js";
 
 describe("upload scope helpers", () => {
-  it("permite usuarios_basico no root users", () => {
+  it("permite usuarios no root users", () => {
     expect(
       resolveUploadScopeAccess({
         hasUploadManagement: false,

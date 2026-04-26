@@ -1,8 +1,10 @@
-import type { DashboardSessionUser } from "@/hooks/dashboard-session-context";
+import {
+  readDashboardBootstrapUser,
+  type DashboardSessionUser,
+} from "@/hooks/dashboard-session-context";
 import { useDashboardSession } from "@/hooks/use-dashboard-session";
 import { getApiBase } from "@/lib/api-base";
 import { apiFetch } from "@/lib/api-client";
-import { readWindowPublicBootstrapCurrentUser } from "@/lib/public-bootstrap-global";
 import { useCallback, useEffect, useRef, useState } from "react";
 
 type UseDashboardCurrentUserOptions = {
@@ -36,7 +38,7 @@ export const useDashboardCurrentUser = <TUser extends DashboardSessionUser = Das
   const [bootstrapUser] = useState<TUser | null>(() =>
     dashboardSession.hasProvider
       ? (dashboardSession.currentUser as TUser | null)
-      : (readWindowPublicBootstrapCurrentUser() as TUser | null),
+      : (readDashboardBootstrapUser() as TUser | null),
   );
   const [fallbackCurrentUser, setFallbackCurrentUser] = useState<TUser | null>(() => bootstrapUser);
   const [isLoadingFallbackUser, setIsLoadingFallbackUser] = useState(

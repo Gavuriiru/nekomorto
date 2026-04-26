@@ -72,7 +72,7 @@ const createDependencies = ({ app, overrides = {} }) => ({
   appendAuditLog: vi.fn(),
   applyOwnerRole: vi.fn((user) => user),
   buildUserProfileRevisionToken: vi.fn(() => "revision-token"),
-  can: vi.fn(({ permissionId }) => permissionId === PermissionId.USUARIOS_BASICO),
+  can: vi.fn(({ permissionId }) => permissionId === PermissionId.USUARIOS),
   defaultPermissionsForRole: vi.fn(() => ["default"]),
   emitSecurityEvent: vi.fn(),
   ensureNoEditConflict: vi.fn(() => true),
@@ -130,7 +130,7 @@ describe("registerUserManagementRoutes", () => {
           isOwner: true,
           isPrimaryOwner: true,
         })),
-        can: vi.fn(({ permissionId }) => permissionId === PermissionId.USUARIOS_ACESSO),
+        can: vi.fn(({ permissionId }) => permissionId === PermissionId.USUARIOS),
       },
     });
 
@@ -178,7 +178,7 @@ describe("registerUserManagementRoutes", () => {
           isOwner: true,
           isPrimaryOwner: true,
         })),
-        can: vi.fn(({ permissionId }) => permissionId === PermissionId.USUARIOS_ACESSO),
+        can: vi.fn(({ permissionId }) => permissionId === PermissionId.USUARIOS),
       },
     });
 
@@ -215,7 +215,7 @@ describe("registerUserManagementRoutes", () => {
           isOwner: true,
           isPrimaryOwner: false,
         })),
-        can: vi.fn(({ permissionId }) => permissionId === PermissionId.USUARIOS_ACESSO),
+        can: vi.fn(({ permissionId }) => permissionId === PermissionId.USUARIOS),
       },
     });
 
@@ -234,7 +234,7 @@ describe("registerUserManagementRoutes", () => {
     expect(dependencies.persistCurrentUsers).not.toHaveBeenCalled();
   });
 
-  it("keeps RBAC admin updates limited to basic fields", async () => {
+  it("blocks RBAC admin permission updates", async () => {
     const { app, routes } = createAppRecorder();
     const users = [
       {
@@ -278,7 +278,7 @@ describe("registerUserManagementRoutes", () => {
             isPrimaryOwner: false,
           };
         }),
-        can: vi.fn(({ permissionId }) => permissionId === PermissionId.USUARIOS_BASICO),
+        can: vi.fn(({ permissionId }) => permissionId === PermissionId.USUARIOS),
       },
     });
 
@@ -294,7 +294,7 @@ describe("registerUserManagementRoutes", () => {
     });
 
     expect(res.statusCode).toBe(403);
-    expect(res.body).toEqual({ error: "basic_fields_only" });
+    expect(res.body).toEqual({ error: "owner_permission_required" });
     expect(dependencies.persistCurrentUsers).not.toHaveBeenCalled();
   });
 
@@ -347,11 +347,7 @@ describe("registerUserManagementRoutes", () => {
             isPrimaryOwner: false,
           };
         }),
-        can: vi.fn(
-          ({ permissionId }) =>
-            permissionId === PermissionId.USUARIOS_BASICO ||
-            permissionId === PermissionId.USUARIOS_ACESSO,
-        ),
+        can: vi.fn(({ permissionId }) => permissionId === PermissionId.USUARIOS),
       },
     });
 
@@ -430,11 +426,7 @@ describe("registerUserManagementRoutes", () => {
             isPrimaryOwner: false,
           };
         }),
-        can: vi.fn(
-          ({ permissionId }) =>
-            permissionId === PermissionId.USUARIOS_BASICO ||
-            permissionId === PermissionId.USUARIOS_ACESSO,
-        ),
+        can: vi.fn(({ permissionId }) => permissionId === PermissionId.USUARIOS),
       },
     });
 
@@ -493,7 +485,7 @@ describe("registerUserManagementRoutes", () => {
             isPrimaryOwner: false,
           };
         }),
-        can: vi.fn(({ permissionId }) => permissionId === PermissionId.USUARIOS_ACESSO),
+        can: vi.fn(({ permissionId }) => permissionId === PermissionId.USUARIOS),
       },
     });
 

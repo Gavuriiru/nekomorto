@@ -1,6 +1,6 @@
 import { DashboardSessionContext } from "@/hooks/dashboard-session-context";
 import DashboardUsers from "@/pages/DashboardUsers";
-import { fireEvent, render, screen, waitFor } from "@testing-library/react";
+import { fireEvent, render, screen, waitFor, within } from "@testing-library/react";
 import type { ReactNode } from "react";
 import { MemoryRouter } from "react-router-dom";
 import { afterEach, describe, expect, it, vi } from "vitest";
@@ -44,8 +44,7 @@ const currentUserValue = {
   name: "Admin",
   accessRole: "admin",
   grants: {
-    usuarios_basico: true,
-    usuarios_acesso: true,
+    usuarios: true,
     uploads: true,
   },
   authMethods: [{ provider: "discord", linked: true }],
@@ -56,8 +55,7 @@ const normalCurrentUserValue = {
   name: "Colaborador",
   accessRole: "normal",
   grants: {
-    usuarios_basico: false,
-    usuarios_acesso: false,
+    usuarios: false,
     uploads: false,
   },
   authMethods: [{ provider: "discord", linked: true }],
@@ -76,7 +74,7 @@ const buildUsersPayload = (user = currentUserValue) => ({
       favoriteWorks: { manga: [], anime: [] },
       status: "active",
       permissions:
-        user.accessRole === "admin" ? ["usuarios_basico", "usuarios_acesso"] : [],
+        user.accessRole === "admin" ? ["usuarios", "usuarios"] : [],
       roles: [],
       accessRole: user.accessRole,
       order: 0,
@@ -249,7 +247,11 @@ describe("DashboardUsers connected accounts", () => {
     renderDashboardUsers("/dashboard/usuarios?edit=me");
 
     await screen.findAllByText(/métodos de acesso/i);
-    fireEvent.click(screen.getByRole("button", { name: "Conectar" }));
+
+    const googleBadge = screen.getByText(/^Google$/);
+    const accessSection = googleBadge.closest("div.flex.flex-wrap.items-center.justify-between") as HTMLElement | null;
+    expect(accessSection).not.toBeNull();
+    fireEvent.click(within(accessSection as HTMLElement).getByRole("button", { name: "Conectar" }));
 
     expect(locationHref).toBe(
       "http://api.local/api/me/security/identities/google/link/start?next=%2Fdashboard%2Fusuarios%3Fedit%3Dme",

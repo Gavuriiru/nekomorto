@@ -1,6 +1,12 @@
 import { dashboardEditorDialogWidthClassName } from "@/components/dashboard/dashboard-page-tokens";
 import DashboardUsers from "@/pages/DashboardUsers";
-import { fireEvent, render, screen, waitFor, within } from "@testing-library/react";
+import {
+  fireEvent,
+  render,
+  screen,
+  waitFor,
+  within,
+} from "@testing-library/react";
 import type { ReactNode } from "react";
 import { MemoryRouter, useLocation } from "react-router-dom";
 import { describe, expect, it, vi } from "vitest";
@@ -35,7 +41,11 @@ vi.mock("@/lib/api-client", () => ({
   apiFetch: (...args: unknown[]) => apiFetchMock(...args),
 }));
 
-const mockJsonResponse = (ok: boolean, payload: unknown, status = ok ? 200 : 500) =>
+const mockJsonResponse = (
+  ok: boolean,
+  payload: unknown,
+  status = ok ? 200 : 500,
+) =>
   ({
     ok,
     status,
@@ -71,11 +81,19 @@ const expectPrimaryDashboardActionButtonTokens = (
   expect(tokens).not.toContain("pressable");
 };
 
-const expectDashboardActionButtonTokens = (element: HTMLElement, sizeToken: "h-9" | "h-10") => {
+const expectDashboardActionButtonTokens = (
+  element: HTMLElement,
+  sizeToken: "h-9" | "h-10",
+) => {
   const tokens = classTokens(element);
 
   expect(tokens).toEqual(
-    expect.arrayContaining(["rounded-xl", "bg-background", "font-semibold", sizeToken]),
+    expect.arrayContaining([
+      "rounded-xl",
+      "bg-background",
+      "font-semibold",
+      sizeToken,
+    ]),
   );
   expect(tokens).not.toContain("interactive-lift-sm");
   expect(tokens).not.toContain("pressable");
@@ -86,16 +104,16 @@ void expectDashboardActionButtonTokens;
 
 const setupApiMock = ({
   currentUserGrants = {
-    usuarios_basico: true,
-    usuarios_acesso: true,
+    usuarios: true,
   },
   currentUser = {
     id: "user-1",
     name: "Admin",
     username: "admin",
     email: null,
-    accessRole: "admin",
-    permissions: ["usuarios_basico", "usuarios_acesso"],
+    accessRole: "owner_primary",
+    permissions: ["usuarios"],
+    grants: { usuarios: true },
     roles: [],
     status: "active",
     phrase: "",
@@ -107,8 +125,7 @@ const setupApiMock = ({
   },
 }: {
   currentUserGrants?: {
-    usuarios_basico?: boolean;
-    usuarios_acesso?: boolean;
+    usuarios?: boolean;
   };
   currentUser?: {
     id: string;
@@ -117,6 +134,9 @@ const setupApiMock = ({
     email: string | null;
     accessRole: string;
     permissions: string[];
+    grants?: {
+      usuarios?: boolean;
+    };
     roles: string[];
     status: "active" | "retired";
     phrase: string;
@@ -128,71 +148,79 @@ const setupApiMock = ({
   };
 } = {}) => {
   apiFetchMock.mockReset();
-  apiFetchMock.mockImplementation(async (_base: string, path: string, options?: RequestInit) => {
-    const method = String(options?.method || "GET").toUpperCase();
+  apiFetchMock.mockImplementation(
+    async (_base: string, path: string, options?: RequestInit) => {
+      const method = String(options?.method || "GET").toUpperCase();
 
-    if (path === "/api/users" && method === "GET") {
-      return mockJsonResponse(true, {
-        users: [currentUser],
-        ownerIds: [],
-        primaryOwnerId: null,
-      });
-    }
-    if (path === "/api/me" && method === "GET") {
-      return mockJsonResponse(true, {
-        id: currentUser.id,
-        name: currentUser.name,
-        username: currentUser.username,
-        accessRole: currentUser.accessRole,
-        grants: currentUserGrants,
-        ownerIds: [],
-        primaryOwnerId: null,
-      });
-    }
-    if (path === "/api/users/self" && method === "PUT") {
-      const payload = (options as { json?: Record<string, unknown> } | undefined)?.json || {};
-      return mockJsonResponse(true, {
-        user: {
-          ...currentUser,
-          ...payload,
-          revision: "self-save-revision",
-        },
-      });
-    }
-    if (path === "/api/me/security" && method === "GET") {
-      return mockJsonResponse(true, {
-        totpEnabled: false,
-        recoveryCodesRemaining: 0,
-        activeSessionsCount: 1,
-        identities: [
-          {
-            provider: "discord",
-            linked: true,
-            emailNormalized: "user@example.com",
+      if (path === "/api/users" && method === "GET") {
+        return mockJsonResponse(true, {
+          users: [currentUser],
+          ownerIds:
+            currentUser.accessRole === "owner_primary" ? [currentUser.id] : [],
+          primaryOwnerId:
+            currentUser.accessRole === "owner_primary" ? currentUser.id : null,
+        });
+      }
+      if (path === "/api/me" && method === "GET") {
+        return mockJsonResponse(true, {
+          id: currentUser.id,
+          name: currentUser.name,
+          username: currentUser.username,
+          accessRole: currentUser.accessRole,
+          grants: currentUserGrants,
+          ownerIds:
+            currentUser.accessRole === "owner_primary" ? [currentUser.id] : [],
+          primaryOwnerId:
+            currentUser.accessRole === "owner_primary" ? currentUser.id : null,
+        });
+      }
+      if (path === "/api/users/self" && method === "PUT") {
+        const payload =
+          (options as { json?: Record<string, unknown> } | undefined)?.json ||
+          {};
+        return mockJsonResponse(true, {
+          user: {
+            ...currentUser,
+            ...payload,
+            revision: "self-save-revision",
           },
-        ],
-      });
-    }
-    if (path === "/api/me/sessions" && method === "GET") {
-      return mockJsonResponse(true, {
-        sessions: [
-          {
-            sid: "session-current",
-            createdAt: "2026-04-12T21:44:00.000Z",
-            lastSeenAt: "2026-04-12T21:45:09.000Z",
-            lastIp: "203.0.113.42",
-            userAgent: "Mozilla/5.0",
-            current: true,
-          },
-        ],
-      });
-    }
-    if (path === "/api/link-types" && method === "GET") {
-      return mockJsonResponse(true, { items: [] });
-    }
+        });
+      }
+      if (path === "/api/me/security" && method === "GET") {
+        return mockJsonResponse(true, {
+          totpEnabled: false,
+          recoveryCodesRemaining: 0,
+          activeSessionsCount: 1,
+          identities: [
+            {
+              provider: "discord",
+              linked: true,
+              emailNormalized: "user@example.com",
+            },
+          ],
+        });
+      }
+      if (path === "/api/me/sessions" && method === "GET") {
+        return mockJsonResponse(true, {
+          sessions: [
+            {
+              sid: "session-current",
+              createdAt: "2026-04-12T21:44:00.000Z",
+              lastSeenAt: "2026-04-12T21:45:09.000Z",
+              lastIp: "203.0.113.42",
+              userAgent: "Mozilla/5.0",
+              current: true,
+            },
+          ],
+        });
+      }
+      if (path === "/api/link-types" && method === "GET") {
+        return mockJsonResponse(true, { items: [] });
+      }
 
-    return mockJsonResponse(false, { error: "not_found" }, 404);
-  });
+      return mockJsonResponse(false, { error: "not_found" }, 404);
+    },
+  );
 };
 
 const LocationProbe = () => {
@@ -214,8 +242,13 @@ describe("DashboardUsers edit query", () => {
     await screen.findByRole("heading", { name: /gest.o de usu.rios/i });
     await screen.findByRole("heading", { name: /adicionar usu.rio/i });
     expect(document.querySelector(".project-editor-dialog")).not.toBeNull();
-    expect(screen.getByLabelText(/ID interno/i).parentElement?.className).toContain("gap-2");
-    expect(screen.getByLabelText(/e-mail de acesso/i)).toHaveAttribute("type", "email");
+    expect(
+      screen.getByLabelText(/ID interno/i).parentElement?.className,
+    ).toContain("gap-2");
+    expect(screen.getByLabelText(/e-mail de acesso/i)).toHaveAttribute(
+      "type",
+      "email",
+    );
     expect(screen.getByText(/será definido ao salvar/i)).toBeInTheDocument();
     await waitFor(() => {
       expect(screen.getByTestId("location-search").textContent).toBe("");
@@ -225,8 +258,7 @@ describe("DashboardUsers edit query", () => {
   it("esconde id interno, e-mail de acesso e badge de id para self-edit sem privilégio de gestão", async () => {
     setupApiMock({
       currentUserGrants: {
-        usuarios_basico: false,
-        usuarios_acesso: false,
+        usuarios: false,
       },
       currentUser: {
         id: "user-2",
@@ -257,9 +289,13 @@ describe("DashboardUsers edit query", () => {
     await screen.findByText(/editar usu.rio/i);
 
     expect(screen.queryByLabelText(/id interno/i)).not.toBeInTheDocument();
-    expect(screen.queryByLabelText(/e-mail de acesso/i)).not.toBeInTheDocument();
+    expect(
+      screen.queryByLabelText(/e-mail de acesso/i),
+    ).not.toBeInTheDocument();
     expect(screen.queryByText(/^ID\s/i)).not.toBeInTheDocument();
-    expect(screen.queryByText(/^acesso e permissões$/i)).not.toBeInTheDocument();
+    expect(
+      screen.queryByText(/^acesso e permissões$/i),
+    ).not.toBeInTheDocument();
     expect(screen.queryByText(/^papel de acesso$/i)).not.toBeInTheDocument();
     expect(screen.queryByText(/^permissões$/i)).not.toBeInTheDocument();
     expect(screen.getAllByText(/segurança/i).length).toBeGreaterThan(0);
@@ -267,7 +303,7 @@ describe("DashboardUsers edit query", () => {
     expect(screen.getAllByText(/e-mail:/i).length).toBeGreaterThan(0);
   });
 
-  it("mostra id interno, e-mail de acesso e acesso/permissões para self-edit de admin", async () => {
+  it("mostra id interno, e-mail de acesso e acesso/permissões para self-edit de owner", async () => {
     setupApiMock();
 
     render(
@@ -281,7 +317,10 @@ describe("DashboardUsers edit query", () => {
     await screen.findByText(/editar usu.rio/i);
 
     expect(screen.getByLabelText(/id interno/i)).toBeInTheDocument();
-    expect(screen.getByLabelText(/e-mail de acesso/i)).toHaveAttribute("type", "email");
+    expect(screen.getByLabelText(/e-mail de acesso/i)).toHaveAttribute(
+      "type",
+      "email",
+    );
     expect(screen.getAllByText(/^ID\s/i).length).toBeGreaterThan(0);
     expect(screen.getByText(/^acesso e permissões$/i)).toBeInTheDocument();
     expect(screen.getByText(/^papel de acesso$/i)).toBeInTheDocument();
@@ -291,8 +330,24 @@ describe("DashboardUsers edit query", () => {
   it("mostra o aviso de edição restrita com hover accent quando só há acesso básico", async () => {
     setupApiMock({
       currentUserGrants: {
-        usuarios_basico: true,
-        usuarios_acesso: false,
+        usuarios: true,
+      },
+      currentUser: {
+        id: "user-2",
+        name: "Colaborador",
+        username: "colaborador",
+        email: "nerdplaygamer1@gmail.com",
+        accessRole: "normal",
+        permissions: ["usuarios"],
+        grants: { usuarios: true },
+        roles: [],
+        status: "active",
+        phrase: "",
+        bio: "",
+        avatarUrl: null,
+        socials: [],
+        favoriteWorks: { manga: [], anime: [] },
+        order: 0,
       },
     });
 
@@ -306,17 +361,20 @@ describe("DashboardUsers edit query", () => {
     await screen.findByRole("heading", { name: /gest.o de usu.rios/i });
     await screen.findByText(/editar usu.rio/i);
 
-    const restrictedNotice = screen.getByText(/Voc. s. pode alterar informa..es b.sicas/i);
+    const restrictedNotice = screen.getByText(
+      /Voc. s. pode alterar informa..es b.sicas/i,
+    );
     const restrictedNoticeCard = restrictedNotice.closest("div.rounded-2xl");
     expect(restrictedNoticeCard).not.toBeNull();
-    expect(classTokens(restrictedNoticeCard)).toContain("hover:border-primary/40");
+    expect(classTokens(restrictedNoticeCard)).toContain(
+      "hover:border-primary/40",
+    );
   });
 
   it("salva o próprio perfil de usuário comum via /api/users/self com campos básicos", async () => {
     setupApiMock({
       currentUserGrants: {
-        usuarios_basico: false,
-        usuarios_acesso: false,
+        usuarios: false,
       },
       currentUser: {
         id: "user-2",
@@ -367,11 +425,14 @@ describe("DashboardUsers edit query", () => {
     await waitFor(() => {
       const putCall = apiFetchMock.mock.calls.find((call) => {
         const path = call[1];
-        const method = String((call[2] as RequestInit | undefined)?.method || "GET").toUpperCase();
+        const method = String(
+          (call[2] as RequestInit | undefined)?.method || "GET",
+        ).toUpperCase();
         return path === "/api/users/self" && method === "PUT";
       });
       expect(putCall).toBeTruthy();
-      const payload = (putCall?.[2] as { json?: Record<string, unknown> }).json || {};
+      const payload =
+        (putCall?.[2] as { json?: Record<string, unknown> }).json || {};
       expect(payload).toMatchObject({
         name: "Perfil Atualizado",
         phrase: "Nova frase",
@@ -409,15 +470,23 @@ describe("DashboardUsers edit query", () => {
       expect(screen.getByTestId("location-search").textContent).toBe("");
     });
 
-    const editorDialog = document.querySelector(".project-editor-dialog") as HTMLElement | null;
+    const editorDialog = document.querySelector(
+      ".project-editor-dialog",
+    ) as HTMLElement | null;
     const editorScrollShell = document.querySelector(
       ".project-editor-scroll-shell",
     ) as HTMLElement | null;
-    const editorTop = document.querySelector(".project-editor-top") as HTMLElement | null;
-    const editorFooter = document.querySelector(".project-editor-footer") as HTMLElement | null;
+    const editorTop = document.querySelector(
+      ".project-editor-top",
+    ) as HTMLElement | null;
+    const editorFooter = document.querySelector(
+      ".project-editor-footer",
+    ) as HTMLElement | null;
     const editorHeader = editorTop?.firstElementChild as HTMLElement | null;
     const editorStatusBar = editorTop?.lastElementChild as HTMLElement | null;
-    const editorLayout = document.querySelector(".project-editor-layout") as HTMLElement | null;
+    const editorLayout = document.querySelector(
+      ".project-editor-layout",
+    ) as HTMLElement | null;
     const editorSectionContent = document.querySelector(
       ".project-editor-section-content",
     ) as HTMLElement | null;
@@ -425,7 +494,9 @@ describe("DashboardUsers edit query", () => {
       ".project-editor-accordion",
     ) as HTMLElement | null;
     const editorBackdrop = screen.getByTestId("dashboard-editor-backdrop");
-    const legacyBackdrop = Array.from(document.body.querySelectorAll("div")).find((node) => {
+    const legacyBackdrop = Array.from(
+      document.body.querySelectorAll("div"),
+    ).find((node) => {
       const tokens = classTokens(node as HTMLElement);
       return (
         tokens.includes("pointer-events-auto") &&
@@ -451,11 +522,19 @@ describe("DashboardUsers edit query", () => {
     );
     expect(classTokens(editorDialog as HTMLElement)).not.toContain("max-w-5xl");
     expect(classTokens(editorDialog as HTMLElement)).not.toContain("h-[85vh]");
-    expect(classTokens(editorDialog as HTMLElement)).not.toContain("overflow-hidden");
-    expect(classTokens(editorDialog as HTMLElement)).not.toContain("sm:rounded-2xl");
+    expect(classTokens(editorDialog as HTMLElement)).not.toContain(
+      "overflow-hidden",
+    );
+    expect(classTokens(editorDialog as HTMLElement)).not.toContain(
+      "sm:rounded-2xl",
+    );
     expect(classTokens(editorDialog as HTMLElement)).toContain("p-0");
-    expect(classTokens(editorScrollShell as HTMLElement)).toContain("overflow-y-auto");
-    expect(classTokens(editorScrollShell as HTMLElement)).not.toContain("overscroll-contain");
+    expect(classTokens(editorScrollShell as HTMLElement)).toContain(
+      "overflow-y-auto",
+    );
+    expect(classTokens(editorScrollShell as HTMLElement)).not.toContain(
+      "overscroll-contain",
+    );
     expect(editorBackdrop).toHaveClass("bg-black/80", "backdrop-blur-xs");
     expect(legacyBackdrop).toBeUndefined();
 
@@ -467,7 +546,9 @@ describe("DashboardUsers edit query", () => {
     fireEvent.scroll(editorScrollShell as HTMLElement);
 
     await waitFor(() => {
-      expect(classTokens(editorDialog as HTMLElement)).toContain("editor-modal-scrolled");
+      expect(classTokens(editorDialog as HTMLElement)).toContain(
+        "editor-modal-scrolled",
+      );
     });
 
     Object.defineProperty(editorScrollShell as HTMLElement, "scrollTop", {
@@ -478,18 +559,24 @@ describe("DashboardUsers edit query", () => {
     fireEvent.scroll(editorScrollShell as HTMLElement);
 
     await waitFor(() => {
-      expect(classTokens(editorDialog as HTMLElement)).not.toContain("editor-modal-scrolled");
+      expect(classTokens(editorDialog as HTMLElement)).not.toContain(
+        "editor-modal-scrolled",
+      );
     });
 
     fireEvent.keyDown(document, { key: "Escape" });
 
     await waitFor(() => {
-      expect(screen.queryByRole("dialog", { name: /editar usu.rio/i })).not.toBeInTheDocument();
+      expect(
+        screen.queryByRole("dialog", { name: /editar usu.rio/i }),
+      ).not.toBeInTheDocument();
     });
 
     expect(document.documentElement).not.toHaveClass("editor-scroll-locked");
     expect(document.body).not.toHaveClass("editor-scroll-locked");
-    expect(document.body.getAttribute("data-editor-scroll-lock-count")).toBeNull();
+    expect(
+      document.body.getAttribute("data-editor-scroll-lock-count"),
+    ).toBeNull();
   });
 
   it("fecha o editor ao clicar no backdrop e mantém layout sticky até o fechamento", async () => {
@@ -508,9 +595,15 @@ describe("DashboardUsers edit query", () => {
       expect(screen.getByTestId("location-search").textContent).toBe("");
     });
 
-    const editorDialog = document.querySelector(".project-editor-dialog") as HTMLElement | null;
-    const editorTop = document.querySelector(".project-editor-top") as HTMLElement | null;
-    const editorFooter = document.querySelector(".project-editor-footer") as HTMLElement | null;
+    const editorDialog = document.querySelector(
+      ".project-editor-dialog",
+    ) as HTMLElement | null;
+    const editorTop = document.querySelector(
+      ".project-editor-top",
+    ) as HTMLElement | null;
+    const editorFooter = document.querySelector(
+      ".project-editor-footer",
+    ) as HTMLElement | null;
     const editorHeader = editorTop?.firstElementChild as HTMLElement | null;
     const editorStatusBar = editorTop?.lastElementChild as HTMLElement | null;
     const editorBackdrop = screen.getByTestId("dashboard-editor-backdrop");
@@ -528,11 +621,15 @@ describe("DashboardUsers edit query", () => {
     fireEvent.click(editorBackdrop);
 
     await waitFor(() => {
-      expect(screen.queryByRole("dialog", { name: /editar usu.rio/i })).not.toBeInTheDocument();
+      expect(
+        screen.queryByRole("dialog", { name: /editar usu.rio/i }),
+      ).not.toBeInTheDocument();
     });
     expect(document.documentElement).not.toHaveClass("editor-scroll-locked");
     expect(document.body).not.toHaveClass("editor-scroll-locked");
-    expect(document.body.getAttribute("data-editor-scroll-lock-count")).toBeNull();
+    expect(
+      document.body.getAttribute("data-editor-scroll-lock-count"),
+    ).toBeNull();
   });
 
   it("mantém altura expandida para obras favoritas, avatar e redes no modo edição", async () => {

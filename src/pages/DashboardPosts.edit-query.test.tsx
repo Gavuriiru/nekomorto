@@ -1,19 +1,27 @@
 import { dashboardEditorDialogWidthClassName } from "@/components/dashboard/dashboard-page-tokens";
 import DashboardPosts from "@/pages/DashboardPosts";
-import { act, fireEvent, render, screen, waitFor, within } from "@testing-library/react";
+import {
+  act,
+  fireEvent,
+  render,
+  screen,
+  waitFor,
+  within,
+} from "@testing-library/react";
 import type { ReactNode } from "react";
 import { MemoryRouter, useLocation } from "react-router-dom";
 import { describe, expect, it, vi } from "vitest";
 
-const { apiFetchMock, resizeObserverInstances, lexicalEditorPropsSpy } = vi.hoisted(() => ({
-  apiFetchMock: vi.fn(),
-  resizeObserverInstances: [] as Array<{
-    callback: ResizeObserverCallback;
-    disconnect: ReturnType<typeof vi.fn>;
-    observe: ReturnType<typeof vi.fn>;
-  }>,
-  lexicalEditorPropsSpy: vi.fn(),
-}));
+const { apiFetchMock, resizeObserverInstances, lexicalEditorPropsSpy } =
+  vi.hoisted(() => ({
+    apiFetchMock: vi.fn(),
+    resizeObserverInstances: [] as Array<{
+      callback: ResizeObserverCallback;
+      disconnect: ReturnType<typeof vi.fn>;
+      observe: ReturnType<typeof vi.fn>;
+    }>,
+    lexicalEditorPropsSpy: vi.fn(),
+  }));
 
 class ResizeObserverMock {
   observe = vi.fn();
@@ -73,7 +81,11 @@ vi.mock("@/lib/api-client", () => ({
   apiFetch: (...args: unknown[]) => apiFetchMock(...args),
 }));
 
-const mockJsonResponse = (ok: boolean, payload: unknown, status = ok ? 200 : 500) =>
+const mockJsonResponse = (
+  ok: boolean,
+  payload: unknown,
+  status = ok ? 200 : 500,
+) =>
   ({
     ok,
     status,
@@ -117,7 +129,10 @@ const buildVersionSnapshot = (overrides: Record<string, unknown> = {}) => ({
   ...overrides,
 });
 
-const buildVersion = (id: string, snapshotOverrides: Record<string, unknown> = {}) => ({
+const buildVersion = (
+  id: string,
+  snapshotOverrides: Record<string, unknown> = {},
+) => ({
   id,
   postId: postFixture.id,
   versionNumber: Number(id.replace(/\D/g, "")) || 1,
@@ -139,54 +154,61 @@ const setupApiMock = ({
   currentUserOverrides?: Record<string, unknown>;
   ownerIds?: string[];
   users?: Array<Record<string, unknown>>;
-  versionsResponse?: { versions?: unknown[]; nextCursor?: string | null } | "error";
+  versionsResponse?:
+    | { versions?: unknown[]; nextCursor?: string | null }
+    | "error";
 }) => {
   apiFetchMock.mockReset();
   resizeObserverInstances.length = 0;
   lexicalEditorPropsSpy.mockReset();
-  apiFetchMock.mockImplementation(async (_base: string, path: string, options?: RequestInit) => {
-    const method = String(options?.method || "GET").toUpperCase();
+  apiFetchMock.mockImplementation(
+    async (_base: string, path: string, options?: RequestInit) => {
+      const method = String(options?.method || "GET").toUpperCase();
 
-    if (path === "/api/posts" && method === "GET") {
-      return mockJsonResponse(true, { posts: [postFixture] });
-    }
-    if (path === "/api/users" && method === "GET") {
-      return mockJsonResponse(true, {
-        users: users ?? [{ id: "user-1", permissions: canManagePosts ? ["posts"] : [] }],
-        ownerIds,
-      });
-    }
-    if (path === "/api/me" && method === "GET") {
-      return mockJsonResponse(true, {
-        id: "user-1",
-        name: "Admin",
-        username: "admin",
-        permissions: canManagePosts ? ["posts"] : [],
-        ...currentUserOverrides,
-      });
-    }
-    if (path === "/api/projects" && method === "GET") {
-      return mockJsonResponse(true, { projects: [] });
-    }
-    if (path === "/api/public/tag-translations" && method === "GET") {
-      return mockJsonResponse(true, { tags: {}, genres: {}, staffRoles: {} });
-    }
-    if (
-      path.startsWith("/api/admin/content/post/") &&
-      path.includes("/versions") &&
-      method === "GET"
-    ) {
-      if (versionsResponse === "error") {
-        return mockJsonResponse(false, { error: "versions_failed" }, 500);
+      if (path === "/api/posts" && method === "GET") {
+        return mockJsonResponse(true, { posts: [postFixture] });
       }
-      return mockJsonResponse(true, {
-        postId: "post-1",
-        versions: versionsResponse?.versions || [],
-        nextCursor: versionsResponse?.nextCursor || null,
-      });
-    }
-    return mockJsonResponse(false, { error: "not_found" }, 404);
-  });
+      if (path === "/api/users" && method === "GET") {
+        return mockJsonResponse(true, {
+          users: users ?? [
+            { id: "user-1", permissions: canManagePosts ? ["posts"] : [] },
+          ],
+          ownerIds,
+        });
+      }
+      if (path === "/api/me" && method === "GET") {
+        return mockJsonResponse(true, {
+          id: "user-1",
+          name: "Admin",
+          username: "admin",
+          permissions: canManagePosts ? ["posts"] : [],
+          grants: { posts: canManagePosts },
+          ...currentUserOverrides,
+        });
+      }
+      if (path === "/api/projects" && method === "GET") {
+        return mockJsonResponse(true, { projects: [] });
+      }
+      if (path === "/api/public/tag-translations" && method === "GET") {
+        return mockJsonResponse(true, { tags: {}, genres: {}, staffRoles: {} });
+      }
+      if (
+        path.startsWith("/api/admin/content/post/") &&
+        path.includes("/versions") &&
+        method === "GET"
+      ) {
+        if (versionsResponse === "error") {
+          return mockJsonResponse(false, { error: "versions_failed" }, 500);
+        }
+        return mockJsonResponse(true, {
+          postId: "post-1",
+          versions: versionsResponse?.versions || [],
+          nextCursor: versionsResponse?.nextCursor || null,
+        });
+      }
+      return mockJsonResponse(false, { error: "not_found" }, 404);
+    },
+  );
 };
 
 const LocationProbe = () => {
@@ -197,7 +219,10 @@ const LocationProbe = () => {
 const classTokens = (element: HTMLElement) =>
   String(element.className).split(/\s+/).filter(Boolean);
 
-const expectStableDashboardActionButton = (element: HTMLElement, sizeToken: "h-9" | "h-10") => {
+const expectStableDashboardActionButton = (
+  element: HTMLElement,
+  sizeToken: "h-9" | "h-10",
+) => {
   const tokens = classTokens(element);
 
   expect(tokens).toEqual(
@@ -214,7 +239,10 @@ const expectStableDashboardActionButton = (element: HTMLElement, sizeToken: "h-9
   expect(tokens).not.toContain("pressable");
 };
 
-const expectPrimaryDashboardActionButton = (element: HTMLElement, sizeToken: "h-9" | "h-10") => {
+const expectPrimaryDashboardActionButton = (
+  element: HTMLElement,
+  sizeToken: "h-9" | "h-10",
+) => {
   const tokens = classTokens(element);
 
   expect(tokens).toEqual(
@@ -274,7 +302,8 @@ const getEditorSectionByTitle = (dialog: HTMLElement, title: string) => {
   const section = sections.find((candidate) =>
     Array.from(candidate.querySelectorAll<HTMLElement>("span")).some(
       (element) =>
-        element.textContent?.trim() === title && classTokens(element).includes("text-[15px]"),
+        element.textContent?.trim() === title &&
+        classTokens(element).includes("text-[15px]"),
     ),
   );
   if (!section) {
@@ -283,17 +312,29 @@ const getEditorSectionByTitle = (dialog: HTMLElement, title: string) => {
   return section;
 };
 
-const expectEditorSectionHeader = (dialog: HTMLElement, title: string, subtitle: string) => {
+const expectEditorSectionHeader = (
+  dialog: HTMLElement,
+  title: string,
+  subtitle: string,
+) => {
   const section = getEditorSectionByTitle(dialog, title);
-  const titleElement = Array.from(section.querySelectorAll<HTMLElement>("span")).find(
+  const titleElement = Array.from(
+    section.querySelectorAll<HTMLElement>("span"),
+  ).find(
     (element) =>
-      element.textContent?.trim() === title && classTokens(element).includes("text-[15px]"),
+      element.textContent?.trim() === title &&
+      classTokens(element).includes("text-[15px]"),
   );
-  const subtitleElement = Array.from(section.querySelectorAll<HTMLElement>("span")).find(
+  const subtitleElement = Array.from(
+    section.querySelectorAll<HTMLElement>("span"),
+  ).find(
     (element) =>
-      element.textContent?.trim() === subtitle && classTokens(element).includes("text-xs"),
+      element.textContent?.trim() === subtitle &&
+      classTokens(element).includes("text-xs"),
   );
-  const header = section.querySelector<HTMLElement>(".project-editor-section-trigger");
+  const header = section.querySelector<HTMLElement>(
+    ".project-editor-section-trigger",
+  );
 
   expect(header).not.toBeNull();
   expect(titleElement).toBeDefined();
@@ -363,13 +404,17 @@ describe("DashboardPosts edit query", () => {
     });
     expect(document.documentElement).toHaveClass("editor-scroll-locked");
     expect(document.body).toHaveClass("editor-scroll-locked");
-    expect(document.body.getAttribute("data-editor-scroll-lock-count")).toBe("1");
+    expect(document.body.getAttribute("data-editor-scroll-lock-count")).toBe(
+      "1",
+    );
 
     unmount();
 
     expect(document.documentElement).not.toHaveClass("editor-scroll-locked");
     expect(document.body).not.toHaveClass("editor-scroll-locked");
-    expect(document.body.getAttribute("data-editor-scroll-lock-count")).toBeNull();
+    expect(
+      document.body.getAttribute("data-editor-scroll-lock-count"),
+    ).toBeNull();
   });
 
   it("abre editor com grant de posts sem permissions legadas", async () => {
@@ -391,7 +436,9 @@ describe("DashboardPosts edit query", () => {
 
     await screen.findByRole("heading", { name: "Gerenciar posts" });
     await screen.findByRole("heading", { name: "Editar postagem" });
-    expect(screen.getByRole("button", { name: /Nova postagem/i })).toBeInTheDocument();
+    expect(
+      screen.getByRole("button", { name: /Nova postagem/i }),
+    ).toBeInTheDocument();
   });
 
   it("abre editor para owner sem permissions legadas", async () => {
@@ -417,7 +464,9 @@ describe("DashboardPosts edit query", () => {
 
     await screen.findByRole("heading", { name: "Gerenciar posts" });
     await screen.findByRole("heading", { name: "Editar postagem" });
-    expect(screen.getByRole("button", { name: /Nova postagem/i })).toBeInTheDocument();
+    expect(
+      screen.getByRole("button", { name: /Nova postagem/i }),
+    ).toBeInTheDocument();
   });
 
   it("nao abre editor sem permissao e limpa a query", async () => {
@@ -434,7 +483,9 @@ describe("DashboardPosts edit query", () => {
     await waitFor(() => {
       expect(screen.getByTestId("location-search").textContent).toBe("");
     });
-    expect(screen.queryByRole("heading", { name: "Editar postagem" })).not.toBeInTheDocument();
+    expect(
+      screen.queryByRole("heading", { name: "Editar postagem" }),
+    ).not.toBeInTheDocument();
   });
 
   it("oculta botao de historico quando a unica versao equivale ao estado atual", async () => {
@@ -458,12 +509,16 @@ describe("DashboardPosts edit query", () => {
     await waitFor(() => {
       expect(
         apiFetchMock.mock.calls.some((call) =>
-          String(call[1] || "").includes("/api/admin/content/post/post-1/versions"),
+          String(call[1] || "").includes(
+            "/api/admin/content/post/post-1/versions",
+          ),
         ),
       ).toBe(true);
     });
 
-    expect(screen.queryByRole("button", { name: /Hist/i })).not.toBeInTheDocument();
+    expect(
+      screen.queryByRole("button", { name: /Hist/i }),
+    ).not.toBeInTheDocument();
   });
 
   it("mostra botao de historico quando existe uma versao restauravel mesmo sendo unica", async () => {
@@ -534,26 +589,42 @@ describe("DashboardPosts edit query", () => {
     const historyButton = await screen.findByRole("button", { name: /Hist/i });
     fireEvent.click(historyButton);
 
-    const historyDialog = (await screen.findAllByRole("dialog")).at(-1) as HTMLElement;
-    const historyCard = Array.from(historyDialog.querySelectorAll<HTMLElement>("div")).find(
+    const historyDialog = (await screen.findAllByRole("dialog")).at(
+      -1,
+    ) as HTMLElement;
+    const historyCard = Array.from(
+      historyDialog.querySelectorAll<HTMLElement>("div"),
+    ).find(
       (node) =>
         classTokens(node).includes("rounded-lg") &&
         classTokens(node).includes("hover:border-primary/40"),
     );
     expect(historyCard).toBeDefined();
-    expect(classTokens(historyCard as HTMLElement)).toContain("border-border/60");
+    expect(classTokens(historyCard as HTMLElement)).toContain(
+      "border-border/60",
+    );
     expect(classTokens(historyCard as HTMLElement)).toContain("bg-card/60");
 
-    fireEvent.click(within(historyDialog).getByRole("button", { name: /Restaurar esta vers/i }));
+    fireEvent.click(
+      within(historyDialog).getByRole("button", {
+        name: /Restaurar esta vers/i,
+      }),
+    );
 
-    const rollbackDialog = (await screen.findAllByRole("dialog")).at(-1) as HTMLElement;
-    const rollbackCard = Array.from(rollbackDialog.querySelectorAll<HTMLElement>("div")).find(
+    const rollbackDialog = (await screen.findAllByRole("dialog")).at(
+      -1,
+    ) as HTMLElement;
+    const rollbackCard = Array.from(
+      rollbackDialog.querySelectorAll<HTMLElement>("div"),
+    ).find(
       (node) =>
         classTokens(node).includes("bg-card/60") &&
         classTokens(node).includes("hover:border-primary/40"),
     );
     expect(rollbackCard).toBeDefined();
-    expect(classTokens(rollbackCard as HTMLElement)).toContain("border-border/60");
+    expect(classTokens(rollbackCard as HTMLElement)).toContain(
+      "border-border/60",
+    );
   });
 
   it("usa shell no padrao do editor de projetos e controla classe editor-modal-scrolled", async () => {
@@ -572,20 +643,30 @@ describe("DashboardPosts edit query", () => {
       expect(screen.getByTestId("location-search").textContent).toBe("");
     });
 
-    const editorDialog = document.querySelector(".project-editor-dialog") as HTMLElement | null;
+    const editorDialog = document.querySelector(
+      ".project-editor-dialog",
+    ) as HTMLElement | null;
     const editorScrollShell = document.querySelector(
       ".project-editor-scroll-shell",
     ) as HTMLElement | null;
-    const editorTop = document.querySelector(".project-editor-top") as HTMLElement | null;
-    const editorFooter = document.querySelector(".project-editor-footer") as HTMLElement | null;
+    const editorTop = document.querySelector(
+      ".project-editor-top",
+    ) as HTMLElement | null;
+    const editorFooter = document.querySelector(
+      ".project-editor-footer",
+    ) as HTMLElement | null;
     const editorHeader = editorTop?.firstElementChild as HTMLElement | null;
     const editorStatusBar = editorTop?.lastElementChild as HTMLElement | null;
-    const editorLayout = document.querySelector(".project-editor-layout") as HTMLElement | null;
+    const editorLayout = document.querySelector(
+      ".project-editor-layout",
+    ) as HTMLElement | null;
     const editorSectionContent = document.querySelector(
       ".project-editor-section-content",
     ) as HTMLElement | null;
     const editorBackdrop = screen.getByTestId("dashboard-editor-backdrop");
-    const legacyBackdrop = Array.from(document.body.querySelectorAll("div")).find((node) => {
+    const legacyBackdrop = Array.from(
+      document.body.querySelectorAll("div"),
+    ).find((node) => {
       const tokens = classTokens(node as HTMLElement);
       return (
         tokens.includes("pointer-events-auto") &&
@@ -606,11 +687,17 @@ describe("DashboardPosts edit query", () => {
     expect(editorLayout).not.toBeNull();
     expect(editorSectionContent).not.toBeNull();
     expect(document.querySelector(".project-editor-dialog-surface")).toBeNull();
-    expect(classTokens(editorScrollShell as HTMLElement)).toContain("overflow-y-auto");
-    expect(classTokens(editorScrollShell as HTMLElement)).not.toContain("max-h-[94vh]");
+    expect(classTokens(editorScrollShell as HTMLElement)).toContain(
+      "overflow-y-auto",
+    );
+    expect(classTokens(editorScrollShell as HTMLElement)).not.toContain(
+      "max-h-[94vh]",
+    );
     expect(classTokens(editorTop as HTMLElement)).toContain("sticky");
     expect(classTokens(editorFooter as HTMLElement)).toContain("sticky");
-    expect(classTokens(editorDialog as HTMLElement)).toContain(dashboardEditorDialogWidthClassName);
+    expect(classTokens(editorDialog as HTMLElement)).toContain(
+      dashboardEditorDialogWidthClassName,
+    );
     expect(classTokens(editorDialog as HTMLElement)).not.toContain(
       "max-w-[min(1520px,calc(100vw-1rem))]",
     );
@@ -618,7 +705,13 @@ describe("DashboardPosts edit query", () => {
     expect(classTokens(editorHeader as HTMLElement)).toContain("pb-2.5");
     expect(classTokens(editorStatusBar as HTMLElement)).toContain("py-1.5");
     expect(classTokens(editorBackdrop)).toEqual(
-      expect.arrayContaining(["fixed", "inset-0", "z-[45]", "bg-black/80", "backdrop-blur-xs"]),
+      expect.arrayContaining([
+        "fixed",
+        "inset-0",
+        "z-[45]",
+        "bg-black/80",
+        "backdrop-blur-xs",
+      ]),
     );
     expect(editorBackdrop.parentElement).toBe(document.body);
     expect(legacyBackdrop).toBeUndefined();
@@ -627,12 +720,16 @@ describe("DashboardPosts edit query", () => {
     expect(classTokens(editorLayout as HTMLElement)).toContain("pb-4");
     expect(classTokens(editorFooter as HTMLElement)).toContain("py-2");
     expect(classTokens(editorFooter as HTMLElement)).toContain("md:py-2.5");
-    expect(classTokens(editorSectionContent as HTMLElement)).toContain("pb-3.5");
+    expect(classTokens(editorSectionContent as HTMLElement)).toContain(
+      "pb-3.5",
+    );
     expect(
       lexicalEditorPropsSpy.mock.calls.some(([props]) =>
         Boolean(
-          (props as { followCaretScroll?: boolean; autoFocus?: boolean }).followCaretScroll &&
-            (props as { followCaretScroll?: boolean; autoFocus?: boolean }).autoFocus === false,
+          (props as { followCaretScroll?: boolean; autoFocus?: boolean })
+            .followCaretScroll &&
+          (props as { followCaretScroll?: boolean; autoFocus?: boolean })
+            .autoFocus === false,
         ),
       ),
     ).toBe(true);
@@ -644,17 +741,31 @@ describe("DashboardPosts edit query", () => {
       .getByText(/^Postagem$/i)
       .closest("div.rounded-xl");
     expect(editorPostSummaryCard).not.toBeNull();
-    expect(classTokens(editorPostSummaryCard as HTMLElement)).toContain("hover:border-primary/40");
+    expect(classTokens(editorPostSummaryCard as HTMLElement)).toContain(
+      "hover:border-primary/40",
+    );
     expect(editorDialog.contains(editorScrollShell)).toBe(true);
-    const cancelButton = within(editorDialog).getByRole("button", { name: "Cancelar" });
-    const deleteButton = within(editorDialog).getByRole("button", { name: "Excluir" });
-    const saveButton = within(editorDialog).getByRole("button", { name: "Salvar" });
-    const publishButton = within(editorDialog).getByRole("button", { name: "Publicar agora" });
+    const cancelButton = within(editorDialog).getByRole("button", {
+      name: "Cancelar",
+    });
+    const deleteButton = within(editorDialog).getByRole("button", {
+      name: "Excluir",
+    });
+    const saveButton = within(editorDialog).getByRole("button", {
+      name: "Salvar",
+    });
+    const publishButton = within(editorDialog).getByRole("button", {
+      name: "Publicar agora",
+    });
     expectStableDashboardActionButton(cancelButton, "h-9");
     expectDestructiveDashboardActionButton(deleteButton, "h-9");
     expectPrimaryDashboardActionButton(saveButton, "h-9");
     expectPrimaryDashboardActionButton(publishButton, "h-9");
-    expectEditorSectionHeader(editorDialog, "Conteúdo", "Texto principal do post");
+    expectEditorSectionHeader(
+      editorDialog,
+      "Conteúdo",
+      "Texto principal do post",
+    );
     expectEditorSectionHeader(editorDialog, "Publicação", "Rascunho");
     expectEditorSectionHeader(editorDialog, "Mídia", "Sem capa");
     expectEditorSectionHeader(editorDialog, "Relacionamento", "Sem projeto");
@@ -668,12 +779,18 @@ describe("DashboardPosts edit query", () => {
       expect(editorDialog).toHaveClass("editor-modal-scrolled");
     });
 
-    fireEvent.click(within(editorDialog).getByRole("button", { name: "Cancelar" }));
+    fireEvent.click(
+      within(editorDialog).getByRole("button", { name: "Cancelar" }),
+    );
 
     await waitFor(() => {
-      expect(screen.queryByRole("heading", { name: "Editar postagem" })).not.toBeInTheDocument();
+      expect(
+        screen.queryByRole("heading", { name: "Editar postagem" }),
+      ).not.toBeInTheDocument();
     });
-    expect(document.querySelector(".project-editor-dialog.editor-modal-scrolled")).toBeNull();
+    expect(
+      document.querySelector(".project-editor-dialog.editor-modal-scrolled"),
+    ).toBeNull();
   });
 
   it("sincroniza o offset sticky do lexical com a altura da barra superior do modal", async () => {
@@ -689,7 +806,9 @@ describe("DashboardPosts edit query", () => {
     await screen.findByRole("heading", { name: "Gerenciar posts" });
     await screen.findByRole("heading", { name: "Editar postagem" });
 
-    const editorTop = document.querySelector(".project-editor-top") as HTMLElement | null;
+    const editorTop = document.querySelector(
+      ".project-editor-top",
+    ) as HTMLElement | null;
     const lexicalWrapper = document.querySelector(
       ".post-editor-lexical-wrapper",
     ) as HTMLElement | null;
@@ -714,7 +833,10 @@ describe("DashboardPosts edit query", () => {
       ),
     ).toBe(true);
 
-    const getBoundingClientRectSpy = vi.spyOn(editorTop, "getBoundingClientRect");
+    const getBoundingClientRectSpy = vi.spyOn(
+      editorTop,
+      "getBoundingClientRect",
+    );
     getBoundingClientRectSpy.mockReturnValue(createDomRect(96));
 
     await act(async () => {
@@ -725,9 +847,11 @@ describe("DashboardPosts edit query", () => {
     });
 
     await waitFor(() => {
-      expect(lexicalWrapper.style.getPropertyValue("--post-editor-toolbar-sticky-top")).toBe(
-        "101px",
-      );
+      expect(
+        lexicalWrapper.style.getPropertyValue(
+          "--post-editor-toolbar-sticky-top",
+        ),
+      ).toBe("101px");
     });
 
     getBoundingClientRectSpy.mockReturnValue(createDomRect(132));
@@ -740,9 +864,11 @@ describe("DashboardPosts edit query", () => {
     });
 
     await waitFor(() => {
-      expect(lexicalWrapper.style.getPropertyValue("--post-editor-toolbar-sticky-top")).toBe(
-        "137px",
-      );
+      expect(
+        lexicalWrapper.style.getPropertyValue(
+          "--post-editor-toolbar-sticky-top",
+        ),
+      ).toBe("137px");
     });
   });
 });

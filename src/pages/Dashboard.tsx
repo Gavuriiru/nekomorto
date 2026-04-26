@@ -27,6 +27,7 @@ import { useDashboardPreferences } from "@/hooks/use-dashboard-preferences";
 import { usePageMeta } from "@/hooks/use-page-meta";
 import { getApiBase } from "@/lib/api-base";
 import { apiFetch } from "@/lib/api-client";
+import { resolveGrants } from "@/lib/access-control";
 import { formatDateTime } from "@/lib/date";
 import type { OperationalAlertsResponse } from "@/types/operational-alerts";
 import { ArrowDown, ArrowUp, SlidersHorizontal } from "lucide-react";
@@ -120,35 +121,42 @@ const DASHBOARD_ROLE_PRESETS: Record<DashboardHomeRole, DashboardWidgetId[]> = {
   admin: ["ops_status", "comments_queue", "analytics_summary", "recent_posts", "metrics_overview"],
 };
 
-const readGrant = (source: Record<string, unknown>, key: string) => source[key] === true;
-
 const inferDashboardRole = (user: Record<string, unknown> | null): DashboardHomeRole => {
-  const grants =
-    user?.grants && typeof user.grants === "object" ? (user.grants as Record<string, unknown>) : {};
-  const permissions = Array.isArray(user?.permissions)
-    ? user.permissions.map((item) =>
-        String(item || "")
-          .trim()
-          .toLowerCase(),
-      )
-    : [];
-  const hasPermission = (id: string) =>
-    readGrant(grants, id) || permissions.includes(id) || permissions.includes("*");
+  const grants = resolveGrants(user || null) as Record<string, boolean>;
+  const hasGrant = (id: string) => grants[id] === true;
 
   const isAdmin =
-    hasPermission("configuracoes") ||
-    hasPermission("usuarios_acesso") ||
-    hasPermission("audit_log") ||
-    hasPermission("integracoes");
+    hasGrant("configuracoes") ||
+    hasGrant("usuarios") ||
+    hasGrant("audit_log") ||
+    hasGrant("integracoes");
   if (isAdmin) {
     return "admin";
   }
-  const isModerador =
-    hasPermission("comentarios") && !hasPermission("posts") && !hasPermission("projetos");
+  const isModerador = hasGrant("comentarios") && !hasGrant("posts") && !hasGrant("projetos");
   if (isModerador) {
     return "moderador";
   }
   return "editor";
+};
+
+const resolveVisibleDashboardWidgets = (
+  widgets: DashboardWidgetId[],
+  user: Record<string, unknown> | null,
+): DashboardWidgetId[] => {
+  const grants = resolveGrants(user || null) as Record<string, boolean>;
+  const canViewAnalytics = grants.analytics === true;
+  const canViewComments = grants.comentarios === true;
+  const canViewProjects = grants.projetos === true;
+  const canViewOps = grants.audit_log === true;
+
+  return widgets.filter((widgetId) => {
+    if (widgetId === "analytics_summary") return canViewAnalytics;
+    if (widgetId === "comments_queue") return canViewComments;
+    if (widgetId === "projects_rank" || widgetId === "projects_quick") return canViewProjects;
+    if (widgetId === "ops_status") return canViewOps;
+    return true;
+  });
 };
 
 const normalizeDashboardWidgets = (value: unknown): DashboardWidgetId[] => {
@@ -598,9 +606,13 @@ const Dashboard = () => {
         : rolePresetWidgets,
     [homePreferences, homeRole, rolePresetWidgets],
   );
+  const visibleWidgets = useMemo(
+    () => resolveVisibleDashboardWidgets(selectedWidgetsByRole, currentUser as Record<string, unknown> | null),
+    [currentUser, selectedWidgetsByRole],
+  );
   const selectedWidgetSet = useMemo(
-    () => new Set<DashboardWidgetId>(selectedWidgetsByRole),
-    [selectedWidgetsByRole],
+    () => new Set<DashboardWidgetId>(visibleWidgets),
+    [visibleWidgets],
   );
 
   useEffect(() => {
@@ -827,7 +839,7 @@ const Dashboard = () => {
               Painel de controle da comunidade
             </h1>
             <p
-              className="max-w-2xl text-sm text-foreground/70 animate-slide-up opacity-0"
+              className="max-w-2xl text-sm text-foreground/70 animate-slide-up"
               style={dashboardAnimationDelay(dashboardMotionDelays.headerDescriptionMs)}
             >
               Visão geral dos projetos e do conteúdo. Assim que as integrações de analytics e
@@ -835,7 +847,7 @@ const Dashboard = () => {
             </p>
           </div>
           <div
-            className="flex items-center gap-3 overflow-x-auto whitespace-nowrap pb-1 animate-slide-up opacity-0"
+            className="flex items-center gap-3 overflow-x-auto whitespace-nowrap pb-1 animate-slide-up"
             style={dashboardAnimationDelay(dashboardMotionDelays.headerActionsMs)}
           >
             <DashboardActionButton
@@ -886,7 +898,7 @@ const Dashboard = () => {
             {selectedWidgetSet.has("metrics_overview") ? (
               <div className="mt-10 grid gap-4 md:grid-cols-2 lg:grid-cols-4">
                 <div
-                  className={`${dashboardOverviewMetricCardClassName} animate-slide-up opacity-0`}
+                  className={`${dashboardOverviewMetricCardClassName} animate-slide-up`}
                   style={dashboardAnimationDelay(0)}
                 >
                   <p className={`text-sm ${dashboardOverviewMetaTextClassName}`}>
@@ -898,7 +910,7 @@ const Dashboard = () => {
                   </p>
                 </div>
                 <div
-                  className={`${dashboardOverviewMetricCardClassName} animate-slide-up opacity-0`}
+                  className={`${dashboardOverviewMetricCardClassName} animate-slide-up`}
                   style={dashboardAnimationDelay(dashboardMotionDelays.sectionStepMs)}
                 >
                   <p className={`text-sm ${dashboardOverviewMetaTextClassName}`}>
@@ -910,7 +922,7 @@ const Dashboard = () => {
                   </p>
                 </div>
                 <div
-                  className={`${dashboardOverviewMetricCardClassName} animate-slide-up opacity-0`}
+                  className={`${dashboardOverviewMetricCardClassName} animate-slide-up`}
                   style={dashboardAnimationDelay(dashboardMotionDelays.sectionStepMs * 2)}
                 >
                   <p className={`text-sm ${dashboardOverviewMetaTextClassName}`}>Projetos ativos</p>
@@ -920,7 +932,7 @@ const Dashboard = () => {
                   </p>
                 </div>
                 <div
-                  className={`${dashboardOverviewMetricCardClassName} animate-slide-up opacity-0`}
+                  className={`${dashboardOverviewMetricCardClassName} animate-slide-up`}
                   style={dashboardAnimationDelay(dashboardMotionDelays.sectionStepMs * 3)}
                 >
                   <p className={`text-sm ${dashboardOverviewMetaTextClassName}`}>
@@ -941,7 +953,7 @@ const Dashboard = () => {
               <div className="space-y-6">
                 {selectedWidgetSet.has("analytics_summary") ? (
                   <div
-                    className={`${dashboardOverviewCardShellClassName} animate-slide-up opacity-0`}
+                    className={`${dashboardOverviewCardShellClassName} animate-slide-up`}
                     style={dashboardAnimationDelay(dashboardMotionDelays.headerActionsMs)}
                   >
                     <div className="flex flex-col gap-6 lg:flex-row lg:items-center lg:justify-between">
@@ -1016,7 +1028,7 @@ const Dashboard = () => {
 
                 {selectedWidgetSet.has("projects_rank") ? (
                   <div
-                    className={`${dashboardOverviewCardShellClassName} animate-slide-up opacity-0`}
+                    className={`${dashboardOverviewCardShellClassName} animate-slide-up`}
                     style={dashboardAnimationDelay(dashboardMotionDelays.sectionLeadMs)}
                   >
                     <div className="flex items-center justify-between">
@@ -1064,7 +1076,7 @@ const Dashboard = () => {
 
                 {selectedWidgetSet.has("recent_posts") ? (
                   <div
-                    className={`${dashboardOverviewCardShellClassName} animate-slide-up opacity-0`}
+                    className={`${dashboardOverviewCardShellClassName} animate-slide-up`}
                     style={dashboardAnimationDelay(
                       dashboardMotionDelays.sectionLeadMs + dashboardMotionDelays.sectionStepMs,
                     )}
@@ -1119,7 +1131,7 @@ const Dashboard = () => {
               <aside className="space-y-6">
                 {selectedWidgetSet.has("ops_status") && !hideOperationalAlertsCard ? (
                   <div
-                    className={`${dashboardOverviewCardShellClassName} animate-slide-up opacity-0`}
+                    className={`${dashboardOverviewCardShellClassName} animate-slide-up`}
                     style={dashboardAnimationDelay(
                       dashboardMotionDelays.sectionLeadMs + dashboardMotionDelays.sectionStepMs * 2,
                     )}
@@ -1262,7 +1274,7 @@ const Dashboard = () => {
                 ) : null}
                 {selectedWidgetSet.has("comments_queue") ? (
                   <div
-                    className={`${dashboardOverviewCardShellClassName} animate-slide-up opacity-0`}
+                    className={`${dashboardOverviewCardShellClassName} animate-slide-up`}
                     style={dashboardAnimationDelay(
                       dashboardMotionDelays.sectionLeadMs + dashboardMotionDelays.sectionStepMs * 3,
                     )}
@@ -1311,7 +1323,7 @@ const Dashboard = () => {
 
                 {selectedWidgetSet.has("projects_quick") ? (
                   <div
-                    className={`${dashboardOverviewCardShellClassName} overflow-hidden animate-slide-up opacity-0`}
+                    className={`${dashboardOverviewCardShellClassName} overflow-hidden animate-slide-up`}
                     style={dashboardAnimationDelay(
                       dashboardMotionDelays.sectionLeadMs + dashboardMotionDelays.sectionStepMs * 4,
                     )}

@@ -1,112 +1,76 @@
 @layer components {
   .home-post-card-link {
-    box-shadow: none;
     transition:
-      transform var(--interactive-duration-medium) var(--interactive-ease-standard),
-      box-shadow var(--interactive-duration-medium) var(--interactive-ease-standard),
-      border-color var(--interactive-duration-medium) var(--interactive-ease-standard),
-      background-color var(--interactive-duration-medium) var(--interactive-ease-standard),
-      color var(--interactive-duration-medium) var(--interactive-ease-standard);
+      border-color 150ms var(--interactive-ease-standard),
+      background-color 150ms var(--interactive-ease-standard),
+      color 150ms var(--interactive-ease-standard);
   }
 
   .home-post-card-link:hover,
   .home-post-card-link:focus-visible,
   .home-post-card-link:focus-within {
-    transform: translateY(-4px);
-    box-shadow: 0 14px 34px -28px rgba(0, 0, 0, 0.28);
+    border-color: hsl(var(--primary) / 0.4);
   }
 
   .home-post-media-transition {
-    transition-property: transform, opacity;
-    transition-duration: 420ms;
+    transition-property: opacity;
+    transition-duration: 200ms;
     transition-timing-function: var(--interactive-ease-standard);
   }
 
   .home-post-pagination-link {
     -webkit-font-smoothing: antialiased;
-    box-shadow: none !important;
     text-rendering: geometricPrecision;
-    transform: none !important;
     transition-property: border-color, background-color, color;
     transition-duration: var(--interactive-duration-fast);
     transition-timing-function: var(--interactive-ease-standard);
-    will-change: auto;
-  }
-
-  .home-post-pagination-link:hover,
-  .home-post-pagination-link:focus-visible,
-  .home-post-pagination-link:active {
-    box-shadow: none !important;
-    transform: none !important;
   }
 
   .home-post-pagination-link[aria-current="page"] {
     background-color: hsl(var(--background));
     border-color: hsl(var(--border) / 0.65);
-    box-shadow: none !important;
-    transform: none !important;
   }
 
   .public-interactive-card-shell {
     isolation: isolate;
     position: relative;
-    transition: transform var(--interactive-duration-medium) var(--interactive-ease-standard);
+    transition: border-color 150ms var(--interactive-ease-standard);
   }
 
   .public-interactive-card-shell:hover,
   .public-interactive-card-shell:focus-visible,
   .public-interactive-card-shell:focus-within {
-    transform: translateY(-4px);
-  }
-
-  .public-interactive-card-shell--no-lift,
-  .public-interactive-card-shell--no-lift:hover,
-  .public-interactive-card-shell--no-lift:focus-visible,
-  .public-interactive-card-shell--no-lift:focus-within {
-    transform: none;
+    border-color: hsl(var(--primary) / 0.4);
   }
 
   .public-interactive-card-shadow {
     inset: 0;
     pointer-events: none;
     position: absolute;
-    transition:
-      opacity var(--interactive-duration-medium) var(--interactive-ease-standard),
-      transform var(--interactive-duration-medium) var(--interactive-ease-standard);
+    transition: opacity 150ms var(--interactive-ease-standard);
   }
 
   .public-interactive-card-shadow--base {
-    box-shadow: 0 14px 42px -34px rgba(0, 0, 0, 0.22);
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
     opacity: 0;
-    transform: none;
   }
 
   .public-interactive-card-shadow--hover {
-    box-shadow: 0 14px 34px -28px rgba(0, 0, 0, 0.28);
+    box-shadow: 0 4px 6px rgba(0, 0, 0, 0.15);
     opacity: 0;
-    transform: translateY(4px) scale(0.995);
   }
 
   .public-interactive-card-shell--compact > .public-interactive-card-shadow--base {
-    box-shadow: 0 12px 24px -20px rgba(0, 0, 0, 0.16);
+    box-shadow: 0 1px 2px rgba(0, 0, 0, 0.1);
   }
 
   .public-interactive-card-shell--compact > .public-interactive-card-shadow--hover {
-    box-shadow: 0 12px 22px -16px rgba(0, 0, 0, 0.18);
-    transform: translateY(2px) scale(0.998);
-  }
-
-  .public-interactive-card-shell:hover > .public-interactive-card-shadow--base,
-  .public-interactive-card-shell:focus-visible > .public-interactive-card-shadow--base,
-  .public-interactive-card-shell:focus-within > .public-interactive-card-shadow--base {
-    opacity: 0;
-    transform: none;
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.15);
   }
 
   .public-interactive-card-shell:hover > .public-interactive-card-shadow--hover,
   .public-interactive-card-shell:focus-visible > .public-interactive-card-shadow--hover,
   .public-interactive-card-shell:focus-within > .public-interactive-card-shadow--hover {
     opacity: 1;
-    transform: none;
   }
 }

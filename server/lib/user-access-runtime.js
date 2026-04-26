@@ -502,12 +502,12 @@ export const createUserAccessRuntime = (dependencies = {}) => {
       .digest("hex")
       .slice(0, 16);
 
-  const canManageUsersBasic = (userId) => {
+  const canManageUsers = (userId) => {
     if (!userId) {
       return false;
     }
     if (isRbacV2Enabled) {
-      return hasPermissionByUserId(userId, PermissionId.USUARIOS_BASICO);
+      return hasPermissionByUserId(userId, PermissionId.USUARIOS);
     }
     if (isOwner(userId)) {
       return true;
@@ -516,25 +516,14 @@ export const createUserAccessRuntime = (dependencies = {}) => {
     return permissions.includes("*") || permissions.includes("usuarios");
   };
 
-  const canManageUsersAccess = (userId) => {
-    if (!userId) {
-      return false;
-    }
-    if (isRbacV2Enabled) {
-      return hasPermissionByUserId(userId, PermissionId.USUARIOS_ACESSO);
-    }
-    if (isOwner(userId)) {
-      return true;
-    }
-    const permissions = findLegacyPermissionsByUserId(userId);
-    return permissions.includes("*") || permissions.includes("usuarios");
-  };
+  const canManageUsersBasic = canManageUsers;
+  const canManageUsersAccess = canManageUsers;
 
   const canManageSecurityAdmin = (userId) => {
     if (!userId) {
       return false;
     }
-    return canViewAuditLog(userId) || canManageUsersAccess(userId) || isPrimaryOwner(userId);
+    return canViewAuditLog(userId) || isPrimaryOwner(userId);
   };
 
   const normalizeUploadScopeUserId = (value) => String(value || "").trim();

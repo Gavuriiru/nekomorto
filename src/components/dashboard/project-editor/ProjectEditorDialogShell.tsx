@@ -90,7 +90,7 @@ export const ProjectEditorDialogShell = ({
             onScrolledChange(event.currentTarget.scrollTop > 0);
           }}
         >
-          <div className="project-editor-top sticky top-0 z-20 border-b border-border/60 bg-background/95 backdrop-blur-sm supports-backdrop-filter:bg-background/80">
+          <div className="project-editor-top sticky top-0 z-20 border-b border-border/60 bg-background/95">
             <DialogHeader className="space-y-0 px-4 pb-2.5 pt-3.5 text-left md:px-6 lg:px-8">
               <div className="flex flex-wrap items-start justify-between gap-4">
                 <div className="space-y-2">

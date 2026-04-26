@@ -5,8 +5,7 @@ export const permissionIds = [
   "paginas",
   "uploads",
   "analytics",
-  "usuarios_basico",
-  "usuarios_acesso",
+  "usuarios",
   "configuracoes",
   "audit_log",
   "integracoes",
@@ -28,38 +27,7 @@ export type AccessUserLike = {
   primaryOwnerId?: string | null;
 };
 
-export const isFrontendRbacV2Enabled = (() => {
-  const raw = String(import.meta.env.VITE_RBAC_V2_ENABLED || "")
-    .trim()
-    .toLowerCase();
-  if (!raw) {
-    return false;
-  }
-  return ["1", "true", "yes", "on"].includes(raw);
-})();
-
-const toPermissionSet = (permissions: string[] | undefined | null) => {
-  const set = new Set<string>();
-  (Array.isArray(permissions) ? permissions : []).forEach((permission) => {
-    const normalized = String(permission || "")
-      .trim()
-      .toLowerCase();
-    if (!normalized) {
-      return;
-    }
-    if (normalized === "*") {
-      permissionIds.forEach((id) => set.add(id));
-      return;
-    }
-    if (normalized === "usuarios") {
-      set.add("usuarios_basico");
-      set.add("usuarios_acesso");
-      return;
-    }
-    set.add(normalized);
-  });
-  return set;
-};
+export const isFrontendRbacV2Enabled = true;
 
 const emptyGrantMap = (): GrantMap =>
   Object.fromEntries(permissionIds.map((permission) => [permission, false])) as GrantMap;
@@ -82,43 +50,7 @@ const coerceGrants = (grants: AccessUserLike["grants"]): GrantMap => {
   permissionIds.forEach((permission) => {
     next[permission] = grants[permission] === true;
   });
-  return next;
-};
-
-const mergeGrantMaps = (base: GrantMap, extra: GrantMap): GrantMap => {
-  const next = emptyGrantMap();
-  permissionIds.forEach((permission) => {
-    next[permission] = base[permission] === true || extra[permission] === true;
-  });
-  return next;
-};
-
-const computeLegacyGrants = (user: AccessUserLike | null | undefined): GrantMap => {
-  const next = emptyGrantMap();
-  if (!user) {
-    return next;
-  }
-  const userId = String(user.id || "");
-  const ownerIds = Array.isArray(user.ownerIds) ? user.ownerIds.map((id) => String(id)) : [];
-  if (ownerIds.includes(userId)) {
-    permissionIds.forEach((permission) => {
-      next[permission] = true;
-    });
-    return next;
-  }
-  const permissions = toPermissionSet(user.permissions);
-  const has = (permission: string) => permissions.has(permission);
-  next.posts = has("posts");
-  next.projetos = has("projetos");
-  next.comentarios = has("comentarios") || has("posts") || has("projetos");
-  next.paginas = has("paginas");
-  next.uploads = has("uploads") || has("posts") || has("projetos") || has("configuracoes");
-  next.analytics = has("analytics") || has("posts") || has("projetos") || has("comentarios");
-  next.usuarios_basico = has("usuarios_basico") || has("usuarios");
-  next.usuarios_acesso = has("usuarios_acesso") || has("usuarios");
-  next.configuracoes = has("configuracoes");
-  next.audit_log = ownerIds.includes(userId);
-  next.integracoes = has("integracoes") || has("configuracoes") || has("projetos");
+  next.usuarios = grants.usuarios === true;
   return next;
 };
 
@@ -144,54 +76,44 @@ export const resolveGrants = (user: AccessUserLike | null | undefined): GrantMap
   if (!user) {
     return emptyGrantMap();
   }
-  const explicitGrants = coerceGrants(user.grants);
-  if (isFrontendRbacV2Enabled) {
-    return explicitGrants;
-  }
-  return mergeGrantMaps(computeLegacyGrants(user), explicitGrants);
+  return coerceGrants(user.grants);
 };
 
 export const canGrant = (grants: GrantMap | null | undefined, permission: PermissionId): boolean =>
   Boolean(grants && grants[permission] === true);
 
+const isOwnerRole = (accessRole: AccessRole | undefined): boolean =>
+  accessRole === "owner_primary" || accessRole === "owner_secondary";
+
+const resolveOptionsAccessRole = (accessRole?: AccessRole): AccessRole => accessRole || "normal";
+
 export const canManagePostsAccess = (user: AccessUserLike | null | undefined): boolean => {
   const accessRole = resolveAccessRole(user);
-  if (accessRole === "owner_primary" || accessRole === "owner_secondary") {
-    return true;
-  }
-  if (user?.grants?.posts === true) {
-    return true;
-  }
-  if (canGrant(resolveGrants(user), "posts")) {
-    return true;
-  }
-  return canGrant(computeLegacyGrants(user), "posts");
+  return isOwnerRole(accessRole) || canGrant(resolveGrants(user), "posts");
 };
 
 export const canManageProjectsAccess = (user: AccessUserLike | null | undefined): boolean => {
   const accessRole = resolveAccessRole(user);
-  if (accessRole === "owner_primary" || accessRole === "owner_secondary") {
-    return true;
-  }
-  if (user?.grants?.projetos === true) {
-    return true;
-  }
-  if (canGrant(resolveGrants(user), "projetos")) {
-    return true;
-  }
-  return canGrant(computeLegacyGrants(user), "projetos");
+  return isOwnerRole(accessRole) || canGrant(resolveGrants(user), "projetos");
 };
 
 export const canAccessUsersPage = (grants: GrantMap | null | undefined): boolean => {
   if (!grants) {
     return false;
   }
-  return grants.usuarios_basico || grants.usuarios_acesso;
+  return grants.usuarios === true;
 };
 
-const dashboardRouteToPermission: Record<string, PermissionId | "users" | null> = {
+type DashboardRouteRequirement = PermissionId | "users" | "owner" | null;
+
+type DashboardAccessOptions = {
+  accessRole?: AccessRole;
+  allowUsersForSelf?: boolean;
+};
+
+const dashboardRouteToPermission: Record<string, DashboardRouteRequirement> = {
   "/dashboard": null,
-  "/dashboard/seguranca": null,
+  "/dashboard/seguranca": "owner",
   "/dashboard/analytics": "analytics",
   "/dashboard/posts": "posts",
   "/dashboard/projetos": "projetos",
@@ -207,7 +129,6 @@ const dashboardRouteToPermission: Record<string, PermissionId | "users" | null> 
 
 const dashboardRouteOrder = [
   "/dashboard",
-  "/dashboard/seguranca",
   "/dashboard/analytics",
   "/dashboard/posts",
   "/dashboard/projetos",
@@ -219,16 +140,13 @@ const dashboardRouteOrder = [
   "/dashboard/webhooks",
   "/dashboard/configuracoes",
   "/dashboard/redirecionamentos",
+  "/dashboard/seguranca",
 ] as const;
 
 export const isDashboardHrefAllowed = (
   href: string,
   grants: GrantMap | null | undefined,
-  {
-    allowUsersForSelf = false,
-  }: {
-    allowUsersForSelf?: boolean;
-  } = {},
+  { accessRole, allowUsersForSelf = false }: DashboardAccessOptions = {},
 ): boolean => {
   const required = dashboardRouteToPermission[href];
   if (required === undefined) {
@@ -236,6 +154,9 @@ export const isDashboardHrefAllowed = (
   }
   if (required === null) {
     return true;
+  }
+  if (required === "owner") {
+    return isOwnerRole(resolveOptionsAccessRole(accessRole));
   }
   if (required === "users") {
     if (!grants) {
@@ -246,7 +167,7 @@ export const isDashboardHrefAllowed = (
   return canGrant(grants, required);
 };
 
-export const getDashboardRouteRequirement = (pathname: string): PermissionId | "users" | null => {
+export const getDashboardRouteRequirement = (pathname: string): DashboardRouteRequirement => {
   const normalized = pathname.replace(/\/+$/, "") || "/";
   const route = Object.keys(dashboardRouteToPermission).find((href) => {
     if (href === normalized) {
@@ -266,29 +187,30 @@ export const getDashboardRouteRequirement = (pathname: string): PermissionId | "
 export const isDashboardPathAllowed = (
   pathname: string,
   grants: GrantMap | null | undefined,
-  options?: { allowUsersForSelf?: boolean },
+  options: DashboardAccessOptions = {},
 ): boolean => {
-  if (!isFrontendRbacV2Enabled) {
-    return true;
-  }
   const required = getDashboardRouteRequirement(pathname);
   if (required === null) {
     return true;
   }
+  if (required === "owner") {
+    return isOwnerRole(resolveOptionsAccessRole(options.accessRole));
+  }
   if (required === "users") {
-    return Boolean(options?.allowUsersForSelf || canAccessUsersPage(grants));
+    return Boolean(options.allowUsersForSelf || canAccessUsersPage(grants));
   }
   return canGrant(grants, required);
 };
 
 export const getFirstAllowedDashboardRoute = (
   grants: GrantMap | null | undefined,
-  options?: { allowUsersForSelf?: boolean },
+  options: DashboardAccessOptions = {},
 ): string => {
   const allowed =
     dashboardRouteOrder.find((href) =>
       isDashboardHrefAllowed(href, grants, {
-        allowUsersForSelf: options?.allowUsersForSelf ?? false,
+        accessRole: options.accessRole,
+        allowUsersForSelf: options.allowUsersForSelf ?? false,
       }),
     ) || "/dashboard";
   return allowed;
@@ -297,13 +219,14 @@ export const getFirstAllowedDashboardRoute = (
 export const buildDashboardMenuFromGrants = <T extends { href: string; enabled: boolean }>(
   items: T[],
   grants: GrantMap | null | undefined,
-  options?: { allowUsersForSelf?: boolean },
+  options: DashboardAccessOptions = {},
 ): T[] =>
   items
     .map((item) => ({
       ...item,
       enabled: isDashboardHrefAllowed(item.href, grants, {
-        allowUsersForSelf: options?.allowUsersForSelf ?? false,
+        accessRole: options.accessRole,
+        allowUsersForSelf: options.allowUsersForSelf ?? false,
       }),
     }))
     .filter((item) => item.enabled);

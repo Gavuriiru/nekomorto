@@ -54,8 +54,7 @@ const buildGrants = () => ({
   paginas: false,
   uploads: false,
   analytics: false,
-  usuarios_basico: false,
-  usuarios_acesso: false,
+  usuarios: false,
   configuracoes: false,
   audit_log: false,
   integracoes: false,
@@ -141,8 +140,7 @@ describe("DashboardShell menu permissions", () => {
     expect(screen.getByRole("main")).toBeInTheDocument();
   });
 
-  it("respeita grants explicitos na navegação mesmo com RBAC V2 desligado", async () => {
-    vi.stubEnv("VITE_RBAC_V2_ENABLED", "false");
+  it("respeita grants explicitos na navegação", async () => {
     const grants = buildGrants();
     grants.posts = true;
     grants.configuracoes = true;
@@ -172,7 +170,49 @@ describe("DashboardShell menu permissions", () => {
     expect(headerText).not.toContain("Integrações");
   });
 
-  it("keeps previous user while loading and clears cache when loading finishes", async () => {
+  it("oculta Segurança para admin não-owner e mostra para owner", async () => {
+    const grants = buildGrants();
+    grants.posts = true;
+    const { default: DashboardShell } = await import("@/components/DashboardShell");
+
+    const { rerender } = render(
+      <MemoryRouter initialEntries={["/dashboard"]}>
+        <DashboardShell
+          currentUser={{
+            id: "admin-1",
+            name: "Admin",
+            username: "admin",
+            accessRole: "admin",
+            grants,
+          }}
+        >
+          <div>Conteudo</div>
+        </DashboardShell>
+      </MemoryRouter>,
+    );
+
+    expect(screen.getByTestId("dashboard-header").textContent || "").not.toContain("Segurança");
+
+    rerender(
+      <MemoryRouter initialEntries={["/dashboard"]}>
+        <DashboardShell
+          currentUser={{
+            id: "owner-1",
+            name: "Owner",
+            username: "owner",
+            accessRole: "owner_primary",
+            grants,
+          }}
+        >
+          <div>Conteudo</div>
+        </DashboardShell>
+      </MemoryRouter>,
+    );
+
+    expect(screen.getByTestId("dashboard-header").textContent || "").toContain("Segurança");
+  });
+
+  it("mantém estado neutro durante loading sem reaproveitar usuário anterior", async () => {
     const grants = buildGrants();
     grants.posts = true;
     const { default: DashboardShell } = await import("@/components/DashboardShell");
@@ -203,30 +243,10 @@ describe("DashboardShell menu permissions", () => {
       </MemoryRouter>,
     );
 
-    expect(screen.getByText("Maria Persist")).toBeInTheDocument();
-    expect(screen.getByText("Aguarde")).toBeInTheDocument();
-
-    rerender(
-      <MemoryRouter initialEntries={["/dashboard/posts"]}>
-        <DashboardShell currentUser={null} isLoadingUser={false}>
-          <div>Conteudo</div>
-        </DashboardShell>
-      </MemoryRouter>,
-    );
-
     expect(screen.queryByText("Maria Persist")).not.toBeInTheDocument();
-    expect(screen.getByText("Usuário")).toBeInTheDocument();
-
-    rerender(
-      <MemoryRouter initialEntries={["/dashboard/posts"]}>
-        <DashboardShell currentUser={null} isLoadingUser>
-          <div>Conteudo</div>
-        </DashboardShell>
-      </MemoryRouter>,
-    );
-
     expect(screen.getByText("Carregando usuário...")).toBeInTheDocument();
     expect(screen.getByText("Aguarde")).toBeInTheDocument();
+    expect((screen.getByTestId("dashboard-header").textContent || "")).not.toContain("Segurança");
   });
 
   it("adds and removes the dashboard scrollbar gutter class with the shell lifecycle", async () => {

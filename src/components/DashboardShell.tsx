@@ -32,7 +32,6 @@ import {
   resolveGrants,
 } from "@/lib/access-control";
 import { buildAvatarRenderUrl } from "@/lib/avatar-render-url";
-import { readWindowPublicBootstrapCurrentUser } from "@/lib/public-bootstrap-global";
 import { uiCopy } from "@/lib/ui-copy";
 import { ChevronRight, Home } from "lucide-react";
 import {
@@ -80,8 +79,6 @@ const DashboardShellPresenceContext = createContext(false);
 const DashboardShellRuntimePropsContext = createContext<
   ((value: DashboardShellRuntimeProps | null) => void) | null
 >(null);
-
-let lastResolvedDashboardUser: DashboardUser | null = readWindowPublicBootstrapCurrentUser();
 
 type DashboardSidebarMenuSectionProps = {
   pathname: string;
@@ -241,7 +238,7 @@ const DashboardSidebarProfileCard = ({
       ? "h-10 w-10 self-start justify-center gap-0 border-sidebar-border/60 bg-sidebar-accent/15 p-0"
       : "h-[4.25rem] w-full self-stretch gap-3.5 px-3 py-2.5";
   const userCardClass =
-    `group/profile relative flex items-center overflow-hidden rounded-[1.15rem] border border-sidebar-border/70 bg-[linear-gradient(180deg,hsl(var(--sidebar-accent)/0.34),hsl(var(--sidebar-accent)/0.18))] text-left shadow-[0_18px_40px_-28px_hsl(var(--sidebar-background)/0.95)] transition-[width,height,padding,gap,border-color] duration-200 ${cardTransitionTimingClass} ${collapsedCardStateClass}`;
+    `group/profile relative flex items-center overflow-hidden rounded-[1.15rem] border border-sidebar-border/70 bg-[linear-gradient(180deg,hsl(var(--sidebar-accent)/0.34),hsl(var(--sidebar-accent)/0.18))] text-left shadow-[0_18px_40px_-28px_hsl(var(--sidebar-background)/0.95)] transition-[width,height,padding,gap,background-color,border-color,box-shadow,transform] duration-200 ${cardTransitionTimingClass} ${collapsedCardStateClass}`;
   const interactiveUserCardClass = isUserClickable
     ? "cursor-pointer hover:border-sidebar-ring/45 focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-sidebar-ring focus-visible:ring-offset-2 focus-visible:ring-offset-sidebar"
     : "cursor-default";
@@ -326,21 +323,13 @@ const DashboardShellFrame = ({
     if (dashboardSession.currentUser) {
       return dashboardSession.currentUser;
     }
-    if (isLoadingUser) {
-      return lastResolvedDashboardUser;
-    }
     return null;
-  }, [currentUser, dashboardSession.currentUser, isLoadingUser]);
+  }, [currentUser, dashboardSession.currentUser]);
 
-  useEffect(() => {
-    if (currentUser) {
-      lastResolvedDashboardUser = currentUser;
-      return;
-    }
-    if (!isLoadingUser) {
-      lastResolvedDashboardUser = null;
-    }
-  }, [currentUser, isLoadingUser]);
+  const shouldUseResolvedAccess = !isLoadingUser;
+  const accessControlUser = shouldUseResolvedAccess ? effectiveUser : null;
+  const effectiveAccessRole = resolveAccessRole(accessControlUser || null);
+  const effectiveGrants = resolveGrants(accessControlUser || null);
 
   useEffect(() => {
     if (typeof document === "undefined") {
@@ -357,41 +346,40 @@ const DashboardShellFrame = ({
   }, []);
 
   const resolvedMenuItems = useMemo(() => {
-    const accessRole = resolveAccessRole(effectiveUser || null);
-    const isOwner = accessRole === "owner_primary" || accessRole === "owner_secondary";
     if (Array.isArray(menuItems)) {
-      return menuItems.filter(
-        (item) => item.enabled && (item.href !== "/dashboard/seguranca" || isOwner),
-      );
+      return buildDashboardMenuFromGrants(menuItems, effectiveGrants, {
+        accessRole: effectiveAccessRole,
+      });
     }
-    const grants = resolveGrants(effectiveUser || null);
-    return buildDashboardMenuFromGrants(dashboardMenuItems, grants).filter(
-      (item) => item.href !== "/dashboard/seguranca" || isOwner,
-    );
-  }, [effectiveUser, menuItems]);
+    return buildDashboardMenuFromGrants(dashboardMenuItems, effectiveGrants, {
+      accessRole: effectiveAccessRole,
+    });
+  }, [effectiveAccessRole, effectiveGrants, menuItems]);
   const resolvedMenuSections = useMemo(
     () => groupDashboardMenuItems(resolvedMenuItems),
     [resolvedMenuItems],
   );
   const dashboardHomeHref = useMemo(
     () =>
-      getFirstAllowedDashboardRoute(resolveGrants(effectiveUser || null), {
-        allowUsersForSelf: Boolean(effectiveUser),
+      getFirstAllowedDashboardRoute(effectiveGrants, {
+        accessRole: effectiveAccessRole,
+        allowUsersForSelf: Boolean(accessControlUser),
       }),
-    [effectiveUser],
+    [accessControlUser, effectiveAccessRole, effectiveGrants],
   );
   const userName =
     userLabel ??
     effectiveUser?.name ??
     (isLoadingUser ? uiCopy.user.loading : uiCopy.user.singular);
-  const resolvedAccessRole = resolveAccessRole(effectiveUser || null);
+  const displayedAccessRole = shouldUseResolvedAccess ? effectiveAccessRole : "normal";
   const roleLabel =
-    resolvedAccessRole === "owner_primary" || resolvedAccessRole === "owner_secondary"
+    displayedAccessRole === "owner_primary" || displayedAccessRole === "owner_secondary"
       ? "Dono"
-      : resolvedAccessRole === "admin"
+      : displayedAccessRole === "admin"
         ? "Admin"
         : "Membro";
-  const userHandle = userSubLabel ?? (isLoadingUser ? uiCopy.user.waiting : roleLabel);
+  const userHandle =
+    userSubLabel ?? (isLoadingUser && !shouldUseResolvedAccess ? uiCopy.user.waiting : roleLabel);
   const initialsRaw = (effectiveUser?.name ?? effectiveUser?.username ?? "")
     .split(" ")
     .filter(Boolean)
@@ -469,7 +457,7 @@ const DashboardShellFrame = ({
           }
         >
           <DashboardHeader
-            currentUser={effectiveUser}
+            currentUser={accessControlUser}
             menuItems={resolvedMenuItems}
             dashboardHomeHref={dashboardHomeHref}
           />

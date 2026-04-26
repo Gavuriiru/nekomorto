@@ -126,7 +126,7 @@ describe("DashboardUsers avatar refresh", () => {
           username: "admin",
           avatarUrl: userFixture.avatarUrl,
           revision: userFixture.revision,
-          grants: {},
+      grants: {},
         });
       }
       if (path === "/api/link-types" && method === "GET") {
@@ -228,7 +228,7 @@ describe("DashboardUsers avatar refresh", () => {
           username: "admin",
           avatarUrl: discordAvatarUser.avatarUrl,
           revision: discordAvatarUser.revision,
-          grants: {},
+      grants: {},
         });
       }
       if (path === "/api/link-types" && method === "GET") {

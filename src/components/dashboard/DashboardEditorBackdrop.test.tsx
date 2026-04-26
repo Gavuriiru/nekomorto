@@ -35,7 +35,6 @@ describe("DashboardEditorBackdrop", () => {
         "inset-0",
         "z-[45]",
         "bg-black/80",
-        "backdrop-blur-xs",
       ]),
     );
     expect(classTokens(header)).toContain("z-40");
