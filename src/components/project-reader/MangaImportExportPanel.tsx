@@ -1,7 +1,7 @@
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { Checkbox } from "@/components/ui/checkbox";
 import { Input } from "@/components/ui/input";
+import { Switch } from "@/components/ui/switch";
 import { Label } from "@/components/ui/label";
 import { toast } from "@/components/ui/use-toast";
 import type { Project } from "@/data/projects";
@@ -480,17 +480,18 @@ const MangaImportExportPanel = ({
             />
           </div>
 
-          <label className="flex items-start gap-3 rounded-xl border border-border/60 bg-background/50 px-3 py-2 text-sm">
-            <Checkbox
-              checked={exportIncludeDrafts}
-              onCheckedChange={(checked) => setExportIncludeDrafts(checked === true)}
-            />
+          <label className="flex items-start justify-between gap-3 rounded-xl border border-border/60 bg-background/50 px-3 py-2 text-sm">
             <span className="space-y-1">
               <span className="block font-medium text-foreground">Incluir rascunhos</span>
               <span className="block text-xs text-muted-foreground">
                 Exporta também capítulos com publicação em draft.
               </span>
             </span>
+            <Switch
+              checked={exportIncludeDrafts}
+              onCheckedChange={(checked) => setExportIncludeDrafts(checked === true)}
+              className="shrink-0"
+            />
           </label>
 
           <Button

@@ -6,8 +6,8 @@ import {
   AccordionItem,
   AccordionTrigger,
 } from "@/components/ui/accordion";
-import { Checkbox } from "@/components/ui/checkbox";
 import { Label } from "@/components/ui/label";
+import { Switch } from "@/components/ui/switch";
 import { Loader2 } from "lucide-react";
 import type { ChangeEvent, RefObject } from "react";
 
@@ -176,17 +176,18 @@ export const ChapterEditorEpubToolsSection = ({
                   placeholder="Opcional"
                 />
               </div>
-              <label className="flex items-start gap-3 rounded-xl border border-border/60 bg-background/50 px-3 py-2 text-sm">
-                <Checkbox
-                  checked={epubImportAsDraft}
-                  onCheckedChange={(checked) => onEpubImportAsDraftChange(checked === true)}
-                />
+              <label className="flex items-start justify-between gap-3 rounded-xl border border-border/60 bg-background/50 px-3 py-2 text-sm">
                 <span className="space-y-1">
                   <span className="block font-medium text-foreground">Importar como rascunho</span>
                   <span className="block text-xs text-muted-foreground">
                     Capítulos importados ficam ocultos ao público até a publicação.
                   </span>
                 </span>
+                <Switch
+                  checked={epubImportAsDraft}
+                  onCheckedChange={(checked) => onEpubImportAsDraftChange(checked === true)}
+                  className="shrink-0"
+                />
               </label>
               <DashboardActionButton
                 type="button"
@@ -217,17 +218,18 @@ export const ChapterEditorEpubToolsSection = ({
                   placeholder="Deixe vazio para Sem volume"
                 />
               </div>
-              <label className="flex items-start gap-3 rounded-xl border border-border/60 bg-background/50 px-3 py-2 text-sm">
-                <Checkbox
-                  checked={epubExportIncludeDrafts}
-                  onCheckedChange={(checked) => onEpubExportIncludeDraftsChange(checked === true)}
-                />
+              <label className="flex items-start justify-between gap-3 rounded-xl border border-border/60 bg-background/50 px-3 py-2 text-sm">
                 <span className="space-y-1">
                   <span className="block font-medium text-foreground">Incluir rascunhos</span>
                   <span className="block text-xs text-muted-foreground">
                     Exporta também capítulos em draft que tenham conteúdo.
                   </span>
                 </span>
+                <Switch
+                  checked={epubExportIncludeDrafts}
+                  onCheckedChange={(checked) => onEpubExportIncludeDraftsChange(checked === true)}
+                  className="shrink-0"
+                />
               </label>
               <DashboardActionButton
                 type="button"

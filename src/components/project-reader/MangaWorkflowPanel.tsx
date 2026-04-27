@@ -12,8 +12,8 @@ import {
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
-import { Checkbox } from "@/components/ui/checkbox";
 import { Combobox } from "@/components/ui/combobox";
+import { Switch } from "@/components/ui/switch";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
@@ -1605,11 +1605,12 @@ const MangaWorkflowPanel = forwardRef<MangaWorkflowPanelHandle, MangaWorkflowPan
                                 className="flex cursor-pointer items-center justify-between gap-3 rounded-xl border border-border/60 bg-background/35 px-3 py-2.5"
                               >
                                 <div className="flex min-w-0 items-center gap-3">
-                                  <Checkbox
+                                  <Switch
                                     checked={isCompleted}
                                     onCheckedChange={() => handleToggleStageProgressStage(stage.id)}
                                     data-testid={`manga-workflow-progress-toggle-${stage.id}`}
                                     aria-label={stage.label}
+                                    className="shrink-0"
                                   />
                                   <span className="truncate text-sm font-medium text-foreground">
                                     {stage.label}

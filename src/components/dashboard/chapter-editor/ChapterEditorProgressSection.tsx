@@ -1,6 +1,6 @@
 import ProjectEditorSectionCard from "@/components/project-reader/ProjectEditorSectionCard";
 import { Badge } from "@/components/ui/badge";
-import { Checkbox } from "@/components/ui/checkbox";
+import { Switch } from "@/components/ui/switch";
 import { getProjectProgressState } from "@/lib/project-progress";
 import { cn } from "@/lib/utils";
 
@@ -73,11 +73,12 @@ const ChapterEditorProgressSection = ({
               className="flex cursor-pointer items-center justify-between gap-3 rounded-xl border border-border/60 bg-background/35 px-3 py-2.5"
             >
               <div className="flex min-w-0 items-center gap-3">
-                <Checkbox
+                <Switch
                   checked={isCompleted}
                   onCheckedChange={() => onToggleStage(stage.id)}
                   data-testid={`chapter-progress-toggle-${stage.id}`}
                   aria-label={stage.label}
+                  className="shrink-0"
                 />
                 <span className="truncate text-sm font-medium text-foreground">{stage.label}</span>
               </div>

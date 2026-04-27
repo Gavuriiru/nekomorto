@@ -15,9 +15,9 @@ import { OnChangePlugin } from "@lexical/react/LexicalOnChangePlugin";
 import { $setSelection } from "lexical";
 import * as React from "react";
 
-import "@/lexical-playground/lexical-editor.css";
-import "@/lexical-playground/playground-overrides.css";
 import "@/lexical-playground/playground.css";
+import "@/lexical-playground/playground-overrides.css";
+import "@/lexical-playground/lexical-editor.css";
 
 export type LexicalEditorHandle = {
   focus: () => void;
