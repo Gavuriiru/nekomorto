@@ -56,6 +56,12 @@ describe("Dashboard access redirect", () => {
     locationState.search = "";
   });
 
+  const selfOnlyUser = {
+    id: "user-self",
+    accessRole: "normal",
+    grants: emptyGrants,
+  };
+
 
   it("redirects forbidden dashboard route to first allowed route with toast", async () => {
     apiFetchMock.mockResolvedValue(
@@ -148,5 +154,44 @@ describe("Dashboard access redirect", () => {
 
     expect(await screen.findByText("Protected")).toBeInTheDocument();
     expect(navigateMock).not.toHaveBeenCalledWith("/dashboard", { replace: true });
+  });
+
+  it("keeps self-edit users route without usuarios grant when query is edit=me", async () => {
+    locationState.pathname = "/dashboard/usuarios";
+    locationState.search = "?edit=me";
+    apiFetchMock.mockResolvedValue(mockJsonResponse(true, selfOnlyUser));
+    const { default: RequireAuth } = await import("@/components/RequireAuth");
+
+    render(
+      <RequireAuth>
+        <div>Protected</div>
+      </RequireAuth>,
+    );
+
+    expect(await screen.findByText("Protected")).toBeInTheDocument();
+    expect(navigateMock).not.toHaveBeenCalled();
+    expect(toastMock).not.toHaveBeenCalled();
+  });
+
+  it("still redirects users route without usuarios grant when query is absent", async () => {
+    locationState.pathname = "/dashboard/usuarios";
+    locationState.search = "";
+    apiFetchMock.mockResolvedValue(mockJsonResponse(true, selfOnlyUser));
+    const { default: RequireAuth } = await import("@/components/RequireAuth");
+
+    render(
+      <RequireAuth>
+        <div>Protected</div>
+      </RequireAuth>,
+    );
+
+    await waitFor(() => {
+      expect(navigateMock).toHaveBeenCalledWith("/dashboard", { replace: true });
+    });
+    expect(toastMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        title: "Acesso negado",
+      }),
+    );
   });
 });

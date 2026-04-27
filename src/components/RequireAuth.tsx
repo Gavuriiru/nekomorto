@@ -23,6 +23,13 @@ const RequireAuth = ({ children }: RequireAuthProps) => {
   const dashboardSession = useDashboardSession();
   const [isChecking, setIsChecking] = useState(!dashboardSession.hasResolved);
   const apiBase = getApiBase();
+  const allowUsersForSelf = useMemo(() => {
+    if (!location.pathname.startsWith("/dashboard/usuarios")) {
+      return false;
+    }
+    const params = new URLSearchParams(location.search);
+    return params.get("edit") === "me" || params.get("self") === "1";
+  }, [location.pathname, location.search]);
   const providerAccess = useMemo(() => {
     if (!dashboardSession.hasProvider || !dashboardSession.hasResolved) {
       return null;
@@ -37,12 +44,12 @@ const RequireAuth = ({ children }: RequireAuthProps) => {
     const accessRole = resolveAccessRole(user || null);
     if (
       location.pathname.startsWith("/dashboard") &&
-      !isDashboardPathAllowed(location.pathname, grants, { accessRole })
+      !isDashboardPathAllowed(location.pathname, grants, { accessRole, allowUsersForSelf })
     ) {
       const isOwnerRoute = getDashboardRouteRequirement(location.pathname) === "owner";
       return {
         status: "redirect" as const,
-        target: getFirstAllowedDashboardRoute(grants, { accessRole }),
+        target: getFirstAllowedDashboardRoute(grants, { accessRole, allowUsersForSelf }),
         toast: {
           title: "Acesso negado",
           description: isOwnerRoute
@@ -54,6 +61,7 @@ const RequireAuth = ({ children }: RequireAuthProps) => {
 
     return { status: "authorized" as const };
   }, [
+    allowUsersForSelf,
     dashboardSession.currentUser,
     dashboardSession.hasProvider,
     dashboardSession.hasResolved,
@@ -97,9 +105,9 @@ const RequireAuth = ({ children }: RequireAuthProps) => {
         const accessRole = resolveAccessRole(user || null);
         if (
           location.pathname.startsWith("/dashboard") &&
-          !isDashboardPathAllowed(location.pathname, grants, { accessRole })
+          !isDashboardPathAllowed(location.pathname, grants, { accessRole, allowUsersForSelf })
         ) {
-          const target = getFirstAllowedDashboardRoute(grants, { accessRole });
+          const target = getFirstAllowedDashboardRoute(grants, { accessRole, allowUsersForSelf });
           const isOwnerRoute = getDashboardRouteRequirement(location.pathname) === "owner";
           toast({
             title: "Acesso negado",
@@ -124,6 +132,7 @@ const RequireAuth = ({ children }: RequireAuthProps) => {
       isActive = false;
     };
   }, [
+    allowUsersForSelf,
     apiBase,
     dashboardSession.hasProvider,
     dashboardSession.hasResolved,

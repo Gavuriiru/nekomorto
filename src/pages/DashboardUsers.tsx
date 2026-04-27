@@ -45,7 +45,13 @@ import { useDashboardCurrentUser } from "@/hooks/use-dashboard-current-user";
 import { useEditorScrollLock } from "@/hooks/use-editor-scroll-lock";
 import { usePageMeta } from "@/hooks/use-page-meta";
 import { useSiteSettings } from "@/hooks/use-site-settings";
-import { type AccessRole, permissionIds } from "@/lib/access-control";
+import {
+  getFirstAllowedDashboardRoute,
+  resolveAccessRole,
+  resolveGrants,
+  type AccessRole,
+  permissionIds,
+} from "@/lib/access-control";
 import { getApiBase } from "@/lib/api-base";
 import { apiFetch } from "@/lib/api-client";
 import { buildAvatarRenderUrl } from "@/lib/avatar-render-url";
@@ -72,7 +78,7 @@ import {
   X,
 } from "lucide-react";
 import QRCode from "qrcode";
-import { type DragEvent, useCallback, useEffect, useMemo, useState } from "react";
+import { type DragEvent, useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useNavigate, useSearchParams } from "react-router-dom";
 
 const FAVORITE_WORK_CATEGORIES = ["manga", "anime"] as const;
@@ -106,6 +112,56 @@ type UserRecord = {
   grants?: Partial<Record<string, boolean>>;
   order: number;
 };
+
+const buildSelfUserRecord = (
+  currentUser:
+    | {
+      id: string;
+      name: string;
+      username: string;
+      avatarUrl?: string | null;
+      revision?: string | null;
+      accessRole?: AccessRole;
+      grants?: Partial<Record<string, boolean>>;
+      permissions?: string[];
+      ownerIds?: string[];
+      primaryOwnerId?: string | null;
+      email?: string | null;
+      phrase?: string;
+      bio?: string;
+      socials?: Array<{ label: string; href: string }>;
+      favoriteWorks?: FavoriteWorksByCategory;
+    }
+    | null
+    | undefined,
+) => {
+  if (!currentUser?.id) {
+    return null;
+  }
+
+  return {
+    id: currentUser.id,
+    name: currentUser.name,
+    phrase: String(currentUser.phrase || ""),
+    bio: String(currentUser.bio || ""),
+    email: currentUser.email || null,
+    avatarUrl: currentUser.avatarUrl || null,
+    revision: currentUser.revision || null,
+    socials: Array.isArray(currentUser.socials) ? [...currentUser.socials] : [],
+    favoriteWorks: currentUser.favoriteWorks || { manga: [], anime: [] },
+    status: "active" as const,
+    permissions: Array.isArray(currentUser.permissions) ? [...currentUser.permissions] : [],
+    roles: [],
+    accessRole: currentUser.accessRole === "admin" ? "admin" : "normal",
+    grants: currentUser.grants,
+    order: 0,
+  } satisfies UserRecord;
+};
+
+const isUsersListAccessDenied = (status: number, errorCode: string) =>
+  status === 403 && errorCode === "forbidden";
+
+const isSelfEditQuery = (searchParams: URLSearchParams) => searchParams.get("edit") === "me";
 
 type SecuritySummary = {
   totpEnabled: boolean;
@@ -447,6 +503,11 @@ const DashboardUsers = () => {
     permissions?: string[];
     ownerIds?: string[];
     primaryOwnerId?: string | null;
+    email?: string | null;
+    phrase?: string;
+    bio?: string;
+    socials?: Array<{ label: string; href: string }>;
+    favoriteWorks?: FavoriteWorksByCategory;
   }>();
   const [isLoading, setIsLoading] = useState(true);
   const [hasLoadError, setHasLoadError] = useState(false);
@@ -538,6 +599,7 @@ const DashboardUsers = () => {
   const actorCanUsers = currentUser?.grants?.usuarios === true;
   const actorCanUploadManagement = currentUser?.grants?.uploads === true;
   const canManageUsers = actorCanUsers && (isPrimaryOwnerActor || isSecondaryOwnerActor || isAdminActor);
+  const allowSelfEditOnly = !actorCanUsers && isSelfEditQuery(searchParams);
   const canManageOwners = isPrimaryOwnerActor;
   const isOwnerUser = useCallback(
     (user: UserRecord | null | undefined) => {
@@ -548,9 +610,16 @@ const DashboardUsers = () => {
     },
     [ownerIds],
   );
-  const currentUserRecord = currentUser
-    ? users.find((user) => user.id === currentUser.id) || null
-    : null;
+  const currentUserRecord = useMemo(() => {
+    if (!currentUser) {
+      return null;
+    }
+    return users.find((user) => user.id === currentUser.id) || buildSelfUserRecord(currentUser);
+  }, [currentUser, users]);
+  const currentUserRef = useRef(currentUser);
+  const currentUserRecordRef = useRef(currentUserRecord);
+  currentUserRef.current = currentUser;
+  currentUserRecordRef.current = currentUserRecord;
   const clearSocialDragState = useCallback(() => {
     setSocialDragIndex(null);
     setSocialDragOverIndex(null);
@@ -628,6 +697,25 @@ const DashboardUsers = () => {
     },
     [clearSocialDragState, currentUser, isOwnerUser, resolveUserAccessRole],
   );
+  const clearSelfEditQuery = useCallback(() => {
+    if (!isSelfEditQuery(searchParams)) {
+      return;
+    }
+    const nextParams = new URLSearchParams(searchParams);
+    nextParams.delete("edit");
+    nextParams.set("self", "1");
+    setSearchParams(nextParams, { replace: true });
+  }, [searchParams, setSearchParams]);
+
+  const clearSelfEditRetentionQuery = useCallback(() => {
+    if (searchParams.get("self") !== "1") {
+      return;
+    }
+    const nextParams = new URLSearchParams(searchParams);
+    nextParams.delete("self");
+    setSearchParams(nextParams, { replace: true });
+  }, [searchParams, setSearchParams]);
+
   const handleEditorOpenChange = useCallback(
     (nextOpen: boolean) => {
       if (!nextOpen && isLibraryOpen) {
@@ -639,9 +727,10 @@ const DashboardUsers = () => {
       setIsDialogOpen(nextOpen);
       if (!nextOpen) {
         setIsEditorDialogScrolled(false);
+        clearSelfEditRetentionQuery();
       }
     },
-    [isLibraryOpen, resetMfaTarget],
+    [clearSelfEditRetentionQuery, isLibraryOpen, resetMfaTarget],
   );
 
   const activeUsers = useMemo(
@@ -709,14 +798,39 @@ const DashboardUsers = () => {
         ]);
 
         if (!usersRes.ok) {
-          throw new Error("users_load_failed");
+          let errorCode = "";
+          try {
+            const errorPayload = await usersRes.json();
+            errorCode = String(errorPayload?.error || "").trim();
+          } catch {
+            errorCode = "";
+          }
+
+          if (allowSelfEditOnly && isUsersListAccessDenied(usersRes.status, errorCode)) {
+            if (!isActive) {
+              return;
+            }
+            const fallbackCurrentUser = currentUserRef.current;
+            const fallbackCurrentUserRecord = currentUserRecordRef.current;
+            setUsers(fallbackCurrentUserRecord ? [fallbackCurrentUserRecord] : []);
+            setOwnerIds(
+              Array.isArray(fallbackCurrentUser?.ownerIds)
+                ? fallbackCurrentUser.ownerIds.map((id) => String(id))
+                : fallbackCurrentUser?.primaryOwnerId
+                  ? [String(fallbackCurrentUser.primaryOwnerId)]
+                  : [],
+            );
+          } else {
+            throw new Error("users_load_failed");
+          }
+        } else {
+          const data = await usersRes.json();
+          if (!isActive) {
+            return;
+          }
+          setUsers(data.users || []);
+          setOwnerIds(Array.isArray(data.ownerIds) ? data.ownerIds : []);
         }
-        const data = await usersRes.json();
-        if (!isActive) {
-          return;
-        }
-        setUsers(data.users || []);
-        setOwnerIds(Array.isArray(data.ownerIds) ? data.ownerIds : []);
 
         if (linkTypesRes.ok) {
           const linkTypePayload = await linkTypesRes.json();
@@ -745,18 +859,46 @@ const DashboardUsers = () => {
     return () => {
       isActive = false;
     };
-  }, [apiBase, linkTypes.length, loadVersion, ownerIds.length, users.length]);
+  }, [
+    allowSelfEditOnly,
+    apiBase,
+    currentUser,
+    currentUserRecord,
+    linkTypes.length,
+    loadVersion,
+    ownerIds.length,
+    users.length,
+  ]);
 
   useEffect(() => {
-    if (searchParams.get("edit") !== "me") {
+    if (!isSelfEditQuery(searchParams)) {
       return;
     }
     if (!currentUserRecord || isDialogOpen) {
       return;
     }
     openEditDialog(currentUserRecord);
-    navigate("/dashboard/usuarios", { replace: true });
-  }, [currentUserRecord, isDialogOpen, navigate, openEditDialog, searchParams]);
+  }, [currentUserRecord, isDialogOpen, openEditDialog, searchParams]);
+
+  useEffect(() => {
+    if (!isDialogOpen) {
+      return;
+    }
+    clearSelfEditQuery();
+  }, [clearSelfEditQuery, isDialogOpen]);
+
+  useEffect(() => {
+    if (!allowSelfEditOnly || isDialogOpen || isSelfEditQuery(searchParams)) {
+      return;
+    }
+    const target = getFirstAllowedDashboardRoute(resolveGrants(currentUser), {
+      accessRole: resolveAccessRole(currentUser),
+      allowUsersForSelf: true,
+    });
+    if (target !== "/dashboard/usuarios") {
+      navigate(target, { replace: true });
+    }
+  }, [allowSelfEditOnly, currentUser, isDialogOpen, navigate, searchParams]);
 
   useEffect(() => {
     const createQuery = String(searchParams.get("create") || "").trim();
@@ -1350,8 +1492,20 @@ const DashboardUsers = () => {
           }
         }
       }
+      const nextUserRecord = data.user
+        ? {
+            ...(editingUser || currentUserRecordRef.current || buildSelfUserRecord(currentUserRef.current)),
+            ...data.user,
+          }
+        : null;
       if (editingUser) {
-        setUsers((prev) => prev.map((user) => (user.id === editingUser.id ? data.user : user)));
+        setUsers((prev) =>
+          prev.map((user) =>
+            user.id === editingUser.id ? ((nextUserRecord || data.user) as UserRecord) : user,
+          ),
+        );
+      } else if (nextUserRecord) {
+        setUsers((prev) => [...prev, nextUserRecord]);
       } else {
         setUsers((prev) => [...prev, data.user]);
       }
@@ -1360,11 +1514,16 @@ const DashboardUsers = () => {
         setCurrentUser((prev) =>
           prev
             ? {
-              ...prev,
-              ...data.user,
-              username: prev.username,
-            }
+                ...prev,
+                ...data.user,
+                username: prev.username,
+              }
             : prev,
+        );
+      }
+      if (isSelfSave && nextUserRecord) {
+        setUsers((prev) =>
+          prev.map((user) => (user.id === nextUserRecord.id ? nextUserRecord : user)),
         );
       }
       if (wasOwner && !shouldKeepOwner) {
@@ -1695,6 +1854,10 @@ const DashboardUsers = () => {
     const visibleRoles = ownerIds.includes(user.id)
       ? user.roles || []
       : stripOwnerRole(user.roles || []);
+    const renderedAvatarUrl =
+      user.id === currentUser?.id ? currentUser.avatarUrl || user.avatarUrl : user.avatarUrl;
+    const renderedAvatarRevision =
+      user.id === currentUser?.id ? currentUser.revision || user.revision : user.revision;
     const userCardClassName = [
       `relative min-w-0 overflow-hidden ${dashboardPageLayoutTokens.surfaceSolid} p-5 animate-slide-up`,
       !isRetired ? `transition ${dashboardStrongSurfaceHoverClassName} hover:bg-primary/5` : "",
@@ -1744,7 +1907,7 @@ const DashboardUsers = () => {
               className="pointer-events-none flex min-w-0 flex-col gap-4 sm:flex-row sm:items-start"
             >
               <DashboardAvatar
-                avatarUrl={toAvatarRenderUrl(user.avatarUrl, user.revision)}
+                avatarUrl={toAvatarRenderUrl(renderedAvatarUrl, renderedAvatarRevision)}
                 name={user.name}
                 sizeClassName="h-14 w-14"
                 frameClassName="border border-border/70 bg-background"

@@ -153,6 +153,9 @@ const setupApiMock = ({
       const method = String(options?.method || "GET").toUpperCase();
 
       if (path === "/api/users" && method === "GET") {
+        if (currentUserGrants.usuarios === false) {
+          return mockJsonResponse(false, { error: "forbidden" }, 403);
+        }
         return mockJsonResponse(true, {
           users: [currentUser],
           ownerIds:
@@ -161,13 +164,24 @@ const setupApiMock = ({
             currentUser.accessRole === "owner_primary" ? currentUser.id : null,
         });
       }
+      if (path === "/dashboard" && method === "GET") {
+        return mockJsonResponse(false, { error: "not_found" }, 404);
+      }
       if (path === "/api/me" && method === "GET") {
         return mockJsonResponse(true, {
           id: currentUser.id,
           name: currentUser.name,
           username: currentUser.username,
+          email: currentUser.email,
           accessRole: currentUser.accessRole,
           grants: currentUserGrants,
+          permissions: currentUser.permissions,
+          phrase: currentUser.phrase,
+          bio: currentUser.bio,
+          avatarUrl: currentUser.avatarUrl,
+          socials: currentUser.socials,
+          favoriteWorks: currentUser.favoriteWorks,
+          revision: "session-revision",
           ownerIds:
             currentUser.accessRole === "owner_primary" ? [currentUser.id] : [],
           primaryOwnerId:
@@ -301,6 +315,99 @@ describe("DashboardUsers edit query", () => {
     expect(screen.getAllByText(/segurança/i).length).toBeGreaterThan(0);
     expect(screen.getAllByText(/métodos de acesso/i).length).toBeGreaterThan(0);
     expect(screen.getAllByText(/e-mail:/i).length).toBeGreaterThan(0);
+    await waitFor(() => {
+      expect(screen.getByTestId("location-search").textContent).toBe("?self=1");
+    });
+  });
+
+  it("abre self-edit com fallback do /api/me quando /api/users retorna 403", async () => {
+    setupApiMock({
+      currentUserGrants: {
+        usuarios: false,
+      },
+      currentUser: {
+        id: "user-2",
+        name: "Colaborador",
+        username: "colaborador",
+        email: "nerdplaygamer1@gmail.com",
+        accessRole: "normal",
+        permissions: [],
+        roles: [],
+        status: "active",
+        phrase: "Frase antiga",
+        bio: "Bio antiga",
+        avatarUrl: "/uploads/users/original.png",
+        socials: [],
+        favoriteWorks: { manga: ["Old Manga"], anime: ["Old Anime"] },
+        order: 0,
+      },
+    });
+
+    render(
+      <MemoryRouter initialEntries={["/dashboard/usuarios?edit=me"]}>
+        <DashboardUsers />
+        <LocationProbe />
+      </MemoryRouter>,
+    );
+
+    await screen.findByRole("heading", { name: /gest.o de usu.rios/i });
+    const dialog = await screen.findByRole("dialog");
+
+    expect(within(dialog).getByDisplayValue("Colaborador")).toBeInTheDocument();
+    expect(within(dialog).getByDisplayValue("Frase antiga")).toBeInTheDocument();
+    expect(within(dialog).getByDisplayValue("Bio antiga")).toBeInTheDocument();
+    expect(within(dialog).getByDisplayValue("Old Manga")).toBeInTheDocument();
+    expect(within(dialog).getByDisplayValue("Old Anime")).toBeInTheDocument();
+    await waitFor(() => {
+      expect(screen.getByTestId("location-search").textContent).toBe("?self=1");
+    });
+  });
+
+  it("mantém self=1 enquanto o modal de self-edit está aberto e limpa ao fechar", async () => {
+    setupApiMock({
+      currentUserGrants: {
+        usuarios: false,
+      },
+      currentUser: {
+        id: "user-2",
+        name: "Colaborador",
+        username: "colaborador",
+        email: "nerdplaygamer1@gmail.com",
+        accessRole: "normal",
+        permissions: [],
+        roles: [],
+        status: "active",
+        phrase: "Frase antiga",
+        bio: "Bio antiga",
+        avatarUrl: "/uploads/users/original.png",
+        socials: [],
+        favoriteWorks: { manga: ["Old Manga"], anime: ["Old Anime"] },
+        order: 0,
+      },
+    });
+
+    render(
+      <MemoryRouter initialEntries={["/dashboard/usuarios?edit=me"]}>
+        <DashboardUsers />
+        <LocationProbe />
+      </MemoryRouter>,
+    );
+
+    await screen.findByRole("heading", { name: /gest.o de usu.rios/i });
+    await screen.findByRole("dialog");
+
+    await waitFor(() => {
+      expect(screen.getByTestId("location-search").textContent).toBe("?self=1");
+    });
+
+    fireEvent.keyDown(document, { key: "Escape" });
+
+    await waitFor(() => {
+      expect(screen.queryByRole("dialog", { name: /editar usu.rio/i })).not.toBeInTheDocument();
+    });
+    await waitFor(() => {
+      expect(screen.getByTestId("location-search").textContent).toBe("");
+    });
   });
 
   it("mostra id interno, e-mail de acesso e acesso/permissões para self-edit de owner", async () => {
