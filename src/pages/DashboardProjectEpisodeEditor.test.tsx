@@ -864,7 +864,7 @@ describe("DashboardProjectEpisodeEditor", () => {
     expect(
       within(progressSection).getByRole("list", { name: /Etapas editoriais/i }),
     ).toBeInTheDocument();
-    expect(within(stageList).getAllByRole("checkbox").length).toBeGreaterThan(
+    expect(within(stageList).getAllByRole("switch").length).toBeGreaterThan(
       0,
     );
     const currentStageBadge = within(progressSection)

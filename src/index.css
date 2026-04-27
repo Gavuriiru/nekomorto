@@ -356,7 +356,7 @@
     --badge-neutral-fg: 0 0% 98%;
     --badge-neutral-border: 220 18% 52%;
 
-    --radius: 0.5rem;
+    --radius: 0.75rem;
 
     /* Custom gradients */
     --gradient-hero: linear-gradient(180deg, hsl(220 12% 7% / 0.3) 0%, hsl(220 12% 7% / 0.95) 100%);
