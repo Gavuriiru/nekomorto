@@ -27,7 +27,7 @@ import { useDashboardPreferences } from "@/hooks/use-dashboard-preferences";
 import { usePageMeta } from "@/hooks/use-page-meta";
 import { getApiBase } from "@/lib/api-base";
 import { apiFetch } from "@/lib/api-client";
-import { resolveGrants } from "@/lib/access-control";
+import { isDashboardHrefAllowed, resolveAccessRole, resolveGrants } from "@/lib/access-control";
 import { formatDateTime } from "@/lib/date";
 import type { OperationalAlertsResponse } from "@/types/operational-alerts";
 import { ArrowDown, ArrowUp, SlidersHorizontal } from "lucide-react";
@@ -121,6 +121,16 @@ const DASHBOARD_ROLE_PRESETS: Record<DashboardHomeRole, DashboardWidgetId[]> = {
   admin: ["ops_status", "comments_queue", "analytics_summary", "recent_posts", "metrics_overview"],
 };
 
+const DASHBOARD_WIDGET_PAGE_HREFS: Record<DashboardWidgetId, string> = {
+  metrics_overview: "/dashboard/analytics",
+  analytics_summary: "/dashboard/analytics",
+  projects_rank: "/dashboard/projetos",
+  recent_posts: "/dashboard/posts",
+  comments_queue: "/dashboard/comentarios",
+  ops_status: "/dashboard/audit-log",
+  projects_quick: "/dashboard/projetos",
+};
+
 const inferDashboardRole = (user: Record<string, unknown> | null): DashboardHomeRole => {
   const grants = resolveGrants(user || null) as Record<string, boolean>;
   const hasGrant = (id: string) => grants[id] === true;
@@ -144,19 +154,12 @@ const resolveVisibleDashboardWidgets = (
   widgets: DashboardWidgetId[],
   user: Record<string, unknown> | null,
 ): DashboardWidgetId[] => {
-  const grants = resolveGrants(user || null) as Record<string, boolean>;
-  const canViewAnalytics = grants.analytics === true;
-  const canViewComments = grants.comentarios === true;
-  const canViewProjects = grants.projetos === true;
-  const canViewOps = grants.audit_log === true;
+  const grants = resolveGrants(user || null);
+  const accessRole = resolveAccessRole(user || null);
 
-  return widgets.filter((widgetId) => {
-    if (widgetId === "analytics_summary") return canViewAnalytics;
-    if (widgetId === "comments_queue") return canViewComments;
-    if (widgetId === "projects_rank" || widgetId === "projects_quick") return canViewProjects;
-    if (widgetId === "ops_status") return canViewOps;
-    return true;
-  });
+  return widgets.filter((widgetId) =>
+    isDashboardHrefAllowed(DASHBOARD_WIDGET_PAGE_HREFS[widgetId], grants, { accessRole }),
+  );
 };
 
 const normalizeDashboardWidgets = (value: unknown): DashboardWidgetId[] => {
@@ -606,9 +609,16 @@ const Dashboard = () => {
         : rolePresetWidgets,
     [homePreferences, homeRole, rolePresetWidgets],
   );
+  const allowedWidgetIds = useMemo(
+    () => resolveVisibleDashboardWidgets(DASHBOARD_WIDGET_IDS, currentUser as Record<string, unknown> | null),
+    [currentUser],
+  );
   const visibleWidgets = useMemo(
-    () => resolveVisibleDashboardWidgets(selectedWidgetsByRole, currentUser as Record<string, unknown> | null),
-    [currentUser, selectedWidgetsByRole],
+    () =>
+      selectedWidgetsByRole.filter((widgetId) => {
+        return allowedWidgetIds.includes(widgetId);
+      }),
+    [allowedWidgetIds, selectedWidgetsByRole],
   );
   const selectedWidgetSet = useMemo(
     () => new Set<DashboardWidgetId>(visibleWidgets),
@@ -1367,7 +1377,7 @@ const Dashboard = () => {
             </DialogDescription>
           </DialogHeader>
           <div className="space-y-2">
-            {DASHBOARD_WIDGET_IDS.map((widgetId) => {
+            {allowedWidgetIds.map((widgetId) => {
               const isSelected = customDraftWidgets.includes(widgetId);
               const index = customDraftWidgets.indexOf(widgetId);
               return (

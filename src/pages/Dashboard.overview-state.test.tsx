@@ -67,6 +67,7 @@ const dashboardUser = {
   permissions: ["*"],
   grants: {
     analytics: true,
+    posts: true,
     comentarios: true,
     projetos: true,
     audit_log: true,
@@ -665,6 +666,75 @@ describe("Dashboard overview async states", () => {
 
     expect(dialogQueries.getAllByRole("button", { name: "Ativo" })).toHaveLength(2);
     expect(dialogQueries.getAllByRole("button", { name: "Oculto" })).toHaveLength(5);
+  });
+
+  it("oculta widgets sem permissão na home e no modal", async () => {
+    installDashboardApiMock({
+      userResponse: mockJsonResponse(true, {
+        ...dashboardUser,
+        grants: {
+          analytics: true,
+          posts: true,
+          comentarios: false,
+          projetos: false,
+          audit_log: false,
+        },
+      }),
+      preferencesResponse: mockJsonResponse(true, {
+        preferences: {
+          dashboard: {
+            homeByRole: {
+              editor: {
+                widgets: [
+                  "metrics_overview",
+                  "analytics_summary",
+                  "projects_rank",
+                  "recent_posts",
+                  "comments_queue",
+                  "ops_status",
+                  "projects_quick",
+                ],
+              },
+            },
+          },
+        },
+      }),
+    });
+
+    render(
+      <MemoryRouter initialEntries={["/dashboard"]}>
+        <DashboardSessionProvider>
+          <DashboardPreferencesProvider>
+            <Dashboard />
+          </DashboardPreferencesProvider>
+        </DashboardSessionProvider>
+      </MemoryRouter>,
+    );
+
+    await screen.findByRole("heading", { name: /Painel de controle da comunidade/i });
+    await waitFor(() => {
+      expect(screen.queryByTestId("dashboard-loading-skeleton")).not.toBeInTheDocument();
+    });
+
+    expect(screen.getByText("Projetos cadastrados")).toBeInTheDocument();
+    expect(screen.getByText(/Análises de acessos/i)).toBeInTheDocument();
+    expect(screen.getByText("Posts mais recentes")).toBeInTheDocument();
+    expect(screen.queryByText("Projetos mais acessados")).not.toBeInTheDocument();
+    expect(screen.queryByText("Comentários recentes")).not.toBeInTheDocument();
+    expect(screen.queryByText("Status operacional")).not.toBeInTheDocument();
+
+    fireEvent.click(screen.getByRole("button", { name: "Personalizar painel" }));
+
+    const dialog = await screen.findByRole("dialog", { name: "Personalizar painel" });
+    const dialogQueries = within(dialog);
+
+    expect(dialogQueries.getByText("Visão de métricas")).toBeInTheDocument();
+    expect(dialogQueries.getByText("Resumo de analytics")).toBeInTheDocument();
+    expect(dialogQueries.getByText("Posts recentes")).toBeInTheDocument();
+    expect(dialogQueries.queryByText("Ranking de projetos")).not.toBeInTheDocument();
+    expect(dialogQueries.queryByText("Fila de comentários")).not.toBeInTheDocument();
+    expect(dialogQueries.queryByText("Status operacional")).not.toBeInTheDocument();
+    expect(dialogQueries.queryByText("Acesso rápido a projetos")).not.toBeInTheDocument();
   });
 
   it("uniformiza os CTAs principais da home sem herdar classes de button", async () => {
