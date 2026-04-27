@@ -121,13 +121,20 @@ const heroSlidesSeed: HeroSlide[] = [
   },
 ];
 
-const sortLaunchUpdates = (updates: PublicBootstrapUpdate[]) =>
-  [...updates]
+const sortLaunchUpdates = (updates: PublicBootstrapUpdate[]) => {
+  // Precompute timestamps to avoid parsing strings multiple times during sort
+  return [...updates]
     .filter((update) => {
       const kind = String(update.kind || "").toLowerCase();
       return kind === "lançamento" || kind === "lancamento";
     })
-    .sort((a, b) => new Date(b.updatedAt || 0).getTime() - new Date(a.updatedAt || 0).getTime());
+    .map((update) => ({
+      update,
+      timestamp: new Date(update.updatedAt || 0).getTime(),
+    }))
+    .sort((a, b) => b.timestamp - a.timestamp)
+    .map(({ update }) => update);
+};
 
 const buildHeroSlides = (
   projects: PublicBootstrapProject[],

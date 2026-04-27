@@ -135,10 +135,12 @@ const LatestEpisodeCard = () => {
         ) : (
           <div className="space-y-3">
             {[...recentUpdates]
-              .sort(
-                (a, b) =>
-                  new Date(b.updatedAt || 0).getTime() - new Date(a.updatedAt || 0).getTime(),
-              )
+              .map((update) => ({
+                update,
+                timestamp: new Date(update.updatedAt || 0).getTime(),
+              }))
+              .sort((a, b) => b.timestamp - a.timestamp)
+              .map(({ update }) => update)
               .slice(0, 4)
               .map((update) => {
                 const typeLabel = (projectTypes[update.projectId] || "").toLowerCase();
