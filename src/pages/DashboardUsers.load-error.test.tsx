@@ -65,11 +65,12 @@ describe("DashboardUsers load error", () => {
 
   it("exibe erro bloqueante e recupera após retry", async () => {
     let usersRequestCount = 0;
+    let linkTypesRequestCount = 0;
     apiFetchMock.mockImplementation(async (_base: string, path: string, options?: RequestInit) => {
       const method = String(options?.method || "GET").toUpperCase();
       if (path === "/api/users" && method === "GET") {
         usersRequestCount += 1;
-        if (usersRequestCount === 1) {
+        if (usersRequestCount <= 2) {
           return mockJsonResponse(false, { error: "load_failed" }, 500);
         }
         return mockJsonResponse(true, {
@@ -83,7 +84,7 @@ describe("DashboardUsers load error", () => {
               socials: [],
               status: "active",
               permissions: ["usuarios"],
-    grants: { usuarios: true },
+              grants: { usuarios: true },
               roles: [],
               accessRole: "admin",
               order: 0,
@@ -99,7 +100,7 @@ describe("DashboardUsers load error", () => {
           name: "Admin",
           username: "admin",
           accessRole: "admin",
-      grants: {
+          grants: {
             usuarios: true,
           },
           ownerIds: [],
@@ -107,6 +108,7 @@ describe("DashboardUsers load error", () => {
         });
       }
       if (path === "/api/link-types" && method === "GET") {
+        linkTypesRequestCount += 1;
         return mockJsonResponse(true, { items: [] });
       }
       return mockJsonResponse(false, { error: "not_found" }, 404);
@@ -144,6 +146,43 @@ describe("DashboardUsers load error", () => {
     expect(countReveal).toHaveStyle({
       animationDelay: `${dashboardMotionDelays.sectionMetaMs}ms`,
     });
-    expect(usersRequestCount).toBeGreaterThanOrEqual(2);
+    expect(usersRequestCount).toBe(3);
+    expect(linkTypesRequestCount).toBe(3);
+  });
+
+  it("mantem skeleton inicial estavel sem renderizar estado vazio", async () => {
+    let resolveUsers: (value: Response) => void = () => undefined;
+    let resolveLinkTypes: (value: Response) => void = () => undefined;
+    apiFetchMock.mockImplementation(async (_base: string, path: string, options?: RequestInit) => {
+      const method = String(options?.method || "GET").toUpperCase();
+      if (path === "/api/users" && method === "GET") {
+        return new Promise<Response>((resolve) => {
+          resolveUsers = resolve;
+        });
+      }
+      if (path === "/api/link-types" && method === "GET") {
+        return new Promise<Response>((resolve) => {
+          resolveLinkTypes = resolve;
+        });
+      }
+      return mockJsonResponse(false, { error: "not_found" }, 404);
+    });
+
+    render(
+      <MemoryRouter initialEntries={["/dashboard/usuarios"]}>
+        <DashboardUsers />
+      </MemoryRouter>,
+    );
+
+    await screen.findByRole("heading", { name: /Gestão de Usuários/i });
+    expect(screen.getByTestId("dashboard-users-loading-skeleton")).toBeInTheDocument();
+    expect(screen.getAllByTestId("dashboard-users-loading-card")).toHaveLength(4);
+    expect(screen.queryByText(/Nenhum usuário ativo/i)).not.toBeInTheDocument();
+
+    resolveUsers(mockJsonResponse(true, { users: [], ownerIds: [], primaryOwnerId: null }));
+    resolveLinkTypes(mockJsonResponse(true, { items: [] }));
+
+    await screen.findByText(/Nenhum usuário ativo/i);
+    expect(screen.queryByTestId("dashboard-users-loading-skeleton")).not.toBeInTheDocument();
   });
 });

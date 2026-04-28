@@ -574,7 +574,7 @@ describe("DashboardUsers edit query", () => {
     await screen.findByRole("heading", { name: /gest.o de usu.rios/i });
     await screen.findByRole("heading", { name: /editar usu.rio/i });
     await waitFor(() => {
-      expect(screen.getByTestId("location-search").textContent).toBe("");
+      expect(screen.getByTestId("location-search").textContent).toBe("?self=1");
     });
 
     const editorDialog = document.querySelector(
@@ -699,7 +699,7 @@ describe("DashboardUsers edit query", () => {
     await screen.findByRole("heading", { name: /gest.o de usu.rios/i });
     await screen.findByRole("heading", { name: /editar usu.rio/i });
     await waitFor(() => {
-      expect(screen.getByTestId("location-search").textContent).toBe("");
+      expect(screen.getByTestId("location-search").textContent).toBe("?self=1");
     });
 
     const editorDialog = document.querySelector(
@@ -752,7 +752,7 @@ describe("DashboardUsers edit query", () => {
     await screen.findByRole("heading", { name: /gest.o de usu.rios/i });
     await screen.findByRole("heading", { name: /editar usu.rio/i });
     await waitFor(() => {
-      expect(screen.getByTestId("location-search").textContent).toBe("");
+      expect(screen.getByTestId("location-search").textContent).toBe("?self=1");
     });
 
     expect(screen.getByText(/obras favoritas/i)).toBeInTheDocument();

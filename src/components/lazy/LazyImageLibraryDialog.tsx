@@ -15,29 +15,33 @@ const LazyImageLibraryDialog = ({
   title,
   description,
   ...props
-}: LazyImageLibraryDialogProps) => (
-  <Suspense
-    fallback={
-      open
-        ? (loadingFallback ?? (
-            <ImageLibraryDialogLoadingFallback
-              open={open}
-              onOpenChange={onOpenChange}
-              title={title}
-              description={description}
-            />
-          ))
-        : null
-    }
-  >
-    <ImageLibraryDialog
-      open={open}
-      onOpenChange={onOpenChange}
-      title={title}
-      description={description}
-      {...props}
-    />
-  </Suspense>
-);
+}: LazyImageLibraryDialogProps) => {
+  if (!open) {
+    return null;
+  }
+
+  return (
+    <Suspense
+      fallback={
+        loadingFallback ?? (
+          <ImageLibraryDialogLoadingFallback
+            open={open}
+            onOpenChange={onOpenChange}
+            title={title}
+            description={description}
+          />
+        )
+      }
+    >
+      <ImageLibraryDialog
+        open={open}
+        onOpenChange={onOpenChange}
+        title={title}
+        description={description}
+        {...props}
+      />
+    </Suspense>
+  );
+};
 
 export default LazyImageLibraryDialog;

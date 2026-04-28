@@ -113,6 +113,30 @@ type UserRecord = {
   order: number;
 };
 
+const dashboardUsersLoadingSkeletonItems = ["first", "second", "third", "fourth"] as const;
+
+const DashboardUsersLoadingSkeleton = () => (
+  <div className="mt-6 grid gap-4 lg:grid-cols-2" data-testid="dashboard-users-loading-skeleton">
+    {dashboardUsersLoadingSkeletonItems.map((item) => (
+      <div
+        key={item}
+        className="rounded-2xl border border-border/60 bg-card/70 p-4 shadow-sm"
+        data-testid="dashboard-users-loading-card"
+      >
+        <div className="flex gap-4">
+          <Skeleton className="h-14 w-14 rounded-full" />
+          <div className="min-w-0 flex-1 space-y-3">
+            <Skeleton className="h-5 w-2/3" />
+            <Skeleton className="h-4 w-1/2" />
+            <Skeleton className="h-3 w-full" />
+            <Skeleton className="h-3 w-4/5" />
+          </div>
+        </div>
+      </div>
+    ))}
+  </div>
+);
+
 const buildSelfUserRecord = (
   currentUser:
     | {
@@ -618,8 +642,14 @@ const DashboardUsers = () => {
   }, [currentUser, users]);
   const currentUserRef = useRef(currentUser);
   const currentUserRecordRef = useRef(currentUserRecord);
+  const usersRef = useRef(users);
+  const ownerIdsRef = useRef(ownerIds);
+  const linkTypesRef = useRef(linkTypes);
   currentUserRef.current = currentUser;
   currentUserRecordRef.current = currentUserRecord;
+  usersRef.current = users;
+  ownerIdsRef.current = ownerIds;
+  linkTypesRef.current = linkTypes;
   const clearSocialDragState = useCallback(() => {
     setSocialDragIndex(null);
     setSocialDragOverIndex(null);
@@ -785,7 +815,8 @@ const DashboardUsers = () => {
 
   useEffect(() => {
     let isActive = true;
-    const hasWarmState = users.length > 0 || ownerIds.length > 0 || linkTypes.length > 0;
+    const hasWarmState =
+      usersRef.current.length > 0 || ownerIdsRef.current.length > 0 || linkTypesRef.current.length > 0;
     const load = async () => {
       try {
         if (isActive) {
@@ -859,16 +890,7 @@ const DashboardUsers = () => {
     return () => {
       isActive = false;
     };
-  }, [
-    allowSelfEditOnly,
-    apiBase,
-    currentUser,
-    currentUserRecord,
-    linkTypes.length,
-    loadVersion,
-    ownerIds.length,
-    users.length,
-  ]);
+  }, [allowSelfEditOnly, apiBase, currentUser?.id, loadVersion]);
 
   useEffect(() => {
     if (!isSelfEditQuery(searchParams)) {
@@ -1350,34 +1372,56 @@ const DashboardUsers = () => {
     setIsDialogOpen(true);
   };
 
-  const canOpenEdit = (user: UserRecord) => {
-    if (!currentUser) {
+  const canOpenEdit = useCallback(
+    (user: UserRecord) => {
+      if (!currentUser) {
+        return false;
+      }
+      if (currentUser.id === user.id) {
+        return true;
+      }
+      if (!actorCanUsers) {
+        return false;
+      }
+      const userIsOwner = isOwnerUser(user);
+      if (isPrimaryOwnerActor) {
+        return true;
+      }
+      if (isSecondaryOwnerActor) {
+        return !userIsOwner;
+      }
+      if (isAdminActor) {
+        return !userIsOwner;
+      }
       return false;
-    }
-    if (currentUser.id === user.id) {
-      return true;
-    }
-    if (!actorCanUsers) {
-      return false;
-    }
-    if (isPrimaryOwnerActor) {
-      return true;
-    }
-    if (isSecondaryOwnerActor) {
-      return !isOwnerUser(user);
-    }
-    if (isAdminActor) {
-      return !isOwnerUser(user);
-    }
-    return false;
-  };
+    },
+    [
+      actorCanUsers,
+      currentUser,
+      isAdminActor,
+      isPrimaryOwnerActor,
+      isSecondaryOwnerActor,
+      ownerIds,
+      primaryOwnerId,
+    ],
+  );
 
-  const handleUserCardClick = (user: UserRecord) => {
-    if (!canOpenEdit(user)) {
+  const handleUserCardClick = useCallback(
+    (user: UserRecord) => {
+      if (!canOpenEdit(user)) {
+        return;
+      }
+      openEditDialog(user);
+    },
+    [canOpenEdit, openEditDialog],
+  );
+
+  const handleShellUserCardClick = useCallback(() => {
+    if (!currentUserRecord) {
       return;
     }
-    openEditDialog(user);
-  };
+    handleUserCardClick(currentUserRecord);
+  }, [currentUserRecord, handleUserCardClick]);
 
   const handleSave = async () => {
     if (!canEditBasicFields) {
@@ -1978,9 +2022,7 @@ const DashboardUsers = () => {
       <DashboardShell
         currentUser={currentUser}
         isLoadingUser={isLoadingUser}
-        onUserCardClick={
-          currentUserRecord ? () => handleUserCardClick(currentUserRecord) : undefined
-        }
+        onUserCardClick={currentUserRecord ? handleShellUserCardClick : undefined}
       >
         <main className="pt-24">
           <section className="mx-auto w-full max-w-6xl px-6 pb-20 md:px-10 reveal" data-reveal>
@@ -2038,12 +2080,7 @@ const DashboardUsers = () => {
               </div>
 
               {isLoading ? (
-                <AsyncState
-                  kind="loading"
-                  title="Carregando usuários"
-                  description="Buscando membros e permissões."
-                  className="mt-6"
-                />
+                <DashboardUsersLoadingSkeleton />
               ) : hasLoadError ? (
                 <AsyncState
                   kind="error"
