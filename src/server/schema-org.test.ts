@@ -82,15 +82,45 @@ describe("schema.org payload", () => {
     expect(faq?.mainEntity?.[1]?.acceptedAnswer?.text).toBe("Resposta 2");
   });
 
-  it("nao gera schema para rotas noindex do dashboard", () => {
+  it("gera CreativeWork para projeto publico", () => {
     const payload = buildSchemaOrgPayload({
+      origin: "https://nekomata.moe",
+      pathname: "/projeto/86864",
+      canonicalUrl: "https://nekomata.moe/projeto/86864",
+      settings: settingsFixture,
+      pages: {},
+      project: {
+        title: "Projeto Teste",
+        synopsis: "Sinopse do projeto",
+        coverImageUrl: "/uploads/projects/capa.jpg",
+      },
+    });
+
+    const creativeWork = payload.find((entry) => entry["@type"] === "CreativeWork");
+    expect(creativeWork).toBeDefined();
+    expect(creativeWork?.name).toBe("Projeto Teste");
+    expect(creativeWork?.description).toBe("Sinopse do projeto");
+    expect(creativeWork?.mainEntityOfPage).toBe("https://nekomata.moe/projeto/86864");
+  });
+
+  it("nao gera schema para rotas noindex do dashboard e leitor", () => {
+    const dashboardPayload = buildSchemaOrgPayload({
       origin: "https://nekomata.moe",
       pathname: "/dashboard/configuracoes",
       canonicalUrl: "https://nekomata.moe/dashboard/configuracoes",
       settings: settingsFixture,
       pages: {},
     });
-    expect(payload).toEqual([]);
+    const readerPayload = buildSchemaOrgPayload({
+      origin: "https://nekomata.moe",
+      pathname: "/projeto/86864/leitura/1",
+      canonicalUrl: "https://nekomata.moe/projeto/86864/leitura/1",
+      settings: settingsFixture,
+      pages: {},
+      project: { title: "Projeto Teste" },
+    });
+    expect(dashboardPayload).toEqual([]);
+    expect(readerPayload).toEqual([]);
   });
 });
 

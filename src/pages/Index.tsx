@@ -106,7 +106,8 @@ const Index = () => {
   }, [hasPassedReleasesScrollThreshold, isMobile, shouldRenderReleases]);
 
   usePageMeta({
-    title: "Início",
+    description:
+      "Nekomata é uma fansub e scan feita por fãs, com traduções cuidadosas, carinho pela comunidade e respeito aos autores.",
     image: shareImage || undefined,
     imageAlt: shareImageAlt || undefined,
     mediaVariants: pageMediaVariants,

@@ -8,6 +8,8 @@ export const PUBLIC_STATIC_PATHS = Object.freeze([
   "/faq",
   "/recrutamento",
   "/doacoes",
+  "/termos-de-uso",
+  "/politica-de-privacidade",
 ]);
 
 const REQUIRED_DEPENDENCY_KEYS = [

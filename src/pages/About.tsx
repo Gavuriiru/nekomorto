@@ -27,6 +27,7 @@ import {
   buildInstitutionalOgImageAlt,
   buildInstitutionalOgRevision,
   buildVersionedInstitutionalOgImagePath,
+  resolveInstitutionalOgSupportText,
 } from "../../shared/institutional-og-seo.js";
 
 const iconMap: Record<string, typeof Heart> = {
@@ -154,6 +155,11 @@ const About = () => {
   }, [bootstrap]);
   usePageMeta({
     title: "Sobre",
+    description: resolveInstitutionalOgSupportText({
+      pageKey: "about",
+      pages: bootstrap?.pages,
+      settings: bootstrap?.settings,
+    }),
     image: buildVersionedInstitutionalOgImagePath({
       pageKey: "about",
       revision: buildInstitutionalOgRevision({

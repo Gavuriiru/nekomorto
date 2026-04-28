@@ -45,6 +45,8 @@ describe("site meta builders", () => {
       truncateMetaDescription: (value) => String(value || "").trim(),
     });
 
+    expect(getPageTitleFromPath("/")).toBe("");
+
     expect(
       buildSiteMetaWithSettings({
         site: { name: "Nekomata", description: "Descrição", faviconUrl: "/favicon.ico" },
@@ -54,7 +56,7 @@ describe("site meta builders", () => {
       description: "Descrição",
       image: "",
       imageAlt: "",
-      url: "https://nekomata.moe",
+      url: "https://nekomata.moe/",
       type: "website",
       siteName: "Nekomata",
       favicon: "/favicon.ico",
@@ -64,11 +66,13 @@ describe("site meta builders", () => {
       buildPostMeta({
         slug: "post-teste",
         title: "Post Teste",
+        seoTitle: "Título SEO",
+        seoDescription: "Resumo SEO",
         content: "<p>Resumo do post</p>",
       }),
     ).toEqual({
-      title: "Post Teste | Nekomata",
-      description: "Resumo do post",
+      title: "Título SEO | Nekomata",
+      description: "Resumo SEO",
       image: "/api/og/post/post-teste?v=post-rev",
       imageAlt: "Card do post Post Teste",
       url: "https://nekomata.moe/postagem/post-teste",

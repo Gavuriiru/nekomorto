@@ -30,8 +30,6 @@ const PublicRoutes = () => (
       <Route path="/projetos" element={<Projects />} />
       <Route path="/projeto/:slug" element={<Project />} />
       <Route path="/projeto/:slug/leitura/:chapter" element={<ProjectReading />} />
-      <Route path="/projetos/:slug" element={<Project />} />
-      <Route path="/projetos/:slug/leitura/:chapter" element={<ProjectReading />} />
       <Route path="/recrutamento" element={<Recruitment />} />
       <Route path="/termos-de-uso" element={<TermsOfService />} />
       <Route path="/politica-de-privacidade" element={<PrivacyPolicy />} />

@@ -35,6 +35,9 @@ export const registerSiteRoutes = ({
     } catch {
       search = "";
     }
+    if (req.path.startsWith("/projetos/")) {
+      return res.redirect(301, `${req.path.replace(/^\/projetos\//, "/projeto/")}${search}`);
+    }
     const settings = loadSiteSettings();
     const redirect = resolvePublicRedirect({
       redirects: settings?.seo?.redirects,
@@ -61,24 +64,30 @@ export const registerSiteRoutes = ({
         const settings = loadSiteSettings();
         const translations = loadTagTranslations();
         const pages = loadPages();
-        const canonicalUrl = `${PRIMARY_APP_ORIGIN}${req.path}`;
+        const isReadingRoute = /^\/projeto(?:s)?\/.+\/leitura\/.+/.test(String(req.path || ""));
+        const canonicalPath = req.path.replace(/^\/projetos\//, "/projeto/");
+        const canonicalUrl = `${PRIMARY_APP_ORIGIN}${canonicalPath}`;
         const themeColor = resolveThemeColor(settings?.theme?.accent);
         if (req.path.startsWith("/postagem/")) {
           const slug = String(req.params.slug || "");
           const post = normalizePosts(loadPosts()).find((item) => item.slug === slug);
           const meta = post ? buildPostMeta(post) : buildSiteMetaWithSettings(settings);
-          const structuredData = buildSchemaOrgPayload({
-            origin: PRIMARY_APP_ORIGIN,
-            pathname: req.path,
-            canonicalUrl,
-            settings,
-            pages,
-            post: post || null,
-          });
+          const shouldNoIndexPost = !post;
+          const structuredData = shouldNoIndexPost
+            ? []
+            : buildSchemaOrgPayload({
+                origin: PRIMARY_APP_ORIGIN,
+                pathname: req.path,
+                canonicalUrl,
+                settings,
+                pages,
+                post,
+              });
           const html = injectPublicBootstrapHtml({
             html: renderMetaHtml({
               ...meta,
               url: canonicalUrl,
+              robots: shouldNoIndexPost ? "noindex, nofollow" : meta.robots,
               structuredData,
               themeColor,
             }),
@@ -92,7 +101,7 @@ export const registerSiteRoutes = ({
         if (req.path.startsWith("/projeto/") || req.path.startsWith("/projetos/")) {
           const id = String(req.params.id || "");
           const project = normalizeProjects(loadProjects()).find((item) => String(item.id) === id);
-          const isReadingRoute = /^\/projeto(?:s)?\/.+\/leitura\/.+/.test(String(req.path || ""));
+          const shouldNoIndexProject = !project || isReadingRoute;
           const chapterNumber = Number(req.params.chapter);
           const routeVolume = Number(req.query?.volume);
           const meta = project
@@ -112,18 +121,21 @@ export const registerSiteRoutes = ({
                   translations,
                 })
             : buildSiteMetaWithSettings(settings);
-          const structuredData = buildSchemaOrgPayload({
-            origin: PRIMARY_APP_ORIGIN,
-            pathname: req.path,
-            canonicalUrl,
-            settings,
-            pages,
-            project: project || null,
-          });
+          const structuredData = shouldNoIndexProject
+            ? []
+            : buildSchemaOrgPayload({
+                origin: PRIMARY_APP_ORIGIN,
+                pathname: canonicalPath,
+                canonicalUrl,
+                settings,
+                pages,
+                project: project || null,
+              });
           const html = injectPublicBootstrapHtml({
             html: renderMetaHtml({
               ...meta,
               url: canonicalUrl,
+              robots: shouldNoIndexProject ? "noindex, nofollow" : meta.robots,
               structuredData,
               themeColor,
             }),

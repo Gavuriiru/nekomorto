@@ -38,7 +38,10 @@ const normalizePathname = (value) => {
 };
 
 const isNoIndexLikePath = (pathname) =>
-  pathname.startsWith("/dashboard") || pathname === "/login" || pathname.startsWith("/login/");
+  pathname.startsWith("/dashboard") ||
+  pathname === "/login" ||
+  pathname.startsWith("/login/") ||
+  /^\/projeto(?:s)?\/.+\/leitura\/.+/.test(pathname);
 
 const toSocialLinks = (settings, origin) => {
   const socialLinks = Array.isArray(settings?.footer?.socialLinks)
@@ -206,6 +209,42 @@ const buildArticleSchema = ({ origin, canonicalUrl, post, settings }) => {
   return schema;
 };
 
+const buildCreativeWorkSchema = ({ origin, canonicalUrl, project, settings }) => {
+  if (!project || typeof project !== "object") {
+    return null;
+  }
+  const name = asTrimmedString(project?.title);
+  if (!name) {
+    return null;
+  }
+  const description =
+    stripHtml(project?.synopsis) ||
+    stripHtml(project?.description) ||
+    asTrimmedString(settings?.site?.description);
+  const image =
+    toAbsoluteUrl(origin, project?.seoImageUrl) ||
+    toAbsoluteUrl(origin, project?.coverImageUrl) ||
+    toAbsoluteUrl(origin, project?.cover) ||
+    toAbsoluteUrl(origin, project?.heroImageUrl) ||
+    toAbsoluteUrl(origin, project?.banner) ||
+    toAbsoluteUrl(origin, settings?.site?.defaultShareImage);
+  const schema = {
+    "@context": "https://schema.org",
+    "@type": "CreativeWork",
+    "@id": `${canonicalUrl}#creativework`,
+    mainEntityOfPage: canonicalUrl,
+    name,
+    publisher: { "@id": `${origin}#organization` },
+  };
+  if (description) {
+    schema.description = description;
+  }
+  if (image) {
+    schema.image = image;
+  }
+  return schema;
+};
+
 const buildFaqSchema = ({ canonicalUrl, pages }) => {
   const groups = Array.isArray(pages?.faq?.groups) ? pages.faq.groups : [];
   const mainEntity = [];
@@ -281,6 +320,18 @@ export const buildSchemaOrgPayload = ({
     });
     if (article) {
       schemas.push(article);
+    }
+  }
+
+  if (/^\/projeto\/.+/.test(normalizedPath) && !normalizedPath.includes("/leitura/")) {
+    const creativeWork = buildCreativeWorkSchema({
+      origin: safeOrigin,
+      canonicalUrl: safeCanonicalUrl,
+      project,
+      settings,
+    });
+    if (creativeWork) {
+      schemas.push(creativeWork);
     }
   }
 

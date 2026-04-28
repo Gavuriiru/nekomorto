@@ -15,7 +15,7 @@ installVitePreloadRecovery();
 
 const titleForPath = (path: string) => {
   const rules: Array<[RegExp, string]> = [
-    [/^\/$/, "Início"],
+    [/^\/$/, ""],
     [/^\/postagem\/.+/, "Postagem"],
     [/^\/equipe\/?$/, "Equipe"],
     [/^\/sobre\/?$/, "Sobre"],

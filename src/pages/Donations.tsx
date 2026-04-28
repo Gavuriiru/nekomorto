@@ -62,6 +62,7 @@ import {
   buildInstitutionalOgImageAlt,
   buildInstitutionalOgRevision,
   buildVersionedInstitutionalOgImagePath,
+  resolveInstitutionalOgSupportText,
 } from "../../shared/institutional-og-seo.js";
 
 const iconMap: Record<string, typeof Server> = {
@@ -279,6 +280,11 @@ const Donations = () => {
     String(settings.site.name || settings.footer.brandName || "NEKOMATA").trim() || "NEKOMATA";
   usePageMeta({
     title: "Doações",
+    description: resolveInstitutionalOgSupportText({
+      pageKey: "donations",
+      pages: pageBootstrap?.pages,
+      settings: pageBootstrap?.settings,
+    }),
     image: buildVersionedInstitutionalOgImagePath({
       pageKey: "donations",
       revision: buildInstitutionalOgRevision({

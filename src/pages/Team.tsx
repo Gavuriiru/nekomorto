@@ -13,6 +13,7 @@ import {
   buildInstitutionalOgImageAlt,
   buildInstitutionalOgRevision,
   buildVersionedInstitutionalOgImagePath,
+  resolveInstitutionalOgSupportText,
 } from "../../shared/institutional-og-seo.js";
 
 const TEAM_AVATAR_IMAGE_SIZES = "(max-width: 639px) 224px, (max-width: 767px) 240px, 256px";
@@ -63,6 +64,11 @@ const Team = () => {
 
   usePageMeta({
     title: "Equipe",
+    description: resolveInstitutionalOgSupportText({
+      pageKey: "team",
+      pages: bootstrap?.pages,
+      settings: bootstrap?.settings,
+    }),
     image: buildVersionedInstitutionalOgImagePath({
       pageKey: "team",
       revision: buildInstitutionalOgRevision({

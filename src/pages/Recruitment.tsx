@@ -25,6 +25,7 @@ import {
   buildInstitutionalOgImageAlt,
   buildInstitutionalOgRevision,
   buildVersionedInstitutionalOgImagePath,
+  resolveInstitutionalOgSupportText,
 } from "../../shared/institutional-og-seo.js";
 
 const iconMap = {
@@ -138,6 +139,11 @@ const Recruitment = () => {
   const pageMediaVariants = pageBootstrap?.mediaVariants || {};
   usePageMeta({
     title: "Recrutamento",
+    description: resolveInstitutionalOgSupportText({
+      pageKey: "recruitment",
+      pages: pageBootstrap?.pages,
+      settings: pageBootstrap?.settings,
+    }),
     image: buildVersionedInstitutionalOgImagePath({
       pageKey: "recruitment",
       revision: buildInstitutionalOgRevision({

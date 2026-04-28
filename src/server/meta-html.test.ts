@@ -25,10 +25,12 @@ describe("meta html", () => {
       imageAlt: "Capa",
       url: "https://nekomata.moe/projeto/teste",
       siteName: "Nekomata",
+      robots: "noindex, nofollow",
       structuredData: [{ "@type": "WebPage", name: "Projeto Teste" }],
     });
 
     expect(html).toContain("<title>Projeto Teste</title>");
+    expect(html).toContain('<meta name="robots" content="noindex, nofollow" />');
     expect(html).toContain('property="og:image" content="https://nekomata.moe/uploads/share.png"');
     expect(html).toContain('<link rel="canonical" href="https://nekomata.moe/projeto/teste" />');
     expect(html).toContain('data-schema-org="true"');

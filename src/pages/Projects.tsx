@@ -36,6 +36,7 @@ import {
   buildInstitutionalOgImageAlt,
   buildInstitutionalOgRevision,
   buildVersionedInstitutionalOgImagePath,
+  resolveInstitutionalOgSupportText,
 } from "../../shared/institutional-og-seo.js";
 
 const alphabetOptions = ["Todas", ..."ABCDEFGHIJKLMNOPQRSTUVWXYZ".split("")];
@@ -638,6 +639,11 @@ const Projects = () => {
 
   usePageMeta({
     title: "Projetos",
+    description: resolveInstitutionalOgSupportText({
+      pageKey: "projects",
+      pages: bootstrap?.pages,
+      settings: bootstrap?.settings,
+    }),
     image: buildVersionedInstitutionalOgImagePath({
       pageKey: "projects",
       revision: buildInstitutionalOgRevision({

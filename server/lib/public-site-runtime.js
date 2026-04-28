@@ -97,7 +97,7 @@ export const createPublicSiteRuntime = (dependencies = {}) => {
       ...sitemapStaticPublicPaths.map((pathname) => ({
         loc: `${primaryAppOrigin}${pathname}`,
         lastmod: siteUpdatedAt || null,
-        changefreq: pathname === "/" ? "hourly" : "daily",
+        changefreq: pathname === "/" ? "daily" : pathname === "/projetos" ? "weekly" : "monthly",
         priority: pathname === "/" ? 1 : pathname === "/projetos" ? 0.9 : 0.7,
       })),
       ...getPublicVisibleProjects().map((project) => ({

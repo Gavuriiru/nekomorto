@@ -96,6 +96,7 @@ export const createMetaHtmlRenderer = ({
     type = "website",
     siteName,
     favicon,
+    robots = "index, follow",
     structuredData = [],
   }) {
     let html = getIndexHtml();
@@ -103,9 +104,11 @@ export const createMetaHtmlRenderer = ({
     const safeImage = image ? toAbsoluteUrl(resolveMetaImageVariantUrl(image)) : "";
     const safeDescription = truncateMetaDescription(description);
     const safeThemeColor = String(themeColor || "#9667e0");
+    const safeRobots = String(robots || "index, follow").trim() || "index, follow";
 
     html = replaceTitle(html, title);
     html = upsertMeta(html, "name", "description", safeDescription);
+    html = upsertMeta(html, "name", "robots", safeRobots);
     html = upsertMeta(html, "name", "theme-color", safeThemeColor);
     html = upsertMeta(html, "property", "og:title", title);
     html = upsertMeta(html, "property", "og:description", safeDescription);
