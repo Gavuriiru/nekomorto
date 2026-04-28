@@ -1,5 +1,4 @@
 import PublicPageHero from "@/components/PublicPageHero";
-import ThemedSvgMaskIcon from "@/components/ThemedSvgMaskIcon";
 import {
   publicInteractiveStackedSurfaceClassName,
   publicPageLayoutTokens,
@@ -15,7 +14,6 @@ import { usePixQrCode } from "@/hooks/use-pix-qr-code";
 import { usePublicBootstrap } from "@/hooks/use-public-bootstrap";
 import { useSiteSettings } from "@/hooks/use-site-settings";
 import { useTextQrCode } from "@/hooks/use-text-qr-code";
-import { normalizeAssetUrl } from "@/lib/asset-url";
 import {
   DEFAULT_DONATIONS_CRYPTO_SECTION_TITLE,
   getDonationsCryptoActionLabel,
@@ -36,10 +34,12 @@ import {
   CircleDollarSign,
   Coins,
   Copy,
+  DollarSign,
   ExternalLink,
   Flame,
   Heart,
   HeartHandshake,
+  HandCoins,
   HelpCircle,
   Info,
   Landmark,
@@ -51,6 +51,9 @@ import {
   Sparkles,
   Users,
   Wallet,
+  Wallet2,
+  WalletCards,
+  WalletMinimal,
   Wand2,
   Zap,
 } from "lucide-react";
@@ -77,11 +80,16 @@ const iconMap: Record<string, typeof Server> = {
   Rocket,
   Shield,
   Coins,
+  HandCoins,
   Wallet,
+  Wallet2,
+  WalletCards,
+  WalletMinimal,
   BadgeDollarSign,
   Landmark,
   Banknote,
   CircleDollarSign,
+  DollarSign,
   Bitcoin,
 };
 
@@ -636,8 +644,6 @@ const Donations = () => {
                             {visibleCryptoServices.map((service, index) => {
                               const normalizedService = normalizeDonationsCryptoService(service);
                               const isActive = index === activeCryptoIndex;
-                              const tabLogoUrl = normalizeAssetUrl(normalizedService.iconUrl);
-                              const shouldTintCustomIcon = normalizedService.tintIcon !== false;
                               const TabIcon = resolveDonationsIcon(normalizedService.icon, Coins);
 
                               return (
@@ -664,41 +670,15 @@ const Donations = () => {
                                     }`}
                                     aria-hidden="true"
                                   />
-                                  {tabLogoUrl ? (
-                                    shouldTintCustomIcon ? (
-                                      <ThemedSvgMaskIcon
-                                        url={tabLogoUrl}
-                                        label={
-                                          normalizedService.name || `Serviço cripto ${index + 1}`
-                                        }
-                                        decorative
-                                        testId={`donations-crypto-tab-logo-${index}`}
-                                        className={`h-[1.375rem] w-[1.375rem] rounded-md transition-transform duration-300 ${
-                                          isActive
-                                            ? "scale-105 text-primary"
-                                            : "text-muted-foreground group-hover/tab:text-primary"
-                                        }`}
-                                      />
-                                    ) : (
-                                      <img
-                                        src={tabLogoUrl}
-                                        alt=""
-                                        aria-hidden="true"
-                                        data-testid={`donations-crypto-tab-logo-${index}`}
-                                        className="h-[1.375rem] w-[1.375rem] rounded-md object-cover"
-                                      />
-                                    )
-                                  ) : (
-                                    <TabIcon
-                                      aria-hidden="true"
-                                      data-testid={`donations-crypto-tab-icon-${index}`}
-                                      className={`h-4 w-4 transition-transform duration-300 ${
-                                        isActive
-                                          ? "scale-105 text-primary"
-                                          : "text-muted-foreground group-hover/tab:text-primary"
-                                      }`}
-                                    />
-                                  )}
+                                  <TabIcon
+                                    aria-hidden="true"
+                                    data-testid={`donations-crypto-tab-icon-${index}`}
+                                    className={`h-4 w-4 transition-transform duration-300 ${
+                                      isActive
+                                        ? "scale-105 text-primary"
+                                        : "text-muted-foreground group-hover/tab:text-primary"
+                                    }`}
+                                  />
                                 </button>
                               );
                             })}

@@ -115,7 +115,7 @@ describe("registerSiteConfigRoutes", () => {
     });
   });
 
-  it("normaliza iconUrl e tintIcon dos serviços de cripto ao salvar páginas", async () => {
+  it("ignora iconUrl e tintIcon legados dos serviços de cripto ao salvar páginas", async () => {
     const { app, routes } = createAppRecorder();
     const dependencies = createDependencies({ app });
 
@@ -161,20 +161,16 @@ describe("registerSiteConfigRoutes", () => {
             name: "Bitcoin",
             address: "bc1-test",
             icon: "Coins",
-            iconUrl: "",
-            tintIcon: true,
             actionLabel: "Abrir carteira",
           }),
           expect.objectContaining({
             name: "Ethereum",
             address: "0x-test",
-            iconUrl: "/uploads/shared/pages/donations/crypto/eth.svg",
-            tintIcon: false,
           }),
         ],
       },
     });
-    expect(res.body.pages.donations.cryptoServices[0].iconUrl).toBe("");
-    expect(res.body.pages.donations.cryptoServices[0].tintIcon).toBe(true);
+    expect(res.body.pages.donations.cryptoServices[0]).not.toHaveProperty("iconUrl");
+    expect(res.body.pages.donations.cryptoServices[0]).not.toHaveProperty("tintIcon");
   });
 });
