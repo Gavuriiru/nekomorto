@@ -71,6 +71,8 @@ export const buildDirectRouteRegistrationDependenciesFromRoot = (dependencies = 
     metricsRegistry: dependencies.metricsRegistry,
     metricsTokenNormalized:
       dependencies.metricsTokenNormalized ?? dependencies.METRICS_TOKEN_NORMALIZED,
+    operationalHealthTokenNormalized:
+      dependencies.operationalHealthTokenNormalized ?? dependencies.OPERATIONAL_HEALTH_TOKEN_NORMALIZED,
     mfaRecoveryCodePepper:
       dependencies.mfaRecoveryCodePepper ?? dependencies.MFA_RECOVERY_CODE_PEPPER,
     maybeEmitExcessiveSessionsEvent: dependencies.maybeEmitExcessiveSessionsEvent,

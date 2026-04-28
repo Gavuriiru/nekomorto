@@ -16,6 +16,7 @@ export const buildDirectRouteRegistrationDependencies = (dependencies = {}) =>
       loadUserSessionIndexRecords: dependencies.loadUserSessionIndexRecords,
       metricsRegistry: dependencies.metricsRegistry,
       metricsTokenNormalized: dependencies.metricsTokenNormalized,
+      operationalHealthTokenNormalized: dependencies.operationalHealthTokenNormalized,
       proxyDiscordAvatarRequest: dependencies.proxyDiscordAvatarRequest,
       securityEventStatusOpen: dependencies.securityEventStatusOpen,
     },

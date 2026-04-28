@@ -23,6 +23,7 @@ export const DIRECT_ROUTE_DEPENDENCY_KEYS = {
     "loadUserSessionIndexRecords",
     "metricsRegistry",
     "metricsTokenNormalized",
+    "operationalHealthTokenNormalized",
     "securityEventStatusOpen",
   ],
   selfService: [
