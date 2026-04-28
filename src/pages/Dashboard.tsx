@@ -423,6 +423,12 @@ const Dashboard = () => {
   const [operationalAlertsError, setOperationalAlertsError] = useState("");
   const [hideOperationalAlertsCard, setHideOperationalAlertsCard] = useState(false);
   const apiBase = getApiBase();
+  const currentAccessRole = useMemo(
+    () => resolveAccessRole((currentUser as Record<string, unknown> | null) || null),
+    [currentUser],
+  );
+  const canExportReport =
+    currentAccessRole === "owner_primary" || currentAccessRole === "owner_secondary";
   const homeRole = useMemo<DashboardHomeRole>(
     () => inferDashboardRole((currentUser as Record<string, unknown> | null) || null),
     [currentUser],
@@ -873,7 +879,7 @@ const Dashboard = () => {
                 className="h-10 w-40 shrink-0 rounded-md border border-border/70"
                 data-testid="dashboard-header-user-action-skeleton"
               />
-            ) : currentUser ? (
+            ) : canExportReport ? (
               <DashboardActionButton
                 type="button"
                 size="toolbar"
@@ -882,7 +888,7 @@ const Dashboard = () => {
               >
                 {isExportingReport ? "Exportando..." : "Exportar relatório"}
               </DashboardActionButton>
-            ) : (
+            ) : currentUser ? null : (
               <DashboardActionButton asChild size="toolbar">
                 <Link to="/login">Fazer login</Link>
               </DashboardActionButton>
