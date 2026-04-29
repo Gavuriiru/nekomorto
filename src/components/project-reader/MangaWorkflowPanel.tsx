@@ -5,7 +5,6 @@ import {
   buildReorderAnnouncement,
   getReorderLayoutTransition,
   handleAltArrowReorder,
-  isReorderIndexInRange,
   reorderList,
   resolvePageDisplayName,
   usePointerReorder,
@@ -517,9 +516,6 @@ const StagePagesGrid = memo(
       stagePageDragState?.sourceIndex !== undefined
         ? chapter.pages[stagePageDragState.sourceIndex] || null
         : null;
-    const shouldAnimateReorderLayout = Boolean(
-      stagePageDragState?.isDragging && !shouldReduceMotion,
-    );
 
     return (
       <LayoutGroup id={`manga-stage-pages-${chapter.id}`}>
@@ -550,14 +546,6 @@ const StagePagesGrid = memo(
                 isPreviewTarget={isDropTarget}
                 isPressed={pressedStagePage === page}
                 disabled={isImporting}
-                animateReorderLayout={
-                  shouldAnimateReorderLayout &&
-                  isReorderIndexInRange(
-                    stagePageDragState?.sourceIndex,
-                    stagePageDragState?.overIndex,
-                    index,
-                  )
-                }
                 reorderMotion={shouldReduceMotion ? "reduced" : "spring"}
                 reorderTransition={reorderTransition}
                 onPointerDown={startPointerReorder}
