@@ -9,6 +9,8 @@ export const INSTITUTIONAL_OG_PAGE_KEYS = Object.freeze([
   "faq",
   "team",
   "recruitment",
+  "terms",
+  "privacy",
 ]);
 
 const INSTITUTIONAL_OG_PAGE_PATHS = Object.freeze({
@@ -18,6 +20,8 @@ const INSTITUTIONAL_OG_PAGE_PATHS = Object.freeze({
   faq: "/faq",
   team: "/equipe",
   recruitment: "/recrutamento",
+  terms: "/termos-de-uso",
+  privacy: "/politica-de-privacidade",
 });
 
 const INSTITUTIONAL_OG_PAGE_TITLES = Object.freeze({
@@ -27,10 +31,26 @@ const INSTITUTIONAL_OG_PAGE_TITLES = Object.freeze({
   faq: "FAQ",
   team: "Equipe",
   recruitment: "Recrutamento",
+  terms: "Termos de Uso",
+  privacy: "Política de Privacidade",
 });
 
-const PROJECTS_PAGE_SUPPORT_TEXT =
-  "Explore o cat\u00e1logo da Nekomata e descubra projetos em andamento e conclu\u00eddos.";
+const INSTITUTIONAL_PAGE_SUPPORT_TEXTS = Object.freeze({
+  projects:
+    "Explore os projetos da Nekomata, fansub e scan feita por f\u00e3s, com tradu\u00e7\u00f5es cuidadosas e carinho pela comunidade.",
+  about:
+    "Conhe\u00e7a a Nekomata, uma fansub e scan feita por f\u00e3s, com tradu\u00e7\u00f5es cuidadosas, carinho pela comunidade e respeito aos autores.",
+  team: "Conhe\u00e7a a equipe da Nekomata e as pessoas que traduzem, revisam e cuidam dos projetos com dedica\u00e7\u00e3o.",
+  faq: "Tire d\u00favidas sobre projetos, lan\u00e7amentos, tradu\u00e7\u00f5es e formas de acompanhar a Nekomata.",
+  recruitment:
+    "Entre para a Nekomata e colabore com uma fansub e scan feita por f\u00e3s para a comunidade.",
+  donations:
+    "Apoie a Nekomata e ajude a manter os projetos, servidores e ferramentas da fansub e scan.",
+  terms:
+    "Veja as regras de uso do site da Nekomata, incluindo comentários, áreas restritas e recursos públicos.",
+  privacy:
+    "Entenda como a Nekomata trata dados de comentários, autenticação, segurança e operação do site.",
+});
 
 const normalizeText = (value) => String(value || "").trim();
 
@@ -53,13 +73,12 @@ export const resolveInstitutionalOgPageTitle = (pageKey) =>
 
 export const resolveInstitutionalOgSupportText = ({ pageKey, pages, settings } = {}) => {
   const normalizedPageKey = normalizeText(pageKey);
-  if (normalizedPageKey === "projects") {
-    return PROJECTS_PAGE_SUPPORT_TEXT;
-  }
-
   const pageConfig = pages && typeof pages === "object" ? pages[normalizedPageKey] : null;
   return (
-    normalizeText(pageConfig?.heroSubtitle) || normalizeText(settings?.site?.description) || ""
+    normalizeText(pageConfig?.heroSubtitle) ||
+    INSTITUTIONAL_PAGE_SUPPORT_TEXTS[normalizedPageKey] ||
+    normalizeText(settings?.site?.description) ||
+    ""
   );
 };
 

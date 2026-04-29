@@ -12,8 +12,6 @@ export const emptyDonationsCryptoService: DonationsCryptoService = {
   qrValue: "",
   note: "",
   icon: DEFAULT_DONATIONS_CRYPTO_ICON,
-  iconUrl: "",
-  tintIcon: true,
   actionLabel: "",
   actionUrl: "",
 };
@@ -32,8 +30,6 @@ export const normalizeDonationsCryptoService = (
   qrValue: trimString(service?.qrValue),
   note: trimString(service?.note),
   icon: trimString(service?.icon) || DEFAULT_DONATIONS_CRYPTO_ICON,
-  iconUrl: trimString(service?.iconUrl),
-  tintIcon: service?.tintIcon !== false,
   actionLabel: trimString(service?.actionLabel),
   actionUrl: trimString(service?.actionUrl),
 });

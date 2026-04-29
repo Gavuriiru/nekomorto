@@ -469,30 +469,74 @@ const DashboardShellFrame = ({
   );
 };
 
-const DashboardShell = (props: DashboardShellProps) => {
+const DashboardShell = ({
+  children,
+  currentUser,
+  isLoadingUser,
+  menuItems,
+  onUserCardClick,
+  userLabel,
+  userSubLabel,
+  onMenuItemClick,
+}: DashboardShellProps) => {
   const hasPersistentShell = useContext(DashboardShellPresenceContext);
   const setRuntimeProps = useContext(DashboardShellRuntimePropsContext);
+  const runtimeProps = useMemo<DashboardShellRuntimeProps>(
+    () => ({
+      currentUser,
+      isLoadingUser,
+      menuItems,
+      onUserCardClick,
+      userLabel,
+      userSubLabel,
+      onMenuItemClick,
+    }),
+    [
+      currentUser,
+      isLoadingUser,
+      menuItems,
+      onMenuItemClick,
+      onUserCardClick,
+      userLabel,
+      userSubLabel,
+    ],
+  );
 
   useEffect(() => {
     if (!hasPersistentShell || !setRuntimeProps) {
       return;
     }
 
-    const { children: _children, ...runtimeProps } = props;
     setRuntimeProps(runtimeProps);
+  }, [hasPersistentShell, runtimeProps, setRuntimeProps]);
+
+  useEffect(() => {
+    if (!hasPersistentShell || !setRuntimeProps) {
+      return;
+    }
 
     return () => {
       setRuntimeProps(null);
     };
-  }, [hasPersistentShell, props, setRuntimeProps]);
+  }, [hasPersistentShell, setRuntimeProps]);
 
   if (hasPersistentShell) {
-    return <>{props.children}</>;
+    return <>{children}</>;
   }
 
   return (
     <DashboardShellPresenceContext.Provider value>
-      <DashboardShellFrame {...props} />
+      <DashboardShellFrame
+        currentUser={currentUser}
+        isLoadingUser={isLoadingUser}
+        menuItems={menuItems}
+        onUserCardClick={onUserCardClick}
+        userLabel={userLabel}
+        userSubLabel={userSubLabel}
+        onMenuItemClick={onMenuItemClick}
+      >
+        {children}
+      </DashboardShellFrame>
     </DashboardShellPresenceContext.Provider>
   );
 };

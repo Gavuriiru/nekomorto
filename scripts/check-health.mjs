@@ -16,9 +16,13 @@ const parseBoolean = (value) => {
 };
 
 const baseUrl = (getArgValue("--base") || "http://localhost:8080").replace(/\/+$/, "");
+const healthPath = getArgValue("--path") || "/api/health";
 const expectedSource = getArgValue("--expect-source");
 const expectedMaintenanceRaw = getArgValue("--expect-maintenance");
 const expectedMaintenance = parseBoolean(expectedMaintenanceRaw);
+const healthToken =
+  getArgValue("--health-token") || String(process.env.OPERATIONAL_HEALTH_TOKEN || "").trim();
+const verbose = /^(?:1|true|yes)$/i.test(getArgValue("--verbose") || "false");
 
 if (expectedMaintenanceRaw && expectedMaintenance === null) {
   console.error("--expect-maintenance must be true|false");
@@ -26,19 +30,22 @@ if (expectedMaintenanceRaw && expectedMaintenance === null) {
 }
 
 const main = async () => {
-  const response = await fetch(`${baseUrl}/api/health`, {
+  const response = await fetch(`${baseUrl}${healthPath}`, {
     method: "GET",
-    headers: { accept: "application/json" },
+    headers: {
+      accept: "application/json",
+      ...(healthToken ? { authorization: `Bearer ${healthToken}` } : {}),
+    },
   });
 
   if (!response.ok) {
     const body = await response.text();
-    throw new Error(`/api/health returned ${response.status}: ${body}`);
+    throw new Error(`${healthPath} returned ${response.status}: ${body}`);
   }
 
   const payload = await response.json();
   if (!payload || typeof payload !== "object") {
-    throw new Error("/api/health returned invalid JSON payload");
+    throw new Error(`${healthPath} returned invalid JSON payload`);
   }
 
   if (expectedSource && String(payload.dataSource || "") !== expectedSource) {
@@ -57,9 +64,19 @@ const main = async () => {
     JSON.stringify(
       {
         baseUrl,
+        path: healthPath,
         expectedSource: expectedSource || null,
         expectedMaintenance: expectedMaintenanceRaw ? expectedMaintenance : null,
-        payload,
+        payload: verbose
+          ? payload
+          : {
+              ok: payload.ok,
+              status: payload.status,
+              dataSource: payload.dataSource,
+              maintenanceMode: payload.maintenanceMode,
+              summary: payload.summary,
+              build: payload.build,
+            },
       },
       null,
       2,

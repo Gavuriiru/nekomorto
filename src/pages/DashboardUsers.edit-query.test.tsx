@@ -102,50 +102,57 @@ const expectDashboardActionButtonTokens = (
 void expectPrimaryDashboardActionButtonTokens;
 void expectDashboardActionButtonTokens;
 
+type TestUser = {
+  id: string;
+  name: string;
+  username: string;
+  email: string | null;
+  accessRole: string;
+  permissions: string[];
+  grants?: {
+    usuarios?: boolean;
+  };
+  roles: string[];
+  status: "active" | "retired";
+  phrase: string;
+  bio: string;
+  avatarUrl: string | null;
+  socials: Array<Record<string, unknown>>;
+  favoriteWorks: { manga: string[]; anime: string[] };
+  order: number;
+  isAdmin?: boolean;
+};
+
+const defaultCurrentUser: TestUser = {
+  id: "user-1",
+  name: "Admin",
+  username: "admin",
+  email: null,
+  accessRole: "owner_primary",
+  permissions: ["usuarios"],
+  grants: { usuarios: true },
+  roles: [],
+  status: "active",
+  phrase: "",
+  bio: "",
+  avatarUrl: null,
+  socials: [],
+  favoriteWorks: { manga: [], anime: [] },
+  order: 0,
+};
+
 const setupApiMock = ({
   currentUserGrants = {
     usuarios: true,
   },
-  currentUser = {
-    id: "user-1",
-    name: "Admin",
-    username: "admin",
-    email: null,
-    accessRole: "owner_primary",
-    permissions: ["usuarios"],
-    grants: { usuarios: true },
-    roles: [],
-    status: "active",
-    phrase: "",
-    bio: "",
-    avatarUrl: null,
-    socials: [],
-    favoriteWorks: { manga: [], anime: [] },
-    order: 0,
-  },
+  currentUser = defaultCurrentUser,
+  users = [currentUser],
 }: {
   currentUserGrants?: {
     usuarios?: boolean;
   };
-  currentUser?: {
-    id: string;
-    name: string;
-    username: string;
-    email: string | null;
-    accessRole: string;
-    permissions: string[];
-    grants?: {
-      usuarios?: boolean;
-    };
-    roles: string[];
-    status: "active" | "retired";
-    phrase: string;
-    bio: string;
-    avatarUrl: string | null;
-    socials: Array<Record<string, unknown>>;
-    favoriteWorks: { manga: string[]; anime: string[] };
-    order: number;
-  };
+  currentUser?: TestUser;
+  users?: TestUser[];
 } = {}) => {
   apiFetchMock.mockReset();
   apiFetchMock.mockImplementation(
@@ -157,7 +164,7 @@ const setupApiMock = ({
           return mockJsonResponse(false, { error: "forbidden" }, 403);
         }
         return mockJsonResponse(true, {
-          users: [currentUser],
+          users,
           ownerIds:
             currentUser.accessRole === "owner_primary" ? [currentUser.id] : [],
           primaryOwnerId:
@@ -267,6 +274,104 @@ describe("DashboardUsers edit query", () => {
     await waitFor(() => {
       expect(screen.getByTestId("location-search").textContent).toBe("");
     });
+  });
+
+  it("inicializa o papel de acesso como admin para payload legado", async () => {
+    const adminUser: TestUser = {
+      id: "user-2",
+      name: "Colaborador Admin",
+      username: "colaborador-admin",
+      email: "admin@example.com",
+      accessRole: "normal",
+      permissions: ["usuarios"],
+      grants: { usuarios: true },
+      roles: [],
+      status: "active",
+      phrase: "Frase antiga",
+      bio: "Bio antiga",
+      avatarUrl: null,
+      socials: [],
+      favoriteWorks: { manga: [], anime: [] },
+      order: 0,
+      isAdmin: true,
+    };
+    setupApiMock({
+      currentUser: defaultCurrentUser,
+      users: [defaultCurrentUser, adminUser],
+    });
+
+    render(
+      <MemoryRouter initialEntries={["/dashboard/usuarios"]}>
+        <DashboardUsers />
+        <LocationProbe />
+      </MemoryRouter>,
+    );
+
+    fireEvent.click(await screen.findByRole("button", { name: /abrir usu.rio colaborador admin/i }));
+    await screen.findByText(/editar usu.rio/i);
+
+    expect(screen.getByText(/^acesso e permissões$/i).closest("button")).toHaveTextContent("Admin");
+    expect(screen.getByRole("combobox", { name: /selecionar papel de acesso/i })).toHaveTextContent(
+      "Administrador",
+    );
+  });
+
+  it("limpa permissões automáticas quando volta de administrador para normal", async () => {
+    const managedUser: TestUser = {
+      id: "user-2",
+      name: "Colaborador Normal",
+      username: "colaborador-normal",
+      email: "normal@example.com",
+      accessRole: "normal",
+      permissions: ["configuracoes"],
+      roles: [],
+      status: "active",
+      phrase: "Frase antiga",
+      bio: "Bio antiga",
+      avatarUrl: null,
+      socials: [],
+      favoriteWorks: { manga: [], anime: [] },
+      order: 0,
+    };
+    setupApiMock({
+      currentUser: defaultCurrentUser,
+      users: [defaultCurrentUser, managedUser],
+    });
+
+    render(
+      <MemoryRouter initialEntries={["/dashboard/usuarios"]}>
+        <DashboardUsers />
+        <LocationProbe />
+      </MemoryRouter>,
+    );
+
+    fireEvent.click(await screen.findByRole("button", { name: /abrir usu.rio colaborador normal/i }));
+    const dialog = await screen.findByRole("dialog");
+    const accessRoleCombobox = within(dialog).getByRole("combobox", {
+      name: /selecionar papel de acesso/i,
+    });
+
+    fireEvent.click(accessRoleCombobox);
+    fireEvent.click(await screen.findByRole("option", { name: "Administrador" }));
+    expect(within(dialog).getByRole("button", { name: "Posts" })).toHaveClass("bg-primary/10");
+
+    fireEvent.click(accessRoleCombobox);
+    fireEvent.click(await screen.findByRole("option", { name: "Normal" }));
+
+    for (const permission of [
+      "Posts",
+      "Projetos",
+      "Comentários",
+      "Páginas",
+      "Uploads",
+      "Análises",
+      "Usuários",
+    ]) {
+      expect(within(dialog).getByRole("button", { name: permission })).toHaveClass("bg-background");
+    }
+    expect(within(dialog).getByRole("button", { name: "Configurações" })).toHaveClass(
+      "bg-primary/10",
+    );
   });
 
   it("esconde id interno, e-mail de acesso e badge de id para self-edit sem privilégio de gestão", async () => {
@@ -574,7 +679,7 @@ describe("DashboardUsers edit query", () => {
     await screen.findByRole("heading", { name: /gest.o de usu.rios/i });
     await screen.findByRole("heading", { name: /editar usu.rio/i });
     await waitFor(() => {
-      expect(screen.getByTestId("location-search").textContent).toBe("");
+      expect(screen.getByTestId("location-search").textContent).toBe("?self=1");
     });
 
     const editorDialog = document.querySelector(
@@ -699,7 +804,7 @@ describe("DashboardUsers edit query", () => {
     await screen.findByRole("heading", { name: /gest.o de usu.rios/i });
     await screen.findByRole("heading", { name: /editar usu.rio/i });
     await waitFor(() => {
-      expect(screen.getByTestId("location-search").textContent).toBe("");
+      expect(screen.getByTestId("location-search").textContent).toBe("?self=1");
     });
 
     const editorDialog = document.querySelector(
@@ -752,7 +857,7 @@ describe("DashboardUsers edit query", () => {
     await screen.findByRole("heading", { name: /gest.o de usu.rios/i });
     await screen.findByRole("heading", { name: /editar usu.rio/i });
     await waitFor(() => {
-      expect(screen.getByTestId("location-search").textContent).toBe("");
+      expect(screen.getByTestId("location-search").textContent).toBe("?self=1");
     });
 
     expect(screen.getByText(/obras favoritas/i)).toBeInTheDocument();

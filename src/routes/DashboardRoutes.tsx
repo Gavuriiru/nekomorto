@@ -3,7 +3,7 @@ import { DashboardPreferencesProvider } from "@/hooks/dashboard-preferences-prov
 import { DashboardSessionProvider } from "@/hooks/dashboard-session-provider";
 import "@/styles/project-editor.css";
 import type { ReactNode } from "react";
-import { lazy } from "react";
+import { lazy, Suspense } from "react";
 import { Route, Routes } from "react-router-dom";
 
 const RequireAuth = lazy(() => import("@/components/RequireAuth"));
@@ -28,43 +28,58 @@ const PageTransition = ({ children }: { children: ReactNode }) => (
   <div className="page-transition">{children}</div>
 );
 
+const DashboardRouteContentFallback = () => (
+  <PageTransition>
+    <div
+      aria-busy="true"
+      aria-live="polite"
+      role="status"
+      className="mx-auto flex min-h-[45vh] w-full max-w-7xl items-center justify-center px-4 py-6 text-sm text-muted-foreground sm:px-6 lg:px-8"
+    >
+      Carregando seção...
+    </div>
+  </PageTransition>
+);
+
 const withPageTransition = (page: ReactNode) => <PageTransition>{page}</PageTransition>;
 
 const DashboardProtectedRoutes = () => (
   <RequireAuth>
     <DashboardShellRoot>
-      <Routes>
-        <Route index element={withPageTransition(<Dashboard />)} />
-        <Route path="usuarios" element={withPageTransition(<DashboardUsers />)} />
-        <Route path="posts" element={withPageTransition(<DashboardPosts />)} />
-        <Route path="projetos" element={withPageTransition(<DashboardProjectsEditor />)} />
-        <Route
-          path="projetos/:projectId/episodios"
-          element={withPageTransition(<DashboardProjectEpisodeEditor />)}
-        />
-        <Route
-          path="projetos/:projectId/episodios/:episodeNumber"
-          element={withPageTransition(<DashboardProjectEpisodeEditor />)}
-        />
-        <Route
-          path="projetos/:projectId/capitulos"
-          element={withPageTransition(<DashboardProjectChapterEditor />)}
-        />
-        <Route
-          path="projetos/:projectId/capitulos/:chapterNumber"
-          element={withPageTransition(<DashboardProjectChapterEditor />)}
-        />
-        <Route path="comentarios" element={withPageTransition(<DashboardComments />)} />
-        <Route path="uploads" element={withPageTransition(<DashboardUploads />)} />
-        <Route path="analytics" element={withPageTransition(<DashboardAnalytics />)} />
-        <Route path="audit-log" element={withPageTransition(<DashboardAuditLog />)} />
-        <Route path="paginas" element={withPageTransition(<DashboardPages />)} />
-        <Route path="configuracoes" element={withPageTransition(<DashboardSettings />)} />
-        <Route path="redirecionamentos" element={withPageTransition(<DashboardRedirects />)} />
-        <Route path="webhooks" element={withPageTransition(<DashboardWebhooks />)} />
-        <Route path="seguranca" element={withPageTransition(<DashboardSecurity />)} />
-        <Route path="*" element={<NotFound />} />
-      </Routes>
+      <Suspense fallback={<DashboardRouteContentFallback />}>
+        <Routes>
+          <Route index element={withPageTransition(<Dashboard />)} />
+          <Route path="usuarios" element={withPageTransition(<DashboardUsers />)} />
+          <Route path="posts" element={withPageTransition(<DashboardPosts />)} />
+          <Route path="projetos" element={withPageTransition(<DashboardProjectsEditor />)} />
+          <Route
+            path="projetos/:projectId/episodios"
+            element={withPageTransition(<DashboardProjectEpisodeEditor />)}
+          />
+          <Route
+            path="projetos/:projectId/episodios/:episodeNumber"
+            element={withPageTransition(<DashboardProjectEpisodeEditor />)}
+          />
+          <Route
+            path="projetos/:projectId/capitulos"
+            element={withPageTransition(<DashboardProjectChapterEditor />)}
+          />
+          <Route
+            path="projetos/:projectId/capitulos/:chapterNumber"
+            element={withPageTransition(<DashboardProjectChapterEditor />)}
+          />
+          <Route path="comentarios" element={withPageTransition(<DashboardComments />)} />
+          <Route path="uploads" element={withPageTransition(<DashboardUploads />)} />
+          <Route path="analytics" element={withPageTransition(<DashboardAnalytics />)} />
+          <Route path="audit-log" element={withPageTransition(<DashboardAuditLog />)} />
+          <Route path="paginas" element={withPageTransition(<DashboardPages />)} />
+          <Route path="configuracoes" element={withPageTransition(<DashboardSettings />)} />
+          <Route path="redirecionamentos" element={withPageTransition(<DashboardRedirects />)} />
+          <Route path="webhooks" element={withPageTransition(<DashboardWebhooks />)} />
+          <Route path="seguranca" element={withPageTransition(<DashboardSecurity />)} />
+          <Route path="*" element={<NotFound />} />
+        </Routes>
+      </Suspense>
     </DashboardShellRoot>
   </RequireAuth>
 );

@@ -5,7 +5,7 @@ export const stripHtml = (value) => extractPlainTextFromHtml(value);
 export const getPageTitleFromPath = (value) => {
   const pathValue = String(value || "/");
   const rules = [
-    [/^\/$/, "Início"],
+    [/^\/$/, ""],
     [/^\/postagem\/.+/, "Postagem"],
     [/^\/equipe\/?$/, "Equipe"],
     [/^\/sobre\/?$/, "Sobre"],
@@ -55,16 +55,22 @@ export const createSiteMetaBuilders = ({
   resolvePostCover,
   truncateMetaDescription,
 }) => {
-  const buildSiteMetaWithSettings = (settings) => ({
-    title: settings.site?.name || "Nekomata",
-    description: truncateMetaDescription(settings.site?.description || ""),
-    image: settings.site?.defaultShareImage || "",
-    imageAlt: settings.site?.defaultShareImageAlt || "",
-    url: primaryAppOrigin,
-    type: "website",
-    siteName: settings.site?.name || "Nekomata",
-    favicon: settings.site?.faviconUrl || "",
-  });
+  const buildSiteMetaWithSettings = (settings) => {
+    const siteName = settings.site?.name || "Nekomata";
+    return {
+      title: siteName,
+      description: truncateMetaDescription(
+        settings.site?.description ||
+          "Nekomata é uma fansub e scan feita por fãs, com traduções cuidadosas, carinho pela comunidade e respeito aos autores.",
+      ),
+      image: settings.site?.defaultShareImage || "",
+      imageAlt: settings.site?.defaultShareImageAlt || "",
+      url: `${primaryAppOrigin}/`,
+      type: "website",
+      siteName,
+      favicon: settings.site?.faviconUrl || "",
+    };
+  };
 
   const buildInstitutionalPageMeta = (
     pageKey,
@@ -77,7 +83,7 @@ export const createSiteMetaBuilders = ({
     }
 
     const siteName = settings.site?.name || "Nekomata";
-    const separator = settings.site?.titleSeparator ?? "";
+    const separator = settings.site?.titleSeparator || " | ";
     const description = truncateMetaDescription(
       resolveInstitutionalOgSupportText({
         pageKey: resolvedPageKey,
@@ -201,13 +207,15 @@ export const createSiteMetaBuilders = ({
       type: "article",
       siteName,
       favicon: settings.site?.faviconUrl || "",
+      robots: "noindex, nofollow",
     };
   };
 
   const buildPostMeta = (post) => {
     const settings = loadSiteSettings();
     const siteName = settings.site?.name || "Nekomata";
-    const title = post?.title ? `${post.title} | ${siteName}` : siteName;
+    const titleText = stripHtml(post?.seoTitle || post?.title || "");
+    const title = titleText ? `${titleText} | ${siteName}` : siteName;
     const description = truncateMetaDescription(
       stripHtml(post?.seoDescription || post?.excerpt || post?.content || "") ||
         settings.site?.description ||

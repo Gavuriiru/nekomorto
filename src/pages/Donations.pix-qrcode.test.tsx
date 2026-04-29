@@ -21,18 +21,6 @@ vi.mock("@/hooks/use-page-meta", () => ({
   usePageMeta: () => undefined,
 }));
 
-vi.mock("@/components/ThemedSvgMaskIcon", () => ({
-  default: ({
-    testId,
-    label,
-    className,
-  }: {
-    testId?: string;
-    label: string;
-    className?: string;
-  }) => <span role="img" aria-label={label} data-testid={testId} className={className} />,
-}));
-
 vi.mock("qrcode", () => ({
   default: {
     toDataURL: (...args: unknown[]) => qrCodeToDataUrlMock(...args),
@@ -167,7 +155,6 @@ describe("Donations Pix and crypto QR code", () => {
                   qrValue: "",
                   note: "",
                   icon: "Bitcoin",
-                  iconUrl: "",
                   actionLabel: "",
                   actionUrl: "",
                 },
@@ -412,9 +399,7 @@ describe("Donations Pix and crypto QR code", () => {
           address: "bc1-endereco",
           qrValue: "bitcoin:bc1-endereco?amount=0.01",
           note: "Use a rede principal.",
-          icon: "Coins",
-          iconUrl: "https://cdn.example.com/btc.png",
-          tintIcon: true,
+          icon: "Bitcoin",
           actionLabel: "Abrir carteira",
           actionUrl: "https://wallet.example.com/btc",
         },
@@ -426,7 +411,6 @@ describe("Donations Pix and crypto QR code", () => {
           qrValue: "",
           note: "Envie pela rede correta.",
           icon: "Wallet",
-          iconUrl: "",
           actionLabel: "",
           actionUrl: "",
         },
@@ -452,8 +436,9 @@ describe("Donations Pix and crypto QR code", () => {
       "aria-label",
       "Ethereum (ETH / ERC-20)",
     );
-    expect(screen.getByTestId("donations-crypto-tab-logo-0")).toBeInTheDocument();
+    expect(screen.getByTestId("donations-crypto-tab-icon-0")).toBeInTheDocument();
     expect(screen.getByTestId("donations-crypto-tab-icon-1")).toBeInTheDocument();
+    expect(screen.queryByTestId("donations-crypto-tab-logo-0")).not.toBeInTheDocument();
     const activePanel = screen.getByTestId("donations-crypto-panel");
     const activeDetails = within(activePanel).getByTestId("donations-crypto-details");
     const activeActions = within(activePanel).getByTestId("donations-crypto-actions");
@@ -572,7 +557,6 @@ describe("Donations Pix and crypto QR code", () => {
           qrValue: "",
           note: "",
           icon: "Bitcoin",
-          iconUrl: "",
           actionLabel: "",
           actionUrl: "",
         },
@@ -601,7 +585,6 @@ describe("Donations Pix and crypto QR code", () => {
           qrValue: "",
           note: "",
           icon: "Coins",
-          iconUrl: "",
           actionLabel: "",
           actionUrl: "",
         },
@@ -624,7 +607,7 @@ describe("Donations Pix and crypto QR code", () => {
     );
   });
 
-  it("mantem img normal quando o SVG customizado nao deve seguir as cores do site", async () => {
+  it("ignora SVG customizado legado e renderiza icone lucide", async () => {
     setBootstrapDonationsPage({
       pixKey: "",
       cryptoServices: [
@@ -635,7 +618,7 @@ describe("Donations Pix and crypto QR code", () => {
           address: "bc1-endereco",
           qrValue: "",
           note: "",
-          icon: "Coins",
+          icon: "Bitcoin",
           iconUrl: "/uploads/shared/pages/donations/crypto/btc.svg",
           tintIcon: false,
           actionLabel: "",
@@ -648,8 +631,9 @@ describe("Donations Pix and crypto QR code", () => {
           address: "0x-endereco",
           qrValue: "",
           note: "",
-          icon: "Wallet",
-          iconUrl: "",
+          icon: "Ethereum",
+          iconUrl: "/uploads/shared/pages/donations/crypto/eth.svg",
+          tintIcon: true,
           actionLabel: "",
           actionUrl: "",
         },
@@ -662,11 +646,10 @@ describe("Donations Pix and crypto QR code", () => {
       await flushMicrotasks();
     });
 
-    const logo = screen.getByTestId("donations-crypto-tab-logo-0");
-    expect(logo.tagName).toBe("IMG");
-    expect(logo).toHaveAttribute(
-      "src",
-      "http://localhost:3000/uploads/shared/pages/donations/crypto/btc.svg",
-    );
+    expect(screen.getByTestId("donations-crypto-tab-icon-0")).toBeInTheDocument();
+    expect(screen.getByTestId("donations-crypto-tab-icon-1")).toBeInTheDocument();
+    expect(screen.queryByTestId("donations-crypto-tab-logo-0")).not.toBeInTheDocument();
+    expect(screen.queryByTestId("donations-crypto-tab-logo-1")).not.toBeInTheDocument();
+    expect(screen.queryByRole("img", { name: /Logo/i })).not.toBeInTheDocument();
   });
 });

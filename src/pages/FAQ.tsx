@@ -14,6 +14,7 @@ import {
   buildInstitutionalOgImageAlt,
   buildInstitutionalOgRevision,
   buildVersionedInstitutionalOgImagePath,
+  resolveInstitutionalOgSupportText,
 } from "../../shared/institutional-og-seo.js";
 
 const iconMap: Record<string, typeof HelpCircle> = {
@@ -118,6 +119,11 @@ const FAQ = () => {
   const pageMediaVariants = bootstrap?.mediaVariants || {};
   usePageMeta({
     title: "FAQ",
+    description: resolveInstitutionalOgSupportText({
+      pageKey: "faq",
+      pages: bootstrap?.pages,
+      settings: bootstrap?.settings,
+    }),
     image: buildVersionedInstitutionalOgImagePath({
       pageKey: "faq",
       revision: buildInstitutionalOgRevision({

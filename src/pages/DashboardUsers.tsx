@@ -91,6 +91,7 @@ const DEFAULT_ADMIN_PERMISSIONS: ReadonlyArray<(typeof permissionIds)[number]> =
   "analytics",
   "usuarios",
 ];
+const DEFAULT_ADMIN_PERMISSION_SET: ReadonlySet<string> = new Set(DEFAULT_ADMIN_PERMISSIONS);
 type FavoriteWorkCategory = (typeof FAVORITE_WORK_CATEGORIES)[number];
 type FavoriteWorksByCategory = Record<FavoriteWorkCategory, string[]>;
 type FavoriteWorksDraft = Record<FavoriteWorkCategory, [string, string, string]>;
@@ -110,7 +111,47 @@ type UserRecord = {
   roles?: string[];
   accessRole?: AccessRole;
   grants?: Partial<Record<string, boolean>>;
+  isAdmin?: boolean;
   order: number;
+};
+
+const dashboardUsersLoadingSkeletonItems = ["first", "second", "third", "fourth"] as const;
+
+const DashboardUsersLoadingSkeleton = () => (
+  <div className="mt-6 grid gap-4 lg:grid-cols-2" data-testid="dashboard-users-loading-skeleton">
+    {dashboardUsersLoadingSkeletonItems.map((item) => (
+      <div
+        key={item}
+        className="rounded-2xl border border-border/60 bg-card/70 p-4 shadow-sm"
+        data-testid="dashboard-users-loading-card"
+      >
+        <div className="flex gap-4">
+          <Skeleton className="h-14 w-14 rounded-full" />
+          <div className="min-w-0 flex-1 space-y-3">
+            <Skeleton className="h-5 w-2/3" />
+            <Skeleton className="h-4 w-1/2" />
+            <Skeleton className="h-3 w-full" />
+            <Skeleton className="h-3 w-4/5" />
+          </div>
+        </div>
+      </div>
+    ))}
+  </div>
+);
+
+const hasLegacyAdminSignal = (
+  user: Pick<UserRecord, "permissions" | "isAdmin"> | null | undefined,
+) => {
+  if (!user) {
+    return false;
+  }
+  if (user.isAdmin === true) {
+    return true;
+  }
+  const permissions = Array.isArray(user.permissions)
+    ? user.permissions.map((permission) => String(permission || "").trim())
+    : [];
+  return permissions.includes("*") || permissions.includes("usuarios");
 };
 
 const buildSelfUserRecord = (
@@ -126,6 +167,7 @@ const buildSelfUserRecord = (
       permissions?: string[];
       ownerIds?: string[];
       primaryOwnerId?: string | null;
+      isAdmin?: boolean;
       email?: string | null;
       phrase?: string;
       bio?: string;
@@ -139,6 +181,16 @@ const buildSelfUserRecord = (
     return null;
   }
 
+  const permissions = Array.isArray(currentUser.permissions) ? [...currentUser.permissions] : [];
+  const accessRole =
+    currentUser.accessRole === "admin" ||
+    hasLegacyAdminSignal({
+      isAdmin: currentUser.isAdmin,
+      permissions,
+    })
+      ? "admin"
+      : "normal";
+
   return {
     id: currentUser.id,
     name: currentUser.name,
@@ -150,10 +202,11 @@ const buildSelfUserRecord = (
     socials: Array.isArray(currentUser.socials) ? [...currentUser.socials] : [],
     favoriteWorks: currentUser.favoriteWorks || { manga: [], anime: [] },
     status: "active" as const,
-    permissions: Array.isArray(currentUser.permissions) ? [...currentUser.permissions] : [],
+    permissions,
     roles: [],
-    accessRole: currentUser.accessRole === "admin" ? "admin" : "normal",
+    accessRole,
     grants: currentUser.grants,
+    isAdmin: currentUser.isAdmin,
     order: 0,
   } satisfies UserRecord;
 };
@@ -364,7 +417,7 @@ const buildFavoriteWorksPayloadFromDraft = (
 
 const accessRoleOptions: Array<{ id: AccessRole; label: string }> = [
   { id: "normal", label: "Normal" },
-  { id: "admin", label: "Admin" },
+  { id: "admin", label: "Administrador" },
 ];
 
 const defaultRoleOptions = [
@@ -577,7 +630,7 @@ const DashboardUsers = () => {
       if (ownerIds.includes(user.id)) {
         return "owner_secondary";
       }
-      return user.accessRole === "admin" ? "admin" : "normal";
+      return user.accessRole === "admin" || hasLegacyAdminSignal(user) ? "admin" : "normal";
     },
     [ownerIds, primaryOwnerId],
   );
@@ -618,8 +671,14 @@ const DashboardUsers = () => {
   }, [currentUser, users]);
   const currentUserRef = useRef(currentUser);
   const currentUserRecordRef = useRef(currentUserRecord);
+  const usersRef = useRef(users);
+  const ownerIdsRef = useRef(ownerIds);
+  const linkTypesRef = useRef(linkTypes);
   currentUserRef.current = currentUser;
   currentUserRecordRef.current = currentUserRecord;
+  usersRef.current = users;
+  ownerIdsRef.current = ownerIds;
+  linkTypesRef.current = linkTypes;
   const clearSocialDragState = useCallback(() => {
     setSocialDragIndex(null);
     setSocialDragOverIndex(null);
@@ -785,7 +844,8 @@ const DashboardUsers = () => {
 
   useEffect(() => {
     let isActive = true;
-    const hasWarmState = users.length > 0 || ownerIds.length > 0 || linkTypes.length > 0;
+    const hasWarmState =
+      usersRef.current.length > 0 || ownerIdsRef.current.length > 0 || linkTypesRef.current.length > 0;
     const load = async () => {
       try {
         if (isActive) {
@@ -859,16 +919,7 @@ const DashboardUsers = () => {
     return () => {
       isActive = false;
     };
-  }, [
-    allowSelfEditOnly,
-    apiBase,
-    currentUser,
-    currentUserRecord,
-    linkTypes.length,
-    loadVersion,
-    ownerIds.length,
-    users.length,
-  ]);
+  }, [allowSelfEditOnly, apiBase, currentUser?.id, loadVersion]);
 
   useEffect(() => {
     if (!isSelfEditQuery(searchParams)) {
@@ -1350,34 +1401,56 @@ const DashboardUsers = () => {
     setIsDialogOpen(true);
   };
 
-  const canOpenEdit = (user: UserRecord) => {
-    if (!currentUser) {
+  const canOpenEdit = useCallback(
+    (user: UserRecord) => {
+      if (!currentUser) {
+        return false;
+      }
+      if (currentUser.id === user.id) {
+        return true;
+      }
+      if (!actorCanUsers) {
+        return false;
+      }
+      const userIsOwner = isOwnerUser(user);
+      if (isPrimaryOwnerActor) {
+        return true;
+      }
+      if (isSecondaryOwnerActor) {
+        return !userIsOwner;
+      }
+      if (isAdminActor) {
+        return !userIsOwner;
+      }
       return false;
-    }
-    if (currentUser.id === user.id) {
-      return true;
-    }
-    if (!actorCanUsers) {
-      return false;
-    }
-    if (isPrimaryOwnerActor) {
-      return true;
-    }
-    if (isSecondaryOwnerActor) {
-      return !isOwnerUser(user);
-    }
-    if (isAdminActor) {
-      return !isOwnerUser(user);
-    }
-    return false;
-  };
+    },
+    [
+      actorCanUsers,
+      currentUser,
+      isAdminActor,
+      isPrimaryOwnerActor,
+      isSecondaryOwnerActor,
+      ownerIds,
+      primaryOwnerId,
+    ],
+  );
 
-  const handleUserCardClick = (user: UserRecord) => {
-    if (!canOpenEdit(user)) {
+  const handleUserCardClick = useCallback(
+    (user: UserRecord) => {
+      if (!canOpenEdit(user)) {
+        return;
+      }
+      openEditDialog(user);
+    },
+    [canOpenEdit, openEditDialog],
+  );
+
+  const handleShellUserCardClick = useCallback(() => {
+    if (!currentUserRecord) {
       return;
     }
-    openEditDialog(user);
-  };
+    handleUserCardClick(currentUserRecord);
+  }, [currentUserRecord, handleUserCardClick]);
 
   const handleSave = async () => {
     if (!canEditBasicFields) {
@@ -1887,24 +1960,24 @@ const DashboardUsers = () => {
         }
         onDragEnd={handleDragEnd}
       >
+        {canEditUser ? (
+          <button
+            type="button"
+            className="absolute inset-0 z-0 cursor-pointer rounded-2xl focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-primary/60"
+            aria-label={`Abrir usuário ${user.name}`}
+            onClick={() => handleUserCardClick(user)}
+          >
+            <span className="sr-only">{`Abrir usuário ${user.name}`}</span>
+          </button>
+        ) : null}
         <div
           data-slot="user-card-shell"
-          className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between"
+          className="pointer-events-none flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between"
         >
           <div className={`relative min-w-0 flex-1 ${canEditUser ? "cursor-pointer" : ""}`}>
-            {canEditUser ? (
-              <button
-                type="button"
-                className="absolute inset-0 z-0 rounded-2xl focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-primary/60"
-                aria-label={`Abrir usuário ${user.name}`}
-                onClick={() => handleUserCardClick(user)}
-              >
-                <span className="sr-only">{`Abrir usuário ${user.name}`}</span>
-              </button>
-            ) : null}
             <div
               data-slot="user-card-main"
-              className="pointer-events-none flex min-w-0 flex-col gap-4 sm:flex-row sm:items-start"
+              className="flex min-w-0 flex-col gap-4 sm:flex-row sm:items-start"
             >
               <DashboardAvatar
                 avatarUrl={toAvatarRenderUrl(renderedAvatarUrl, renderedAvatarRevision)}
@@ -1956,7 +2029,7 @@ const DashboardUsers = () => {
           </div>
           <div
             data-slot="user-card-controls"
-            className="relative z-10 flex shrink-0 flex-wrap items-center gap-2 self-start lg:self-auto"
+            className="pointer-events-auto relative z-10 flex shrink-0 flex-wrap items-center gap-2 self-start lg:self-auto"
           >
             {canManageUsers ? (
               <ReorderControls
@@ -1978,9 +2051,7 @@ const DashboardUsers = () => {
       <DashboardShell
         currentUser={currentUser}
         isLoadingUser={isLoadingUser}
-        onUserCardClick={
-          currentUserRecord ? () => handleUserCardClick(currentUserRecord) : undefined
-        }
+        onUserCardClick={currentUserRecord ? handleShellUserCardClick : undefined}
       >
         <main className="pt-24">
           <section className="mx-auto w-full max-w-6xl px-6 pb-20 md:px-10 reveal" data-reveal>
@@ -2038,12 +2109,7 @@ const DashboardUsers = () => {
               </div>
 
               {isLoading ? (
-                <AsyncState
-                  kind="loading"
-                  title="Carregando usuários"
-                  description="Buscando membros e permissões."
-                  className="mt-6"
-                />
+                <DashboardUsersLoadingSkeleton />
               ) : hasLoadError ? (
                 <AsyncState
                   kind="error"
@@ -2874,12 +2940,17 @@ const DashboardUsers = () => {
                                   accessRole: value === "admin" ? "admin" : "normal",
                                   permissions:
                                     value === "admin"
-                                      ? permissionOptions
-                                        .filter((option) =>
-                                          DEFAULT_ADMIN_PERMISSIONS.includes(option.id),
+                                      ? Array.from(
+                                          new Set([
+                                            ...prev.permissions,
+                                            ...permissionOptions
+                                              .filter((option) => DEFAULT_ADMIN_PERMISSION_SET.has(option.id))
+                                              .map((option) => option.id),
+                                          ]),
                                         )
-                                        .map((option) => option.id)
-                                      : prev.permissions,
+                                      : prev.permissions.filter(
+                                          (permission) => !DEFAULT_ADMIN_PERMISSION_SET.has(permission),
+                                        ),
                                 }))
                               }
                               disabled={!canEditAccessControls || isOwnerRecord}

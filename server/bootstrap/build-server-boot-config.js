@@ -38,6 +38,7 @@ export const buildServerBootConfig = ({ env = process.env, repoRootDir = process
     ADMIN_EXPORT_TTL_HOURS: ADMIN_EXPORT_TTL_HOURS_ENV = "",
     METRICS_ENABLED: METRICS_ENABLED_ENV = "false",
     METRICS_TOKEN = "",
+    OPERATIONAL_HEALTH_TOKEN = "",
     PORT = 8080,
     OWNER_IDS: OWNER_IDS_ENV = "",
     BOOTSTRAP_TOKEN,
@@ -142,6 +143,7 @@ export const buildServerBootConfig = ({ env = process.env, repoRootDir = process
   const MFA_RECOVERY_CODE_PEPPER = String(SECURITY_RECOVERY_CODE_PEPPER || "").trim();
   const MFA_ICON_URL = String(TOTP_ICON_URL || "").trim();
   const METRICS_TOKEN_NORMALIZED = String(METRICS_TOKEN || "").trim();
+  const OPERATIONAL_HEALTH_TOKEN_NORMALIZED = String(OPERATIONAL_HEALTH_TOKEN || "").trim();
   const OPS_ALERTS_WEBHOOK_TIMEOUT_MS = parseEnvInteger(
     OPS_ALERTS_WEBHOOK_TIMEOUT_MS_ENV,
     5000,
@@ -214,6 +216,7 @@ export const buildServerBootConfig = ({ env = process.env, repoRootDir = process
     MFA_ISSUER,
     MFA_RECOVERY_CODE_PEPPER,
     METRICS_TOKEN_NORMALIZED,
+    OPERATIONAL_HEALTH_TOKEN_NORMALIZED,
     OPS_ALERTS_DB_LATENCY_WARNING_MS,
     OPS_ALERTS_WEBHOOK_INTERVAL_MS,
     OPS_ALERTS_WEBHOOK_PROVIDER,

@@ -42,8 +42,6 @@ export type DonationsCryptoService = {
   qrValue: string;
   note: string;
   icon: string;
-  iconUrl: string;
-  tintIcon: boolean;
   actionLabel: string;
   actionUrl: string;
 };

@@ -97,6 +97,7 @@ describe("DashboardUsers image library context", () => {
     );
 
     fireEvent.click(await screen.findByRole("button", { name: /Abrir usu.rio Admin/i }));
+    fireEvent.click(await screen.findByRole("button", { name: /Biblioteca/i }));
 
     await waitFor(() => {
       expect(imageLibraryPropsSpy).toHaveBeenCalled();
@@ -177,6 +178,7 @@ describe("DashboardUsers image library context", () => {
     );
 
     fireEvent.click(await screen.findByRole("button", { name: /Abrir usu.rio Admin/i }));
+    fireEvent.click(await screen.findByRole("button", { name: /Biblioteca/i }));
 
     await waitFor(() => {
       expect(imageLibraryPropsSpy).toHaveBeenCalled();

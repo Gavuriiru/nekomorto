@@ -39,7 +39,7 @@ export const registerAppRoutes = ({
         : buildSiteMetaWithSettings(settings);
       const themeColor = resolveThemeColor(settings?.theme?.accent);
       const siteName = settings.site?.name || "Nekomata";
-      const separator = settings.site?.titleSeparator ?? "";
+      const separator = settings.site?.titleSeparator || " | ";
       const pageTitle = getPageTitleFromPath(req.path);
       const title = institutionalPageKey
         ? meta.title
@@ -47,18 +47,25 @@ export const registerAppRoutes = ({
           ? `${pageTitle}${separator}${siteName}`
           : siteName;
       const canonicalUrl = `${PRIMARY_APP_ORIGIN}${req.path}`;
-      const structuredData = buildSchemaOrgPayload({
-        origin: PRIMARY_APP_ORIGIN,
-        pathname: req.path,
-        canonicalUrl,
-        settings,
-        pages,
-      });
-      const shouldInjectPublicBootstrap = !/^\/dashboard(?:\/|$)/.test(req.path);
+      const isDashboardPath = /^\/dashboard(?:\/|$)/.test(req.path);
+      const isLoginPath = req.path === "/login" || req.path.startsWith("/login/");
+      const isKnownPublicShellPath = Boolean(institutionalPageKey) || req.path === "/login";
+      const shouldNoIndex = isDashboardPath || isLoginPath || !isKnownPublicShellPath;
+      const structuredData = shouldNoIndex
+        ? []
+        : buildSchemaOrgPayload({
+            origin: PRIMARY_APP_ORIGIN,
+            pathname: req.path,
+            canonicalUrl,
+            settings,
+            pages,
+          });
+      const shouldInjectPublicBootstrap = !isDashboardPath;
       const renderedHtml = renderMetaHtml({
         ...meta,
         title,
         url: canonicalUrl,
+        robots: shouldNoIndex ? "noindex, nofollow" : "index, follow",
         structuredData,
         themeColor,
       });

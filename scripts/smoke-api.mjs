@@ -62,6 +62,15 @@ const assertJsonEndpoint = async (path, assertPayload) => {
   return { path, status: response.status, contentType };
 };
 
+const assertPublicHealthChecksAreSanitized = (path, payload) => {
+  const leakingCheck = Array.isArray(payload?.checks)
+    ? payload.checks.find((check) => Object.hasOwn(check || {}, "meta"))
+    : null;
+  if (leakingCheck) {
+    throw new Error(`${path} public checks must not include meta`);
+  }
+};
+
 const assertXmlEndpoint = async (path, { expectedContentTypePart, expectedBodySnippet }) => {
   const response = await withTimeout(`${baseUrl}${path}`);
   if (!response.ok) {
@@ -296,6 +305,7 @@ const main = async () => {
       if (!Object.hasOwn(payload || {}, "build")) {
         throw new Error("/api/health/ready must include build metadata");
       }
+      assertPublicHealthChecksAreSanitized("/api/health/ready", payload);
     }),
   );
 
@@ -316,6 +326,7 @@ const main = async () => {
       if (!Object.hasOwn(payload?.build || {}, "apiVersion")) {
         throw new Error("/api/health build metadata must include apiVersion");
       }
+      assertPublicHealthChecksAreSanitized("/api/health", payload);
     }),
   );
 

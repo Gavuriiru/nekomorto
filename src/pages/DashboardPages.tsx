@@ -16,14 +16,12 @@ import DashboardAutosaveStatus from "@/components/DashboardAutosaveStatus";
 import DashboardShell from "@/components/DashboardShell";
 import LazyImageLibraryDialog from "@/components/lazy/LazyImageLibraryDialog";
 import ReorderControls from "@/components/ReorderControls";
-import ThemedSvgMaskIcon from "@/components/ThemedSvgMaskIcon";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import AsyncState from "@/components/ui/async-state";
 import { Card, CardContent } from "@/components/ui/card";
 import type { ComboboxOption } from "@/components/ui/combobox";
 import { Label } from "@/components/ui/label";
 import { Skeleton } from "@/components/ui/skeleton";
-import { Switch } from "@/components/ui/switch";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { toast } from "@/components/ui/use-toast";
 import {
@@ -42,7 +40,6 @@ import { getApiBase } from "@/lib/api-base";
 import { apiFetch } from "@/lib/api-client";
 import { normalizeAssetUrl } from "@/lib/asset-url";
 import { applyBeforeUnloadCompatibility } from "@/lib/before-unload";
-import { uploadDashboardImageAsset } from "@/lib/dashboard-upload-assets";
 import {
   DEFAULT_DONATIONS_CRYPTO_ICON,
   emptyDonationsCryptoService,
@@ -62,10 +59,12 @@ import {
   Bitcoin,
   CircleDollarSign,
   Coins,
+  DollarSign,
   Flame,
   GripVertical,
   Heart,
   HeartHandshake,
+  HandCoins,
   HelpCircle,
   Info,
   Landmark,
@@ -87,6 +86,9 @@ import {
   Users,
   Video,
   Wallet,
+  Wallet2,
+  WalletCards,
+  WalletMinimal,
   Wand2,
   Zap,
 } from "lucide-react";
@@ -198,11 +200,16 @@ const iconOptions = [
   "Server",
   "PiggyBank",
   "Coins",
+  "HandCoins",
   "Wallet",
+  "Wallet2",
+  "WalletCards",
+  "WalletMinimal",
   "BadgeDollarSign",
   "Landmark",
   "Banknote",
   "CircleDollarSign",
+  "DollarSign",
   "Bitcoin",
   "HeartHandshake",
   "QrCode",
@@ -230,11 +237,16 @@ const editorIconMap: Record<string, typeof Heart> = {
   Server,
   PiggyBank,
   Coins,
+  HandCoins,
   Wallet,
+  Wallet2,
+  WalletCards,
+  WalletMinimal,
   BadgeDollarSign,
   Landmark,
   Banknote,
   CircleDollarSign,
+  DollarSign,
   Bitcoin,
   HeartHandshake,
   QrCode,
@@ -654,7 +666,6 @@ const DashboardPagesContent = ({ currentUser }: DashboardPagesContentProps) => {
     list: string;
     index: number;
   } | null>(null);
-  const [uploadingCryptoIconKey, setUploadingCryptoIconKey] = useState<string | null>(null);
   const [isPreviewLibraryOpen, setIsPreviewLibraryOpen] = useState(false);
   const [previewLibraryTarget, setPreviewLibraryTarget] = useState<ShareImagePageKey>("home");
   const requestIdRef = useRef(0);
@@ -913,59 +924,6 @@ const DashboardPagesContent = ({ currentUser }: DashboardPagesContentProps) => {
     updateDonations({
       cryptoServices: pages.donations.cryptoServices.filter((_, itemIndex) => itemIndex !== index),
     });
-  const uploadCryptoIconAt = useCallback(
-    async (index: number, file: File) => {
-      const targetService = pages.donations.cryptoServices[index];
-      const targetKey =
-        String(targetService?._editorKey || "").trim() || `donations-crypto-icon-${index}`;
-      setUploadingCryptoIconKey(targetKey);
-      try {
-        const nextUrl = await uploadDashboardImageAsset({
-          apiBase,
-          file,
-          folder: "shared/pages/donations/crypto",
-        });
-        setPages((prev) => {
-          const next = [...prev.donations.cryptoServices];
-          if (!next[index]) {
-            return prev;
-          }
-          next[index] = {
-            ...next[index],
-            iconUrl: nextUrl,
-            tintIcon: next[index].tintIcon !== false,
-          };
-          return {
-            ...prev,
-            donations: {
-              ...prev.donations,
-              cryptoServices: next,
-            },
-          };
-        });
-        toast({
-          title: "SVG enviado",
-          description: "O ícone da cripto foi atualizado.",
-          intent: "success",
-        });
-      } catch {
-        toast({
-          title: "Falha no upload",
-          description: "Não foi possível enviar o SVG da cripto.",
-          variant: "destructive",
-        });
-      } finally {
-        setUploadingCryptoIconKey((current) => (current === targetKey ? null : current));
-      }
-    },
-    [apiBase, pages.donations.cryptoServices],
-  );
-  const clearCryptoIconAt = (index: number) => {
-    updateCryptoServiceAt(index, {
-      iconUrl: "",
-      tintIcon: true,
-    });
-  };
   const updateFaq = (patch: Partial<PagesConfig["faq"]>) =>
     setPages((prev) => ({ ...prev, faq: { ...prev.faq, ...patch } }));
   const updateTeam = (patch: Partial<PagesConfig["team"]>) =>
@@ -2219,13 +2177,7 @@ const DashboardPagesContent = ({ currentUser }: DashboardPagesContentProps) => {
 
                             <div className="grid gap-4">
                               {pages.donations.cryptoServices.map((service, index) => {
-                                const previewLogoUrl = String(service.iconUrl || "").trim();
                                 const PreviewIcon = editorIconMap[service.icon] || Coins;
-                                const uploadStateKey =
-                                  String(service._editorKey || "").trim() ||
-                                  `donations-crypto-icon-${index}`;
-                                const isUploadingIcon = uploadingCryptoIconKey === uploadStateKey;
-                                const shouldTintCustomIcon = service.tintIcon !== false;
 
                                 return (
                                   <div
@@ -2391,30 +2343,6 @@ const DashboardPagesContent = ({ currentUser }: DashboardPagesContentProps) => {
                                             placeholder="https://..."
                                           />
                                         </DashboardFieldStack>
-                                        <DashboardFieldStack>
-                                          <Label htmlFor={`donations-crypto-icon-upload-${index}`}>
-                                            SVG customizado
-                                          </Label>
-                                          <Input
-                                            id={`donations-crypto-icon-upload-${index}`}
-                                            aria-label={`Enviar SVG do serviço cripto ${index + 1}`}
-                                            type="file"
-                                            accept="image/svg+xml"
-                                            onChange={(event) => {
-                                              const file = event.target.files?.[0];
-                                              if (file) {
-                                                void uploadCryptoIconAt(index, file);
-                                                event.currentTarget.value = "";
-                                              }
-                                            }}
-                                            disabled={isUploadingIcon}
-                                          />
-                                          <p
-                                            className={`text-xs ${dashboardPagesMetaTextClassName}`}
-                                          >
-                                            Envie um SVG para substituir o ícone padrão.
-                                          </p>
-                                        </DashboardFieldStack>
                                         <DashboardFieldStack className="md:col-span-2">
                                           <Label htmlFor={`donations-crypto-note-${index}`}>
                                             Nota
@@ -2450,29 +2378,6 @@ const DashboardPagesContent = ({ currentUser }: DashboardPagesContentProps) => {
                                             ariaLabel={`Selecionar ícone do serviço cripto ${index + 1}`}
                                           />
                                         </DashboardFieldStack>
-                                        <DashboardFieldStack>
-                                          <div className="flex items-center justify-between gap-3 rounded-xl border border-border/60 bg-background/70 px-3 py-2">
-                                            <div className="space-y-0.5">
-                                              <p className="text-sm font-medium text-foreground">
-                                                Aplicar ao icone
-                                              </p>
-                                              <p
-                                                className={`text-[11px] ${dashboardPagesMetaTextClassName}`}
-                                              >
-                                                Usa as cores do site no SVG enviado.
-                                              </p>
-                                            </div>
-                                            <Switch
-                                              checked={shouldTintCustomIcon}
-                                              onCheckedChange={(checked) =>
-                                                updateCryptoServiceAt(index, {
-                                                  tintIcon: checked,
-                                                })
-                                              }
-                                              aria-label={`Aplicar as cores do site ao servico cripto ${index + 1}`}
-                                            />
-                                          </div>
-                                        </DashboardFieldStack>
                                         <div className="space-y-2">
                                           <p
                                             className={`text-xs ${dashboardPagesMetaTextClassName}`}
@@ -2481,32 +2386,7 @@ const DashboardPagesContent = ({ currentUser }: DashboardPagesContentProps) => {
                                           </p>
                                           <div className="flex items-center gap-3 rounded-xl border border-border/60 bg-background/70 p-3">
                                             <div className="flex h-14 w-14 items-center justify-center overflow-hidden rounded-2xl border border-border/60 bg-background">
-                                              {previewLogoUrl ? (
-                                                shouldTintCustomIcon ? (
-                                                  <ThemedSvgMaskIcon
-                                                    url={normalizeAssetUrl(previewLogoUrl)}
-                                                    label={
-                                                      service.name
-                                                        ? `Logo ${service.name}`
-                                                        : `Logo do servico cripto ${index + 1}`
-                                                    }
-                                                    className="h-10 w-10 rounded-xl bg-background/90 p-1.5"
-                                                    color={settings.theme.accent || undefined}
-                                                  />
-                                                ) : (
-                                                  <img
-                                                    src={normalizeAssetUrl(previewLogoUrl)}
-                                                    alt={
-                                                      service.name
-                                                        ? `Logo ${service.name}`
-                                                        : `Logo do servico cripto ${index + 1}`
-                                                    }
-                                                    className="h-full w-full object-cover"
-                                                  />
-                                                )
-                                              ) : (
-                                                <PreviewIcon className="h-6 w-6 text-primary" />
-                                              )}
+                                              <PreviewIcon className="h-6 w-6 text-primary" />
                                             </div>
                                             <div className="min-w-0">
                                               <p className="truncate text-sm font-medium text-foreground">
@@ -2520,23 +2400,11 @@ const DashboardPagesContent = ({ currentUser }: DashboardPagesContentProps) => {
                                                   "Sem metadados extras"}
                                               </p>
                                             </div>
-                                            {previewLogoUrl ? (
-                                              <Button
-                                                type="button"
-                                                variant="ghost"
-                                                size="sm"
-                                                className="ml-auto shrink-0 text-xs text-muted-foreground hover:text-destructive"
-                                                onClick={() => clearCryptoIconAt(index)}
-                                              >
-                                                Remover SVG
-                                              </Button>
-                                            ) : null}
                                           </div>
                                           <p
                                             className={`text-xs ${dashboardPagesMetaTextClassName}`}
                                           >
-                                            Quando houver SVG enviado, ele substitui o ícone padrão
-                                            na página pública.
+                                            Moedas sem ícone dedicado usam o fallback genérico.
                                           </p>
                                         </div>
                                       </div>

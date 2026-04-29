@@ -450,6 +450,95 @@ describe("registerUserManagementRoutes", () => {
     );
   });
 
+  it("persists admin access role changes made by admins", async () => {
+    const { app, routes } = createAppRecorder();
+    const users = [
+      {
+        id: "admin-1",
+        accessRole: AccessRole.ADMIN,
+        avatarDisplay: { x: 0, y: 0, zoom: 1, rotation: 0 },
+        favoriteWorks: [],
+        permissions: [PermissionId.USUARIOS],
+        roles: [],
+        status: "active",
+        socials: [],
+      },
+      {
+        id: "user-2",
+        accessRole: AccessRole.NORMAL,
+        avatarDisplay: { x: 0, y: 0, zoom: 1, rotation: 0 },
+        favoriteWorks: [],
+        permissions: [PermissionId.POSTS],
+        roles: ["reviewer"],
+        status: "active",
+        socials: [],
+      },
+    ];
+    const persistCurrentUsers = vi.fn(({ users }) => users);
+    const dependencies = createDependencies({
+      app,
+      overrides: {
+        loadUsers: vi.fn(() => cloneJson(users)),
+        persistCurrentUsers,
+        getUserAccessContextById: vi.fn((userId) => {
+          if (String(userId) === "admin-1") {
+            return {
+              accessRole: AccessRole.ADMIN,
+              grants: { usuarios: true },
+              isOwner: false,
+              isPrimaryOwner: false,
+            };
+          }
+          return {
+            accessRole: AccessRole.NORMAL,
+            grants: {},
+            isOwner: false,
+            isPrimaryOwner: false,
+          };
+        }),
+        can: vi.fn(({ permissionId }) => permissionId === PermissionId.USUARIOS),
+        userWithAccessForResponse: vi.fn((user) => ({
+          ...user,
+          grants: { usuarios: user.accessRole === AccessRole.ADMIN },
+        })),
+      },
+    });
+
+    registerUserManagementRoutes(dependencies);
+
+    const route = getRoute(routes, "PUT", "/api/users/:id");
+    const res = await invokeFinalHandler(route, {
+      body: {
+        accessRole: AccessRole.ADMIN,
+        roles: ["reviewer"],
+        status: "active",
+      },
+      params: { id: "user-2" },
+      session: { user: { id: "admin-1" } },
+    });
+
+    expect(res.statusCode).toBe(200);
+    expect(persistCurrentUsers).toHaveBeenCalledWith(
+      expect.objectContaining({
+        users: expect.arrayContaining([
+          expect.objectContaining({
+            id: "user-2",
+            accessRole: AccessRole.ADMIN,
+            roles: ["reviewer"],
+            status: "active",
+            permissions: [PermissionId.POSTS],
+          }),
+        ]),
+      }),
+    );
+    expect(res.body.user).toEqual(
+      expect.objectContaining({
+        id: "user-2",
+        accessRole: AccessRole.ADMIN,
+      }),
+    );
+  });
+
   it("blocks secondary owners from deleting other owners", async () => {
     const { app, routes } = createAppRecorder();
     const users = [

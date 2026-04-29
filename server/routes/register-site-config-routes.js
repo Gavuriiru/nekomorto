@@ -31,10 +31,6 @@ export const registerSiteConfigRoutes = ({
     qrValue: trimText(service?.qrValue),
     note: trimText(service?.note),
     icon: trimText(service?.icon),
-    iconUrl: sanitizeIconSource
-      ? sanitizeIconSource(service?.iconUrl) || ""
-      : trimText(service?.iconUrl),
-    tintIcon: service?.tintIcon !== false,
     actionLabel: trimText(service?.actionLabel),
     actionUrl: trimText(service?.actionUrl),
   });

@@ -1,9 +1,13 @@
 ﻿import { act, fireEvent, render, screen, waitFor, within } from "@testing-library/react";
 import type { ReactNode } from "react";
 import { MemoryRouter } from "react-router-dom";
+import { Tabs } from "@/components/ui/tabs";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 import { dashboardMotionDelays } from "@/components/dashboard/dashboard-motion";
+import { DashboardSettingsTranslationsTab } from "@/components/dashboard/settings/DashboardSettingsTranslationsTab";
+import { DashboardSettingsProvider } from "@/components/dashboard/settings/dashboard-settings-context";
+import type { DashboardSettingsContextValue } from "@/components/dashboard/settings/dashboard-settings-types";
 import { defaultSettings } from "@/hooks/site-settings-context";
 import DashboardSettings, { __testing } from "@/pages/DashboardSettings";
 import type { SiteSettings } from "@/types/site-settings";
@@ -556,6 +560,61 @@ describe("DashboardSettings autosave", () => {
     expect(putCalls.filter((call) => call[1] === "/api/tag-translations")).toHaveLength(1);
     expect(putCalls.some((call) => call[1] === "/api/link-types")).toBe(false);
   }, 10000);
+
+  it("carrega mais tags automaticamente ao aproximar o scroll do fim", async () => {
+    const largeTags = Array.from(
+      { length: 90 },
+      (_, index) => `Tag ${String(index + 1).padStart(2, "0")}`,
+    );
+    const contextValue = {
+      filteredTags: largeTags,
+      filteredGenres: [],
+      filteredStaffRoles: [],
+      genreQuery: "",
+      genreTranslations: {},
+      handleSaveTranslations: vi.fn(),
+      hasResolvedTranslations: true,
+      isSavingTranslations: false,
+      isSyncingAniList: false,
+      newGenre: "",
+      newStaffRole: "",
+      newTag: "",
+      setGenreQuery: vi.fn(),
+      setGenreTranslations: vi.fn(),
+      setNewGenre: vi.fn(),
+      setNewStaffRole: vi.fn(),
+      setNewTag: vi.fn(),
+      setStaffRoleQuery: vi.fn(),
+      setStaffRoleTranslations: vi.fn(),
+      setTagQuery: vi.fn(),
+      setTagTranslations: vi.fn(),
+      staffRoleQuery: "",
+      staffRoleTranslations: {},
+      syncAniListTerms: vi.fn(),
+      tagQuery: "",
+      tagTranslations: Object.fromEntries(largeTags.map((tag) => [tag, ""])),
+    } as unknown as DashboardSettingsContextValue;
+
+    render(
+      <Tabs value="traducoes">
+        <DashboardSettingsProvider value={contextValue}>
+          <DashboardSettingsTranslationsTab />
+        </DashboardSettingsProvider>
+      </Tabs>,
+    );
+
+    expect(screen.getByPlaceholderText("Tag 01")).toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: /Mostrar mais/i })).not.toBeInTheDocument();
+    expect(screen.queryByPlaceholderText("Tag 85")).not.toBeInTheDocument();
+
+    const tagList = screen.getByRole("region", { name: "Lista de traduções de tags" });
+    Object.defineProperty(tagList, "scrollTop", { configurable: true, value: 170 });
+    Object.defineProperty(tagList, "clientHeight", { configurable: true, value: 120 });
+    Object.defineProperty(tagList, "scrollHeight", { configurable: true, value: 440 });
+    fireEvent.scroll(tagList);
+
+    expect(await screen.findByPlaceholderText("Tag 85")).toBeInTheDocument();
+  });
 
   it("editar tipo de link dispara apenas PUT /api/link-types", async () => {
     renderDashboardSettings();

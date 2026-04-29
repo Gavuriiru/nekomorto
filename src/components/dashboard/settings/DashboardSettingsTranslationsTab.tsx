@@ -3,6 +3,7 @@ import DashboardActionButton from "@/components/dashboard/DashboardActionButton"
 import { Card, CardContent } from "@/components/ui/card";
 import { TabsContent } from "@/components/ui/tabs";
 import { Download, Plus, Save, Trash2 } from "lucide-react";
+import type { UIEvent } from "react";
 import { useState } from "react";
 import { useDashboardSettingsContext } from "./dashboard-settings-context";
 import {
@@ -43,6 +44,7 @@ export const DashboardSettingsTranslationsTab = () => {
     tagTranslations,
   } = useDashboardSettingsContext();
   const translationBatchSize = 80;
+  const translationAutoLoadOffset = 160;
   const [visibleCounts, setVisibleCounts] = useState({
     genres: translationBatchSize,
     staffRoles: translationBatchSize,
@@ -51,6 +53,23 @@ export const DashboardSettingsTranslationsTab = () => {
   const visibleTags = filteredTags.slice(0, visibleCounts.tags);
   const visibleGenres = filteredGenres.slice(0, visibleCounts.genres);
   const visibleStaffRoles = filteredStaffRoles.slice(0, visibleCounts.staffRoles);
+  const hasHiddenTags = filteredTags.length > visibleTags.length;
+  const handleTagsScroll = (event: UIEvent<HTMLDivElement>) => {
+    if (!hasHiddenTags) {
+      return;
+    }
+
+    const listElement = event.currentTarget;
+    const remainingScroll =
+      listElement.scrollHeight - listElement.scrollTop - listElement.clientHeight;
+
+    if (remainingScroll <= translationAutoLoadOffset) {
+      setVisibleCounts((prev) => ({
+        ...prev,
+        tags: Math.min(prev.tags + translationBatchSize, filteredTags.length),
+      }));
+    }
+  };
 
   return (
     <TabsContent
@@ -120,33 +139,16 @@ export const DashboardSettingsTranslationsTab = () => {
               </DashboardActionButton>
             </div>
           </div>
-          <div className="flex flex-wrap items-center justify-between gap-2 text-xs text-foreground/70">
-            <span>
-              Mostrando {visibleTags.length} de {filteredTags.length} tags.
-              {filteredTags.length > visibleTags.length
-                ? " Refine a busca ou carregue mais resultados."
-                : ""}
-            </span>
-            {filteredTags.length > visibleTags.length ? (
-              <DashboardActionButton
-                type="button"
-                size="sm"
-                onClick={() =>
-                  setVisibleCounts((prev) => ({
-                    ...prev,
-                    tags: prev.tags + translationBatchSize,
-                  }))
-                }
-              >
-                Mostrar mais
-              </DashboardActionButton>
-            ) : null}
-          </div>
           <div className="overflow-hidden rounded-xl border border-border/70">
             {filteredTags.length === 0 ? (
               <p className="px-4 py-3 text-xs text-foreground/70">Nenhuma tag encontrada.</p>
             ) : (
-              <div className="max-h-[420px] overflow-auto no-scrollbar">
+              <div
+                className="max-h-[420px] overflow-auto no-scrollbar"
+                role="region"
+                aria-label="Lista de traduções de tags"
+                onScroll={handleTagsScroll}
+              >
                 <table className={responsiveTranslationTableClass}>
                   <colgroup>
                     <col className={responsiveTranslationTermColClass} />
@@ -262,14 +264,8 @@ export const DashboardSettingsTranslationsTab = () => {
               </DashboardActionButton>
             </div>
           </div>
-          <div className="flex flex-wrap items-center justify-between gap-2 text-xs text-foreground/70">
-            <span>
-              Mostrando {visibleGenres.length} de {filteredGenres.length} gêneros.
-              {filteredGenres.length > visibleGenres.length
-                ? " Refine a busca ou carregue mais resultados."
-                : ""}
-            </span>
-            {filteredGenres.length > visibleGenres.length ? (
+          {filteredGenres.length > visibleGenres.length ? (
+            <div className="flex justify-end">
               <DashboardActionButton
                 type="button"
                 size="sm"
@@ -282,8 +278,8 @@ export const DashboardSettingsTranslationsTab = () => {
               >
                 Mostrar mais
               </DashboardActionButton>
-            ) : null}
-          </div>
+            </div>
+          ) : null}
           <div className="overflow-hidden rounded-xl border border-border/70">
             {filteredGenres.length === 0 ? (
               <p className="px-4 py-3 text-xs text-foreground/70">Nenhum gênero encontrado.</p>

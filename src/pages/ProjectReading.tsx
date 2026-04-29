@@ -591,6 +591,7 @@ const ProjectReading = () => {
         : heroImageAlt,
     mediaVariants,
     type: "article",
+    noIndex: true,
   });
 
   const chapterBadgeLabel = useMemo(() => {

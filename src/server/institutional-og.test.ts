@@ -126,7 +126,7 @@ describe("institutional og helper", () => {
 
     expect(model?.title).toBe("Projetos");
     expect(model?.subtitle).toBe(
-      "Explore o cat\u00e1logo da Nekomata e descubra projetos em andamento e conclu\u00eddos.",
+      "Explore os projetos da Nekomata, fansub e scan feita por f\u00e3s, com tradu\u00e7\u00f5es cuidadosas e carinho pela comunidade.",
     );
     expect(model?.backgroundSource).toBe("site-default-share-image");
     expect(model?.backgroundUrl).toBe("/uploads/default-og.jpg?preset=hero");

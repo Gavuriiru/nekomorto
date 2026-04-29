@@ -494,7 +494,7 @@ export const buildRbacManagedUserUpdate = ({
   ) {
     updated.accessRole = existing.accessRole;
   }
-  if (!actorIsPrimary && !actorIsSecondary) {
+  if (!actorIsPrimary && !actorIsSecondary && !actorIsAdmin) {
     updated.permissions = existing.permissions;
     updated.accessRole = existing.accessRole;
     updated.status = existing.status;

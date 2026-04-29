@@ -65,6 +65,7 @@ const dashboardUser = {
   name: "Admin",
   username: "admin",
   permissions: ["*"],
+  accessRole: "owner_primary",
   grants: {
     analytics: true,
     posts: true,
@@ -72,6 +73,12 @@ const dashboardUser = {
     projetos: true,
     audit_log: true,
   },
+};
+
+const dashboardAdminUser = {
+  ...dashboardUser,
+  id: "admin-1",
+  accessRole: "admin",
 };
 
 const buildOverviewPayload = (overrides: Record<string, unknown> = {}) => ({
@@ -276,6 +283,27 @@ describe("Dashboard overview async states", () => {
     await waitFor(() => {
       expect(screen.queryByTestId("dashboard-loading-skeleton")).not.toBeInTheDocument();
     });
+  });
+
+  it("oculta exportacao de relatorio para admin que nao e owner", async () => {
+    installDashboardApiMock({
+      userResponse: mockJsonResponse(true, dashboardAdminUser),
+      overviewResponse: mockJsonResponse(true, buildOverviewPayload()),
+      preferencesResponse: mockJsonResponse(true, { preferences: {} }),
+      operationalAlertsResponse: mockJsonResponse(true, buildOperationalAlertsPayload()),
+    });
+
+    render(
+      <MemoryRouter initialEntries={["/dashboard"]}>
+        <Dashboard />
+      </MemoryRouter>,
+    );
+
+    await waitFor(() => {
+      expect(screen.getByTestId("dashboard-shell")).toHaveAttribute("data-loading-user", "false");
+    });
+    expect(screen.queryByRole("button", { name: /Exportar relat/i })).not.toBeInTheDocument();
+    expect(screen.queryByRole("link", { name: "Fazer login" })).not.toBeInTheDocument();
   });
 
   it("usa o padrao estavel no fallback de login do header", async () => {

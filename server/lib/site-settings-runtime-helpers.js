@@ -12,7 +12,7 @@ export const defaultSiteSettings = {
     logoUrl: "",
     faviconUrl: "",
     description:
-      "Fansub dedicada a trazer histórias inesquecíveis com o carinho que a comunidade merece.",
+      "Fansub e scan dedicada a trazer histórias inesquecíveis com o carinho que a comunidade merece.",
     defaultShareImage: "/placeholder.svg",
     defaultShareImageAlt: "Imagem padrão de compartilhamento da Nekomata",
     titleSeparator: " | ",

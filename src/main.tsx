@@ -15,7 +15,7 @@ installVitePreloadRecovery();
 
 const titleForPath = (path: string) => {
   const rules: Array<[RegExp, string]> = [
-    [/^\/$/, "Início"],
+    [/^\/$/, ""],
     [/^\/postagem\/.+/, "Postagem"],
     [/^\/equipe\/?$/, "Equipe"],
     [/^\/sobre\/?$/, "Sobre"],
@@ -102,40 +102,12 @@ const bootstrap = async () => {
     />,
   );
 
-  const dismissLoader = () => {
-    requestAnimationFrame(() => {
-      requestAnimationFrame(() => {
-        const loader = document.getElementById("vite-app-loader");
-        if (!loader) {
-          return;
-        }
-        loader.style.opacity = "0";
-        loader.addEventListener("transitionend", () => loader.remove(), { once: true });
-        // Safety: remove even if the transition event never fires
-        globalWindow.setTimeout(() => loader.remove(), 500);
-      });
-    });
-  };
-
   startPublicFreshnessCoordinator({
     globalWindow: window,
     apiBase,
   });
 
-  // When the hero shell is present (home page via Express), the CSS already
-  // hides the spinner — just remove it from the DOM immediately.
-  const hasHeroShell = document.getElementById("home-hero-shell") !== null;
-  if (hasHeroShell) {
-    document.getElementById("vite-app-loader")?.remove();
-  }
-
-  // When server-injected data was present, React already has content — dismiss
-  // the loader after the first painted frame.
-  if (!hasHeroShell && (initialBootstrap || shouldSkipPublicBootstrapFetch)) {
-    dismissLoader();
-  } else {
-    // No data yet — keep the spinner visible while we fetch in the background,
-    // then dismiss after React has had a frame to re-render with real content.
+  if (!(initialBootstrap || shouldSkipPublicBootstrapFetch)) {
     void (async () => {
       try {
         const fetchTimeoutMs = 4000;
@@ -156,7 +128,6 @@ const bootstrap = async () => {
           if (resolved) {
             primePublicBootstrapCache(resolved);
             globalWindow.__BOOTSTRAP_PUBLIC__ = resolved;
-            dismissLoader();
             return;
           }
         }
@@ -180,8 +151,6 @@ const bootstrap = async () => {
       } catch {
         // Best-effort — the app's hooks will retry on their own schedule.
       }
-      // Dismiss regardless — even if the fetch failed, we don't block forever.
-      dismissLoader();
     })();
   }
 };
