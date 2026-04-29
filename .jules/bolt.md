@@ -5,3 +5,7 @@
 ## 2025-02-28 - O(N) date parsing optimization for Comment Trees
 **Learning:** When constructing recursive nested trees from flat API lists (e.g., comments) and sorting them by date using `Date(string).getTime()`, placing the `new Date()` object instantiation inside the nested `.sort()` function call invokes O(N log N) recursive date parsing operations, which heavily bottlenecks the main thread on platforms that use slower engines for `new Date()`.
 **Action:** Pre-compute and map timestamps on the `CommentNode` itself inside an initial, simple O(N) loop before any sorting or recursive mapping occurs, transforming `O(N log N)` date parses into a simple array mutation.
+
+## 2025-02-28 - O(N) date parsing optimization for Hero Section Sorting
+**Learning:** Similar to previous findings with comment trees, applying the `.sort()` method directly to an array with a `new Date(string).getTime()` comparator leads to O(N log N) redundant date object allocations and calculations, leading to CPU overhead and delays during re-rendering, especially for collections like public updates.
+**Action:** Always pre-compute derived primitives (such as numeric timestamps) via an initial `.map()` traversal, so that the ensuing `.sort()` operation only performs simple, highly optimized numeric comparisons, following the Schwartzian transform pattern.
