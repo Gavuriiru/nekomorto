@@ -6,6 +6,7 @@
  *
  */
 
+import DOMPurify from "dompurify";
 import { useCallback, useEffect, useRef } from "react";
 
 const getElement = (): HTMLElement => {
@@ -58,7 +59,9 @@ export default function useReport(): (
       if (timer.current !== null) {
         clearTimeout(timer.current);
       }
-      element.innerHTML = content;
+      element.innerHTML = DOMPurify.sanitize(content, {
+        USE_PROFILES: { html: true },
+      });
       timer.current = setTimeout(cleanup, 1000);
       return timer.current;
     },
