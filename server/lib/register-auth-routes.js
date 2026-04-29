@@ -65,50 +65,6 @@ export const registerAuthRoutes = ({
   const resolveStoredUsers = () => (Array.isArray(loadUsers?.()) ? loadUsers() : []);
   const resolveAllowedUsersList = () =>
     Array.isArray(loadAllowedUsers?.()) ? loadAllowedUsers().map((entry) => String(entry || "").trim()) : [];
-  const resolveOwnerIdsList = () =>
-    Array.isArray(loadOwnerIds?.()) ? loadOwnerIds().map((entry) => String(entry || "").trim()) : [];
-
-  const getUserPrivilegeVector = (user) => {
-    const userId = String(user?.id || "").trim();
-    const ownerIds = resolveOwnerIdsList();
-    const identityCount = Array.isArray(loadUserIdentityRecords?.({ userId }))
-      ? loadUserIdentityRecords({ userId }).filter((entry) => !entry?.disabledAt).length
-      : 0;
-    return {
-      userId,
-      isPrimaryOwner: Boolean(userId && ownerIds[0] === userId),
-      isSecondaryOwner: Boolean(userId && ownerIds.includes(userId) && ownerIds[0] !== userId),
-      isAdmin: String(user?.accessRole || "").trim().toLowerCase() === "admin",
-      hasTotp: typeof isTotpEnabledForUser === "function" ? isTotpEnabledForUser(userId) : false,
-      identityCount,
-      createdAtTs: Number.isFinite(new Date(user?.createdAt || 0).getTime())
-        ? new Date(user?.createdAt || 0).getTime()
-        : Number.MAX_SAFE_INTEGER,
-    };
-  };
-
-  const comparePrivilegeVectors = (left, right) => {
-    const fields = [
-      [left.isPrimaryOwner, right.isPrimaryOwner],
-      [left.isSecondaryOwner, right.isSecondaryOwner],
-      [left.isAdmin, right.isAdmin],
-      [left.hasTotp, right.hasTotp],
-    ];
-    for (const [leftValue, rightValue] of fields) {
-      if (leftValue === rightValue) {
-        continue;
-      }
-      return leftValue ? -1 : 1;
-    }
-    if (left.identityCount !== right.identityCount) {
-      return right.identityCount - left.identityCount;
-    }
-    if (left.createdAtTs !== right.createdAtTs) {
-      return left.createdAtTs - right.createdAtTs;
-    }
-    return String(left.userId).localeCompare(String(right.userId));
-  };
-
   const buildIdentityRecord = ({
     existingRecord = null,
     userId,
@@ -150,80 +106,68 @@ export const registerAuthRoutes = ({
   const resolvePreprovisionedUserForEmail = (emailNormalized) => {
     const normalizedEmail = normalizeComparableEmail(emailNormalized);
     if (!normalizedEmail) {
-      return { blockedReason: "preprovision_required", userId: null };
+      return { blockedReason: "preprovision_required", userId: null, candidateCount: 0 };
     }
     const users = resolveStoredUsers();
     const matches = users.filter((entry) => normalizeComparableEmail(entry?.email) === normalizedEmail);
     if (!matches.length) {
-      return { blockedReason: "preprovision_required", userId: null };
+      return { blockedReason: "preprovision_required", userId: null, candidateCount: 0 };
     }
     if (matches.length > 1) {
-      return { blockedReason: "ambiguous_candidate", userId: null };
+      return { blockedReason: "ambiguous_candidate", userId: null, candidateCount: matches.length };
     }
     const userId = String(matches[0]?.id || "").trim();
     if (!userId) {
-      return { blockedReason: "preprovision_required", userId: null };
+      return { blockedReason: "preprovision_required", userId: null, candidateCount: matches.length };
     }
     const allowedUsers = resolveAllowedUsersList();
     if (allowedUsers.length && !allowedUsers.includes(userId)) {
-      return { blockedReason: "preprovision_required", userId: null };
+      return { blockedReason: "preprovision_required", userId: null, candidateCount: matches.length };
     }
-    return { blockedReason: null, userId };
+    return { blockedReason: null, userId, candidateCount: matches.length };
   };
 
   const resolveCanonicalUserForVerifiedEmail = ({ emailNormalized, provider }) => {
     const normalizedEmail = String(emailNormalized || "").trim().toLowerCase();
     const normalizedProvider = String(provider || "").trim();
     if (!normalizedEmail || !normalizedProvider) {
-      return { blockedReason: "no_candidate", canonicalUserId: null, absorbedUserIds: [] };
+      return { blockedReason: "preprovision_required", canonicalUserId: null, candidateCount: 0 };
     }
     const preprovisioned = resolvePreprovisionedUserForEmail(normalizedEmail);
     if (!preprovisioned.userId) {
       return {
         blockedReason: preprovisioned.blockedReason || "preprovision_required",
         canonicalUserId: null,
-        absorbedUserIds: [],
+        candidateCount: preprovisioned.candidateCount || 0,
       };
     }
     const identityMatches = Array.isArray(findUserIdentityRecordsByEmail?.(normalizedEmail, { includeDisabled: false }))
       ? findUserIdentityRecordsByEmail(normalizedEmail, { includeDisabled: false })
       : [];
-    const conflictingSameProvider = identityMatches.filter(
+    const conflictingSameProvider = identityMatches.some(
       (entry) => String(entry?.provider || "").trim() === normalizedProvider,
     );
-    if (conflictingSameProvider.length > 0) {
-      return { blockedReason: "same_provider_conflict", canonicalUserId: null, absorbedUserIds: [] };
-    }
-    const candidateUserIds = new Set(
-      identityMatches.map((entry) => String(entry?.userId || "").trim()).filter(Boolean),
-    );
-    const candidateIds = [...candidateUserIds];
-    if (!candidateIds.length) {
+    if (conflictingSameProvider) {
       return {
-        blockedReason: null,
-        canonicalUserId: preprovisioned.userId,
-        absorbedUserIds: [],
+        blockedReason: "same_provider_conflict",
+        canonicalUserId: null,
+        candidateCount: preprovisioned.candidateCount || 1,
       };
     }
-    if (!candidateIds.includes(preprovisioned.userId)) {
-      return { blockedReason: "ambiguous_candidate", canonicalUserId: null, absorbedUserIds: [] };
+    const conflictingIdentity = identityMatches.some(
+      (entry) => String(entry?.userId || "").trim() !== preprovisioned.userId,
+    );
+    if (conflictingIdentity) {
+      return {
+        blockedReason: "ambiguous_candidate",
+        canonicalUserId: null,
+        candidateCount: preprovisioned.candidateCount || 1,
+      };
     }
-    const users = resolveStoredUsers();
-    const candidates = candidateIds
-      .map((userId) => users.find((entry) => String(entry?.id || "") === userId) || { id: userId })
-      .map((user) => ({ user, vector: getUserPrivilegeVector(user) }))
-      .sort((left, right) => comparePrivilegeVectors(left.vector, right.vector));
-    if (!candidates.length) {
-      return { blockedReason: "no_candidate", canonicalUserId: null, absorbedUserIds: [] };
-    }
-    if (candidates.some(({ user }) => normalizeComparableEmail(user?.email) !== normalizedEmail)) {
-      return { blockedReason: "ambiguous_candidate", canonicalUserId: null, absorbedUserIds: [] };
-    }
-    const canonicalUserId = preprovisioned.userId;
     return {
       blockedReason: null,
-      canonicalUserId,
-      absorbedUserIds: candidateIds.filter((userId) => userId !== canonicalUserId),
+      canonicalUserId: preprovisioned.userId,
+      candidateCount: preprovisioned.candidateCount || 1,
     };
   };
 
@@ -286,6 +230,28 @@ export const registerAuthRoutes = ({
     req.session.oauthLinkError = null;
   };
 
+  const auditBlockedIdentityResolution = ({
+    req,
+    provider,
+    intent,
+    reason,
+    emailNormalized,
+    emailVerified,
+    candidateCount,
+    existingIdentityUserId,
+  } = {}) => {
+    appendAuditLog(req, intent === "link" ? "auth.identity.link_blocked" : "auth.identity.blocked", "auth", {
+      provider: String(provider || "").trim() || null,
+      intent: String(intent || "login").trim() || "login",
+      reason: String(reason || "unauthorized").trim() || "unauthorized",
+      emailNormalized: normalizeComparableEmail(emailNormalized) || null,
+      emailVerified: emailVerified === true,
+      currentSessionUserId: String(req?.session?.user?.id || "").trim() || null,
+      candidateCount: Number.isFinite(candidateCount) ? candidateCount : null,
+      existingIdentityUserId: String(existingIdentityUserId || "").trim() || null,
+    });
+  };
+
   const markLinkSuccessInSession = (req, provider) => {
     if (!req.session) {
       return;
@@ -315,92 +281,6 @@ export const registerAuthRoutes = ({
       },
     });
 
-  const mergeUsersIntoCanonical = async ({ canonicalUserId, absorbedUserIds } = {}) => {
-    const normalizedCanonicalUserId = String(canonicalUserId || "").trim();
-    const normalizedAbsorbedUserIds = Array.isArray(absorbedUserIds)
-      ? absorbedUserIds.map((entry) => String(entry || "").trim()).filter(Boolean)
-      : [];
-    if (!normalizedCanonicalUserId || !normalizedAbsorbedUserIds.length) {
-      return { ok: true, absorbedUserIds: [] };
-    }
-    const allIdentityRecords = Array.isArray(loadUserIdentityRecords?.({ includeDisabled: true }))
-      ? loadUserIdentityRecords({ includeDisabled: true })
-      : [];
-    const identitiesToMerge = allIdentityRecords.filter((entry) =>
-      normalizedAbsorbedUserIds.includes(String(entry?.userId || "")),
-    );
-    const canonicalIdentityRecords = allIdentityRecords.filter(
-      (entry) => String(entry?.userId || "") === normalizedCanonicalUserId,
-    );
-    for (const identity of identitiesToMerge) {
-      const conflictingProvider = canonicalIdentityRecords.find(
-        (entry) =>
-          String(entry?.provider || "") === String(identity?.provider || "") &&
-          String(entry?.providerSubject || "") !== String(identity?.providerSubject || ""),
-      );
-      if (conflictingProvider) {
-        return { ok: false, reason: "identity_provider_conflict" };
-      }
-    }
-    const nextIdentityRecords = [];
-    const seenIdentityKeys = new Set();
-    allIdentityRecords.forEach((entry) => {
-      const userId = normalizedAbsorbedUserIds.includes(String(entry?.userId || ""))
-        ? normalizedCanonicalUserId
-        : String(entry?.userId || "");
-      const provider = String(entry?.provider || "");
-      const providerSubject = String(entry?.providerSubject || "");
-      const dedupeKey = `${userId}:${provider}:${providerSubject}`;
-      if (seenIdentityKeys.has(dedupeKey)) {
-        return;
-      }
-      seenIdentityKeys.add(dedupeKey);
-      nextIdentityRecords.push({
-        ...entry,
-        userId,
-        updatedAt: new Date().toISOString(),
-      });
-    });
-    if (typeof writeUserIdentityRecords === "function") {
-      writeUserIdentityRecords(nextIdentityRecords);
-    }
-    const users = resolveStoredUsers();
-    const nextUsers = users
-      .filter((entry) => !normalizedAbsorbedUserIds.includes(String(entry?.id || "")))
-      .sort((left, right) => Number(left?.order || 0) - Number(right?.order || 0))
-      .map((entry, index) => ({ ...entry, order: index }));
-    writeUsers?.(nextUsers);
-    const currentAllowedUsers = resolveAllowedUsersList();
-    const nextAllowedUsers = Array.from(
-      new Set(
-        currentAllowedUsers
-          .filter((entry) => !normalizedAbsorbedUserIds.includes(String(entry || "")))
-          .concat(normalizedCanonicalUserId),
-      ),
-    );
-    writeAllowedUsers?.(nextAllowedUsers);
-    const currentOwnerIds = resolveOwnerIdsList();
-    const nextOwnerIds = currentOwnerIds.filter(
-      (entry) => !normalizedAbsorbedUserIds.includes(String(entry || "")),
-    );
-    writeOwnerIds?.(nextOwnerIds);
-    const absorbedSessionRecords = Array.isArray(loadUserSessionIndexRecords?.({ includeRevoked: false }))
-      ? loadUserSessionIndexRecords({ includeRevoked: false }).filter((entry) =>
-          normalizedAbsorbedUserIds.includes(String(entry?.userId || "")),
-        )
-      : [];
-    await Promise.all(
-      absorbedSessionRecords.map((entry) =>
-        revokeSessionBySid?.({
-          sid: entry.sid,
-          revokedBy: normalizedCanonicalUserId,
-          revokeReason: "account_merge",
-        }),
-      ),
-    );
-    return { ok: true, absorbedUserIds: normalizedAbsorbedUserIds };
-  };
-
   const finalizeProviderLinkOrMerge = async ({
     req,
     provider,
@@ -412,25 +292,71 @@ export const registerAuthRoutes = ({
     data,
   }) => {
     const intent = consumeLinkIntent(req);
+    const normalizedProvider = String(provider || "").trim();
+    const normalizedProviderSubject = String(providerSubject || "").trim();
     const currentSessionUserId = String(req.session?.user?.id || "").trim();
+    if (!normalizedProvider || !normalizedProviderSubject) {
+      auditBlockedIdentityResolution({
+        req,
+        provider: normalizedProvider,
+        intent,
+        reason: "invalid_provider_identity",
+        emailNormalized,
+        emailVerified,
+        candidateCount: 0,
+      });
+      return { error: "invalid_provider_identity", userId: null, absorbedUserIds: [] };
+    }
     const existingIdentity =
       typeof findUserIdentityRecord === "function"
-        ? findUserIdentityRecord(provider, providerSubject)
+        ? findUserIdentityRecord(normalizedProvider, normalizedProviderSubject)
         : null;
+    const block = (reason, extra = {}) => {
+      if (intent === "link") {
+        markLinkErrorInSession(req, reason);
+      }
+      auditBlockedIdentityResolution({
+        req,
+        provider: normalizedProvider,
+        intent,
+        reason,
+        emailNormalized,
+        emailVerified,
+        existingIdentityUserId: existingIdentity?.userId,
+        ...extra,
+      });
+      return { error: reason, userId: null, absorbedUserIds: [] };
+    };
+
+    if (existingIdentity?.disabledAt) {
+      return block("disabled_identity", { candidateCount: 0 });
+    }
+
     if (intent === "link") {
       if (!currentSessionUserId) {
-        return { error: "link_requires_authenticated_session", userId: null, absorbedUserIds: [] };
+        return block("link_requires_authenticated_session", { candidateCount: 0 });
       }
       if (existingIdentity?.userId && String(existingIdentity.userId) !== currentSessionUserId) {
-        markLinkErrorInSession(req, "identity_already_linked");
-        return { error: "identity_already_linked", userId: null, absorbedUserIds: [] };
+        return block("identity_already_linked", { candidateCount: 0 });
+      }
+      const loadedIdentityRecords = loadUserIdentityRecords?.({ userId: currentSessionUserId });
+      const currentProviderIdentities = Array.isArray(loadedIdentityRecords)
+        ? loadedIdentityRecords.filter((entry) => !entry?.disabledAt)
+        : [];
+      const sameProviderConflict = currentProviderIdentities.some(
+        (entry) =>
+          String(entry?.provider || "").trim() === normalizedProvider &&
+          String(entry?.providerSubject || "").trim() !== normalizedProviderSubject,
+      );
+      if (sameProviderConflict) {
+        return block("same_provider_conflict", { candidateCount: 1 });
       }
       upsertUserIdentityRecord?.(
         buildIdentityRecord({
           existingRecord: existingIdentity,
           userId: currentSessionUserId,
-          provider,
-          providerSubject,
+          provider: normalizedProvider,
+          providerSubject: normalizedProviderSubject,
           emailNormalized,
           emailVerified,
           displayName,
@@ -440,13 +366,13 @@ export const registerAuthRoutes = ({
       );
       return { error: null, userId: currentSessionUserId, absorbedUserIds: [], matchedBy: "manual_link" };
     }
-    if (existingIdentity?.userId && !existingIdentity.disabledAt) {
+    if (existingIdentity?.userId) {
       upsertUserIdentityRecord?.(
         buildIdentityRecord({
           existingRecord: existingIdentity,
           userId: existingIdentity.userId,
-          provider,
-          providerSubject,
+          provider: normalizedProvider,
+          providerSubject: normalizedProviderSubject,
           emailNormalized,
           emailVerified,
           displayName,
@@ -457,29 +383,20 @@ export const registerAuthRoutes = ({
       return { error: null, userId: String(existingIdentity.userId), absorbedUserIds: [] };
     }
     if (emailVerified !== true || !emailNormalized) {
-      return { error: "email_not_verified", userId: null, absorbedUserIds: [] };
+      return block("email_not_verified", { candidateCount: 0 });
     }
-    const resolved = resolveCanonicalUserForVerifiedEmail({ emailNormalized, provider });
+    const resolved = resolveCanonicalUserForVerifiedEmail({ emailNormalized, provider: normalizedProvider });
     if (!resolved.canonicalUserId) {
-      return {
-        error: resolved.blockedReason || "preprovision_required",
-        userId: null,
-        absorbedUserIds: [],
-      };
-    }
-    const mergeResult = await mergeUsersIntoCanonical({
-      canonicalUserId: resolved.canonicalUserId,
-      absorbedUserIds: resolved.absorbedUserIds,
-    });
-    if (!mergeResult.ok) {
-      return { error: mergeResult.reason || "merge_failed", userId: null, absorbedUserIds: [] };
+      return block(resolved.blockedReason || "preprovision_required", {
+        candidateCount: resolved.candidateCount || 0,
+      });
     }
     upsertUserIdentityRecord?.(
       buildIdentityRecord({
         existingRecord: existingIdentity,
         userId: resolved.canonicalUserId,
-        provider,
-        providerSubject,
+        provider: normalizedProvider,
+        providerSubject: normalizedProviderSubject,
         emailNormalized,
         emailVerified,
         displayName,
@@ -490,7 +407,7 @@ export const registerAuthRoutes = ({
     return {
       error: null,
       userId: resolved.canonicalUserId,
-      absorbedUserIds: resolved.absorbedUserIds,
+      absorbedUserIds: [],
       matchedBy: "verified_email",
     };
   };
@@ -926,10 +843,22 @@ export const registerAuthRoutes = ({
       });
 
       if (resolvedIdentity.error || !resolvedIdentity.userId) {
-        safeDestroySession(req);
+        const isLinkIntent = consumeLinkIntent(req) === "link";
+        if (!isLinkIntent) {
+          safeDestroySession(req);
+        }
         metricsRegistry.inc("auth_login_total", { status: "failed" });
         handleAuthFailureSecuritySignals({ req, error: resolvedIdentity.error || "unauthorized" });
         appendAuditLog(req, "auth.login.failed", "auth", { error: resolvedIdentity.error || "unauthorized" });
+        if (isLinkIntent) {
+          clearOAuthSessionState(req);
+          try {
+            await saveSessionState(req);
+          } catch {
+            return redirectToLoginServerError();
+          }
+          return res.redirect(buildLinkedDashboardRedirect({ req, loginAppOrigin }));
+        }
         return res.redirect(
           buildAuthRedirectUrl({
             appOrigin: loginAppOrigin,
@@ -1014,10 +943,6 @@ export const registerAuthRoutes = ({
         return redirectToLoginServerError();
       }
       clearOAuthSessionState(req);
-      await revokeMergedUserSessions({
-        absorbedUserIds: resolvedIdentity.absorbedUserIds,
-        actorUserId: authenticatedUser.id,
-      });
 
       const finalized = await finalizeAuthenticatedLogin({
         req,
@@ -1153,10 +1078,28 @@ export const registerAuthRoutes = ({
       });
 
       if (resolvedIdentity.error || !resolvedIdentity.userId) {
-        safeDestroySession(req);
+        const isLinkIntent = consumeLinkIntent(req) === "link";
+        if (!isLinkIntent) {
+          safeDestroySession(req);
+        }
         metricsRegistry.inc("auth_login_total", { status: "failed" });
         handleAuthFailureSecuritySignals({ req, error: resolvedIdentity.error || "unauthorized" });
         appendAuditLog(req, "auth.google.failed", "auth", { error: resolvedIdentity.error || "unauthorized" });
+        if (isLinkIntent) {
+          clearOAuthSessionState(req);
+          try {
+            await saveSessionState(req);
+          } catch {
+            return res.redirect(
+              buildAuthRedirectUrl({
+                appOrigin: loginAppOrigin,
+                path: "/login",
+                searchParams: { error: "server_error" },
+              }),
+            );
+          }
+          return res.redirect(buildLinkedDashboardRedirect({ req, loginAppOrigin }));
+        }
         return res.redirect(
           buildAuthRedirectUrl({
             appOrigin: loginAppOrigin,
@@ -1236,10 +1179,6 @@ export const registerAuthRoutes = ({
         },
       });
       clearOAuthSessionState(req);
-      await revokeMergedUserSessions({
-        absorbedUserIds: resolvedIdentity.absorbedUserIds,
-        actorUserId: authenticatedUser.id,
-      });
 
       const finalized = await finalizeAuthenticatedLogin({
         req,

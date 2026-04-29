@@ -590,4 +590,78 @@ describe("registerUserManagementRoutes", () => {
     expect(res.body).toEqual({ error: "cannot_delete_primary_owner" });
     expect(dependencies.persistCurrentUsers).not.toHaveBeenCalled();
   });
+
+  it("deletes a managed user through RBAC v2 and audits the removed snapshot", async () => {
+    const { app, routes } = createAppRecorder();
+    let storedUsers = [
+      {
+        id: "owner-1",
+        name: "Owner",
+        phrase: "",
+        bio: "",
+        email: "owner@example.com",
+        accessRole: AccessRole.OWNER_PRIMARY,
+        status: "active",
+        order: 0,
+      },
+      {
+        id: "user-1",
+        name: "User",
+        phrase: "",
+        bio: "",
+        email: "user@example.com",
+        accessRole: AccessRole.NORMAL,
+        status: "active",
+        order: 1,
+      },
+    ];
+    let ownerIds = ["owner-1"];
+    const dependencies = createDependencies({
+      app,
+      overrides: {
+        loadUsers: vi.fn(() => cloneJson(storedUsers)),
+        normalizeUsers: vi.fn((users) => users),
+        loadOwnerIds: vi.fn(() => ownerIds),
+        writeOwnerIds: vi.fn((nextOwnerIds) => {
+          ownerIds = nextOwnerIds;
+        }),
+        getUserAccessContextById: vi.fn((id) => ({
+          accessRole: id === "owner-1" ? AccessRole.OWNER_PRIMARY : AccessRole.NORMAL,
+          grants: id === "owner-1" ? { manage: true } : {},
+          isOwner: id === "owner-1",
+          isPrimaryOwner: id === "owner-1",
+        })),
+        persistCurrentUsers: vi.fn(({ users }) => {
+          storedUsers = cloneJson(users);
+          return users;
+        }),
+        userWithAccessForResponse: vi.fn((user) => ({ ...user, access: "scoped" })),
+      },
+    });
+
+    registerUserManagementRoutes(dependencies);
+
+    const route = getRoute(routes, "DELETE", "/api/users/:id");
+    const res = await invokeFinalHandler(route, {
+      params: { id: "user-1" },
+      session: { user: { id: "owner-1" } },
+    });
+
+    expect(res.statusCode).toBe(200);
+    expect(res.body).toEqual({ ok: true, ownerIds: ["owner-1"], primaryOwnerId: "owner-1" });
+    expect(dependencies.persistCurrentUsers).toHaveBeenCalledWith({
+      users: [expect.objectContaining({ id: "owner-1" })],
+    });
+    expect(dependencies.appendAuditLog).toHaveBeenCalledWith(
+      expect.anything(),
+      "users.delete",
+      "users",
+      expect.objectContaining({
+        id: "user-1",
+        wasOwner: false,
+        before: expect.objectContaining({ id: "user-1", access: "scoped" }),
+      }),
+    );
+  });
+
 });

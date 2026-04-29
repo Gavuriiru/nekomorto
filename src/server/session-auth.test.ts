@@ -120,4 +120,40 @@ describe("buildAuthRedirectUrl", () => {
       }),
     ).toBe("http://localhost:5173/dashboard/posts?tab=scheduled");
   });
+
+  it("rejects protocol-relative redirect paths", () => {
+    expect(
+      buildAuthRedirectUrl({
+        appOrigin: "http://localhost:5173",
+        path: "//evil.example/path",
+      }),
+    ).toBe("http://localhost:5173/");
+  });
+
+  it("rejects backslash redirect paths", () => {
+    expect(
+      buildAuthRedirectUrl({
+        appOrigin: "http://localhost:5173",
+        path: String.raw`/\evil.example`,
+      }),
+    ).toBe("http://localhost:5173/");
+  });
+
+  it("rejects absolute redirect paths", () => {
+    expect(
+      buildAuthRedirectUrl({
+        appOrigin: "http://localhost:5173",
+        path: "https://evil.example/x",
+      }),
+    ).toBe("http://localhost:5173/");
+  });
+
+  it("preserves safe internal path search and hash", () => {
+    expect(
+      buildAuthRedirectUrl({
+        appOrigin: "http://localhost:5173",
+        path: "/dashboard?tab=x#profile",
+      }),
+    ).toBe("http://localhost:5173/dashboard?tab=x#profile");
+  });
 });

@@ -580,7 +580,7 @@ describe("registerUserRoutes", () => {
     });
   });
 
-  it("falls back to the session email for PUT /api/users/self and returns a specific error when unresolved", async () => {
+  it("rejects PUT /api/users/self when the session id does not match a stored user", async () => {
     const { app, routes } = createAppRecorder();
     const storedUsers = [
       {
@@ -607,10 +607,6 @@ describe("registerUserRoutes", () => {
         loadUsers: vi.fn(() => cloneJson(storedUsers)),
         normalizeUsers: vi.fn((users) => users),
         pickBasicProfilePatch: vi.fn((update) => ({ name: update.name })),
-        withUserProfileRevision: vi.fn((user) => ({
-          ...user,
-          revision: "email-fallback-revision",
-        })),
       },
     });
 
@@ -618,7 +614,7 @@ describe("registerUserRoutes", () => {
 
     const route = getRoute(routes, "PUT", "/api/users/self");
 
-    const fallbackRes = await invokeRouteHandlers(route, {
+    const mismatchRes = await invokeRouteHandlers(route, {
       body: { name: "Por email" },
       session: {
         user: {
@@ -629,14 +625,18 @@ describe("registerUserRoutes", () => {
       },
     });
 
-    expect(fallbackRes.statusCode).toBe(200);
-    expect(fallbackRes.body).toEqual({
-      user: expect.objectContaining({
-        id: "user-2",
-        name: "Por email",
-        revision: "email-fallback-revision",
+    expect(mismatchRes.statusCode).toBe(404);
+    expect(mismatchRes.body).toEqual({ error: "self_user_not_found" });
+    expect(dependencies.appendAuditLog).toHaveBeenCalledWith(
+      expect.anything(),
+      "users.update_self.blocked",
+      "users",
+      expect.objectContaining({
+        sessionUserId: "external-subject",
+        sessionEmailPresent: true,
+        error: "self_user_not_found",
       }),
-    });
+    );
 
     const unresolvedRes = await invokeRouteHandlers(route, {
       body: { name: "Ignorado" },

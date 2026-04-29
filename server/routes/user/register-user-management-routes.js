@@ -552,7 +552,7 @@ export const registerUserManagementRoutes = ({
 
     users = rebuildUsersAfterDeletion(users.filter((user) => user.id !== targetId));
 
-    syncOwnerIdsAfterUserDeletion({
+    const nextOwnerIds = syncOwnerIdsAfterUserDeletion({
       loadOwnerIds,
       primaryOwnerId,
       targetId,
@@ -572,7 +572,7 @@ export const registerUserManagementRoutes = ({
     });
     return res.json({
       ok: true,
-      ownerIds: loadOwnerIds().map((id) => String(id)),
+      ownerIds: nextOwnerIds.map((id) => String(id)),
       primaryOwnerId: getPrimaryOwnerId() || null,
     });
   });

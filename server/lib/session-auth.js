@@ -19,7 +19,16 @@ const normalizeAppOrigin = (value) =>
     .replace(/\/+$/, "");
 const normalizeAppPath = (value, fallback = "/") => {
   const normalizedValue = String(value || "").trim();
-  if (!normalizedValue || !normalizedValue.startsWith("/")) {
+  if (
+    !normalizedValue ||
+    !normalizedValue.startsWith("/") ||
+    normalizedValue.startsWith("//") ||
+    normalizedValue.includes("\\") ||
+    Array.from(normalizedValue).some((char) => {
+      const code = char.charCodeAt(0);
+      return code <= 31 || code === 127;
+    })
+  ) {
     return fallback;
   }
   return normalizedValue;
@@ -54,7 +63,7 @@ export const buildAuthRedirectUrl = ({ appOrigin, path = "/", searchParams = nul
     });
   }
 
-  return normalizedOrigin ? url.toString() : `${url.pathname}${url.search}`;
+  return normalizedOrigin ? url.toString() : `${url.pathname}${url.search}${url.hash}`;
 };
 
 export const establishAuthenticatedSession = async ({ req, user, preserved = {} } = {}) => {

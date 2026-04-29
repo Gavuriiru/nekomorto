@@ -698,6 +698,153 @@ describe("registerAuthRoutes", () => {
     expect(res.redirectUrl).toBe("https://example.com/login");
   });
 
+
+  it("auto-links Google verified email only to a unique preprovisioned user", async () => {
+    const fetchMock = vi
+      .fn()
+      .mockResolvedValueOnce({ ok: true, json: async () => ({ access_token: "google-token" }) })
+      .mockResolvedValueOnce({
+        ok: true,
+        json: async () => ({
+          sub: "google-sub-unique",
+          email: "User@Example.com",
+          email_verified: true,
+          name: "User One",
+        }),
+      });
+    const upsertUserIdentityRecord = vi.fn();
+    const dependencies = createDependencies({
+      findUserIdentityRecord: vi.fn(() => null),
+      findUserIdentityRecordsByEmail: vi.fn(() => []),
+      loadUsers: vi.fn(() => [{ id: "user-1", name: "User One", email: "user@example.com" }]),
+      upsertUserIdentityRecord,
+    });
+    const routeLayer = getRouteLayer(dependencies.router, "get", "/auth/google/callback");
+    const originalFetch = globalThis.fetch;
+    Object.defineProperty(globalThis, "fetch", { configurable: true, value: fetchMock });
+
+    const res = await invokeRoute(routeLayer, {
+      query: { code: "google-code", state: "google-state" },
+      session: {
+        googleOauthState: "google-state",
+        googleRedirectUri: "https://example.com/auth/google/callback",
+        loginAppOrigin: "https://example.com",
+      },
+    });
+
+    Object.defineProperty(globalThis, "fetch", { configurable: true, value: originalFetch });
+
+    expect(res.statusCode).toBe(200);
+    expect(upsertUserIdentityRecord).toHaveBeenCalledWith(
+      expect.objectContaining({
+        userId: "user-1",
+        provider: "google",
+        providerSubject: "google-sub-unique",
+        emailNormalized: "user@example.com",
+        emailVerified: true,
+      }),
+    );
+  });
+
+  it("blocks Google verified email when multiple stored users match", async () => {
+    const fetchMock = vi
+      .fn()
+      .mockResolvedValueOnce({ ok: true, json: async () => ({ access_token: "google-token" }) })
+      .mockResolvedValueOnce({
+        ok: true,
+        json: async () => ({
+          sub: "google-sub-ambiguous",
+          email: "user@example.com",
+          email_verified: true,
+          name: "User One",
+        }),
+      });
+    const upsertUserIdentityRecord = vi.fn();
+    const dependencies = createDependencies({
+      findUserIdentityRecord: vi.fn(() => null),
+      loadUsers: vi.fn(() => [
+        { id: "user-1", name: "User One", email: "user@example.com" },
+        { id: "user-2", name: "User Two", email: "USER@example.com" },
+      ]),
+      upsertUserIdentityRecord,
+    });
+    const routeLayer = getRouteLayer(dependencies.router, "get", "/auth/google/callback");
+    const originalFetch = globalThis.fetch;
+    Object.defineProperty(globalThis, "fetch", { configurable: true, value: fetchMock });
+
+    const res = await invokeRoute(routeLayer, {
+      query: { code: "google-code", state: "google-state" },
+      session: {
+        googleOauthState: "google-state",
+        googleRedirectUri: "https://example.com/auth/google/callback",
+        loginAppOrigin: "https://example.com",
+        destroy: vi.fn((callback?: () => void) => callback?.()),
+      },
+    });
+
+    Object.defineProperty(globalThis, "fetch", { configurable: true, value: originalFetch });
+
+    expect(res.redirectUrl).toBe("https://example.com/login");
+    expect(upsertUserIdentityRecord).not.toHaveBeenCalled();
+    expect(dependencies.appendAuditLog).toHaveBeenCalledWith(
+      expect.anything(),
+      "auth.identity.blocked",
+      "auth",
+      expect.objectContaining({ reason: "ambiguous_candidate", candidateCount: 2 }),
+    );
+  });
+
+  it("blocks disabled provider identities", async () => {
+    const fetchMock = vi
+      .fn()
+      .mockResolvedValueOnce({ ok: true, json: async () => ({ access_token: "google-token" }) })
+      .mockResolvedValueOnce({
+        ok: true,
+        json: async () => ({
+          sub: "google-sub-disabled",
+          email: "user@example.com",
+          email_verified: true,
+          name: "User One",
+        }),
+      });
+    const upsertUserIdentityRecord = vi.fn();
+    const dependencies = createDependencies({
+      findUserIdentityRecord: vi.fn(() => ({
+        id: "google:google-sub-disabled",
+        userId: "user-1",
+        provider: "google",
+        providerSubject: "google-sub-disabled",
+        disabledAt: "2026-01-01T00:00:00.000Z",
+      })),
+      loadUsers: vi.fn(() => [{ id: "user-1", name: "User One", email: "user@example.com" }]),
+      upsertUserIdentityRecord,
+    });
+    const routeLayer = getRouteLayer(dependencies.router, "get", "/auth/google/callback");
+    const originalFetch = globalThis.fetch;
+    Object.defineProperty(globalThis, "fetch", { configurable: true, value: fetchMock });
+
+    const res = await invokeRoute(routeLayer, {
+      query: { code: "google-code", state: "google-state" },
+      session: {
+        googleOauthState: "google-state",
+        googleRedirectUri: "https://example.com/auth/google/callback",
+        loginAppOrigin: "https://example.com",
+        destroy: vi.fn((callback?: () => void) => callback?.()),
+      },
+    });
+
+    Object.defineProperty(globalThis, "fetch", { configurable: true, value: originalFetch });
+
+    expect(res.redirectUrl).toBe("https://example.com/login");
+    expect(upsertUserIdentityRecord).not.toHaveBeenCalled();
+    expect(dependencies.appendAuditLog).toHaveBeenCalledWith(
+      expect.anything(),
+      "auth.identity.blocked",
+      "auth",
+      expect.objectContaining({ reason: "disabled_identity", existingIdentityUserId: "user-1" }),
+    );
+  });
+
   it("clears the session cookie with the same secure attributes on logout", async () => {
     const revokeUserSessionIndexRecord = vi.fn();
     const dependencies = createDependencies({

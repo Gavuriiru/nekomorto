@@ -1,22 +1,11 @@
 import { diffUserFields, toUserApiResponse } from "./shared.js";
 
-const normalizeComparable = (value) => String(value || "").trim().toLowerCase();
-
 const resolveSelfUserIndex = (users, sessionUser) => {
   const normalizedSessionUserId = String(sessionUser?.id || "").trim();
-  if (normalizedSessionUserId) {
-    const matchedById = users.findIndex((user) => user.id === normalizedSessionUserId);
-    if (matchedById !== -1) {
-      return matchedById;
-    }
-  }
-
-  const normalizedSessionEmail = normalizeComparable(sessionUser?.email);
-  if (!normalizedSessionEmail) {
+  if (!normalizedSessionUserId) {
     return -1;
   }
-
-  return users.findIndex((user) => normalizeComparable(user?.email) === normalizedSessionEmail);
+  return users.findIndex((user) => user.id === normalizedSessionUserId);
 };
 
 export const registerUserSelfRoutes = ({
@@ -49,6 +38,11 @@ export const registerUserSelfRoutes = ({
     let users = normalizeUsers(loadUsers());
     const index = resolveSelfUserIndex(users, sessionUser);
     if (index === -1) {
+      appendAuditLog(req, "users.update_self.blocked", "users", {
+        sessionUserId: String(sessionUser?.id || "").trim() || null,
+        sessionEmailPresent: Boolean(String(sessionUser?.email || "").trim()),
+        error: "self_user_not_found",
+      });
       return res.status(404).json({ error: "self_user_not_found" });
     }
 
