@@ -47,6 +47,7 @@ import {
 } from "lexical";
 import * as React from "react";
 
+import DOMPurify from "dompurify";
 import { EmojiNode } from "./EmojiNode";
 import { KeywordNode } from "./KeywordNode";
 
@@ -199,7 +200,9 @@ export class ImageNode extends DecoratorNode<JSX.Element> {
       if (captionHtml) {
         const figureElement = document.createElement("figure");
         const figcaptionElement = document.createElement("figcaption");
-        figcaptionElement.innerHTML = captionHtml;
+        figcaptionElement.innerHTML = DOMPurify.sanitize(captionHtml, {
+          USE_PROFILES: { html: true },
+        });
 
         figureElement.appendChild(imgElement);
         figureElement.appendChild(figcaptionElement);
