@@ -1,16 +1,3 @@
-import {
-  Clapperboard,
-  Copy,
-  Eye,
-  FileImage,
-  FileText,
-  type LucideIcon,
-  PencilLine,
-  Plus,
-  Trash2,
-} from "lucide-react";
-import { useCallback, useDeferredValue, useEffect, useMemo, useRef, useState } from "react";
-import { Link, useNavigate } from "react-router-dom";
 import DashboardShell from "@/components/DashboardShell";
 import DashboardActionButton, {
   default as Button,
@@ -29,11 +16,6 @@ import {
   dashboardStrongSurfaceHoverClassName,
   dashboardSubtleSurfaceHoverClassName,
 } from "@/components/dashboard/dashboard-page-tokens";
-import type {
-  EditorProjectEpisode,
-  ProjectForm,
-  ProjectRecord,
-} from "@/components/dashboard/project-editor/dashboard-projects-editor-types";
 import ProjectEditorDialogShell from "@/components/dashboard/project-editor/ProjectEditorDialogShell";
 import ProjectEditorImageLibraryDialog from "@/components/dashboard/project-editor/ProjectEditorImageLibraryDialog";
 import ProjectEditorImportSection from "@/components/dashboard/project-editor/ProjectEditorImportSection";
@@ -46,6 +28,11 @@ import {
   ProjectEditorConfirmDialog,
   ProjectEditorDeleteDialog,
 } from "@/components/dashboard/project-editor/ProjectEditorSupportDialogs";
+import type {
+  EditorProjectEpisode,
+  ProjectForm,
+  ProjectRecord,
+} from "@/components/dashboard/project-editor/dashboard-projects-editor-types";
 import { DEFAULT_PROJECT_FORMAT_OPTIONS } from "@/components/dashboard/project-editor/project-editor-constants";
 import {
   buildEmptyProjectForm,
@@ -97,6 +84,19 @@ import { resolveEpisodeLookup } from "@/lib/project-episode-key";
 import { isChapterBasedType, isLightNovelType, isMangaType } from "@/lib/project-utils";
 import { buildVolumeCoverKey } from "@/lib/project-volume-cover-key";
 import { reorderItems } from "@/lib/reorder-items";
+import {
+  Clapperboard,
+  Copy,
+  Eye,
+  FileImage,
+  FileText,
+  type LucideIcon,
+  PencilLine,
+  Plus,
+  Trash2,
+} from "lucide-react";
+import { useCallback, useDeferredValue, useEffect, useMemo, useRef, useState } from "react";
+import { Link, useNavigate } from "react-router-dom";
 
 const getDedicatedEditorCtaIcon = (projectType?: string | null): LucideIcon => {
   const normalizedType = String(projectType || "").trim();
@@ -495,14 +495,12 @@ const DashboardProjectsEditor = () => {
       return next;
     }
     if (sortMode === "recent") {
-      // ⚡ Bolt: Optimize sorting by precomputing expensive date parsing operations
-      // This map-sort-map pattern prevents new Date().getTime() from running O(N log N) times inside the sort loop
-      const withTimes = next.map((project) => ({
-        project,
-        ts: new Date(project.updatedAt || project.createdAt || 0).getTime(),
-      }));
-      withTimes.sort((a, b) => b.ts - a.ts);
-      return withTimes.map((data) => data.project);
+      next.sort(
+        (a, b) =>
+          new Date(b.updatedAt || b.createdAt || 0).getTime() -
+          new Date(a.updatedAt || a.createdAt || 0).getTime(),
+      );
+      return next;
     }
     next.sort((a, b) => a.title.localeCompare(b.title, "pt-BR"));
     return next;

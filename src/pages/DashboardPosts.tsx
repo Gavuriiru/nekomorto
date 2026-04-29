@@ -1,26 +1,6 @@
-import {
-  CalendarDays,
-  Copy,
-  Eye,
-  List as ListIcon,
-  MessageSquare,
-  Plus,
-  RotateCcw,
-  Trash2,
-  UserRound,
-} from "lucide-react";
-import {
-  type CSSProperties,
-  type KeyboardEvent as ReactKeyboardEvent,
-  useCallback,
-  useEffect,
-  useLayoutEffect,
-  useMemo,
-  useRef,
-  useState,
-} from "react";
-import { Link, Navigate, useLocation, useNavigate, useSearchParams } from "react-router-dom";
 import DashboardShell from "@/components/DashboardShell";
+import ProjectEmbedCard from "@/components/ProjectEmbedCard";
+import UploadPicture from "@/components/UploadPicture";
 import DashboardActionButton, {
   default as Button,
 } from "@/components/dashboard/DashboardActionButton";
@@ -56,8 +36,6 @@ import {
 import LazyImageLibraryDialog from "@/components/lazy/LazyImageLibraryDialog";
 import type { LexicalEditorHandle } from "@/components/lexical/LexicalEditor";
 import LexicalEditorSurface from "@/components/lexical/LexicalEditorSurface";
-import ProjectEmbedCard from "@/components/ProjectEmbedCard";
-import UploadPicture from "@/components/UploadPicture";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import AsyncState from "@/components/ui/async-state";
 import { Badge } from "@/components/ui/badge";
@@ -119,6 +97,28 @@ import { getImageFileNameFromUrl, resolvePostCoverPreview } from "@/lib/post-cov
 import { buildTranslationMap, sortByTranslatedLabel, translateTag } from "@/lib/project-taxonomy";
 import { normalizeUploadVariantUrlKey, type UploadMediaVariantsMap } from "@/lib/upload-variants";
 import type { ContentVersion, EditorialCalendarItem } from "@/types/editorial";
+import {
+  CalendarDays,
+  Copy,
+  Eye,
+  List as ListIcon,
+  MessageSquare,
+  Plus,
+  RotateCcw,
+  Trash2,
+  UserRound,
+} from "lucide-react";
+import {
+  type CSSProperties,
+  type KeyboardEvent as ReactKeyboardEvent,
+  useCallback,
+  useEffect,
+  useLayoutEffect,
+  useMemo,
+  useRef,
+  useState,
+} from "react";
+import { Link, Navigate, useLocation, useNavigate, useSearchParams } from "react-router-dom";
 
 const POST_EDITOR_TOOLBAR_STICKY_OFFSET_PX = 5;
 
@@ -990,18 +990,6 @@ const DashboardPosts = () => {
 
   const sortedPosts = useMemo(() => {
     const next = [...filteredPosts];
-    if (sortMode === "recent" || sortMode === "projects") {
-      // ⚡ Bolt: Optimize sorting by precomputing expensive date parsing operations
-      // This map-sort-map pattern prevents new Date().getTime() from running O(N log N) times inside the sort loop
-      const withTimes = next.map((post) => ({
-        post,
-        publishedAtTs: new Date(post.publishedAt).getTime(),
-      }));
-
-      withTimes.sort((aData, bData) => bData.publishedAtTs - aData.publishedAtTs);
-      return withTimes.map((data) => data.post);
-    }
-
     next.sort((a, b) => {
       if (sortMode === "alpha") {
         return a.title.localeCompare(b.title, "pt-BR");
@@ -1017,6 +1005,9 @@ const DashboardPosts = () => {
         ];
         return tagsA.join(",").localeCompare(tagsB.join(","), "pt-BR");
       }
+      if (sortMode === "projects") {
+        return new Date(b.publishedAt).getTime() - new Date(a.publishedAt).getTime();
+      }
       if (sortMode === "status") {
         return a.status.localeCompare(b.status, "pt-BR");
       }
@@ -1026,7 +1017,7 @@ const DashboardPosts = () => {
       if (sortMode === "comments") {
         return (b.commentsCount || 0) - (a.commentsCount || 0);
       }
-      return 0; // Fallback
+      return new Date(b.publishedAt).getTime() - new Date(a.publishedAt).getTime();
     });
     return next;
   }, [filteredPosts, projectMap, sortMode]);
@@ -1047,18 +1038,13 @@ const DashboardPosts = () => {
       }
       map.get(key)?.push(item);
     });
-    // ⚡ Bolt: Optimize calendar items sorting to avoid redundant date parses O(N log N) inside .sort()
-    map.forEach((items, key) => {
-      const mapped = items.map((item) => ({
-        item,
-        ts: new Date(item.scheduledAt || item.publishedAt || 0).getTime(),
-      }));
-      mapped.sort((a, b) => a.ts - b.ts);
-      map.set(
-        key,
-        mapped.map((d) => d.item),
-      );
-    });
+    map.forEach((items) =>
+      items.sort(
+        (a, b) =>
+          new Date(a.scheduledAt || a.publishedAt || 0).getTime() -
+          new Date(b.scheduledAt || b.publishedAt || 0).getTime(),
+      ),
+    );
     return map;
   }, [calendarItems]);
   const calendarWeeks = useMemo(
