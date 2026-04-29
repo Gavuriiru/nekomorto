@@ -33,6 +33,7 @@ type MangaPageTileProps = {
   isPressed?: boolean;
   disabled: boolean;
   canJoinWithNext?: boolean;
+  animateReorderLayout?: boolean;
   reorderMotion: "spring" | "reduced";
   reorderTransition: Transition;
   onPointerDown?: (event: PointerEvent<HTMLDivElement>, index: number) => void;
@@ -121,6 +122,7 @@ const MangaPageTile = ({
   isPressed = false,
   disabled,
   canJoinWithNext = false,
+  animateReorderLayout = false,
   reorderMotion,
   reorderTransition,
   onPointerDown,
@@ -255,11 +257,11 @@ const MangaPageTile = ({
 
   return (
     <motion.article
-      layout={isDragged ? false : "position"}
+      layout={animateReorderLayout && !isDragged ? "position" : false}
       transition={reorderTransition}
       className="group"
       data-testid={`${testIdPrefix}-card-${index}`}
-      data-reorder-layout={!isDragged ? "animated" : "static"}
+      data-reorder-layout={animateReorderLayout && !isDragged ? "animated" : "static"}
     >
       <div
         role="button"
@@ -300,6 +302,7 @@ const MangaPageTile = ({
           alt={alt}
           preset="poster"
           draggable={false}
+          sizes="(min-width: 1280px) 20vw, (min-width: 1024px) 33vw, (min-width: 640px) 50vw, 100vw"
           className="h-full w-full select-none"
           imgClassName="h-full w-full select-none object-cover object-top"
         />
@@ -453,6 +456,7 @@ const areMangaPageTilePropsEqual = (previous: MangaPageTileProps, next: MangaPag
   previous.isPressed === next.isPressed &&
   previous.disabled === next.disabled &&
   previous.canJoinWithNext === next.canJoinWithNext &&
+  previous.animateReorderLayout === next.animateReorderLayout &&
   previous.reorderMotion === next.reorderMotion &&
   previous.reorderTransition === next.reorderTransition;
 

@@ -6,6 +6,7 @@ import {
   buildReorderAnnouncement,
   getReorderLayoutTransition,
   handleAltArrowReorder,
+  isReorderIndexInRange,
   reorderList,
   resolvePageDisplayName,
   usePointerReorder,
@@ -116,10 +117,44 @@ const archiveEntriesToFiles = async (file: File) => {
 };
 
 type MangaEditorPage = ReturnType<typeof normalizePagesForEditor>[number];
+type MangaEditorPageWithRenderKey = MangaEditorPage & { renderKey: string };
+
+const buildPageIdentityKey = (page: MangaEditorPage) =>
+  `${String(page.imageUrl || "").trim()}\u0001${String(page.displayName || "").trim()}`;
+
+const useStableMangaPageRenderKeys = (pages: MangaEditorPage[]) => {
+  const keyPoolRef = useRef<Map<string, string[]>>(new Map());
+  const nextKeyIdRef = useRef(0);
+
+  return useMemo(() => {
+    const availableKeys = new Map(keyPoolRef.current);
+    const nextKeyPool = new Map<string, string[]>();
+
+    const pagesWithKeys = pages.map((page) => {
+      const identityKey = buildPageIdentityKey(page);
+      const existingKeys = availableKeys.get(identityKey) || [];
+      const renderKey = existingKeys.shift() || `manga-page-${nextKeyIdRef.current++}`;
+      if (existingKeys.length > 0) {
+        availableKeys.set(identityKey, existingKeys);
+      } else {
+        availableKeys.delete(identityKey);
+      }
+
+      const nextKeys = nextKeyPool.get(identityKey) || [];
+      nextKeys.push(renderKey);
+      nextKeyPool.set(identityKey, nextKeys);
+
+      return { ...page, renderKey };
+    });
+
+    keyPoolRef.current = nextKeyPool;
+    return pagesWithKeys;
+  }, [pages]);
+};
 
 type MangaChapterPagesGridProps = {
   layoutGroupId: string;
-  pages: MangaEditorPage[];
+  pages: MangaEditorPageWithRenderKey[];
   coverImageUrl: string;
   isUploading: boolean;
   shouldReduceMotion: boolean;
@@ -169,8 +204,9 @@ const MangaChapterPagesGrid = memo(
     const pressedPage =
       pointerDragState?.sourceIndex !== undefined ? pages[pointerDragState.sourceIndex] : null;
     const shouldUseAnimatedLayout = dragIndex !== null || dragOverIndex !== null;
+    const shouldAnimateReorderLayout = shouldUseAnimatedLayout && !shouldReduceMotion;
 
-    const renderTile = (page: MangaEditorPage, index: number) => {
+    const renderTile = (page: MangaEditorPageWithRenderKey, index: number) => {
       const isCover = coverImageUrl === page.imageUrl;
       const isSpread = Boolean(page.spreadPairId);
       const isDragged = draggedPage === page;
@@ -182,7 +218,7 @@ const MangaChapterPagesGrid = memo(
 
       return (
         <MangaPageTile
-          key={`${page.imageUrl}-${page.position}`}
+          key={page.renderKey}
           testIdPrefix="manga-page"
           src={page.imageUrl}
           alt={`Página ${index + 1}`}
@@ -196,6 +232,9 @@ const MangaChapterPagesGrid = memo(
           isPressed={pressedPage === page}
           disabled={isUploading}
           canJoinWithNext={canJoinWithNext}
+          animateReorderLayout={
+            shouldAnimateReorderLayout && isReorderIndexInRange(dragIndex, dragOverIndex, index)
+          }
           reorderMotion={shouldReduceMotion ? "reduced" : "spring"}
           reorderTransition={reorderTransition}
           onPointerDown={startPointerReorder}
@@ -232,7 +271,11 @@ const MangaChapterPagesEditor = ({
   uploadFolder,
   onChange,
 }: MangaChapterPagesEditorProps) => {
-  const pages = useMemo(() => normalizePagesForEditor(chapter.pages || []), [chapter.pages]);
+  const normalizedPages = useMemo(
+    () => normalizePagesForEditor(chapter.pages || []),
+    [chapter.pages],
+  );
+  const pages = useStableMangaPageRenderKeys(normalizedPages);
   const fileInputRef = useRef<HTMLInputElement | null>(null);
   const folderInputRef = useRef<HTMLInputElement | null>(null);
   const archiveInputRef = useRef<HTMLInputElement | null>(null);

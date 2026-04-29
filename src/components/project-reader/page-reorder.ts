@@ -46,6 +46,19 @@ export const buildPreviewReorderList = <T>(
   return reorderList(items, Number(fromIndex), Number(toIndex));
 };
 
+export const isReorderIndexInRange = (
+  sourceIndex: number | null | undefined,
+  overIndex: number | null | undefined,
+  index: number,
+) => {
+  if (!Number.isFinite(sourceIndex) || !Number.isFinite(overIndex)) {
+    return false;
+  }
+  const start = Math.min(Number(sourceIndex), Number(overIndex));
+  const end = Math.max(Number(sourceIndex), Number(overIndex));
+  return index >= start && index <= end;
+};
+
 export const REORDER_POINTER_DRAG_THRESHOLD = 6;
 
 export type ReorderSurfaceRect = {
