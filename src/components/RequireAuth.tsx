@@ -143,6 +143,10 @@ const RequireAuth = ({ children }: RequireAuthProps) => {
   ]);
 
   if (isChecking) {
+    if (dashboardSession.hasProvider) {
+      return null;
+    }
+
     return <AppLoadingFallback fullScreen label="Verificando acesso..." />;
   }
 

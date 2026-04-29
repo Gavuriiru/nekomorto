@@ -91,6 +91,7 @@ const DEFAULT_ADMIN_PERMISSIONS: ReadonlyArray<(typeof permissionIds)[number]> =
   "analytics",
   "usuarios",
 ];
+const DEFAULT_ADMIN_PERMISSION_SET: ReadonlySet<string> = new Set(DEFAULT_ADMIN_PERMISSIONS);
 type FavoriteWorkCategory = (typeof FAVORITE_WORK_CATEGORIES)[number];
 type FavoriteWorksByCategory = Record<FavoriteWorkCategory, string[]>;
 type FavoriteWorksDraft = Record<FavoriteWorkCategory, [string, string, string]>;
@@ -110,6 +111,7 @@ type UserRecord = {
   roles?: string[];
   accessRole?: AccessRole;
   grants?: Partial<Record<string, boolean>>;
+  isAdmin?: boolean;
   order: number;
 };
 
@@ -137,6 +139,21 @@ const DashboardUsersLoadingSkeleton = () => (
   </div>
 );
 
+const hasLegacyAdminSignal = (
+  user: Pick<UserRecord, "permissions" | "isAdmin"> | null | undefined,
+) => {
+  if (!user) {
+    return false;
+  }
+  if (user.isAdmin === true) {
+    return true;
+  }
+  const permissions = Array.isArray(user.permissions)
+    ? user.permissions.map((permission) => String(permission || "").trim())
+    : [];
+  return permissions.includes("*") || permissions.includes("usuarios");
+};
+
 const buildSelfUserRecord = (
   currentUser:
     | {
@@ -150,6 +167,7 @@ const buildSelfUserRecord = (
       permissions?: string[];
       ownerIds?: string[];
       primaryOwnerId?: string | null;
+      isAdmin?: boolean;
       email?: string | null;
       phrase?: string;
       bio?: string;
@@ -163,6 +181,16 @@ const buildSelfUserRecord = (
     return null;
   }
 
+  const permissions = Array.isArray(currentUser.permissions) ? [...currentUser.permissions] : [];
+  const accessRole =
+    currentUser.accessRole === "admin" ||
+    hasLegacyAdminSignal({
+      isAdmin: currentUser.isAdmin,
+      permissions,
+    })
+      ? "admin"
+      : "normal";
+
   return {
     id: currentUser.id,
     name: currentUser.name,
@@ -174,10 +202,11 @@ const buildSelfUserRecord = (
     socials: Array.isArray(currentUser.socials) ? [...currentUser.socials] : [],
     favoriteWorks: currentUser.favoriteWorks || { manga: [], anime: [] },
     status: "active" as const,
-    permissions: Array.isArray(currentUser.permissions) ? [...currentUser.permissions] : [],
+    permissions,
     roles: [],
-    accessRole: currentUser.accessRole === "admin" ? "admin" : "normal",
+    accessRole,
     grants: currentUser.grants,
+    isAdmin: currentUser.isAdmin,
     order: 0,
   } satisfies UserRecord;
 };
@@ -388,7 +417,7 @@ const buildFavoriteWorksPayloadFromDraft = (
 
 const accessRoleOptions: Array<{ id: AccessRole; label: string }> = [
   { id: "normal", label: "Normal" },
-  { id: "admin", label: "Admin" },
+  { id: "admin", label: "Administrador" },
 ];
 
 const defaultRoleOptions = [
@@ -601,7 +630,7 @@ const DashboardUsers = () => {
       if (ownerIds.includes(user.id)) {
         return "owner_secondary";
       }
-      return user.accessRole === "admin" ? "admin" : "normal";
+      return user.accessRole === "admin" || hasLegacyAdminSignal(user) ? "admin" : "normal";
     },
     [ownerIds, primaryOwnerId],
   );
@@ -1931,24 +1960,24 @@ const DashboardUsers = () => {
         }
         onDragEnd={handleDragEnd}
       >
+        {canEditUser ? (
+          <button
+            type="button"
+            className="absolute inset-0 z-0 cursor-pointer rounded-2xl focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-primary/60"
+            aria-label={`Abrir usuário ${user.name}`}
+            onClick={() => handleUserCardClick(user)}
+          >
+            <span className="sr-only">{`Abrir usuário ${user.name}`}</span>
+          </button>
+        ) : null}
         <div
           data-slot="user-card-shell"
-          className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between"
+          className="pointer-events-none flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between"
         >
           <div className={`relative min-w-0 flex-1 ${canEditUser ? "cursor-pointer" : ""}`}>
-            {canEditUser ? (
-              <button
-                type="button"
-                className="absolute inset-0 z-0 rounded-2xl focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-primary/60"
-                aria-label={`Abrir usuário ${user.name}`}
-                onClick={() => handleUserCardClick(user)}
-              >
-                <span className="sr-only">{`Abrir usuário ${user.name}`}</span>
-              </button>
-            ) : null}
             <div
               data-slot="user-card-main"
-              className="pointer-events-none flex min-w-0 flex-col gap-4 sm:flex-row sm:items-start"
+              className="flex min-w-0 flex-col gap-4 sm:flex-row sm:items-start"
             >
               <DashboardAvatar
                 avatarUrl={toAvatarRenderUrl(renderedAvatarUrl, renderedAvatarRevision)}
@@ -2000,7 +2029,7 @@ const DashboardUsers = () => {
           </div>
           <div
             data-slot="user-card-controls"
-            className="relative z-10 flex shrink-0 flex-wrap items-center gap-2 self-start lg:self-auto"
+            className="pointer-events-auto relative z-10 flex shrink-0 flex-wrap items-center gap-2 self-start lg:self-auto"
           >
             {canManageUsers ? (
               <ReorderControls
@@ -2911,12 +2940,17 @@ const DashboardUsers = () => {
                                   accessRole: value === "admin" ? "admin" : "normal",
                                   permissions:
                                     value === "admin"
-                                      ? permissionOptions
-                                        .filter((option) =>
-                                          DEFAULT_ADMIN_PERMISSIONS.includes(option.id),
+                                      ? Array.from(
+                                          new Set([
+                                            ...prev.permissions,
+                                            ...permissionOptions
+                                              .filter((option) => DEFAULT_ADMIN_PERMISSION_SET.has(option.id))
+                                              .map((option) => option.id),
+                                          ]),
                                         )
-                                        .map((option) => option.id)
-                                      : prev.permissions,
+                                      : prev.permissions.filter(
+                                          (permission) => !DEFAULT_ADMIN_PERMISSION_SET.has(permission),
+                                        ),
                                 }))
                               }
                               disabled={!canEditAccessControls || isOwnerRecord}

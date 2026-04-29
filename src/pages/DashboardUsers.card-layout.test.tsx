@@ -1,4 +1,4 @@
-import { render, screen } from "@testing-library/react";
+import { render, screen, within } from "@testing-library/react";
 import type { ReactNode } from "react";
 import { MemoryRouter } from "react-router-dom";
 import { beforeEach, describe, expect, it, vi } from "vitest";
@@ -120,6 +120,29 @@ const setupApiMock = (users: ReturnType<typeof createUser>[]) => {
 describe("DashboardUsers card layout", () => {
   beforeEach(() => {
     apiFetchMock.mockReset();
+  });
+
+  it("shows administrator badge for admin users", async () => {
+    setupApiMock([
+      createUser({
+        id: "admin-canonical",
+        name: "Admin Canônico",
+        accessRole: "admin",
+      }),
+      createUser({
+        id: "admin-legacy",
+        name: "Admin Legado",
+        accessRole: "admin",
+      }),
+    ]);
+
+    renderDashboardUsers();
+
+    const canonicalCard = await screen.findByTestId("dashboard-user-card-admin-canonical");
+    const secondCard = await screen.findByTestId("dashboard-user-card-admin-legacy");
+
+    expect(within(canonicalCard).getByText("Administrador")).toBeInTheDocument();
+    expect(within(secondCard).getByText("Administrador")).toBeInTheDocument();
   });
 
   it("shares the responsive card shell between active and retired users", async () => {

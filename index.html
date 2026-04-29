@@ -35,45 +35,6 @@
 
   <body>
     <!-- APP_HOME_HERO_SHELL -->
-    <style>
-      .vite-app-loader {
-        position: fixed;
-        inset: 0;
-        display: flex;
-        align-items: center;
-        justify-content: center;
-        background-color: var(--background, #0a0a0a);
-        color: var(--foreground, #ededed);
-        font-family: system-ui, -apple-system, sans-serif;
-        z-index: 99999;
-        transition: opacity 0.3s ease;
-      }
-      html[data-theme-mode="light"] .vite-app-loader {
-        background-color: #ffffff;
-        color: #09090b;
-      }
-      .vite-app-loader-spinner {
-        width: 48px;
-        height: 48px;
-        border: 4px solid var(--app-loader-accent-soft, rgba(150, 103, 224, 0.2));
-        border-left-color: var(--app-loader-accent, #9667e0);
-        border-radius: 50%;
-        animation: vite-app-loader-spin 1s linear infinite;
-      }
-      @keyframes vite-app-loader-spin {
-        0% { transform: rotate(0deg); }
-        100% { transform: rotate(360deg); }
-      }
-      /* When the server-injected hero shell is present, it already covers the
-         viewport with the hero image + veil - hide the spinner so there is only
-         one loading indicator visible at a time. */
-      .public-home-hero-shell ~ .vite-app-loader {
-        display: none;
-      }
-    </style>
-    <div id="vite-app-loader" class="vite-app-loader">
-      <div class="vite-app-loader-spinner"></div>
-    </div>
     <div id="root"></div>
     <script type="module" src="/src/main.tsx"></script>
   </body>
