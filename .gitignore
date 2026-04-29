@@ -73,3 +73,4 @@ public/uploads/
 !/reports/perf/
 /reports/perf/*
 !/reports/perf/public-surface-baseline.json
+mcp-github.json
