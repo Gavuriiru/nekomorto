@@ -98,18 +98,10 @@ describe("public-visibility-runtime", () => {
       expect.objectContaining({ id: "project-1" }),
     ]);
     expect(runtime.getPublicVisiblePosts()).toEqual([expect.objectContaining({ id: "post-1" })]);
-    expect(deps.loadUpdates()).toEqual(
-      expect.arrayContaining([
-        expect.objectContaining({
-          id: "update-1",
-          kind: UPDATE_KIND_LANCAMENTO,
-          reason: LINK_ONLY_LAUNCH_REASON,
-        }),
-      ]),
-    );
     expect(runtime.getPublicVisibleUpdates()).toEqual([
       expect.objectContaining({
         id: "update-1",
+        reason: LINK_ONLY_LAUNCH_REASON,
         // This conversion is performed by the public visibility runtime under test.
         // Link-only launch updates are surfaced publicly as adjustments.
         kind: "Ajuste",
