@@ -78,6 +78,8 @@ describe("public-visibility-runtime", () => {
       "/faq",
       "/recrutamento",
       "/doacoes",
+      "/termos-de-uso",
+      "/politica-de-privacidade",
     ]);
   });
 
