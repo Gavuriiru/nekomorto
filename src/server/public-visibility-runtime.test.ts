@@ -5,6 +5,9 @@ import {
   PUBLIC_STATIC_PATHS,
 } from "../../server/lib/public-visibility-runtime.js";
 
+const UPDATE_KIND_LANCAMENTO = "Lançamento";
+const LINK_ONLY_LAUNCH_REASON = "Novo link adicionado no capítulo 1";
+
 const createDeps = (overrides = {}) => ({
   buildPublicReadableProjects: (projects) => projects.filter((project) => project.readable),
   buildPublicVisibleProjects: (projects) => projects.filter((project) => project.visible),
@@ -45,8 +48,8 @@ const createDeps = (overrides = {}) => ({
       projectId: "project-1",
       episodeNumber: 1,
       updatedAt: "2026-03-28T12:00:00.000Z",
-      kind: "Lançamento",
-      reason: "Novo link adicionado no capítulo 1",
+      kind: UPDATE_KIND_LANCAMENTO,
+      reason: LINK_ONLY_LAUNCH_REASON,
     },
     {
       id: "update-2",
@@ -84,7 +87,8 @@ describe("public-visibility-runtime", () => {
   });
 
   it("derives public projects, posts, and updates from normalized sources", () => {
-    const runtime = createPublicVisibilityRuntime(createDeps());
+    const deps = createDeps();
+    const runtime = createPublicVisibilityRuntime(deps);
 
     expect(runtime.getPublicReadableProjects()).toEqual([
       expect.objectContaining({ id: "project-1" }),
@@ -94,9 +98,19 @@ describe("public-visibility-runtime", () => {
       expect.objectContaining({ id: "project-1" }),
     ]);
     expect(runtime.getPublicVisiblePosts()).toEqual([expect.objectContaining({ id: "post-1" })]);
+    expect(deps.loadUpdates()).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({
+          id: "update-1",
+          kind: UPDATE_KIND_LANCAMENTO,
+          reason: LINK_ONLY_LAUNCH_REASON,
+        }),
+      ]),
+    );
     expect(runtime.getPublicVisibleUpdates()).toEqual([
       expect.objectContaining({
         id: "update-1",
+        // This conversion is performed by the public visibility runtime under test.
         // Link-only launch updates are surfaced publicly as adjustments.
         kind: "Ajuste",
       }),
