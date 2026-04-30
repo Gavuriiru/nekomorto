@@ -477,6 +477,15 @@ const DashboardProjectsEditor = () => {
   }, [activeProjectSearchIndex, deferredSearchQuery, selectedType]);
 
   const sortedProjects = useMemo(() => {
+    if (sortMode === "recent") {
+      // Precompute timestamps to avoid O(N log N) date parsing
+      const mapped = filteredProjects.map((project) => ({
+        project,
+        timestamp: new Date(project.updatedAt || project.createdAt || 0).getTime(),
+      }));
+      mapped.sort((a, b) => b.timestamp - a.timestamp);
+      return mapped.map((w) => w.project);
+    }
     const next = [...filteredProjects];
     if (sortMode === "alpha") {
       next.sort((a, b) => a.title.localeCompare(b.title, "pt-BR"));
@@ -492,14 +501,6 @@ const DashboardProjectsEditor = () => {
     }
     if (sortMode === "comments") {
       next.sort((a, b) => (b.commentsCount || 0) - (a.commentsCount || 0));
-      return next;
-    }
-    if (sortMode === "recent") {
-      next.sort(
-        (a, b) =>
-          new Date(b.updatedAt || b.createdAt || 0).getTime() -
-          new Date(a.updatedAt || a.createdAt || 0).getTime(),
-      );
       return next;
     }
     next.sort((a, b) => a.title.localeCompare(b.title, "pt-BR"));

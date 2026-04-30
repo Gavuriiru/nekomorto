@@ -989,6 +989,18 @@ const DashboardPosts = () => {
   }, [activePosts, projectFilterId, projectMap, searchQuery, sortMode]);
 
   const sortedPosts = useMemo(() => {
+    if (sortMode === "projects" || sortMode === "recent" || !["alpha", "tags", "status", "views", "comments"].includes(sortMode)) {
+      // Precompute timestamps to avoid O(N log N) date parsing
+      const mapped = filteredPosts.map((post) => ({
+        post,
+        timestamp: new Date(post.publishedAt).getTime(),
+      }));
+
+      mapped.sort((aWrapper, bWrapper) => bWrapper.timestamp - aWrapper.timestamp);
+
+      return mapped.map((w) => w.post);
+    }
+
     const next = [...filteredPosts];
     next.sort((a, b) => {
       if (sortMode === "alpha") {
@@ -1005,9 +1017,6 @@ const DashboardPosts = () => {
         ];
         return tagsA.join(",").localeCompare(tagsB.join(","), "pt-BR");
       }
-      if (sortMode === "projects") {
-        return new Date(b.publishedAt).getTime() - new Date(a.publishedAt).getTime();
-      }
       if (sortMode === "status") {
         return a.status.localeCompare(b.status, "pt-BR");
       }
@@ -1017,7 +1026,7 @@ const DashboardPosts = () => {
       if (sortMode === "comments") {
         return (b.commentsCount || 0) - (a.commentsCount || 0);
       }
-      return new Date(b.publishedAt).getTime() - new Date(a.publishedAt).getTime();
+      return 0; // Should not reach here based on outer if
     });
     return next;
   }, [filteredPosts, projectMap, sortMode]);
@@ -1038,13 +1047,17 @@ const DashboardPosts = () => {
       }
       map.get(key)?.push(item);
     });
-    map.forEach((items) =>
-      items.sort(
-        (a, b) =>
-          new Date(a.scheduledAt || a.publishedAt || 0).getTime() -
-          new Date(b.scheduledAt || b.publishedAt || 0).getTime(),
-      ),
-    );
+    map.forEach((items) => {
+      // Precompute timestamps to avoid O(N log N) date parsing
+      const mapped = items.map((item) => ({
+        item,
+        timestamp: new Date(item.scheduledAt || item.publishedAt || 0).getTime(),
+      }));
+      mapped.sort((a, b) => a.timestamp - b.timestamp);
+      // Mutate original array to keep behavior
+      items.length = 0;
+      mapped.forEach((w) => items.push(w.item));
+    });
     return map;
   }, [calendarItems]);
   const calendarWeeks = useMemo(
