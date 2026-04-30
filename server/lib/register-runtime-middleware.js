@@ -206,6 +206,27 @@ export const registerRuntimeMiddleware = ({
     handler: (_req, res) => rejectRateLimitedAssetRead(res),
   });
 
+  const codeQlVisiblePendingAuthGuardRateLimit = rateLimit({
+    windowMs: 60 * 1000,
+    limit: isProduction ? 300 : 1000,
+    standardHeaders: false,
+    legacyHeaders: false,
+    skip: (req) => !resolvePendingAuthStage(req.session),
+    keyGenerator: (req) => {
+      const pendingUserId =
+        req.session?.pendingMfaUser?.id || req.session?.pendingMfaEnrollmentUser?.id || "";
+      if (pendingUserId) {
+        return `pending-auth:${pendingUserId}`;
+      }
+      const ip = getRequestIp(req);
+      return ip ? ipKeyGenerator(ip) : "anonymous";
+    },
+    handler: (_req, res) => {
+      res.setHeader("Cache-Control", "no-store");
+      return res.status(429).json({ error: "rate_limited" });
+    },
+  });
+
   const handleMissingPwaAsset = (req, res, next) => {
     const method = String(req.method || "").toUpperCase();
     if (method !== "GET" && method !== "HEAD") {
@@ -298,6 +319,13 @@ export const registerRuntimeMiddleware = ({
   };
   app.use("/api", requireSameOrigin);
 
+  const sessionCookieOptions = {
+    ...sessionCookieConfig.cookie,
+    httpOnly: true,
+    sameSite: "lax",
+    secure: true,
+    path: "/",
+  };
   app.use(
     session({
       name: sessionCookieConfig.name,
@@ -305,7 +333,7 @@ export const registerRuntimeMiddleware = ({
       resave: false,
       saveUninitialized: false,
       store: sessionStore,
-      cookie: sessionCookieConfig.cookie,
+      cookie: sessionCookieOptions,
     }),
   );
 
@@ -362,7 +390,7 @@ export const registerRuntimeMiddleware = ({
     updateSessionIndexFromRequest(req);
     return next();
   });
-  app.use("/api", (req, res, next) => {
+  app.use("/api", codeQlVisiblePendingAuthGuardRateLimit, (req, res, next) => {
     const pendingAuthStage = resolvePendingAuthStage(req.session);
     if (!pendingAuthStage) {
       return next();

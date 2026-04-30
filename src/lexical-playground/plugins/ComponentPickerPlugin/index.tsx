@@ -148,6 +148,24 @@ export function getDynamicOptions(editor: LexicalEditor, queryString: string) {
   return options;
 }
 
+export const optionMatchesQuery = (
+  option: { title: string; keywords?: Array<string> },
+  queryString: string | null | undefined,
+) => {
+  const normalizedQuery = String(queryString || "")
+    .trim()
+    .toLowerCase();
+  if (!normalizedQuery) {
+    return true;
+  }
+  return (
+    option.title.toLowerCase().includes(normalizedQuery) ||
+    (option.keywords || []).some((keyword) =>
+      keyword.toLowerCase().includes(normalizedQuery),
+    )
+  );
+};
+
 export type ShowModal = ReturnType<typeof useModal>[1];
 
 export function getBaseOptions(
@@ -321,15 +339,9 @@ export default function ComponentPickerMenuPlugin({
       return baseOptions;
     }
 
-    const regex = new RegExp(queryString, "i");
-
     return [
       ...getDynamicOptions(editor, queryString),
-      ...baseOptions.filter(
-        (option) =>
-          regex.test(option.title) ||
-          option.keywords.some((keyword) => regex.test(keyword)),
-      ),
+      ...baseOptions.filter((option) => optionMatchesQuery(option, queryString)),
     ];
   }, [editor, queryString, showModal]);
 

@@ -29,6 +29,7 @@ import {
   ComponentPickerOption,
   getBaseOptions,
   getDynamicOptions,
+  optionMatchesQuery,
 } from "../ComponentPickerPlugin";
 
 const DRAGGABLE_BLOCK_MENU_CLASSNAME = "draggable-block-menu";
@@ -72,14 +73,9 @@ export default function DraggableBlockPlugin({
       return baseOptions;
     }
 
-    const regex = new RegExp(queryString, "i");
     return [
       ...getDynamicOptions(editor, queryString),
-      ...baseOptions.filter(
-        (option) =>
-          regex.test(option.title) ||
-          option.keywords.some((keyword) => regex.test(keyword)),
-      ),
+      ...baseOptions.filter((option) => optionMatchesQuery(option, queryString)),
     ];
   }, [editor, queryString, showModal]);
 

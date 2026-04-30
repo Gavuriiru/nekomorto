@@ -46,7 +46,7 @@ const createDeps = (overrides = {}) => ({
       episodeNumber: 1,
       updatedAt: "2026-03-28T12:00:00.000Z",
       kind: "Lançamento",
-      reason: "Novo link adicionado no capitulo 1",
+      reason: "Novo link adicionado no capítulo 1",
     },
     {
       id: "update-2",
@@ -97,6 +97,7 @@ describe("public-visibility-runtime", () => {
     expect(runtime.getPublicVisibleUpdates()).toEqual([
       expect.objectContaining({
         id: "update-1",
+        // Link-only launch updates are surfaced publicly as adjustments.
         kind: "Ajuste",
       }),
     ]);

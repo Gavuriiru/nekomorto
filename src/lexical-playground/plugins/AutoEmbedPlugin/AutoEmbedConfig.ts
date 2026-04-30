@@ -40,7 +40,7 @@ const createEmbedIcon = (className: string): JSX.Element =>
 
 const upsertYoutubeEmbedConfig = (config: PlaygroundEmbedConfig) => {
   Object.assign(config, {
-    contentName: "V\u00c3\u00addeo do YouTube",
+    contentName: "Vídeo do YouTube",
     exampleUrl: "https://www.youtube.com/watch?v=jNQXAC9IVRw",
     icon: createEmbedIcon("icon youtube"),
     insertNode: (editor: LexicalEditor, result: EmbedMatchResult) => {

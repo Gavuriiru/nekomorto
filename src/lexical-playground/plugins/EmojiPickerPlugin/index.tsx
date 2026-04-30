@@ -90,6 +90,22 @@ type Emoji = {
 
 const MAX_EMOJI_SUGGESTION_COUNT = 10;
 
+const emojiMatchesQuery = (
+  option: EmojiOption,
+  queryString: string | null | undefined,
+) => {
+  const normalizedQuery = String(queryString || "")
+    .trim()
+    .toLowerCase();
+  if (!normalizedQuery) {
+    return true;
+  }
+  return (
+    option.title.toLowerCase().includes(normalizedQuery) ||
+    option.keywords.some((keyword) => keyword.toLowerCase().includes(normalizedQuery))
+  );
+};
+
 export default function EmojiPickerPlugin() {
   const [editor] = useLexicalComposerContext();
   const [queryString, setQueryString] = React.useState<string | null>(null);
@@ -114,16 +130,7 @@ export default function EmojiPickerPlugin() {
 
   const options: Array<EmojiOption> = useMemo(() => {
     return emojiOptions
-      .filter((option: EmojiOption) => {
-        return queryString != null
-          ? new RegExp(queryString, "gi").exec(option.title) ||
-            option.keywords != null
-            ? option.keywords.some((keyword: string) =>
-                new RegExp(queryString, "gi").exec(keyword),
-              )
-            : false
-          : emojiOptions;
-      })
+      .filter((option: EmojiOption) => emojiMatchesQuery(option, queryString))
       .slice(0, MAX_EMOJI_SUGGESTION_COUNT);
   }, [emojiOptions, queryString]);
 

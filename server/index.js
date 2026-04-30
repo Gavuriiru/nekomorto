@@ -261,7 +261,6 @@ import { injectNonceIntoHtmlScripts } from "./lib/security-headers.js";
 import {
   buildAuthRedirectUrl,
   establishAuthenticatedSession,
-  establishPendingMfaEnrollmentSession,
   saveSessionState,
 } from "./lib/session-auth.js";
 import { stripHtml } from "./lib/site-meta-builders.js";
@@ -984,7 +983,9 @@ if (!SESSION_SECRET && process.env.NODE_ENV === "production") {
 if ((!DISCORD_CLIENT_ID || !DISCORD_CLIENT_SECRET) && process.env.NODE_ENV === "production") {
   throw new Error("Missing DISCORD_CLIENT_ID or DISCORD_CLIENT_SECRET in env.");
 }
-const isGoogleOAuthConfigured = Boolean(String(GOOGLE_CLIENT_ID || "").trim() || String(GOOGLE_CLIENT_SECRET || "").trim());
+const isGoogleOAuthConfigured = Boolean(
+  String(GOOGLE_CLIENT_ID || "").trim() || String(GOOGLE_CLIENT_SECRET || "").trim(),
+);
 if (isGoogleOAuthConfigured) {
   if (!String(GOOGLE_CLIENT_ID || "").trim() || !String(GOOGLE_CLIENT_SECRET || "").trim()) {
     throw new Error("Google OAuth requires both GOOGLE_CLIENT_ID and GOOGLE_CLIENT_SECRET.");
@@ -1773,7 +1774,6 @@ const rootRouteRegistrationDependencies = buildRootServerRegistrationSource({
   establishAuthenticatedSession,
   evaluateOperationalMonitoring,
   findUserIdentityRecord,
-  loadUsers,
   upsertUserIdentityRecord,
   exportProjectEpub,
   exportProjectImageChapter,

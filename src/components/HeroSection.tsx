@@ -886,7 +886,7 @@ const HeroSection = () => {
 
                         <h1
                           className={composeHeroEntryClassName(
-                            "text-2xl font-black leading-tight text-foreground md:text-4xl lg:text-5xl xl:text-6xl 2xl:text-7xl mb-6",
+                            "mb-6 text-2xl font-black leading-tight text-foreground md:text-4xl lg:text-5xl xl:text-6xl 2xl:text-7xl",
                             shouldAnimateEntry,
                           )}
                           style={resolveHeroEntryStyle("title", shouldAnimateEntry)}
@@ -896,7 +896,7 @@ const HeroSection = () => {
 
                         <p
                           className={composeHeroEntryClassName(
-                            "text-base leading-relaxed text-muted-foreground md:text-lg xl:text-xl 2xl:text-2xl max-w-2xl",
+                            "max-w-2xl text-base leading-relaxed text-muted-foreground md:text-lg xl:text-xl 2xl:text-2xl",
                             shouldAnimateEntry,
                           )}
                           style={resolveHeroEntryStyle("synopsis", shouldAnimateEntry)}

@@ -9,11 +9,14 @@ import {
   type RefObject,
 } from "react";
 
+export type ReorderAnnouncementFormatter = (label: string, targetIndex: number) => string;
+
 type AltArrowReorderOptions = {
   event: KeyboardEvent<HTMLElement>;
   index: number;
   total: number;
   label: string;
+  announcementFormatter?: ReorderAnnouncementFormatter;
   disabled?: boolean;
   onMove: (targetIndex: number) => void;
   onAnnounce?: (message: string) => void;
@@ -409,6 +412,10 @@ export const getPathBasename = (value: string) => {
   return decodeFileSegment(lastSegment);
 };
 
+/**
+ * Resolves the user-facing page label. The default fallback stays in Portuguese
+ * because the reader/editor UI is localized for this project.
+ */
 export const resolvePageDisplayName = ({
   name,
   relativePath,
@@ -498,14 +505,23 @@ export const resolvePointerReorderIndexFromRects = ({
   return closestRect.index;
 };
 
-export const buildReorderAnnouncement = (label: string, targetIndex: number) =>
-  `${label} movida para a posição ${targetIndex + 1}.`;
+/**
+ * Builds the live announcement text for a successful reorder action.
+ * Default output is Portuguese to match the surrounding reader UI.
+ */
+export const buildReorderAnnouncement = (
+  label: string,
+  targetIndex: number,
+  formatter?: ReorderAnnouncementFormatter,
+) =>
+  formatter ? formatter(label, targetIndex) : `${label} movida para a posição ${targetIndex + 1}.`;
 
 export const handleAltArrowReorder = ({
   event,
   index,
   total,
   label,
+  announcementFormatter,
   disabled = false,
   onMove,
   onAnnounce,
@@ -523,6 +539,6 @@ export const handleAltArrowReorder = ({
 
   event.preventDefault();
   onMove(targetIndex);
-  onAnnounce?.(buildReorderAnnouncement(label, targetIndex));
+  onAnnounce?.(buildReorderAnnouncement(label, targetIndex, announcementFormatter));
   return true;
 };

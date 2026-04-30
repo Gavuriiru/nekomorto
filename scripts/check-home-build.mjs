@@ -19,7 +19,7 @@ const fail = (message) => {
 };
 
 if (!fs.existsSync(indexHtmlPath)) {
-  fail(`index.html nao encontrado em ${indexHtmlPath}`);
+  fail(`index.html não encontrado em ${indexHtmlPath}`);
   process.exit();
 }
 
@@ -30,7 +30,7 @@ if (/<script[^>]+src=["'][^"']*bootstrap-init\.js["']/i.test(html)) {
 }
 
 if (/<link[^>]+rel=["']modulepreload["'][^>]+href=["'][^"']*mui-[^"']*\.js["']/i.test(html)) {
-  fail("index.html contem modulepreload de chunk mui-*.js no entry publico.");
+  fail("index.html contém modulepreload de chunk mui-*.js no entry público.");
 }
 
 const escapeRegExp = (value) => value.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
@@ -38,7 +38,7 @@ const escapeRegExp = (value) => value.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
 const readDistAsset = (relativeAssetPath) => {
   const absoluteAssetPath = path.join(distDir, relativeAssetPath);
   if (!fs.existsSync(absoluteAssetPath)) {
-    fail(`arquivo de asset nao encontrado: ${absoluteAssetPath}`);
+    fail(`arquivo de asset não encontrado: ${absoluteAssetPath}`);
     return "";
   }
   return fs.readFileSync(absoluteAssetPath, "utf8");
@@ -46,7 +46,7 @@ const readDistAsset = (relativeAssetPath) => {
 
 const assetsDir = path.join(distDir, "assets");
 if (!fs.existsSync(assetsDir)) {
-  fail(`diretorio de assets nao encontrado: ${assetsDir}`);
+  fail(`diretório de assets não encontrado: ${assetsDir}`);
   process.exit();
 }
 
@@ -64,7 +64,7 @@ const findChunkFilesByPrefix = (prefix, excludePrefixes = []) =>
 const entryScriptMatch = html.match(/<script[^>]+type=["']module["'][^>]+src=["']([^"']+)["']/i);
 
 if (!entryScriptMatch) {
-  fail("nao foi possivel identificar o script module de entrada no index.html.");
+  fail("não foi possível identificar o script module de entrada no index.html.");
   process.exit();
 }
 
@@ -135,7 +135,7 @@ for (const href of localStylesheetHrefs) {
   const normalizedHref = href.replace(/^\//, "");
   const absolutePath = path.join(distDir, normalizedHref);
   if (!fs.existsSync(absolutePath)) {
-    fail(`arquivo CSS referenciado nao encontrado: ${absolutePath}`);
+    fail(`arquivo CSS referenciado não encontrado: ${absolutePath}`);
     continue;
   }
   criticalCssBytes += fs.statSync(absolutePath).size;

@@ -71,7 +71,7 @@ const normalizeReasonForDisplay = (value: string) =>
 
 const LatestEpisodeCard = () => {
   const { data: bootstrapData, isLoading } = usePublicBootstrap();
-  const recentUpdates = bootstrapData?.updates || [];
+  const recentUpdates = useMemo(() => bootstrapData?.updates || [], [bootstrapData?.updates]);
   const mediaVariants = bootstrapData?.mediaVariants || {};
   const isLoadingUpdates = isLoading && !bootstrapData;
   const projectTypes = useMemo(() => {
@@ -83,6 +83,18 @@ const LatestEpisodeCard = () => {
     });
     return map;
   }, [bootstrapData?.projects]);
+  const sortedRecentUpdates = useMemo(
+    () =>
+      [...recentUpdates]
+        .map((update) => ({
+          update,
+          timestamp: new Date(update.updatedAt || 0).getTime(),
+        }))
+        .sort((a, b) => b.timestamp - a.timestamp)
+        .slice(0, 4)
+        .map(({ update }) => update),
+    [recentUpdates],
+  );
 
   return (
     <Card
@@ -134,82 +146,84 @@ const LatestEpisodeCard = () => {
           </div>
         ) : (
           <div className="space-y-3">
-            {[...recentUpdates]
-              .map((update) => ({
-                update,
-                timestamp: new Date(update.updatedAt || 0).getTime(),
-              }))
-              .sort((a, b) => b.timestamp - a.timestamp)
-              .map(({ update }) => update)
-              .slice(0, 4)
-              .map((update) => {
-                const typeLabel = (projectTypes[update.projectId] || "").toLowerCase();
-                const hasChapterHint =
-                  /cap/i.test(update.unit || "") || /cap/i.test(update.reason || "");
-                const isChapterBased =
-                  typeLabel.includes("mang") ||
-                  typeLabel.includes("webtoon") ||
-                  typeLabel.includes("light") ||
-                  typeLabel.includes("novel") ||
-                  hasChapterHint;
-                const rawUnitLabel = String(update.unit || "").trim();
-                const unitLookup = normalizeLookupKey(rawUnitLabel);
-                const unitLabel = rawUnitLabel
-                  ? unitLookup === "capitulo"
-                    ? "Capítulo"
-                    : unitLookup === "episodio"
-                      ? "Episódio"
-                      : rawUnitLabel
-                  : isChapterBased
-                    ? "Capítulo"
-                    : "Episódio";
-                const isExtraUnit = unitLabel.toLowerCase() === "extra";
-                const unitShort = isExtraUnit ? "Extra" : /cap/i.test(unitLabel) ? "Cap" : "Ep";
-                const normalizedReason = normalizeReasonForDisplay(String(update.reason || ""));
-                const reason = normalizedReason
-                  ? normalizedReason.charAt(0).toUpperCase() + normalizedReason.slice(1)
-                  : "";
-                const normalizedKind = normalizeLookupKey(String(update.kind || ""));
-                const kindLabel = normalizedKind.startsWith("lan")
-                  ? "Lançamento"
-                  : normalizedKind.includes("ajuste") || normalizedKind.includes("atualiza")
-                    ? "Ajuste"
-                    : update.kind;
+            {sortedRecentUpdates.map((update) => {
+              const typeLabel = (projectTypes[update.projectId] || "").toLowerCase();
+              const hasChapterHint =
+                /cap/i.test(update.unit || "") || /cap/i.test(update.reason || "");
+              const isChapterBased =
+                typeLabel.includes("mang") ||
+                typeLabel.includes("webtoon") ||
+                typeLabel.includes("light") ||
+                typeLabel.includes("novel") ||
+                hasChapterHint;
+              const rawUnitLabel = String(update.unit || "").trim();
+              const unitLookup = normalizeLookupKey(rawUnitLabel);
+              const unitLabel = rawUnitLabel
+                ? unitLookup === "capitulo"
+                  ? "Capítulo"
+                  : unitLookup === "episodio"
+                    ? "Episódio"
+                    : rawUnitLabel
+                : isChapterBased
+                  ? "Capítulo"
+                  : "Episódio";
+              const isExtraUnit = unitLabel.toLowerCase() === "extra";
+              const unitShort = isExtraUnit ? "Extra" : /cap/i.test(unitLabel) ? "Cap" : "Ep";
+              const normalizedReason = normalizeReasonForDisplay(String(update.reason || ""));
+              const reason = normalizedReason
+                ? normalizedReason.charAt(0).toUpperCase() + normalizedReason.slice(1)
+                : "";
+              const normalizedKind = normalizeLookupKey(String(update.kind || ""));
+              const kindLabel = normalizedKind.startsWith("lan")
+                ? "Lançamento"
+                : normalizedKind.includes("ajuste") || normalizedKind.includes("atualiza")
+                  ? "Ajuste"
+                  : update.kind;
 
-                return (
-                  <PublicInteractiveCardShell
-                    key={update.id}
-                    shadowPreset="none"
-                    style={
-                      {
-                        "--card-h": `${RECENT_UPDATES_CARD_HEIGHT_PX}px`,
-                      } as CSSProperties
-                    }
-                    className="group/recent-update rounded-2xl"
+              return (
+                <PublicInteractiveCardShell
+                  key={update.id}
+                  shadowPreset="none"
+                  style={
+                    {
+                      "--card-h": `${RECENT_UPDATES_CARD_HEIGHT_PX}px`,
+                    } as CSSProperties
+                  }
+                  className="group/recent-update rounded-2xl"
+                >
+                  <Link
+                    to={`/projeto/${update.projectId}`}
+                    className="recent-updates-item relative z-10 rounded-2xl transition-[border-color,background-color,color] duration-200 ease-[cubic-bezier(0.16,1,0.3,1)] hover:border-primary/60 focus-visible:border-primary/60 focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-primary/45"
                   >
-                    <Link
-                      to={`/projeto/${update.projectId}`}
-                      className="recent-updates-item relative z-10 rounded-2xl transition-[border-color,background-color,color] duration-200 ease-[cubic-bezier(0.16,1,0.3,1)] hover:border-primary/60 focus-visible:border-primary/60 focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-primary/45"
+                    <div
+                      className="h-full shrink-0 overflow-hidden bg-secondary/60"
+                      style={{
+                        aspectRatio: PROJECT_COVER_ASPECT_RATIO,
+                        width: RECENT_UPDATES_THUMB_WIDTH,
+                      }}
                     >
-                      <div
-                        className="h-full shrink-0 overflow-hidden bg-secondary/60"
-                        style={{
-                          aspectRatio: PROJECT_COVER_ASPECT_RATIO,
-                          width: RECENT_UPDATES_THUMB_WIDTH,
-                        }}
-                      >
-                        <UploadPicture
-                          src={update.image || "/placeholder.svg"}
-                          alt={update.projectTitle}
-                          preset="posterThumb"
-                          mediaVariants={mediaVariants}
-                          sizes="105px"
-                          className="block h-full w-full"
-                          imgClassName="home-card-media-transition h-full w-full object-cover object-center group-hover/recent-update:scale-[1.03] group-focus-within/recent-update:scale-[1.03]"
-                        />
-                      </div>
-                      <div className="recent-updates-item-body flex h-full min-w-0 flex-1 flex-col gap-3">
-                        <div className="no-scrollbar flex min-w-0 flex-nowrap items-center gap-2 overflow-x-auto md:flex-wrap md:overflow-visible">
+                      <UploadPicture
+                        src={update.image || "/placeholder.svg"}
+                        alt={update.projectTitle}
+                        preset="posterThumb"
+                        mediaVariants={mediaVariants}
+                        sizes="105px"
+                        className="block h-full w-full"
+                        imgClassName="home-card-media-transition h-full w-full object-cover object-center group-hover/recent-update:scale-[1.03] group-focus-within/recent-update:scale-[1.03]"
+                      />
+                    </div>
+                    <div className="recent-updates-item-body flex h-full min-w-0 flex-1 flex-col gap-3">
+                      <div className="no-scrollbar flex min-w-0 flex-nowrap items-center gap-2 overflow-x-auto md:flex-wrap md:overflow-visible">
+                        <span
+                          className={cn(
+                            recentUpdateBasePillClassName,
+                            recentUpdateNeutralPillClassName,
+                            "hidden md:inline-flex",
+                          )}
+                        >
+                          {isExtraUnit ? "Extra" : `${unitShort} ${update.episodeNumber}`}
+                        </span>
+                        {update.volume ? (
                           <span
                             className={cn(
                               recentUpdateBasePillClassName,
@@ -217,49 +231,39 @@ const LatestEpisodeCard = () => {
                               "hidden md:inline-flex",
                             )}
                           >
-                            {isExtraUnit ? "Extra" : `${unitShort} ${update.episodeNumber}`}
+                            Vol. {update.volume}
                           </span>
-                          {update.volume ? (
-                            <span
-                              className={cn(
-                                recentUpdateBasePillClassName,
-                                recentUpdateNeutralPillClassName,
-                                "hidden md:inline-flex",
-                              )}
-                            >
-                              Vol. {update.volume}
-                            </span>
-                          ) : null}
-                          <span
-                            className={cn(
-                              recentUpdateBasePillClassName,
-                              kindLabel === "Lançamento"
-                                ? recentUpdateTypePillClassName.launch
-                                : kindLabel === "Ajuste"
-                                  ? recentUpdateTypePillClassName.adjustment
-                                  : recentUpdateTypePillClassName.fallback,
-                            )}
-                          >
-                            {kindLabel}
-                          </span>
-                        </div>
-                        <div className="space-y-1">
-                          <h4 className="clamp-safe-2 interactive-content-transition text-sm font-semibold text-foreground group-hover/recent-update:text-primary group-focus-within/recent-update:text-primary">
-                            {update.projectTitle}
-                          </h4>
-                          <p className="line-clamp-1 text-xs leading-relaxed text-muted-foreground md:line-clamp-2">
-                            {reason}
-                          </p>
-                        </div>
-                        <span className="mt-auto inline-flex items-center gap-1.5 text-[10px] text-muted-foreground">
-                          <Clock className="h-3 w-3 text-primary/70" aria-hidden="true" />
-                          {formatDate(update.updatedAt.split("T")[0])}
+                        ) : null}
+                        <span
+                          className={cn(
+                            recentUpdateBasePillClassName,
+                            kindLabel === "Lançamento"
+                              ? recentUpdateTypePillClassName.launch
+                              : kindLabel === "Ajuste"
+                                ? recentUpdateTypePillClassName.adjustment
+                                : recentUpdateTypePillClassName.fallback,
+                          )}
+                        >
+                          {kindLabel}
                         </span>
                       </div>
-                    </Link>
-                  </PublicInteractiveCardShell>
-                );
-              })}
+                      <div className="space-y-1">
+                        <h4 className="clamp-safe-2 interactive-content-transition text-sm font-semibold text-foreground group-hover/recent-update:text-primary group-focus-within/recent-update:text-primary">
+                          {update.projectTitle}
+                        </h4>
+                        <p className="line-clamp-1 text-xs leading-relaxed text-muted-foreground md:line-clamp-2">
+                          {reason}
+                        </p>
+                      </div>
+                      <span className="mt-auto inline-flex items-center gap-1.5 text-[10px] text-muted-foreground">
+                        <Clock className="h-3 w-3 text-primary/70" aria-hidden="true" />
+                        {formatDate(update.updatedAt.split("T")[0])}
+                      </span>
+                    </div>
+                  </Link>
+                </PublicInteractiveCardShell>
+              );
+            })}
           </div>
         )}
       </CardContent>

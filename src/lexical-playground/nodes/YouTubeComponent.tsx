@@ -52,7 +52,7 @@ export default function YouTubeComponent({
           }}
           allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
           allowFullScreen={true}
-          title="Video do YouTube"
+          title="Vídeo do YouTube"
         />
       </div>
     </BlockWithAlignableContents>
