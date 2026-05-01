@@ -32,18 +32,18 @@ vi.mock("@lexical/utils", () => ({
   $wrapNodeInElement: wrapNodeInElementSpy,
 }));
 
-vi.mock("@/lexical-playground/nodes/ImageNode", () => ({
+vi.mock("@/components/lexical/editor/nodes/ImageNode", () => ({
   $createImageNode: createImageNodeSpy,
 }));
 
-vi.mock("@/lexical-playground/plugins/ImagesPlugin/selectionSnapshot", () => ({
+vi.mock("@/components/lexical/editor/plugins/ImagesPlugin/selectionSnapshot", () => ({
   restoreRangeSelectionSnapshot: restoreRangeSelectionSnapshotSpy,
 }));
 
 import {
   insertImagePayloadAtCurrentSelection,
   insertImagesIntoEditor,
-} from "@/lexical-playground/plugins/ImagesPlugin/imageInsertion";
+} from "@/components/lexical/editor/plugins/ImagesPlugin/imageInsertion";
 
 describe("imageInsertion", () => {
   beforeEach(() => {

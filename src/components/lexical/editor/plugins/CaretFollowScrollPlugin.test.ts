@@ -4,7 +4,7 @@ import {
   findCaretScrollRoot,
   getCaretTopOffset,
   scrollCaretRectIntoView,
-} from "@/lexical-playground/plugins/CaretFollowScrollPlugin";
+} from "@/components/lexical/editor/plugins/CaretFollowScrollPlugin";
 
 const createRect = (top: number, bottom = top + 20): DOMRect =>
   ({

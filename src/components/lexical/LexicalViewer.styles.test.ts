@@ -72,15 +72,15 @@ describe("Lexical viewer styles", () => {
       "utf8",
     );
     const editorThemeCss = readFileSync(
-      resolve(process.cwd(), "src/lexical-playground/themes/PlaygroundEditorTheme.css"),
+      resolve(process.cwd(), "src/components/lexical/editor/themes/PlaygroundEditorTheme.css"),
       "utf8",
     );
     const editorOverridesCss = readFileSync(
-      resolve(process.cwd(), "src/lexical-playground/playground-overrides.css"),
+      resolve(process.cwd(), "src/components/lexical/editor/playground-overrides.css"),
       "utf8",
     );
     const editableCss = readFileSync(
-      resolve(process.cwd(), "src/lexical-playground/ui/ContentEditable.css"),
+      resolve(process.cwd(), "src/components/lexical/editor/ui/ContentEditable.css"),
       "utf8",
     );
 

@@ -27,7 +27,7 @@ vi.mock("@/components/dashboard/DashboardPageHeader", () => ({
   ),
 }));
 
-vi.mock("@/components/ImageLibraryDialog", () => ({
+vi.mock("@/components/lazy/LazyImageLibraryDialog", () => ({
   default: (props: {
     open?: boolean;
     currentSelectionUrls?: string[];

@@ -1,3 +1,5 @@
+import type { Klass, LexicalNode } from "lexical";
+
 import { CodeHighlightNode, CodeNode } from "@lexical/code";
 import { HashtagNode } from "@lexical/hashtag";
 import { AutoLinkNode, LinkNode } from "@lexical/link";
@@ -7,32 +9,31 @@ import { OverflowNode } from "@lexical/overflow";
 import { HorizontalRuleNode } from "@lexical/react/LexicalHorizontalRuleNode";
 import { HeadingNode, QuoteNode } from "@lexical/rich-text";
 import { TableCellNode, TableNode, TableRowNode } from "@lexical/table";
-import type { Klass, LexicalNode } from "lexical";
 
 import { EpubAnchorNode } from "@/components/lexical/nodes/EpubAnchorNode";
 import { EpubHeadingNode } from "@/components/lexical/nodes/EpubHeadingNode";
 import { EpubImageNode } from "@/components/lexical/nodes/EpubImageNode";
 import { EpubParagraphNode } from "@/components/lexical/nodes/EpubParagraphNode";
-import { ViewerAutocompleteNode } from "@/components/lexical/viewer-nodes/ViewerAutocompleteNode";
-import { ViewerDateTimeNode } from "@/components/lexical/viewer-nodes/ViewerDateTimeNode";
-import { ViewerEquationNode } from "@/components/lexical/viewer-nodes/ViewerEquationNode";
-import { ViewerImageNode } from "@/components/lexical/viewer-nodes/ViewerImageNode";
-import { ViewerPageBreakNode } from "@/components/lexical/viewer-nodes/ViewerPageBreakNode";
-import { ViewerPollNode } from "@/components/lexical/viewer-nodes/ViewerPollNode";
-import { ViewerStickyNode } from "@/components/lexical/viewer-nodes/ViewerStickyNode";
+import { AutocompleteNode } from "@/components/lexical/editor/nodes/AutocompleteNode";
+import { DateTimeNode } from "@/components/lexical/editor/nodes/DateTimeNode/DateTimeNode";
 import { EmojiNode } from "@/components/lexical/editor/nodes/EmojiNode";
+import { EquationNode } from "@/components/lexical/editor/nodes/EquationNode";
+import { ImageNode } from "@/components/lexical/editor/nodes/ImageNode";
 import { KeywordNode } from "@/components/lexical/editor/nodes/KeywordNode";
 import { LayoutContainerNode } from "@/components/lexical/editor/nodes/LayoutContainerNode";
 import { LayoutItemNode } from "@/components/lexical/editor/nodes/LayoutItemNode";
 import { MentionNode } from "@/components/lexical/editor/nodes/MentionNode";
+import { PageBreakNode } from "@/components/lexical/editor/nodes/PageBreakNode";
+import { PollNode } from "@/components/lexical/editor/nodes/PollNode";
 import { SpecialTextNode } from "@/components/lexical/editor/nodes/SpecialTextNode";
+import { StickyNode } from "@/components/lexical/editor/nodes/StickyNode";
 import { TweetNode } from "@/components/lexical/editor/nodes/TweetNode";
 import { YouTubeNode } from "@/components/lexical/editor/nodes/YouTubeNode";
 import { CollapsibleContainerNode } from "@/components/lexical/editor/plugins/CollapsiblePlugin/CollapsibleContainerNode";
 import { CollapsibleContentNode } from "@/components/lexical/editor/plugins/CollapsiblePlugin/CollapsibleContentNode";
 import { CollapsibleTitleNode } from "@/components/lexical/editor/plugins/CollapsiblePlugin/CollapsibleTitleNode";
 
-export const viewerNodes: Array<Klass<LexicalNode>> = [
+export const editorNodes: Array<Klass<LexicalNode>> = [
   HeadingNode,
   ListNode,
   ListItemNode,
@@ -50,12 +51,13 @@ export const viewerNodes: Array<Klass<LexicalNode>> = [
   EpubParagraphNode,
   EpubHeadingNode,
   EpubImageNode,
-  ViewerPollNode,
-  ViewerImageNode,
+  PollNode,
+  StickyNode,
+  ImageNode,
   MentionNode,
   EmojiNode,
-  ViewerEquationNode,
-  ViewerAutocompleteNode,
+  EquationNode,
+  AutocompleteNode,
   KeywordNode,
   HorizontalRuleNode,
   TweetNode,
@@ -64,12 +66,11 @@ export const viewerNodes: Array<Klass<LexicalNode>> = [
   CollapsibleContainerNode,
   CollapsibleContentNode,
   CollapsibleTitleNode,
-  ViewerPageBreakNode,
+  PageBreakNode,
   LayoutContainerNode,
   LayoutItemNode,
   SpecialTextNode,
-  ViewerDateTimeNode,
-  ViewerStickyNode,
+  DateTimeNode,
 ];
 
-export default viewerNodes;
+export default editorNodes;

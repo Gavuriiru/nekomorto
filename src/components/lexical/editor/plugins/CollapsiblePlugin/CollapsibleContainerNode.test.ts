@@ -1,6 +1,6 @@
 import { afterAll, beforeAll, describe, expect, it, vi } from "vitest";
 
-let CollapsibleContainerNode: typeof import("@/lexical-playground/plugins/CollapsiblePlugin/CollapsibleContainerNode").CollapsibleContainerNode;
+let CollapsibleContainerNode: typeof import("@/components/lexical/editor/plugins/CollapsiblePlugin/CollapsibleContainerNode").CollapsibleContainerNode;
 
 beforeAll(async () => {
   vi.resetModules();
@@ -8,7 +8,7 @@ beforeAll(async () => {
     IS_CHROME: true,
   }));
   ({ CollapsibleContainerNode } =
-    await import("@/lexical-playground/plugins/CollapsiblePlugin/CollapsibleContainerNode"));
+    await import("@/components/lexical/editor/plugins/CollapsiblePlugin/CollapsibleContainerNode"));
 });
 
 afterAll(() => {

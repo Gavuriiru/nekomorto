@@ -1,4 +1,4 @@
-@import "../components/lexical/lexical-content-tokens.css";
+@import "../lexical-content-tokens.css";
 
 .lexical-playground {
   --lexical-control-bg: hsl(var(--muted));

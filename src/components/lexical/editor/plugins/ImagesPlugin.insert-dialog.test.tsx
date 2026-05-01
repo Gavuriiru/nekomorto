@@ -19,11 +19,11 @@ vi.mock("@/lib/api-base", () => ({
 }));
 
 vi.mock(
-  "@/lexical-playground/plugins/ImagesPlugin/imageInsertion",
+  "@/components/lexical/editor/plugins/ImagesPlugin/imageInsertion",
   async () => {
     const actual = await vi.importActual<
-      typeof import("@/lexical-playground/plugins/ImagesPlugin/imageInsertion")
-    >("@/lexical-playground/plugins/ImagesPlugin/imageInsertion");
+      typeof import("@/components/lexical/editor/plugins/ImagesPlugin/imageInsertion")
+    >("@/components/lexical/editor/plugins/ImagesPlugin/imageInsertion");
 
     return {
       ...actual,
@@ -35,7 +35,7 @@ vi.mock(
 import {
   InsertImageDialog,
   getNewImageInsertPayloads,
-} from "@/lexical-playground/plugins/ImagesPlugin";
+} from "@/components/lexical/editor/plugins/ImagesPlugin";
 
 describe("InsertImageDialog", () => {
   beforeEach(() => {

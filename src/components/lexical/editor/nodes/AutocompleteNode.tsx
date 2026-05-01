@@ -33,7 +33,7 @@ export class AutocompleteNode extends TextNode {
    * - Ensures max one Autocomplete node per session.
    * - Ensure that when collaboration is enabled, this node is not shown in
    *   other sessions.
-   * See https://github.com/facebook/lexical/blob/main/packages/lexical-playground/src/plugins/AutocompletePlugin/index.tsx
+   * See https://github.com/facebook/lexical/blob/main/packages/components/lexical/editor/src/plugins/AutocompletePlugin/index.tsx
    */
   __uuid: string;
 

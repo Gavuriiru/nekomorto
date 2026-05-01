@@ -30,7 +30,7 @@ vi.mock("@/components/dashboard/DashboardPageHeader", () => ({
   ),
 }));
 
-vi.mock("@/components/ImageLibraryDialog", () => ({
+vi.mock("@/components/lazy/LazyImageLibraryDialog", () => ({
   default: (props: unknown) => {
     imageLibraryPropsSpy(props);
     return <div data-testid="image-library-dialog" />;
@@ -248,7 +248,7 @@ describe("DashboardPosts image library context", () => {
   });
 
   it("usa altura-base compactada no modo post-editor do lexical", () => {
-    const cssPath = resolve(process.cwd(), "src/lexical-playground/playground-overrides.css");
+    const cssPath = resolve(process.cwd(), "src/components/lexical/editor/playground-overrides.css");
     const cssSource = readFileSync(cssPath, "utf8");
 
     expect(cssSource).toContain("min-height: 540px;");

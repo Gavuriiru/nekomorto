@@ -9,14 +9,14 @@ vi.mock("@lexical/react/LexicalComposerContext", () => ({
   useLexicalComposerContext: () => [null],
 }));
 
-vi.mock("@/lexical-playground/plugins/ImagesPlugin/selectionSnapshot", () => ({
+vi.mock("@/components/lexical/editor/plugins/ImagesPlugin/selectionSnapshot", () => ({
   restoreSelectionForInsertion: restoreSelectionForInsertionSpy,
 }));
 
 import {
   INSERT_POLL_COMMAND,
   InsertPollDialog,
-} from "@/lexical-playground/plugins/PollPlugin";
+} from "@/components/lexical/editor/plugins/PollPlugin";
 
 describe("InsertPollDialog", () => {
   beforeEach(() => {

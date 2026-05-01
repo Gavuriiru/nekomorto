@@ -10,7 +10,7 @@ import { ListItemNode, ListNode } from "@lexical/list";
 import { HeadingNode, QuoteNode } from "@lexical/rich-text";
 import { TableCellNode, TableNode, TableRowNode } from "@lexical/table";
 
-export const lexicalNodes = [
+export const serverNodes = [
   HeadingNode,
   QuoteNode,
   ListNode,
@@ -29,3 +29,5 @@ export const lexicalNodes = [
   ImageNode,
   VideoNode,
 ];
+
+export const lexicalNodes = serverNodes;

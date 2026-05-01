@@ -27,7 +27,7 @@ import {
 } from "lexical";
 import { useCallback, useEffect } from "react";
 
-import { createRandomId } from "../../../lib/random-id";
+import { createRandomId } from "@/lib/random-id";
 import { useToolbarState } from "../../context/ToolbarContext";
 import {
   $createAutocompleteNode,

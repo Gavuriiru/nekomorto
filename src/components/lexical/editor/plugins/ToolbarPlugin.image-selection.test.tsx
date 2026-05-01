@@ -25,7 +25,7 @@ const {
   updateToolbarStateSpy: vi.fn(),
 }));
 
-vi.mock("@/lexical-playground/context/SettingsContext", () => ({
+vi.mock("@/components/lexical/editor/context/SettingsContext", () => ({
   useSettings: () => ({
     settings: {
       isCodeHighlighted: false,
@@ -33,7 +33,7 @@ vi.mock("@/lexical-playground/context/SettingsContext", () => ({
   }),
 }));
 
-vi.mock("@/lexical-playground/context/ToolbarContext", () => ({
+vi.mock("@/components/lexical/editor/context/ToolbarContext", () => ({
   blockTypeToBlockName: {
     paragraph: "Normal",
   },
@@ -66,11 +66,11 @@ vi.mock("@/lexical-playground/context/ToolbarContext", () => ({
   }),
 }));
 
-vi.mock("@/lexical-playground/hooks/useModal", () => ({
+vi.mock("@/components/lexical/editor/hooks/useModal", () => ({
   default: () => [null, showModalSpy],
 }));
 
-vi.mock("@/lexical-playground/plugins/AutoEmbedPlugin", () => ({
+vi.mock("@/components/lexical/editor/plugins/AutoEmbedPlugin", () => ({
   EmbedConfigs: [
     {
       contentName: "X (Tweet)",
@@ -86,43 +86,43 @@ vi.mock("@/lexical-playground/plugins/AutoEmbedPlugin", () => ({
   OPEN_EMBED_MODAL_WITH_SELECTION_COMMAND: openEmbedModalWithSelectionCommand,
 }));
 
-vi.mock("@/lexical-playground/plugins/ImagesPlugin/selectionSnapshot", () => ({
+vi.mock("@/components/lexical/editor/plugins/ImagesPlugin/selectionSnapshot", () => ({
   captureCurrentRangeSelection: captureCurrentRangeSelectionSpy,
   restoreSelectionForInsertion: restoreSelectionForInsertionSpy,
 }));
 
-vi.mock("@/lexical-playground/plugins/ImagesPlugin", () => ({
+vi.mock("@/components/lexical/editor/plugins/ImagesPlugin", () => ({
   InsertImageDialog: (props: unknown) => {
     insertImageDialogPropsSpy(props);
     return <div data-testid="mock-insert-image-dialog" />;
   },
 }));
 
-vi.mock("@/lexical-playground/plugins/LayoutPlugin/InsertLayoutDialog", () => ({
+vi.mock("@/components/lexical/editor/plugins/LayoutPlugin/InsertLayoutDialog", () => ({
   default: () => null,
 }));
 
-vi.mock("@/lexical-playground/plugins/PollPlugin", () => ({
+vi.mock("@/components/lexical/editor/plugins/PollPlugin", () => ({
   InsertPollDialog: () => null,
 }));
 
-vi.mock("@/lexical-playground/plugins/TablePlugin", () => ({
+vi.mock("@/components/lexical/editor/plugins/TablePlugin", () => ({
   InsertTableDialog: () => null,
 }));
 
-vi.mock("@/lexical-playground/plugins/ToolbarPlugin/fontSize", () => ({
+vi.mock("@/components/lexical/editor/plugins/ToolbarPlugin/fontSize", () => ({
   default: () => null,
   parseFontSizeForToolbar: () => "16px",
 }));
 
-vi.mock("@/lexical-playground/plugins/ToolbarPlugin/sticky-state", () => ({
+vi.mock("@/components/lexical/editor/plugins/ToolbarPlugin/sticky-state", () => ({
   findToolbarScrollRoot: () => window,
   getScrollRootTop: () => 0,
   getStickyTopPx: () => 0,
   isToolbarStickyStuck: () => false,
 }));
 
-vi.mock("@/lexical-playground/plugins/ToolbarPlugin/utils", () => ({
+vi.mock("@/components/lexical/editor/plugins/ToolbarPlugin/utils", () => ({
   clearFormatting: vi.fn(),
   formatBulletList: vi.fn(),
   formatCheckList: vi.fn(),
@@ -133,17 +133,17 @@ vi.mock("@/lexical-playground/plugins/ToolbarPlugin/utils", () => ({
   formatQuote: vi.fn(),
 }));
 
-vi.mock("@/lexical-playground/ui/Button", () => ({
+vi.mock("@/components/lexical/editor/ui/Button", () => ({
   default: (props: ButtonHTMLAttributes<HTMLButtonElement>) => (
     <button type="button" {...props} />
   ),
 }));
 
-vi.mock("@/lexical-playground/ui/DropdownColorPicker", () => ({
+vi.mock("@/components/lexical/editor/ui/DropdownColorPicker", () => ({
   default: () => null,
 }));
 
-vi.mock("@/lexical-playground/ui/DropDown", () => ({
+vi.mock("@/components/lexical/editor/ui/DropDown", () => ({
   __esModule: true,
   default: ({ children }: { children: ReactNode }) => <div>{children}</div>,
   DropDownItem: ({
@@ -161,8 +161,8 @@ vi.mock("@/lexical-playground/ui/DropDown", () => ({
   ),
 }));
 
-import { INSERT_COLLAPSIBLE_COMMAND } from "@/lexical-playground/plugins/CollapsiblePlugin";
-import ToolbarPlugin from "@/lexical-playground/plugins/ToolbarPlugin";
+import { INSERT_COLLAPSIBLE_COMMAND } from "@/components/lexical/editor/plugins/CollapsiblePlugin";
+import ToolbarPlugin from "@/components/lexical/editor/plugins/ToolbarPlugin";
 
 const createEditor = () => ({
   dispatchCommand: vi.fn(),

@@ -72,38 +72,38 @@ vi.mock("@lexical/react/LexicalTypeaheadMenuPlugin", () => ({
   useBasicTypeaheadTriggerMatch: () => vi.fn(),
 }));
 
-vi.mock("@/lexical-playground/hooks/useModal", () => ({
+vi.mock("@/components/lexical/editor/hooks/useModal", () => ({
   default: () => [null, vi.fn()],
 }));
 
-vi.mock("@/lexical-playground/plugins/AutoEmbedPlugin", () => ({
+vi.mock("@/components/lexical/editor/plugins/AutoEmbedPlugin", () => ({
   EmbedConfigs: [],
 }));
 
-vi.mock("@/lexical-playground/plugins/ImagesPlugin", () => ({
+vi.mock("@/components/lexical/editor/plugins/ImagesPlugin", () => ({
   InsertImageDialog: (props: unknown) => {
     insertImageDialogPropsSpy(props);
     return <div data-testid="mock-insert-image-dialog" />;
   },
 }));
 
-vi.mock("@/lexical-playground/plugins/ImagesPlugin/selectionSnapshot", () => ({
+vi.mock("@/components/lexical/editor/plugins/ImagesPlugin/selectionSnapshot", () => ({
   cloneCurrentRangeSelection: cloneCurrentRangeSelectionSpy,
 }));
 
-vi.mock("@/lexical-playground/plugins/LayoutPlugin/InsertLayoutDialog", () => ({
+vi.mock("@/components/lexical/editor/plugins/LayoutPlugin/InsertLayoutDialog", () => ({
   default: () => null,
 }));
 
-vi.mock("@/lexical-playground/plugins/PollPlugin", () => ({
+vi.mock("@/components/lexical/editor/plugins/PollPlugin", () => ({
   InsertPollDialog: () => null,
 }));
 
-vi.mock("@/lexical-playground/plugins/TablePlugin", () => ({
+vi.mock("@/components/lexical/editor/plugins/TablePlugin", () => ({
   InsertTableDialog: () => null,
 }));
 
-import ComponentPickerMenuPlugin from "@/lexical-playground/plugins/ComponentPickerPlugin";
+import ComponentPickerMenuPlugin from "@/components/lexical/editor/plugins/ComponentPickerPlugin";
 
 describe("ComponentPickerMenuPlugin image selection capture", () => {
   it("usa o snapshot da selecao apos remover o gatilho do typeahead", () => {

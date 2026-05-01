@@ -18,7 +18,7 @@ vi.mock("@/hooks/use-theme-mode", () => ({
   useThemeMode: () => useThemeModeMock(),
 }));
 
-import { TweetNode } from "@/lexical-playground/nodes/TweetNode";
+import { TweetNode } from "@/components/lexical/editor/nodes/TweetNode";
 
 const WIDGET_SCRIPT_URL = "https://platform.twitter.com/widgets.js";
 

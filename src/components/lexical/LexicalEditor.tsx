@@ -1,13 +1,13 @@
 import type { ImageLibraryOptions } from "@/components/ImageLibraryDialog";
-import { FlashMessageContext } from "@/lexical-playground/context/FlashMessageContext";
-import { PollProvider } from "@/lexical-playground/context/PollContext";
-import { SettingsContext } from "@/lexical-playground/context/SettingsContext";
-import { SharedHistoryContext } from "@/lexical-playground/context/SharedHistoryContext";
-import { ToolbarContext } from "@/lexical-playground/context/ToolbarContext";
-import Editor from "@/lexical-playground/Editor";
-import PlaygroundNodes from "@/lexical-playground/nodes/PlaygroundNodes";
-import { TableContext } from "@/lexical-playground/plugins/TablePlugin";
-import PlaygroundEditorTheme from "@/lexical-playground/themes/PlaygroundEditorTheme";
+import editorNodes from "@/components/lexical/editor-nodes";
+import LexicalEditorShell from "@/components/lexical/LexicalEditorShell";
+import { FlashMessageContext } from "@/components/lexical/editor/context/FlashMessageContext";
+import { PollProvider } from "@/components/lexical/editor/context/PollContext";
+import { SettingsContext } from "@/components/lexical/editor/context/SettingsContext";
+import { SharedHistoryContext } from "@/components/lexical/editor/context/SharedHistoryContext";
+import { ToolbarContext } from "@/components/lexical/editor/context/ToolbarContext";
+import { TableContext } from "@/components/lexical/editor/plugins/TablePlugin";
+import PlaygroundEditorTheme from "@/components/lexical/editor/themes/PlaygroundEditorTheme";
 import { EMPTY_LEXICAL_JSON, normalizeLexicalJson } from "@/lib/lexical/serialize";
 import { LexicalComposer } from "@lexical/react/LexicalComposer";
 import { useLexicalComposerContext } from "@lexical/react/LexicalComposerContext";
@@ -15,9 +15,9 @@ import { OnChangePlugin } from "@lexical/react/LexicalOnChangePlugin";
 import { $setSelection } from "lexical";
 import * as React from "react";
 
-import "@/lexical-playground/playground.css";
-import "@/lexical-playground/playground-overrides.css";
-import "@/lexical-playground/lexical-editor.css";
+import "@/components/lexical/editor/playground.css";
+import "@/components/lexical/editor/playground-overrides.css";
+import "@/components/lexical/editor/lexical-editor.css";
 
 export type LexicalEditorHandle = {
   focus: () => void;
@@ -183,7 +183,7 @@ const LexicalEditor = React.forwardRef<LexicalEditorHandle, LexicalEditorProps>(
     const initialConfig = React.useRef({
       namespace: "RainbowLexicalPlayground",
       theme: PlaygroundEditorTheme,
-      nodes: PlaygroundNodes,
+      nodes: editorNodes,
       onError: (error: Error) => {
         console.error(error);
       },
@@ -201,7 +201,7 @@ const LexicalEditor = React.forwardRef<LexicalEditorHandle, LexicalEditorProps>(
                   <ToolbarContext>
                     <div className={`lexical-playground ${className || ""}`}>
                       <div className="editor-shell">
-                        <Editor
+                        <LexicalEditorShell
                           hideToolbar={Boolean(readOnly)}
                           placeholder={placeholder}
                           imageLibraryOptions={imageLibraryOptions}

@@ -6,42 +6,43 @@ const { editorPropsSpy } = vi.hoisted(() => ({
   editorPropsSpy: vi.fn(),
 }));
 
-vi.mock("@/lexical-playground/Editor", () => ({
+vi.mock("@/components/lexical/LexicalEditorShell", () => ({
   default: (props: unknown) => {
     editorPropsSpy(props);
     return <div data-testid="lexical-editor-shell" />;
   },
 }));
 
-vi.mock("@/lexical-playground/nodes/PlaygroundNodes", () => ({
+vi.mock("@/components/lexical/editor-nodes", () => ({
   default: [],
+  editorNodes: [],
 }));
 
-vi.mock("@/lexical-playground/themes/PlaygroundEditorTheme", () => ({
+vi.mock("@/components/lexical/editor/themes/PlaygroundEditorTheme", () => ({
   default: {},
 }));
 
-vi.mock("@/lexical-playground/context/SettingsContext", () => ({
+vi.mock("@/components/lexical/editor/context/SettingsContext", () => ({
   SettingsContext: ({ children }: { children: ReactNode }) => <>{children}</>,
 }));
 
-vi.mock("@/lexical-playground/context/SharedHistoryContext", () => ({
+vi.mock("@/components/lexical/editor/context/SharedHistoryContext", () => ({
   SharedHistoryContext: ({ children }: { children: ReactNode }) => <>{children}</>,
 }));
 
-vi.mock("@/lexical-playground/context/ToolbarContext", () => ({
+vi.mock("@/components/lexical/editor/context/ToolbarContext", () => ({
   ToolbarContext: ({ children }: { children: ReactNode }) => <>{children}</>,
 }));
 
-vi.mock("@/lexical-playground/plugins/TablePlugin", () => ({
+vi.mock("@/components/lexical/editor/plugins/TablePlugin", () => ({
   TableContext: ({ children }: { children: ReactNode }) => <>{children}</>,
 }));
 
-vi.mock("@/lexical-playground/context/FlashMessageContext", () => ({
+vi.mock("@/components/lexical/editor/context/FlashMessageContext", () => ({
   FlashMessageContext: ({ children }: { children: ReactNode }) => <>{children}</>,
 }));
 
-vi.mock("@/lexical-playground/context/PollContext", () => ({
+vi.mock("@/components/lexical/editor/context/PollContext", () => ({
   PollProvider: ({ children }: { children: ReactNode }) => <>{children}</>,
 }));
 

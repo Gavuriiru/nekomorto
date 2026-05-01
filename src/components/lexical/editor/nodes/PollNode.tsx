@@ -23,7 +23,7 @@ import {
   type StateValueOrUpdater,
 } from "lexical";
 import * as React from "react";
-import { createRandomId } from "../../lib/random-id";
+import { createRandomId } from "@/lib/random-id";
 
 export type Options = ReadonlyArray<Option>;
 

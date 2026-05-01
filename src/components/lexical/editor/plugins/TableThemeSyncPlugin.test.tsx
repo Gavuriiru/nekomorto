@@ -57,7 +57,7 @@ vi.mock("lexical", () => ({
 
 import TableThemeSyncPlugin, {
   syncTableCellBackgroundColor,
-} from "@/lexical-playground/plugins/TableThemeSyncPlugin";
+} from "@/components/lexical/editor/plugins/TableThemeSyncPlugin";
 
 describe("TableThemeSyncPlugin", () => {
   it("remove o background inline padrao quando a celula nao tem cor explicita", () => {

@@ -3,7 +3,7 @@ import {
   normalizeFontFamilyBucket,
   parseStyleDeclaration,
 } from "@/components/lexical/nodes/epub-style";
-import PlaygroundNodes from "@/lexical-playground/nodes/PlaygroundNodes";
+import editorNodes from "@/components/lexical/editor-nodes";
 import { EMPTY_LEXICAL_JSON } from "@/lib/lexical/empty-state";
 import { lexicalNodes as bridgeLexicalNodes } from "@/lib/lexical/nodes";
 import { $generateHtmlFromNodes, $generateNodesFromDOM } from "@lexical/html";
@@ -175,7 +175,7 @@ const createBridgeLexicalEditor = () =>
 
 const createPlaygroundLexicalEditor = () =>
   createEditor({
-    nodes: PlaygroundNodes,
+    nodes: editorNodes,
     onError: () => {},
   });
 

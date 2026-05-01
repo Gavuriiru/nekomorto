@@ -16,8 +16,8 @@ import {
   $createViewerPollNode,
   createViewerPollOption,
 } from "@/components/lexical/viewer-nodes/ViewerPollNode";
-import { $createTweetNode } from "@/lexical-playground/nodes/TweetNode";
-import { $createYouTubeNode } from "@/lexical-playground/nodes/YouTubeNode";
+import { $createTweetNode } from "@/components/lexical/editor/nodes/TweetNode";
+import { $createYouTubeNode } from "@/components/lexical/editor/nodes/YouTubeNode";
 
 vi.mock("@/lib/api-base", () => ({
   getApiBase: () => "http://api.local",
@@ -213,13 +213,13 @@ describe("LexicalViewer fidelity", () => {
         $createTextNode: $createChromeTextNode,
       } = await import("lexical");
       const { $createCollapsibleContainerNode } = await import(
-        "@/lexical-playground/plugins/CollapsiblePlugin/CollapsibleContainerNode"
+        "@/components/lexical/editor/plugins/CollapsiblePlugin/CollapsibleContainerNode"
       );
       const { $createCollapsibleTitleNode } = await import(
-        "@/lexical-playground/plugins/CollapsiblePlugin/CollapsibleTitleNode"
+        "@/components/lexical/editor/plugins/CollapsiblePlugin/CollapsibleTitleNode"
       );
       const { $createCollapsibleContentNode } = await import(
-        "@/lexical-playground/plugins/CollapsiblePlugin/CollapsibleContentNode"
+        "@/components/lexical/editor/plugins/CollapsiblePlugin/CollapsibleContentNode"
       );
 
       const chromeEditor = createChromeEditor({

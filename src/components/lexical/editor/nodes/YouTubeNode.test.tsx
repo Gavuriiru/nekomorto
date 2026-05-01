@@ -10,7 +10,7 @@ vi.mock("@lexical/react/LexicalBlockWithAlignableContents", () => ({
   ),
 }));
 
-import { YouTubeNode } from "@/lexical-playground/nodes/YouTubeNode";
+import { YouTubeNode } from "@/components/lexical/editor/nodes/YouTubeNode";
 
 describe("YouTubeNode", () => {
   it("renderiza o embed sem limitar a largura maxima do wrapper", () => {

@@ -20,7 +20,7 @@ vi.mock("lexical", () => ({
 import {
   restoreRangeSelectionSnapshot,
   restoreSelectionForInsertion,
-} from "@/lexical-playground/plugins/ImagesPlugin/selectionSnapshot";
+} from "@/components/lexical/editor/plugins/ImagesPlugin/selectionSnapshot";
 
 describe("selectionSnapshot helpers", () => {
   beforeEach(() => {

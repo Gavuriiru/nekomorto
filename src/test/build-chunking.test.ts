@@ -11,9 +11,9 @@ describe("build chunking classifier", () => {
     expect(classifyManualChunk("/repo/node_modules/react-router-dom/index.js")).toBeUndefined();
   });
 
-  it("classifica arquivo local do lexical playground como lexical-editor", () => {
+  it("classifica arquivo local do editor lexical first-party como lexical-editor", () => {
     expect(
-      classifyManualChunk("/repo/src/lexical-playground/plugins/ToolbarPlugin/index.tsx"),
+      classifyManualChunk("/repo/src/components/lexical/editor/plugins/ToolbarPlugin/index.tsx"),
     ).toBe("lexical-editor");
   });
 
@@ -30,7 +30,16 @@ describe("build chunking classifier", () => {
   });
 
   it("classifica PlaygroundNodes do editor como lexical-editor", () => {
-    expect(classifyManualChunk("/repo/src/lexical-playground/nodes/PlaygroundNodes.ts")).toBe(
+    expect(classifyManualChunk("/repo/src/components/lexical/editor/nodes/PlaygroundNodes.ts")).toBe(
+      "lexical-editor",
+    );
+  });
+
+  it("classifica shell e perfil first-party do editor como lexical-editor", () => {
+    expect(classifyManualChunk("/repo/src/components/lexical/LexicalEditorShell.tsx")).toBe(
+      "lexical-editor",
+    );
+    expect(classifyManualChunk("/repo/src/components/lexical/editor-nodes.ts")).toBe(
       "lexical-editor",
     );
   });
@@ -108,11 +117,13 @@ describe("build chunking classifier", () => {
   it("normaliza caminhos Windows", () => {
     expect(
       classifyManualChunk(
-        "D:\\dev\\nekomorto\\src\\lexical-playground\\plugins\\ToolbarPlugin\\index.tsx",
+        "D:\\dev\\nekomorto\\src\\components\\lexical\\editor\\plugins\\ToolbarPlugin\\index.tsx",
       ),
     ).toBe("lexical-editor");
     expect(
-      classifyManualChunk("D:\\dev\\nekomorto\\src\\lexical-playground\\nodes\\PlaygroundNodes.ts"),
+      classifyManualChunk(
+        "D:\\dev\\nekomorto\\src\\components\\lexical\\editor\\nodes\\PlaygroundNodes.ts",
+      ),
     ).toBe("lexical-editor");
     expect(
       classifyManualChunk("D:\\dev\\nekomorto\\src\\components\\lexical\\LexicalViewerNodes.ts"),

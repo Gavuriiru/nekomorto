@@ -28,11 +28,11 @@ vi.mock("@lexical/react/LexicalAutoEmbedPlugin", () => ({
   URL_MATCHER: /https?:\/\/\S+/,
 }));
 
-vi.mock("@/lexical-playground/plugins/ImagesPlugin/selectionSnapshot", () => ({
+vi.mock("@/components/lexical/editor/plugins/ImagesPlugin/selectionSnapshot", () => ({
   restoreSelectionForInsertion: restoreSelectionForInsertionSpy,
 }));
 
-import { AutoEmbedDialog } from "@/lexical-playground/plugins/AutoEmbedPlugin";
+import { AutoEmbedDialog } from "@/components/lexical/editor/plugins/AutoEmbedPlugin";
 
 describe("AutoEmbedDialog", () => {
   beforeEach(() => {

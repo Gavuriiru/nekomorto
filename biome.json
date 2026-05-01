@@ -16,7 +16,6 @@
       "!**/reports/**",
       "!**/scratch-*",
       "!**/server/data/**",
-      "!**/src/lexical-playground/**",
       "!**/tmp/**",
       "!**/package-lock.json",
       "!**/tsconfig*.json"
