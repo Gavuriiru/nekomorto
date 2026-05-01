@@ -209,7 +209,7 @@ const LatestEpisodeCard = () => {
                         mediaVariants={mediaVariants}
                         sizes="105px"
                         className="block h-full w-full"
-                        imgClassName="home-card-media-transition h-full w-full object-cover object-center group-hover/recent-update:scale-[1.03] group-focus-within/recent-update:scale-[1.03]"
+                        imgClassName="home-card-media-transition h-full w-full object-cover object-center"
                       />
                     </div>
                     <div className="recent-updates-item-body flex h-full min-w-0 flex-1 flex-col gap-3">

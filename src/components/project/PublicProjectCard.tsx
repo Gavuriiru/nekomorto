@@ -355,7 +355,7 @@ const PublicProjectCard = ({
               preset="posterThumb"
               mediaVariants={model.mediaVariants || {}}
               className="block h-full w-full"
-              imgClassName="interactive-media-transition h-full w-full object-cover object-center group-hover:scale-105 group-focus-within:scale-105"
+              imgClassName="projects-public-card__media h-full w-full object-cover object-center"
               sizes={imageSizes}
               loading={imageLoading}
               fetchPriority={imageFetchPriority}
@@ -521,7 +521,7 @@ const PublicProjectCard = ({
               mediaVariants={model.mediaVariants || {}}
               sizes={imageSizes}
               className="block h-full w-full"
-              imgClassName="home-card-media-transition h-full w-full object-cover object-center group-hover:scale-[1.03] group-focus-within:scale-[1.03]"
+              imgClassName="home-card-media-transition h-full w-full object-cover object-center"
               loading={imageLoading}
               fetchPriority={imageFetchPriority}
             />

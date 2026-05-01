@@ -104,8 +104,15 @@ describe("PublicProjectCard", () => {
     );
 
     const cardLink = screen.getByRole("link", { name: /Projeto Catalogo/i });
+    const coverImage = screen.getByAltText("Projeto Catalogo");
     const badge = screen.getByRole("button", { name: /Filtrar por tag Acao/i });
     expect(cardLink).toHaveClass("projects-public-card");
+    expect(coverImage).toHaveClass("projects-public-card__media");
+    expect(coverImage).not.toHaveClass(
+      "interactive-media-transition",
+      "group-hover:scale-105",
+      "group-focus-within:scale-105",
+    );
     expect(screen.getByText("Sinopse de catalogo")).toHaveAttribute("data-synopsis-lines", "2");
     expect(screen.getByText("Em andamento")).toBeInTheDocument();
 
@@ -194,6 +201,11 @@ describe("PublicProjectCard", () => {
     expect(screen.getByTestId("top-project-item-1-meta-row")).toBeInTheDocument();
     expect(screen.getByTestId("top-project-item-1-rank")).toHaveTextContent("1");
     expect(screen.getByTestId("top-project-item-1-metric")).toHaveTextContent("120");
+    expect(screen.getByAltText("Projeto Sidebar")).toHaveClass("home-card-media-transition");
+    expect(screen.getByAltText("Projeto Sidebar")).not.toHaveClass(
+      "group-hover:scale-[1.025]",
+      "group-focus-within:scale-[1.025]",
+    );
     expect(screen.getByText("Sinopse lateral")).toHaveAttribute("data-synopsis-lines", "2");
     expect(screen.getByText("Sinopse lateral")).toHaveClass("clamp-safe-2");
   });

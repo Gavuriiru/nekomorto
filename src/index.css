@@ -961,9 +961,38 @@
   }
 
   .home-card-media-transition {
-    transition-property: opacity;
-    transition-duration: 150ms;
-    transition-timing-function: var(--interactive-ease-standard);
+    transform: scale(1);
+    transform-origin: center center;
+    transition:
+      transform 280ms var(--interactive-ease-standard),
+      opacity 280ms var(--interactive-ease-standard);
+    will-change: transform;
+  }
+
+  @media (prefers-reduced-motion: no-preference) {
+    .top-projects-link:hover .home-card-media-transition,
+    .top-projects-link:focus-visible .home-card-media-transition,
+    .top-projects-link:focus-within .home-card-media-transition,
+    .recent-updates-item:hover .home-card-media-transition,
+    .recent-updates-item:focus-visible .home-card-media-transition,
+    .recent-updates-item:focus-within .home-card-media-transition {
+      transform: scale(1.025);
+    }
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    .home-card-media-transition {
+      transition: none;
+    }
+
+    .top-projects-link:hover .home-card-media-transition,
+    .top-projects-link:focus-visible .home-card-media-transition,
+    .top-projects-link:focus-within .home-card-media-transition,
+    .recent-updates-item:hover .home-card-media-transition,
+    .recent-updates-item:focus-visible .home-card-media-transition,
+    .recent-updates-item:focus-within .home-card-media-transition {
+      transform: none;
+    }
   }
 
   .interactive-lift-md {

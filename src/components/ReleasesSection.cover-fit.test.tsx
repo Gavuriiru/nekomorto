@@ -140,13 +140,15 @@ describe("ReleasesSection cover fit", () => {
     expect(postLink).not.toHaveClass("shadow-xs", "hover:shadow-lg");
     expect(coverImage).toHaveClass(
       "home-post-media-transition",
-      "group-hover/home-post-card:scale-[1.02]",
-      "group-focus-within/home-post-card:scale-[1.02]",
+      "object-cover",
+      "object-center",
     );
     expect(coverImage).not.toHaveClass(
       "home-card-media-transition",
-      "group-hover/home-post-card:scale-[1.03]",
-      "group-focus-within/home-post-card:scale-[1.03]",
+      "group-hover/home-post-card:scale-[1.025]",
+      "group-focus-within/home-post-card:scale-[1.025]",
+      "group-hover/home-post-card:scale-[1.02]",
+      "group-focus-within/home-post-card:scale-[1.02]",
     );
     expect(coverImage).toHaveAttribute(
       "src",

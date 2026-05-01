@@ -109,7 +109,7 @@ const ReleasesSection = () => {
                             mediaVariants={mediaVariants}
                             sizes="(min-width: 1024px) 406px, (min-width: 640px) calc((100vw - 8rem) / 2), calc(100vw - 3rem)"
                             className="absolute inset-0 block h-full w-full"
-                            imgClassName="home-post-media-transition absolute inset-0 block h-full w-full object-cover object-center group-hover/home-post-card:scale-[1.02] group-focus-within/home-post-card:scale-[1.02]"
+                            imgClassName="home-post-media-transition absolute inset-0 block h-full w-full object-cover object-center"
                             loading="lazy"
                           />
                         </div>
