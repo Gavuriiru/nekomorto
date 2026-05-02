@@ -145,12 +145,12 @@ describe("Project downloads metadata", () => {
     expect(screen.getByText("TV")).toBeInTheDocument();
     expect(screen.getByText("Tamanho:")).toBeInTheDocument();
     expect(screen.getByText("700 MB")).toBeInTheDocument();
+    const expectedHashValue = fullHash.replace(/^SHA-256:\s*/, "");
     const hashNode = await screen.findByTitle(fullHash);
     expect(hashNode).toBeInTheDocument();
-    expect(hashNode.textContent).toMatch(/^SHA-256: 0123456789abcdef0123456789a.*\.\.\.$/);
-    expect(hashNode.textContent).not.toBe(fullHash);
+    expect(hashNode.textContent).toBe(expectedHashValue);
     expect(screen.getAllByText(/Tamanho:/i)).toHaveLength(1);
-    expect(screen.getAllByText(/Hash:/i)).toHaveLength(1);
+    expect(screen.getAllByText(/SHA-256:/i)).toHaveLength(1);
     expect(screen.queryByText(/Sem metadados do arquivo/i)).not.toBeInTheDocument();
     expect(screen.queryByText("Sinopse do episodio")).not.toBeInTheDocument();
     const links = screen.getAllByRole("link", { name: /Google Drive/i });

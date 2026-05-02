@@ -3,6 +3,7 @@ import {
   CalendarDays,
   Clock3,
   Cloud,
+  Copy,
   Download,
   Film,
   HardDrive,
@@ -35,6 +36,7 @@ import type { Project } from "@/data/projects";
 import { usePageMeta } from "@/hooks/use-page-meta";
 import { usePublicCurrentUser } from "@/hooks/use-public-current-user";
 import { useSiteSettings } from "@/hooks/use-site-settings";
+import { toast } from "@/components/ui/use-toast";
 import { canManageProjectsAccess } from "@/lib/access-control";
 import { getApiBase } from "@/lib/api-base";
 import { apiFetch, apiFetchBestEffort } from "@/lib/api-client";
@@ -392,10 +394,20 @@ const ProjectPage = () => {
     const rawSize = Number(episode.sizeBytes);
     const sizeLabel = Number.isFinite(rawSize) && rawSize > 0 ? formatBytesCompact(rawSize) : "";
     const hashTitle = String(episode.hash || "").trim();
-    const hashLabel = hashTitle.length > 36 ? `${hashTitle.slice(0, 36)}...` : hashTitle;
+    
+    let hashType = "MD5";
+    let hashValue = hashTitle;
+    
+    const match = hashTitle.match(/^([A-Za-z0-9-]+):\s*(.+)$/);
+    if (match) {
+      hashType = match[1];
+      hashValue = match[2];
+    }
+
     return {
       sizeLabel,
-      hashLabel,
+      hashType,
+      hashValue,
       hashTitle,
     };
   };
@@ -575,7 +587,7 @@ const ProjectPage = () => {
       showSynopsis = false,
       emptyStateBadge = "Em breve",
     } = options;
-    const { sizeLabel, hashLabel, hashTitle } = buildEpisodeMetadata(episode);
+    const { sizeLabel, hashType, hashValue, hashTitle } = buildEpisodeMetadata(episode);
     const isExtraEntry = getEpisodeEntryKind(episode) === "extra";
     const isAnimeDownloadCard = !isChapterBased;
     const sources = episode.sources || [];
@@ -659,13 +671,29 @@ const ProjectPage = () => {
                     <span className="truncate">{sizeLabel}</span>
                   </span>
                 ) : null}
-                {hashTitle ? (
+                {hashValue ? (
                   <span className="inline-flex min-w-0 max-w-full items-center gap-1">
-                    <Hash className="h-3.5 w-3.5 shrink-0 text-primary/70" />
-                    <span className="shrink-0 font-medium text-foreground/90">Hash:</span>
-                    <span className="max-w-[260px] truncate" title={hashTitle}>
-                      {hashLabel}
+                    <Hash className="mt-0 h-3.5 w-3.5 shrink-0 text-primary/70" />
+                    <span className="shrink-0 font-medium text-foreground/90">{hashType}:</span>
+                    <span className="break-all" title={hashTitle}>
+                      {hashValue}
                     </span>
+                    <button
+                      type="button"
+                      onClick={(e) => {
+                        e.preventDefault();
+                        navigator.clipboard.writeText(hashValue);
+                        toast({
+                          title: "Copiado",
+                          description: `${hashType} copiado para a área de transferência.`,
+                        });
+                      }}
+                      className="ml-1 shrink-0 rounded-sm p-1 text-muted-foreground transition-colors hover:bg-muted hover:text-foreground focus:outline-none focus:ring-2 focus:ring-primary/50"
+                      aria-label={`Copiar ${hashType}`}
+                      title={`Copiar ${hashType}`}
+                    >
+                      <Copy className="h-3 w-3" />
+                    </button>
                   </span>
                 ) : null}
               </div>

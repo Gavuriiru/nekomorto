@@ -106,6 +106,26 @@ const animeEpisodeSourceTypeOptions = [
   { value: "Blu-ray", label: "Blu-ray" },
 ];
 
+const hashTypeOptions = [
+  { value: "MD5", label: "MD5" },
+  { value: "SHA-1", label: "SHA-1" },
+  { value: "SHA-256", label: "SHA-256" },
+  { value: "SHA-512", label: "SHA-512" },
+  { value: "CRC32", label: "CRC32" },
+];
+
+const parseHashValue = (hash?: string) => {
+  const trimmed = String(hash || "").trim();
+  const match = trimmed.match(/^([A-Za-z0-9-]+):\s*(.+)$/);
+  if (match) {
+    const type = match[1];
+    if (hashTypeOptions.some((opt) => opt.value === type)) {
+      return { type, value: match[2] };
+    }
+  }
+  return { type: "MD5", value: trimmed };
+};
+
 import NotFound from "./NotFound";
 
 type ProjectRecord = Project & {
@@ -1541,17 +1561,43 @@ const DashboardProjectEpisodeEditor = () => {
                           </DashboardFieldStack>
                           <DashboardFieldStack>
                             <Label htmlFor="anime-episode-hash">Hash</Label>
-                            <Input
-                              id="anime-episode-hash"
-                              value={activeDraft.hash || ""}
-                              onChange={(event) =>
-                                updateDraft((current) => ({
-                                  ...current,
-                                  hash: event.target.value,
-                                }))
-                              }
-                              placeholder="Ex.: SHA-256: ..."
-                            />
+                            <div className="flex items-center gap-2">
+                              <Combobox
+                                value={parseHashValue(activeDraft.hash).type}
+                                onValueChange={(value) =>
+                                  updateDraft((current) => {
+                                    const parsed = parseHashValue(current.hash);
+                                    const nextType = value;
+                                    const nextValue = parsed.value;
+                                    return {
+                                      ...current,
+                                      hash: `${nextType}: ${nextValue}`,
+                                    };
+                                  })
+                                }
+                                ariaLabel="Tipo de Hash"
+                                options={hashTypeOptions}
+                                placeholder="Tipo"
+                                searchable={false}
+                                className="w-[110px] shrink-0"
+                              />
+                              <Input
+                                id="anime-episode-hash"
+                                value={parseHashValue(activeDraft.hash).value}
+                                onChange={(event) =>
+                                  updateDraft((current) => {
+                                    const parsed = parseHashValue(current.hash);
+                                    const nextValue = event.target.value;
+                                    return {
+                                      ...current,
+                                      hash: `${parsed.type}: ${nextValue}`,
+                                    };
+                                  })
+                                }
+                                placeholder="Ex.: a1b2c3d4..."
+                                className="min-w-0 flex-1"
+                              />
+                            </div>
                           </DashboardFieldStack>
                         </div>
                         <DashboardFieldStack>
