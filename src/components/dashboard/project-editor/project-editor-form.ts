@@ -428,10 +428,12 @@ export type PrepareProjectSaveStateResult =
     };
 
 export const prepareProjectSaveState = ({
+  editingProject,
   episodeSizeDrafts,
   episodeSizeErrors,
   formState,
 }: {
+  editingProject?: ProjectRecord | null;
   episodeSizeDrafts: Record<number, string>;
   episodeSizeErrors: Record<number, string>;
   formState: ProjectForm;
@@ -545,9 +547,30 @@ export const prepareProjectSaveState = ({
     };
   }
 
+  const existingEpisodes = Array.isArray(editingProject?.episodeDownloads)
+    ? editingProject.episodeDownloads
+    : null;
   const invalidPublishedEpisodeIndex = normalizedEpisodesForSave.findIndex((episode) => {
     const publicationState = resolveProjectEpisodePublicationState(formState.type || "", episode);
-    return episode.publicationStatus === "published" && Boolean(publicationState.errorCode);
+    if (episode.publicationStatus !== "published" || !publicationState.errorCode) {
+      return false;
+    }
+    if (existingEpisodes) {
+      const episodeKey = buildEpisodeKey(episode.number, episode.volume);
+      const existingEpisode = existingEpisodes.find(
+        (item) => buildEpisodeKey(item.number, item.volume) === episodeKey,
+      );
+      if (existingEpisode) {
+        const existingPublicationState = resolveProjectEpisodePublicationState(
+          formState.type || "",
+          existingEpisode,
+        );
+        if (existingPublicationState.errorCode) {
+          return false;
+        }
+      }
+    }
+    return true;
   });
 
   if (invalidPublishedEpisodeIndex >= 0) {

@@ -1,13 +1,15 @@
 import { floatingOverlayShadowClassName } from "@/components/ui/floating-surface";
 import { useThemeMode } from "@/hooks/use-theme-mode";
 import { Toaster as Sonner } from "sonner";
+import { createPortal } from "react-dom";
 
 type ToasterProps = React.ComponentProps<typeof Sonner>;
 
 const Toaster = ({ ...props }: ToasterProps) => {
   const { effectiveMode } = useThemeMode();
 
-  return (
+  const portalContainer = typeof document === "undefined" ? null : document.body;
+  const toaster = (
     <Sonner
       theme={effectiveMode}
       closeButton
@@ -31,6 +33,12 @@ const Toaster = ({ ...props }: ToasterProps) => {
       {...props}
     />
   );
+
+  if (!portalContainer) {
+    return null;
+  }
+
+  return createPortal(toaster, portalContainer);
 };
 
 export { Toaster };

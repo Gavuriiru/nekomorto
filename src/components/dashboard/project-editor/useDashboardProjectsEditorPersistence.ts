@@ -43,6 +43,13 @@ type UseDashboardProjectsEditorPersistenceResult = {
   isRestorable: (project: ProjectRecord) => boolean;
 };
 
+const logProjectSaveFailure = (error: unknown) => {
+  if (!import.meta.env.DEV || import.meta.env.VITEST) {
+    return;
+  }
+  console.error("project_save_failed", error);
+};
+
 export const useDashboardProjectsEditorPersistence = ({
   anilistIdInput,
   apiBase,
@@ -103,6 +110,7 @@ export const useDashboardProjectsEditorPersistence = ({
 
   const handleSave = useCallback(async () => {
     const savePreparation = prepareProjectSaveState({
+      editingProject,
       episodeSizeDrafts,
       episodeSizeErrors,
       formState,
@@ -173,10 +181,10 @@ export const useDashboardProjectsEditorPersistence = ({
           savePreparation.code,
         );
         toast({
-          title: publicationFailure?.title || "NÃ£o foi possÃ­vel publicar o episÃ³dio",
+          title: publicationFailure?.title || "N\u00E3o foi poss\u00EDvel publicar o epis\u00F3dio",
           description:
             publicationFailure?.description ||
-            "Revise o episÃ³dio antes de tentar salvar novamente.",
+            "Revise o epis\u00F3dio antes de tentar salvar novamente.",
           variant: "destructive",
         });
         return;
@@ -222,128 +230,138 @@ export const useDashboardProjectsEditorPersistence = ({
       staffMemberInput,
     });
 
-    const response = await apiFetch(
-      apiBase,
-      editingProject ? `/api/projects/${editingProject.id}` : "/api/projects",
-      {
-        method: editingProject ? "PUT" : "POST",
-        auth: true,
-        json: payload,
-      },
-    );
+    try {
+      const response = await apiFetch(
+        apiBase,
+        editingProject ? `/api/projects/${editingProject.id}` : "/api/projects",
+        {
+          method: editingProject ? "PUT" : "POST",
+          auth: true,
+          json: payload,
+        },
+      );
 
-    if (!response.ok) {
-      const data = await response.json().catch(() => null);
-      const code = typeof data?.error === "string" ? data.error : "";
-      if (code === "title_and_id_required") {
-        toast({
-          title: "Campos obrigatórios ausentes",
-          description: "Informe título e identificador do projeto.",
-          variant: "destructive",
-        });
-        return;
-      }
-      if (code === "id_exists") {
-        toast({
-          title: "Identificador já existe",
-          description: "Use outro ID para criar o projeto.",
-          variant: "destructive",
-        });
-        return;
-      }
-      if (code === "forbidden") {
-        toast({
-          title: "Acesso negado",
-          description: "Você não tem permissão para salvar projetos.",
-          variant: "destructive",
-        });
-        return;
-      }
-      if (code === "duplicate_episode_key") {
-        const duplicateKey = String(data?.key || "");
-        const duplicateIndex = normalizedEpisodesForSave.findIndex(
-          (episode) => buildEpisodeKey(episode.number, episode.volume) === duplicateKey,
-        );
-        setEditorAccordionValue((prev) =>
-          prev.includes("episodios") ? prev : [...prev, "episodios"],
-        );
-        if (duplicateIndex >= 0) {
-          revealEpisodeAtIndex(duplicateIndex);
+      if (!response.ok) {
+        const data = await response.json().catch(() => null);
+        const code = typeof data?.error === "string" ? data.error : "";
+        if (code === "title_and_id_required") {
+          toast({
+            title: "Campos obrigatórios ausentes",
+            description: "Informe título e identificador do projeto.",
+            variant: "destructive",
+          });
+          return;
+        }
+        if (code === "id_exists") {
+          toast({
+            title: "Identificador já existe",
+            description: "Use outro ID para criar o projeto.",
+            variant: "destructive",
+          });
+          return;
+        }
+        if (code === "forbidden") {
+          toast({
+            title: "Acesso negado",
+            description: "Você não tem permissão para salvar projetos.",
+            variant: "destructive",
+          });
+          return;
+        }
+        if (code === "duplicate_episode_key") {
+          const duplicateKey = String(data?.key || "");
+          const duplicateIndex = normalizedEpisodesForSave.findIndex(
+            (episode) => buildEpisodeKey(episode.number, episode.volume) === duplicateKey,
+          );
+          setEditorAccordionValue((prev) =>
+            prev.includes("episodios") ? prev : [...prev, "episodios"],
+          );
+          if (duplicateIndex >= 0) {
+            revealEpisodeAtIndex(duplicateIndex);
+          }
+          toast({
+            title: "Capítulos duplicados",
+            description:
+              "O servidor bloqueou o save porque existe mais de um capítulo com o mesmo número e volume.",
+            variant: "destructive",
+          });
+          return;
+        }
+        if (code === "duplicate_volume_cover_key") {
+          setEditorAccordionValue((prev) =>
+            prev.includes("episodios") ? prev : [...prev, "episodios"],
+          );
+          toast({
+            title: "Volumes duplicados",
+            description:
+              "O servidor bloqueou o save porque existe mais de uma entrada para o mesmo volume.",
+            variant: "destructive",
+          });
+          return;
+        }
+        if (
+          code === "download_sources_required_for_publication" ||
+          code === "reader_content_or_download_required_for_publication"
+        ) {
+          const invalidKey = String(data?.key || "");
+          const invalidIndex = normalizedEpisodesForSave.findIndex(
+            (episode) => buildEpisodeKey(episode.number, episode.volume) === invalidKey,
+          );
+          setEditorAccordionValue((prev) =>
+            prev.includes("episodios") ? prev : [...prev, "episodios"],
+          );
+          if (invalidIndex >= 0) {
+            revealEpisodeAtIndex(invalidIndex);
+          }
+          const publicationFailure = resolveProjectEpisodePublicationErrorState(
+            formState.type || "",
+            code,
+          );
+          toast({
+            title:
+              publicationFailure?.title || "N\u00E3o foi poss\u00EDvel publicar o epis\u00F3dio",
+            description:
+              publicationFailure?.description ||
+              "Revise o epis\u00F3dio antes de tentar salvar novamente.",
+            variant: "destructive",
+          });
+          return;
         }
         toast({
-          title: "Capítulos duplicados",
-          description:
-            "O servidor bloqueou o save porque existe mais de um capítulo com o mesmo número e volume.",
+          title: "Não foi possível salvar o projeto",
+          description: "Tente novamente em alguns instantes.",
           variant: "destructive",
         });
         return;
       }
-      if (code === "duplicate_volume_cover_key") {
-        setEditorAccordionValue((prev) =>
-          prev.includes("episodios") ? prev : [...prev, "episodios"],
-        );
-        toast({
-          title: "Volumes duplicados",
-          description:
-            "O servidor bloqueou o save porque existe mais de uma entrada para o mesmo volume.",
-          variant: "destructive",
-        });
-        return;
+
+      const data = await response.json();
+      if (data?.project) {
+        setFormState(data.project);
       }
-      if (
-        code === "download_sources_required_for_publication" ||
-        code === "reader_content_or_download_required_for_publication"
-      ) {
-        const invalidKey = String(data?.key || "");
-        const invalidIndex = normalizedEpisodesForSave.findIndex(
-          (episode) => buildEpisodeKey(episode.number, episode.volume) === invalidKey,
+      if (editingProject) {
+        setProjects((prev) =>
+          prev.map((project) => (project.id === editingProject.id ? data.project : project)),
         );
-        setEditorAccordionValue((prev) =>
-          prev.includes("episodios") ? prev : [...prev, "episodios"],
-        );
-        if (invalidIndex >= 0) {
-          revealEpisodeAtIndex(invalidIndex);
-        }
-        const publicationFailure = resolveProjectEpisodePublicationErrorState(
-          formState.type || "",
-          code,
-        );
-        toast({
-          title: publicationFailure?.title || "NÃ£o foi possÃ­vel publicar o episÃ³dio",
-          description:
-            publicationFailure?.description ||
-            "Revise o episÃ³dio antes de tentar salvar novamente.",
-          variant: "destructive",
-        });
-        return;
+      } else {
+        setProjects((prev) => [...prev, data.project]);
       }
+      markEditorSnapshot((data?.project || payload) as ProjectForm, anilistIdInput);
       toast({
-        title: "Não foi possível salvar o projeto",
-        description: "Tente novamente em alguns instantes.",
+        title: editingProject ? "Projeto atualizado" : "Projeto criado",
+        description: "As alterações foram salvas com sucesso.",
+        intent: "success",
+      });
+      void refetchPublicBootstrapCache(apiBase).catch(() => undefined);
+      closeEditor();
+    } catch (error) {
+      logProjectSaveFailure(error);
+      toast({
+        title: "N\u00E3o foi poss\u00EDvel salvar o projeto",
+        description: "A solicita\u00E7\u00E3o falhou antes de receber uma resposta do servidor.",
         variant: "destructive",
       });
-      return;
     }
-
-    const data = await response.json();
-    if (data?.project) {
-      setFormState(data.project);
-    }
-    if (editingProject) {
-      setProjects((prev) =>
-        prev.map((project) => (project.id === editingProject.id ? data.project : project)),
-      );
-    } else {
-      setProjects((prev) => [...prev, data.project]);
-    }
-    markEditorSnapshot((data?.project || payload) as ProjectForm, anilistIdInput);
-    toast({
-      title: editingProject ? "Projeto atualizado" : "Projeto criado",
-      description: "As alterações foram salvas com sucesso.",
-      intent: "success",
-    });
-    void refetchPublicBootstrapCache(apiBase).catch(() => undefined);
-    closeEditor();
   }, [
     anilistIdInput,
     apiBase,

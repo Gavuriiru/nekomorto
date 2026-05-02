@@ -214,4 +214,68 @@ describe("useDashboardProjectsEditorPersistence", () => {
     );
     expect(apiFetchMock).not.toHaveBeenCalled();
   });
+
+  it("permite salvar metadados quando o episÃ³dio publicado jÃ¡ estava sem fonte antes da ediÃ§Ã£o", async () => {
+    const brokenPublishedEpisode = {
+      number: 1,
+      title: "EpisÃ³dio 1",
+      synopsis: "",
+      releaseDate: "",
+      duration: "",
+      sourceType: "Web" as const,
+      sources: [],
+      content: "",
+      contentFormat: "lexical" as const,
+      publicationStatus: "published" as const,
+      completedStages: [],
+    };
+    const editingProject = createProjectRecord({
+      episodeDownloads: [brokenPublishedEpisode],
+    });
+    const savedProject = createProjectRecord({
+      title: "Projeto Teste Atualizado",
+      episodeDownloads: [brokenPublishedEpisode],
+    });
+    apiFetchMock.mockResolvedValueOnce(createJsonResponse(true, { project: savedProject }));
+
+    const options = createOptions({
+      editingProject,
+      formState: createFormState({
+        title: "Projeto Teste Atualizado",
+        type: "Anime",
+        episodeDownloads: [brokenPublishedEpisode],
+      }),
+    });
+    const { result } = renderHook(() => useDashboardProjectsEditorPersistence(options));
+
+    await act(async () => {
+      await result.current.handleSave();
+    });
+
+    expect(apiFetchMock).toHaveBeenCalledWith(
+      "http://api.local",
+      "/api/projects/project-1",
+      expect.objectContaining({ method: "PUT" }),
+    );
+    expect(options.closeEditor).toHaveBeenCalledTimes(1);
+  });
+
+  it("mostra toast destrutivo quando o save falha antes da resposta HTTP", async () => {
+    apiFetchMock.mockRejectedValueOnce(new TypeError("Failed to fetch"));
+
+    const options = createOptions();
+    const { result } = renderHook(() => useDashboardProjectsEditorPersistence(options));
+
+    await act(async () => {
+      await result.current.handleSave();
+    });
+
+    expect(toastMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        title: "N\u00E3o foi poss\u00EDvel salvar o projeto",
+        variant: "destructive",
+      }),
+    );
+    expect(options.closeEditor).not.toHaveBeenCalled();
+  });
 });
