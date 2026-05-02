@@ -155,6 +155,28 @@ const sanitizeInProgressItems = (items) =>
       }))
     : [];
 
+const sanitizeStaffEntries = (items) => {
+  const entries = Array.isArray(items)
+    ? items
+    : items && typeof items === "object"
+      ? Object.entries(items).map(([role, members]) => ({ role, members }))
+      : [];
+
+  return entries
+    .map((item) => {
+      const role = safeString(item?.role);
+      const members = Array.isArray(item?.members)
+        ? safeStringArray(item.members)
+        : String(item?.members || "")
+            .split(",")
+            .map((member) => safeString(member))
+            .filter(Boolean);
+
+      return role || members.length ? { role, members } : null;
+    })
+    .filter(Boolean);
+};
+
 export const toPublicBootstrapProject = (project) => ({
   id: safeString(project?.id),
   title: safeString(project?.title),
@@ -178,6 +200,8 @@ export const toPublicBootstrapProject = (project) => ({
   animationStudios: safeStringArray(project?.animationStudios),
   episodes: safeString(project?.episodes),
   producers: safeStringArray(project?.producers),
+  staff: sanitizeStaffEntries(project?.staff),
+  animeStaff: sanitizeStaffEntries(project?.animeStaff),
   volumeEntries: sanitizeVolumeEntries(project?.volumeEntries),
   volumeCovers: sanitizeVolumeCovers(project?.volumeCovers),
   episodeDownloads: sanitizeEpisodeDownloads(project?.episodeDownloads),

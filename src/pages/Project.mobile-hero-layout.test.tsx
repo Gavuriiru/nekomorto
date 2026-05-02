@@ -688,7 +688,7 @@ describe("Project mobile hero layout", () => {
       findSectionCard("Sobre o projeto"),
       findSectionCard("Relacionados"),
       findSectionCard("Equipe da fansub"),
-      findSectionCard("Staff"),
+      findSectionCard("Staff do anime"),
       findSectionCard("Compartilhar"),
     ];
 
@@ -1047,7 +1047,11 @@ describe("Project mobile hero layout", () => {
 
     const volumeTitle = within(volumeTrigger).getByText("Volume 3");
     const volumeSynopsis = within(volumeTrigger).getByText("Sinopse do volume 3");
-    expect(within(volumeTrigger).getAllByRole("img", { name: "Capa do volume 3" }).length).toBe(1);
+    const volumeCoverImage = within(volumeTrigger).getByRole("img", { name: "Capa do volume 3" });
+    expect(volumeCoverImage).toBeInTheDocument();
+    expect(classTokens(volumeCoverImage)).toContain("transition-transform");
+    expect(classTokens(volumeCoverImage)).toContain("duration-300");
+    expect(classTokens(volumeCoverImage)).toContain("group-hover/download-card:scale-105");
     expect(within(volumeTrigger).getByText("1 capítulos disponíveis")).toBeInTheDocument();
     expect(within(volumeTrigger).getByText("1 capítulos")).toBeInTheDocument();
     expect(volumeSynopsis).toBeInTheDocument();

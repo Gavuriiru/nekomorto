@@ -225,75 +225,77 @@ const WEBHOOK_DELIVERY_STATUS_VARIANTS: Record<
 const WEBHOOK_ACCORDION_CONTENT_CLASSNAME = "space-y-4 px-1";
 
 const COMMON_PLACEHOLDERS = [
-  "event.key",
-  "event.label",
-  "event.occurredAt",
-  "site.name",
+  "evento.chave",
+  "evento.rotulo",
+  "evento.ocorridoEm",
+  "site.nome",
   "site.url",
   "site.logoUrl",
-  "site.coverImageUrl",
+  "site.capaUrl",
   "site.faviconUrl",
-  "mention.type",
-  "mention.project",
-  "mention.release",
-  "mention.all",
-  "author.name",
-  "author.avatarUrl",
+  "mencao.tipo",
+  "mencao.projeto",
+  "mencao.lancamento",
+  "mencao.todos",
+  "autor.nome",
+  "autor.avatarUrl",
 ];
 
 const POST_PLACEHOLDERS = [
-  "post.id",
-  "post.title",
-  "post.slug",
-  "post.url",
-  "post.status",
-  "post.author",
-  "post.authorAvatarUrl",
-  "post.publishedAt",
-  "post.updatedAt",
-  "post.excerpt",
-  "post.tags",
-  "post.coverImageUrl",
-  "post.coverAlt",
-  "post.imageUrl",
-  "post.ogImageUrl",
+  "postagem.id",
+  "postagem.titulo",
+  "postagem.slug",
+  "postagem.url",
+  "postagem.status",
+  "postagem.autor",
+  "postagem.autorAvatarUrl",
+  "postagem.publicadoEm",
+  "postagem.atualizadoEm",
+  "postagem.resumo",
+  "postagem.tags",
+  "postagem.capaUrl",
+  "postagem.capaAlt",
+  "postagem.imagemUrl",
+  "postagem.ogImagemUrl",
 ];
 
 const PROJECT_PLACEHOLDERS = [
-  "project.id",
-  "project.title",
-  "project.type",
-  "project.category",
-  "project.url",
-  "project.cover",
-  "project.banner",
-  "project.heroImageUrl",
-  "project.imageUrl",
-  "project.backdropImageUrl",
-  "project.ogImageUrl",
-  "project.synopsis",
-  "project.tags",
-  "project.genres",
+  "projeto.id",
+  "projeto.titulo",
+  "projeto.tipo",
+  "projeto.categoria",
+  "projeto.url",
+  "projeto.capaUrl",
+  "projeto.bannerUrl",
+  "projeto.heroImagemUrl",
+  "projeto.imagemUrl",
+  "projeto.fundoImagemUrl",
+  "projeto.ogImagemUrl",
+  "projeto.sinopse",
+  "projeto.tags",
+  "projeto.generos",
 ];
 
-const CHAPTER_PLACEHOLDERS = [
-  "chapter.number",
-  "chapter.volume",
-  "chapter.title",
-  "chapter.synopsis",
-  "chapter.releaseDate",
-  "chapter.updatedAt",
-  "chapter.coverImageUrl",
-  "chapter.imageUrl",
-  "chapter.ogImageUrl",
+const CONTENT_PLACEHOLDERS = [
+  "conteudo.tipo",
+  "conteudo.numero",
+  "conteudo.volume",
+  "conteudo.titulo",
+  "conteudo.sinopse",
+  "conteudo.url",
+  "conteudo.dataLancamento",
+  "conteudo.atualizadoEm",
+  "conteudo.capaUrl",
+  "conteudo.imagemUrl",
+  "conteudo.ogImagemUrl",
+  "conteudo.formato",
+  "conteudo.status",
+  "conteudo.rotulo",
 ];
 
 const UPDATE_PLACEHOLDERS = [
-  "update.kind",
-  "update.reason",
-  "update.unit",
-  "update.episodeNumber",
-  "update.volume",
+  "atualizacao.tipo",
+  "atualizacao.motivo",
 ];
 
 const PLACEHOLDERS: Record<EventKey, string[]> = {
@@ -302,16 +304,81 @@ const PLACEHOLDERS: Record<EventKey, string[]> = {
   project_release: [
     ...COMMON_PLACEHOLDERS,
     ...PROJECT_PLACEHOLDERS,
-    ...CHAPTER_PLACEHOLDERS,
+    ...CONTENT_PLACEHOLDERS,
     ...UPDATE_PLACEHOLDERS,
   ],
   project_adjust: [
     ...COMMON_PLACEHOLDERS,
     ...PROJECT_PLACEHOLDERS,
-    ...CHAPTER_PLACEHOLDERS,
+    ...CONTENT_PLACEHOLDERS,
     ...UPDATE_PLACEHOLDERS,
   ],
 };
+
+const PLACEHOLDER_DESCRIPTIONS: Record<string, string> = {
+  "evento.chave": "Mostra a chave técnica do evento. Ex.: post_create ou project_release.",
+  "evento.rotulo": "Mostra o nome legível do evento. Ex.: Novo lançamento.",
+  "evento.ocorridoEm": "Mostra a data e hora em que o evento ocorreu. Ex.: 2026-03-01T12:00:00.000Z.",
+  "site.nome": "Mostra o nome público do site. Ex.: Nekomata.",
+  "site.url": "Mostra a URL pública principal do site. Ex.: https://nekomata.example.",
+  "site.logoUrl": "Mostra a URL do logo do site. Ex.: https://nekomata.example/logo.png.",
+  "site.capaUrl": "Mostra a imagem padrão de compartilhamento do site. Ex.: /uploads/og-site.jpg.",
+  "site.faviconUrl": "Mostra a URL do favicon do site. Ex.: /favicon.ico.",
+  "mencao.tipo": "Mostra a menção do cargo configurado para o tipo do projeto. Ex.: <@&123456789>.",
+  "mencao.projeto": "Mostra a menção do cargo específico do projeto. Ex.: <@&234567890>.",
+  "mencao.lancamento": "Mostra a menção do cargo geral de lançamentos. Ex.: <@&345678901>.",
+  "mencao.todos": "Mostra todas as menções aplicáveis ao evento. Ex.: <@&123> <@&456>.",
+  "autor.nome": "Mostra o nome do autor ou editor relacionado. Ex.: Equipe Nekomata.",
+  "autor.avatarUrl": "Mostra a URL do avatar do autor ou editor. Ex.: /uploads/avatars/editor.png.",
+  "postagem.id": "Mostra o ID interno da postagem. Ex.: post_01hxyz.",
+  "postagem.titulo": "Mostra o título da postagem. Ex.: Guia da temporada.",
+  "postagem.slug": "Mostra o slug público da postagem. Ex.: guia-da-temporada.",
+  "postagem.url": "Mostra a URL pública da postagem. Ex.: https://nekomata.example/postagem/guia.",
+  "postagem.status": "Mostra o status salvo da postagem. Ex.: published ou draft.",
+  "postagem.autor": "Mostra o nome do autor da postagem. Ex.: Akira.",
+  "postagem.autorAvatarUrl": "Mostra a URL do avatar do autor da postagem. Ex.: /uploads/avatars/akira.png.",
+  "postagem.publicadoEm": "Mostra a data de publicação da postagem. Ex.: 2026-03-01.",
+  "postagem.atualizadoEm": "Mostra a data da última atualização da postagem. Ex.: 2026-03-02T10:30:00.000Z.",
+  "postagem.resumo": "Mostra o resumo ou excerto da postagem. Ex.: Confira os destaques da semana.",
+  "postagem.tags": "Mostra as tags da postagem, separadas por vírgula. Ex.: anime, guia, temporada.",
+  "postagem.capaUrl": "Mostra a URL da capa cadastrada na postagem. Ex.: /uploads/posts/capa.jpg.",
+  "postagem.capaAlt": "Mostra o texto alternativo da capa da postagem. Ex.: Personagem principal em destaque.",
+  "postagem.imagemUrl": "Mostra a melhor imagem disponível para a postagem. Ex.: capa, OG ou imagem padrão.",
+  "postagem.ogImagemUrl": "Mostra a imagem OG gerada ou resolvida para a postagem. Ex.: /api/og/post/guia.",
+  "projeto.id": "Mostra o ID público do projeto. Ex.: minha-obra.",
+  "projeto.titulo": "Mostra o título do projeto. Ex.: Minha Obra.",
+  "projeto.tipo": "Mostra o tipo do projeto. Ex.: Anime, Manga ou Light Novel.",
+  "projeto.categoria": "Mostra a categoria usada para menções do projeto. Ex.: Anime.",
+  "projeto.url": "Mostra a URL pública do projeto. Ex.: https://nekomata.example/projeto/minha-obra.",
+  "projeto.capaUrl": "Mostra a URL da capa cadastrada no projeto. Ex.: /uploads/projects/capa.jpg.",
+  "projeto.bannerUrl": "Mostra a URL do banner cadastrado no projeto. Ex.: /uploads/projects/banner.jpg.",
+  "projeto.heroImagemUrl": "Mostra a URL da imagem hero do projeto. Ex.: /uploads/projects/hero.jpg.",
+  "projeto.imagemUrl": "Mostra a melhor imagem principal disponível para o projeto. Ex.: capa, hero ou OG.",
+  "projeto.fundoImagemUrl": "Mostra a melhor imagem ampla ou de fundo do projeto. Ex.: banner ou hero.",
+  "projeto.ogImagemUrl": "Mostra a imagem OG gerada ou resolvida para o projeto. Ex.: /api/og/project/minha-obra.",
+  "projeto.sinopse": "Mostra a sinopse do projeto. Ex.: Uma história sobre recomeços.",
+  "projeto.tags": "Mostra as tags do projeto, separadas por vírgula. Ex.: ação, drama, fantasia.",
+  "projeto.generos": "Mostra os gêneros do projeto, separados por vírgula. Ex.: Aventura, Mistério.",
+  "conteudo.tipo": "Mostra Capítulo, Episódio, Extra ou Especial conforme o conteúdo. Ex.: Capítulo.",
+  "conteudo.numero": "Mostra o número do capítulo ou episódio. Ex.: 7.",
+  "conteudo.volume": "Mostra o volume do conteúdo quando existir. Ex.: 2.",
+  "conteudo.titulo": "Mostra o título do conteúdo, ou um fallback seguro. Ex.: O reencontro.",
+  "conteudo.sinopse": "Mostra a sinopse do capítulo, episódio ou extra. Ex.: O grupo chega à capital.",
+  "conteudo.url": "Mostra a URL pública de leitura do conteúdo. Ex.: /projeto/minha-obra/leitura/7.",
+  "conteudo.dataLancamento": "Mostra a data de lançamento do conteúdo. Ex.: 2026-03-01.",
+  "conteudo.atualizadoEm": "Mostra a data da última atualização do conteúdo. Ex.: 2026-03-02T10:30:00.000Z.",
+  "conteudo.capaUrl": "Mostra a capa do conteúdo ou a imagem hero do projeto. Ex.: /uploads/capitulos/7.jpg.",
+  "conteudo.imagemUrl": "Mostra a melhor imagem disponível para o conteúdo. Ex.: capa, banner, OG ou placeholder.",
+  "conteudo.ogImagemUrl": "Mostra a imagem OG do conteúdo ou do projeto. Ex.: /api/og/project/minha-obra/reading/7.",
+  "conteudo.formato": "Mostra o formato humano do conteúdo. Ex.: Imagem para images, Texto para lexical.",
+  "conteudo.status": "Mostra o status humano do conteúdo. Ex.: Publicado ou Rascunho.",
+  "conteudo.rotulo": "Mostra o rótulo público do conteúdo. Ex.: Capítulo 7.",
+  "atualizacao.tipo": "Mostra o tipo da atualização. Ex.: Lançamento ou Ajuste.",
+  "atualizacao.motivo": "Mostra o texto que resume o motivo da atualização. Ex.: Capítulo 7 disponível.",
+};
+
+const describePlaceholder = (placeholder: string) =>
+  PLACEHOLDER_DESCRIPTIONS[placeholder] || `Mostra o valor de ${placeholder}. Ex.: valor disponível no evento.`;
 
 const DEFAULT_PROJECT_TYPES = ["Anime", "Manga", "Light Novel"];
 const DEFAULT_TIMEOUT_MS = 5_000;
@@ -335,38 +402,135 @@ const DEFAULT_EVENT_COLORS: Record<EventKey, string> = {
   project_adjust: "#f59e0b",
 };
 
-const defaultTemplate = (eventKey: EventKey): Template => ({
-  content: "{{mention.all}}",
+const TEMPLATE_PLACEHOLDER_PATTERN = /{{\s*([a-zA-Z0-9_.]+)\s*}}/g;
+const PLACEHOLDER_ALIAS_MAP: Record<string, string> = {
+  "event.key": "evento.chave",
+  "event.label": "evento.rotulo",
+  "event.occurredAt": "evento.ocorridoEm",
+  "site.name": "site.nome",
+  "site.coverImageUrl": "site.capaUrl",
+  "mention.type": "mencao.tipo",
+  "mention.category": "mencao.tipo",
+  "mention.project": "mencao.projeto",
+  "mention.release": "mencao.lancamento",
+  "mention.general": "mencao.lancamento",
+  "mention.all": "mencao.todos",
+  "author.name": "autor.nome",
+  "author.avatarUrl": "autor.avatarUrl",
+  "post.id": "postagem.id",
+  "post.title": "postagem.titulo",
+  "post.slug": "postagem.slug",
+  "post.url": "postagem.url",
+  "post.status": "postagem.status",
+  "post.author": "postagem.autor",
+  "post.authorAvatarUrl": "postagem.autorAvatarUrl",
+  "post.publishedAt": "postagem.publicadoEm",
+  "post.updatedAt": "postagem.atualizadoEm",
+  "post.excerpt": "postagem.resumo",
+  "post.tags": "postagem.tags",
+  "post.coverImageUrl": "postagem.capaUrl",
+  "post.coverAlt": "postagem.capaAlt",
+  "post.imageUrl": "postagem.imagemUrl",
+  "post.ogImageUrl": "postagem.ogImagemUrl",
+  "project.id": "projeto.id",
+  "project.title": "projeto.titulo",
+  "project.type": "projeto.tipo",
+  "project.category": "projeto.categoria",
+  "project.url": "projeto.url",
+  "project.cover": "projeto.capaUrl",
+  "project.banner": "projeto.bannerUrl",
+  "project.heroImageUrl": "projeto.heroImagemUrl",
+  "project.imageUrl": "projeto.imagemUrl",
+  "project.backdropImageUrl": "projeto.fundoImagemUrl",
+  "project.ogImageUrl": "projeto.ogImagemUrl",
+  "project.synopsis": "projeto.sinopse",
+  "chapter.number": "conteudo.numero",
+  "chapter.volume": "conteudo.volume",
+  "chapter.title": "conteudo.titulo",
+  "chapter.synopsis": "conteudo.sinopse",
+  "chapter.releaseDate": "conteudo.dataLancamento",
+  "chapter.updatedAt": "conteudo.atualizadoEm",
+  "chapter.coverImageUrl": "conteudo.capaUrl",
+  "chapter.imageUrl": "conteudo.imagemUrl",
+  "chapter.ogImageUrl": "conteudo.ogImagemUrl",
+  "content.type": "conteudo.tipo",
+  "content.number": "conteudo.numero",
+  "content.volume": "conteudo.volume",
+  "content.title": "conteudo.titulo",
+  "content.synopsis": "conteudo.sinopse",
+  "content.url": "conteudo.url",
+  "content.releaseDate": "conteudo.dataLancamento",
+  "content.updatedAt": "conteudo.atualizadoEm",
+  "content.coverImageUrl": "conteudo.capaUrl",
+  "content.imageUrl": "conteudo.imagemUrl",
+  "content.ogImageUrl": "conteudo.ogImagemUrl",
+  "content.format": "conteudo.formato",
+  "content.status": "conteudo.status",
+  "content.label": "conteudo.rotulo",
+  "update.kind": "atualizacao.tipo",
+  "update.reason": "atualizacao.motivo",
+  "update.unit": "conteudo.tipo",
+  "update.episodeNumber": "conteudo.numero",
+  "update.volume": "conteudo.volume",
+};
+
+const replaceTemplatePlaceholderAliases = (value: string) =>
+  String(value || "").replace(TEMPLATE_PLACEHOLDER_PATTERN, (match, rawPath: string) => {
+    const path = String(rawPath || "").trim();
+    const canonicalPath = PLACEHOLDER_ALIAS_MAP[path] || path;
+    return canonicalPath === path ? match : `{{${canonicalPath}}}`;
+  });
+
+const migrateTemplateAliasesDeep = <T,>(value: T): T => {
+  if (typeof value === "string") {
+    return replaceTemplatePlaceholderAliases(value) as T;
+  }
+  if (Array.isArray(value)) {
+    return value.map((item) => migrateTemplateAliasesDeep(item)) as T;
+  }
+  if (value && typeof value === "object") {
+    return Object.fromEntries(
+      Object.entries(value).map(([key, item]) => [key, migrateTemplateAliasesDeep(item)]),
+    ) as T;
+  }
+  return value;
+};
+
+const defaultTemplate = (eventKey: EventKey): Template =>
+  migrateTemplateAliasesDeep({
+  content: "{{mencao.todos}}",
   embed: {
-    title: eventKey.startsWith("post") ? "{{post.title}}" : "{{project.title}}",
+    title: eventKey.startsWith("post") ? "{{postagem.titulo}}" : "{{projeto.titulo}}",
     description: eventKey.startsWith("post")
-      ? "{{post.excerpt}}\n{{post.url}}"
-      : "{{update.reason}}\n{{project.url}}",
-    footerText: "{{site.name}}",
+      ? "{{postagem.resumo}}\n{{postagem.url}}"
+      : "{{atualizacao.motivo}}\n{{projeto.url}}",
+    footerText: "{{site.nome}}",
     footerIconUrl: "{{site.logoUrl}}",
-    url: eventKey.startsWith("post") ? "{{post.url}}" : "{{project.url}}",
+    url: eventKey.startsWith("post") ? "{{postagem.url}}" : "{{projeto.url}}",
     color:
       eventKey === "post_create"
         ? "#3b82f6"
         : eventKey === "project_release"
           ? "#10b981"
           : "#f59e0b",
-    authorName: eventKey.startsWith("post") ? "{{author.name}}" : "{{event.label}}",
-    authorIconUrl: eventKey.startsWith("post") ? "{{author.avatarUrl}}" : "{{site.logoUrl}}",
+    authorName: eventKey.startsWith("post") ? "{{autor.nome}}" : "{{evento.rotulo}}",
+    authorIconUrl: eventKey.startsWith("post") ? "{{autor.avatarUrl}}" : "{{site.logoUrl}}",
     authorUrl: "{{site.url}}",
-    thumbnailUrl: eventKey.startsWith("post") ? "{{post.imageUrl}}" : "{{project.imageUrl}}",
-    imageUrl: eventKey.startsWith("post") ? "{{project.backdropImageUrl}}" : "{{chapter.imageUrl}}",
+    thumbnailUrl: eventKey.startsWith("post") ? "{{postagem.imagemUrl}}" : "{{projeto.imagemUrl}}",
+    imageUrl: eventKey.startsWith("post")
+      ? "{{projeto.fundoImagemUrl}}"
+      : "{{conteudo.imagemUrl}}",
     fields: eventKey.startsWith("post")
       ? [
-          { name: "Status", value: "{{post.status}}", inline: true },
-          { name: "Projeto", value: "{{project.title}}", inline: true },
+          { name: "Status", value: "{{postagem.status}}", inline: true },
+          { name: "Projeto", value: "{{projeto.titulo}}", inline: true },
         ]
       : [
-          { name: "{{update.unit}}", value: "{{chapter.number}}", inline: true },
+          { name: "{{conteudo.tipo}}", value: "{{conteudo.numero}}", inline: true },
           { name: "Título", value: "{{chapter.title}}", inline: true },
         ],
   },
-});
+  });
 
 const makeDefaultSettings = (
   projectTypes: string[] = DEFAULT_PROJECT_TYPES,
@@ -408,7 +572,7 @@ const asSettings = (value: unknown, projectTypes: string[]): EditorialSettings =
     return fallback;
   }
 
-  const parsed = value as Partial<EditorialSettings>;
+  const parsed = migrateTemplateAliasesDeep(value as Partial<EditorialSettings>);
   return {
     ...fallback,
     ...parsed,
@@ -1955,7 +2119,7 @@ const DashboardWebhooks = () => {
                                             content: event.target.value,
                                           }))
                                         }
-                                        placeholder="{{mention.all}}"
+                                        placeholder="{{mencao.todos}}"
                                       />
                                     </DashboardFieldStack>
 
@@ -2269,6 +2433,7 @@ const DashboardWebhooks = () => {
                                           <Badge
                                             key={`${eventKey}-${placeholder}`}
                                             variant="secondary"
+                                            title={describePlaceholder(placeholder)}
                                           >
                                             {`{{${placeholder}}}`}
                                           </Badge>

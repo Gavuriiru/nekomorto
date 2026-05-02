@@ -105,6 +105,10 @@ export const createEditorialWebhooksRuntime = (dependencies = {}) => {
       releaseDate: String(chapter.releaseDate || ""),
       updatedAt: String(chapter.chapterUpdatedAt || chapter.updatedAt || ""),
       coverImageUrl: String(chapter.coverImageUrl || ""),
+      contentFormat: String(chapter.contentFormat || ""),
+      status: String(chapter.status || ""),
+      displayLabel: String(chapter.displayLabel || ""),
+      entryKind: String(chapter.entryKind || ""),
     };
   };
 

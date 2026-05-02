@@ -171,6 +171,9 @@ describe("Project mobile download card layout", () => {
     expect(contentColumn).toContain(sourceTypeBadge);
 
     const previewImage = screen.getByRole("img", { name: "Prévia de Episodio 1" });
+    expect(classTokens(previewImage)).toContain("transition-transform");
+    expect(classTokens(previewImage)).toContain("duration-300");
+    expect(classTokens(previewImage)).toContain("group-hover/download-card:scale-105");
     const cardContent = findAncestor(previewImage, (candidate) =>
       classTokens(candidate).includes("md:grid-cols-[316px_minmax(0,1fr)]"),
     );

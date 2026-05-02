@@ -285,32 +285,37 @@ describe("webhooks", () => {
     ]);
   });
 
-  it("aceita placeholders novos e bloqueia placeholder invalido", () => {
+  it("aceita placeholders pt-BR, migra aliases e bloqueia placeholder invalido", () => {
     const settings = normalizeEditorialWebhookSettings({}, { projectTypes: ["Anime"] });
     settings.channels.posts.templates.post_create.content =
       "{{site.logoUrl}} {{mention.category}} {{mention.general}}";
-    settings.channels.posts.templates.post_create.embed.thumbnailUrl = "{{post.imageUrl}}";
-    settings.channels.posts.templates.post_update.embed.imageUrl = "{{project.backdropImageUrl}}";
+    settings.channels.posts.templates.post_create.embed.thumbnailUrl = "{{postagem.imagemUrl}}";
+    settings.channels.posts.templates.post_update.embed.imageUrl = "{{projeto.fundoImagemUrl}}";
     settings.channels.posts.templates.post_update.embed.description =
-      "{{post.excerpt}} {{post.ogImageUrl}}";
+      "{{postagem.resumo}} {{postagem.ogImagemUrl}}";
     settings.channels.projects.templates.project_release.embed.thumbnailUrl =
-      "{{project.imageUrl}}";
-    settings.channels.projects.templates.project_release.embed.imageUrl = "{{chapter.imageUrl}}";
+      "{{projeto.imagemUrl}}";
+    settings.channels.projects.templates.project_release.embed.imageUrl = "{{conteudo.imagemUrl}}";
     settings.channels.projects.templates.project_adjust.embed.description =
-      "{{chapter.synopsis}} {{chapter.ogImageUrl}} {{project.ogImageUrl}}";
+      "{{conteudo.sinopse}} {{conteudo.ogImagemUrl}} {{projeto.ogImagemUrl}}";
     settings.channels.projects.templates.project_release.embed.fields = [
-      { name: "Legado", value: "{{project.status}}", inline: true },
+      { name: "Legado", value: "{{project.status}} {{update.unit}}", inline: true },
     ];
     expect(validateEditorialWebhookSettingsPlaceholders(settings).ok).toBe(true);
 
     const migrated = migrateEditorialMentionPlaceholdersInSettings(settings);
-    expect(migrated.channels.posts.templates.post_create.content).toContain("{{mention.type}}");
-    expect(migrated.channels.posts.templates.post_create.content).toContain("{{mention.release}}");
+    expect(migrated.channels.posts.templates.post_create.content).toContain("{{mencao.tipo}}");
+    expect(migrated.channels.posts.templates.post_create.content).toContain(
+      "{{mencao.lancamento}}",
+    );
     expect(migrated.channels.posts.templates.post_create.content).not.toContain(
       "{{mention.category}}",
     );
     expect(migrated.channels.posts.templates.post_create.content).not.toContain(
       "{{mention.general}}",
+    );
+    expect(migrated.channels.projects.templates.project_release.embed.fields[0]?.value).toBe(
+      "{{projeto.status}} {{conteudo.tipo}}",
     );
 
     settings.channels.posts.templates.post_create.content = "{{placeholder.inexistente}}";
@@ -355,43 +360,41 @@ describe("webhooks", () => {
   it("renderiza template estendido com author/thumbnail/image/synopsis", () => {
     const rendered = renderWebhookTemplate(
       {
-        content: "{{mention.release}}",
+        content: "{{mencao.lancamento}}",
         embed: {
-          title: "{{project.title}}",
-          description: "{{project.synopsis}} - {{chapter.synopsis}}",
-          footerText: "{{site.name}}",
+          title: "{{projeto.titulo}}",
+          description: "{{projeto.sinopse}} - {{conteudo.sinopse}}",
+          footerText: "{{site.nome}}",
           footerIconUrl: "{{site.logoUrl}}",
-          url: "{{project.url}}",
+          url: "{{projeto.url}}",
           color: "#112233",
-          authorName: "{{author.name}}",
-          authorIconUrl: "{{author.avatarUrl}}",
+          authorName: "{{autor.nome}}",
+          authorIconUrl: "{{autor.avatarUrl}}",
           authorUrl: "{{site.url}}",
-          thumbnailUrl: "{{project.imageUrl}}",
-          imageUrl: "{{chapter.imageUrl}}",
+          thumbnailUrl: "{{projeto.imagemUrl}}",
+          imageUrl: "{{conteudo.imagemUrl}}",
           fields: [],
         },
       },
       {
-        mention: { release: "<@&999>" },
-        project: {
-          title: "Projeto X",
+        mencao: { lancamento: "<@&999>" },
+        projeto: {
+          titulo: "Projeto X",
           url: "https://example.com/projeto-x",
-          cover: "https://example.com/cover.jpg",
-          banner: "https://example.com/banner.jpg",
-          imageUrl: "https://example.com/project-image.jpg",
-          synopsis: "Sinopse do projeto",
+          imagemUrl: "https://example.com/project-image.jpg",
+          sinopse: "Sinopse do projeto",
         },
-        chapter: {
-          title: "Capitulo 1",
-          synopsis: "Sinopse do capitulo",
-          imageUrl: "https://example.com/chapter-image.jpg",
+        conteudo: {
+          titulo: "Capitulo 1",
+          sinopse: "Sinopse do capitulo",
+          imagemUrl: "https://example.com/chapter-image.jpg",
         },
         site: {
-          name: "Nekomata",
+          nome: "Nekomata",
           logoUrl: "https://example.com/logo.png",
           url: "https://example.com",
         },
-        author: { name: "Equipe", avatarUrl: "https://example.com/avatar.png" },
+        autor: { nome: "Equipe", avatarUrl: "https://example.com/avatar.png" },
       },
     );
 
@@ -455,6 +458,43 @@ describe("webhooks", () => {
     expect(context.project.backdropImageUrl).toBe("https://example.com/project-banner.jpg");
     expect(context.chapter.ogImageUrl).toBe("https://example.com/project-og.jpg");
     expect(context.chapter.imageUrl).toBe("https://example.com/project-hero.jpg");
+  });
+
+  it("monta namespace conteudo com fallbacks pt-BR", () => {
+    const context = buildEditorialEventContext({
+      origin: "https://example.com",
+      project: {
+        id: "obra-x",
+        type: "Manga",
+        heroImageUrl: "https://example.com/project-hero.jpg",
+      },
+      chapter: {
+        number: 7,
+        volume: 2,
+        title: "",
+        synopsis: "Sinopse",
+        releaseDate: "2026-03-01",
+        updatedAt: "2026-03-02T00:00:00.000Z",
+        contentFormat: "images",
+        status: "published",
+      },
+      update: {
+        reason: "Capitulo disponivel",
+      },
+    });
+
+    expect(context.conteudo.tipo).toBe("Capitulo");
+    expect(context.conteudo.numero).toBe(7);
+    expect(context.conteudo.volume).toBe(2);
+    expect(context.conteudo.titulo).toBe("Capitulo 7");
+    expect(context.conteudo.sinopse).toBe("Sinopse");
+    expect(context.conteudo.url).toBe("https://example.com/projeto/obra-x/leitura/7");
+    expect(context.conteudo.dataLancamento).toBe("2026-03-01");
+    expect(context.conteudo.atualizadoEm).toBe("2026-03-02T00:00:00.000Z");
+    expect(context.conteudo.formato).toBe("Imagem");
+    expect(context.conteudo.status).toBe("Publicado");
+    expect(context.conteudo.imagemUrl).toBe("https://example.com/project-hero.jpg");
+    expect(context.atualizacao.motivo).toBe("Capitulo disponivel");
   });
 
   it("cai para a imagem padrao do site e depois para /placeholder.svg", () => {

@@ -169,6 +169,9 @@ describe("DashboardPosts tags translation", () => {
       "w-full",
       "object-cover",
       "object-center",
+      "transition-transform",
+      "duration-300",
+      "group-hover:scale-105",
     );
     const coverContainer = coverImage.parentElement?.parentElement;
     expect(coverContainer).not.toBeNull();

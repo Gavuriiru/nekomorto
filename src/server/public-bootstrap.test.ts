@@ -45,6 +45,8 @@ describe("public bootstrap payload", () => {
           animationStudios: ["Studio Teste"],
           episodes: "12 episodios",
           producers: ["Produtora 1"],
+          staff: [{ role: "Tradução", members: ["José Gabriel"] }],
+          animeStaff: [{ role: "Director", members: ["Masahiko Oota"] }],
           volumeEntries: [
             {
               volume: 1,
@@ -201,6 +203,8 @@ describe("public bootstrap payload", () => {
     expect(project.animationStudios).toEqual(["Studio Teste"]);
     expect(project.episodes).toBe("12 episodios");
     expect(project.producers).toEqual(["Produtora 1"]);
+    expect(project.staff).toEqual([{ role: "Tradução", members: ["José Gabriel"] }]);
+    expect(project.animeStaff).toEqual([{ role: "Director", members: ["Masahiko Oota"] }]);
     expect(project.views).toBe(0);
     expect(project.viewsDaily).toEqual({
       "2026-02-01": 3,

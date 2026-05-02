@@ -28,9 +28,91 @@ const ROLE_ID_PATTERN = /^\d+$/;
 const FALLBACK_PROJECT_TYPES = Object.freeze(["Anime", "Manga", "Light Novel"]);
 const DEFAULT_IMAGE_PLACEHOLDER_PATH = "/placeholder.svg";
 const TEMPLATE_PLACEHOLDER_PATTERN = /{{\s*([a-zA-Z0-9_.]+)\s*}}/g;
-const MENTION_PLACEHOLDER_ALIAS_MAP = Object.freeze({
-  "mention.category": "mention.type",
-  "mention.general": "mention.release",
+const PLACEHOLDER_ALIAS_MAP = Object.freeze({
+  "event.key": "evento.chave",
+  "event.label": "evento.rotulo",
+  "event.occurredAt": "evento.ocorridoEm",
+  "site.name": "site.nome",
+  "site.coverImageUrl": "site.capaUrl",
+  "mention.type": "mencao.tipo",
+  "mention.category": "mencao.tipo",
+  "mention.project": "mencao.projeto",
+  "mention.release": "mencao.lancamento",
+  "mention.general": "mencao.lancamento",
+  "mention.all": "mencao.todos",
+  "author.name": "autor.nome",
+  "author.avatarUrl": "autor.avatarUrl",
+  "post.id": "postagem.id",
+  "post.title": "postagem.titulo",
+  "post.slug": "postagem.slug",
+  "post.url": "postagem.url",
+  "post.status": "postagem.status",
+  "post.author": "postagem.autor",
+  "post.authorAvatarUrl": "postagem.autorAvatarUrl",
+  "post.publishedAt": "postagem.publicadoEm",
+  "post.updatedAt": "postagem.atualizadoEm",
+  "post.excerpt": "postagem.resumo",
+  "post.tags": "postagem.tags",
+  "post.coverImageUrl": "postagem.capaUrl",
+  "post.coverAlt": "postagem.capaAlt",
+  "post.imageUrl": "postagem.imagemUrl",
+  "post.ogImageUrl": "postagem.ogImagemUrl",
+  "project.id": "projeto.id",
+  "project.title": "projeto.titulo",
+  "project.type": "projeto.tipo",
+  "project.category": "projeto.categoria",
+  "project.url": "projeto.url",
+  "project.cover": "projeto.capaUrl",
+  "project.banner": "projeto.bannerUrl",
+  "project.heroImageUrl": "projeto.heroImagemUrl",
+  "project.imageUrl": "projeto.imagemUrl",
+  "project.backdropImageUrl": "projeto.fundoImagemUrl",
+  "project.ogImageUrl": "projeto.ogImagemUrl",
+  "project.synopsis": "projeto.sinopse",
+  "project.status": "projeto.status",
+  "project.year": "projeto.ano",
+  "project.studio": "projeto.estudio",
+  "project.episodes": "projeto.episodios",
+  "project.tags": "projeto.tags",
+  "project.genres": "projeto.generos",
+  "project.season": "projeto.temporada",
+  "project.schedule": "projeto.agenda",
+  "project.rating": "projeto.classificacao",
+  "project.country": "projeto.pais",
+  "project.source": "projeto.fonte",
+  "project.producers": "projeto.produtores",
+  "project.score": "projeto.nota",
+  "project.startDate": "projeto.inicioEm",
+  "project.endDate": "projeto.fimEm",
+  "project.trailerUrl": "projeto.trailerUrl",
+  "chapter.number": "conteudo.numero",
+  "chapter.volume": "conteudo.volume",
+  "chapter.title": "conteudo.titulo",
+  "chapter.synopsis": "conteudo.sinopse",
+  "chapter.releaseDate": "conteudo.dataLancamento",
+  "chapter.updatedAt": "conteudo.atualizadoEm",
+  "chapter.coverImageUrl": "conteudo.capaUrl",
+  "chapter.imageUrl": "conteudo.imagemUrl",
+  "chapter.ogImageUrl": "conteudo.ogImagemUrl",
+  "content.type": "conteudo.tipo",
+  "content.number": "conteudo.numero",
+  "content.volume": "conteudo.volume",
+  "content.title": "conteudo.titulo",
+  "content.synopsis": "conteudo.sinopse",
+  "content.url": "conteudo.url",
+  "content.releaseDate": "conteudo.dataLancamento",
+  "content.updatedAt": "conteudo.atualizadoEm",
+  "content.coverImageUrl": "conteudo.capaUrl",
+  "content.imageUrl": "conteudo.imagemUrl",
+  "content.ogImageUrl": "conteudo.ogImagemUrl",
+  "content.format": "conteudo.formato",
+  "content.status": "conteudo.status",
+  "content.label": "conteudo.rotulo",
+  "update.kind": "atualizacao.tipo",
+  "update.reason": "atualizacao.motivo",
+  "update.unit": "conteudo.tipo",
+  "update.episodeNumber": "conteudo.numero",
+  "update.volume": "conteudo.volume",
 });
 
 const normalizeLookupKey = (value) =>
@@ -75,23 +157,39 @@ const uniqueStrings = (items) => {
   return next;
 };
 
-const canonicalizeMentionPlaceholder = (placeholder) =>
-  MENTION_PLACEHOLDER_ALIAS_MAP[String(placeholder || "").trim()] ||
+const canonicalizeTemplatePlaceholder = (placeholder) =>
+  PLACEHOLDER_ALIAS_MAP[String(placeholder || "").trim()] ||
   String(placeholder || "").trim();
 
-const replaceMentionPlaceholderAliases = (value) => {
+const replaceTemplatePlaceholderAliases = (value) => {
   TEMPLATE_PLACEHOLDER_PATTERN.lastIndex = 0;
   return String(value || "").replace(TEMPLATE_PLACEHOLDER_PATTERN, (match, rawPath) => {
     const path = String(rawPath || "").trim();
     if (!path) {
       return match;
     }
-    const canonicalPath = canonicalizeMentionPlaceholder(path);
+    const canonicalPath = canonicalizeTemplatePlaceholder(path);
     if (canonicalPath === path) {
       return match;
     }
     return `{{${canonicalPath}}}`;
   });
+};
+
+const migrateTemplatePlaceholderAliasesDeep = (value) => {
+  if (typeof value === "string") {
+    return replaceTemplatePlaceholderAliases(value);
+  }
+  if (Array.isArray(value)) {
+    return value.map((item) => migrateTemplatePlaceholderAliasesDeep(item));
+  }
+  if (value && typeof value === "object") {
+    return Object.entries(value).reduce((acc, [key, item]) => {
+      acc[key] = migrateTemplatePlaceholderAliasesDeep(item);
+      return acc;
+    }, {});
+  }
+  return value;
 };
 
 const toMention = (roleId) => {
@@ -198,22 +296,22 @@ const buildDefaultTemplate = (eventKey) => {
         name: "Título",
       };
     }
-    return {
+    return migrateTemplatePlaceholderAliasesDeep({
       ...template,
       embed: {
         ...template.embed,
         fields,
       },
-    };
+    });
   }
-  return template;
+  return migrateTemplatePlaceholderAliasesDeep(template);
 };
 
 const normalizeTemplateField = (value) => {
   const item = asObject(value);
   return {
-    name: replaceMentionPlaceholderAliases(String(item.name || "").trim()),
-    value: replaceMentionPlaceholderAliases(String(item.value || "").trim()),
+    name: replaceTemplatePlaceholderAliases(String(item.name || "").trim()),
+    value: replaceTemplatePlaceholderAliases(String(item.value || "").trim()),
     inline: item.inline === true,
   };
 };
@@ -231,31 +329,31 @@ const normalizeTemplate = (value, fallback) => {
   const footerIconSource = inputEmbed.footerIconUrl ?? baseEmbed.footerIconUrl;
 
   return {
-    content: replaceMentionPlaceholderAliases(String(input.content ?? base.content ?? "").trim()),
+    content: replaceTemplatePlaceholderAliases(String(input.content ?? base.content ?? "").trim()),
     embed: {
-      title: replaceMentionPlaceholderAliases(
+      title: replaceTemplatePlaceholderAliases(
         String(inputEmbed.title ?? baseEmbed.title ?? "").trim(),
       ),
-      description: replaceMentionPlaceholderAliases(
+      description: replaceTemplatePlaceholderAliases(
         String(inputEmbed.description ?? baseEmbed.description ?? "").trim(),
       ),
-      footerText: replaceMentionPlaceholderAliases(String(footerSource ?? "").trim()),
-      footerIconUrl: replaceMentionPlaceholderAliases(String(footerIconSource ?? "").trim()),
-      url: replaceMentionPlaceholderAliases(String(inputEmbed.url ?? baseEmbed.url ?? "").trim()),
+      footerText: replaceTemplatePlaceholderAliases(String(footerSource ?? "").trim()),
+      footerIconUrl: replaceTemplatePlaceholderAliases(String(footerIconSource ?? "").trim()),
+      url: replaceTemplatePlaceholderAliases(String(inputEmbed.url ?? baseEmbed.url ?? "").trim()),
       color: String(inputEmbed.color ?? baseEmbed.color ?? "#3b82f6").trim() || "#3b82f6",
-      authorName: replaceMentionPlaceholderAliases(
+      authorName: replaceTemplatePlaceholderAliases(
         String(inputEmbed.authorName ?? baseEmbed.authorName ?? "").trim(),
       ),
-      authorIconUrl: replaceMentionPlaceholderAliases(
+      authorIconUrl: replaceTemplatePlaceholderAliases(
         String(inputEmbed.authorIconUrl ?? baseEmbed.authorIconUrl ?? "").trim(),
       ),
-      authorUrl: replaceMentionPlaceholderAliases(
+      authorUrl: replaceTemplatePlaceholderAliases(
         String(inputEmbed.authorUrl ?? baseEmbed.authorUrl ?? "").trim(),
       ),
-      thumbnailUrl: replaceMentionPlaceholderAliases(
+      thumbnailUrl: replaceTemplatePlaceholderAliases(
         String(inputEmbed.thumbnailUrl ?? baseEmbed.thumbnailUrl ?? "").trim(),
       ),
-      imageUrl: replaceMentionPlaceholderAliases(
+      imageUrl: replaceTemplatePlaceholderAliases(
         String(inputEmbed.imageUrl ?? baseEmbed.imageUrl ?? "").trim(),
       ),
       fields: fieldsInput
@@ -531,89 +629,91 @@ export const extractTemplatePlaceholders = (value) => {
 };
 
 const COMMON_PLACEHOLDERS_CANONICAL = [
-  "event.key",
-  "event.label",
-  "event.occurredAt",
-  "site.name",
+  "evento.chave",
+  "evento.rotulo",
+  "evento.ocorridoEm",
+  "site.nome",
   "site.url",
   "site.logoUrl",
-  "site.coverImageUrl",
+  "site.capaUrl",
   "site.faviconUrl",
-  "mention.type",
-  "mention.project",
-  "mention.release",
-  "mention.all",
-  "author.name",
-  "author.avatarUrl",
+  "mencao.tipo",
+  "mencao.projeto",
+  "mencao.lancamento",
+  "mencao.todos",
+  "autor.nome",
+  "autor.avatarUrl",
 ];
 
 const PROJECT_PLACEHOLDERS = [
-  "project.id",
-  "project.title",
-  "project.type",
-  "project.category",
-  "project.url",
-  "project.cover",
-  "project.banner",
-  "project.heroImageUrl",
-  "project.imageUrl",
-  "project.backdropImageUrl",
-  "project.ogImageUrl",
-  "project.synopsis",
-  "project.status",
-  "project.year",
-  "project.studio",
-  "project.episodes",
-  "project.tags",
-  "project.genres",
-  "project.season",
-  "project.schedule",
-  "project.rating",
-  "project.country",
-  "project.source",
-  "project.producers",
-  "project.score",
-  "project.startDate",
-  "project.endDate",
-  "project.trailerUrl",
+  "projeto.id",
+  "projeto.titulo",
+  "projeto.tipo",
+  "projeto.categoria",
+  "projeto.url",
+  "projeto.capaUrl",
+  "projeto.bannerUrl",
+  "projeto.heroImagemUrl",
+  "projeto.imagemUrl",
+  "projeto.fundoImagemUrl",
+  "projeto.ogImagemUrl",
+  "projeto.sinopse",
+  "projeto.status",
+  "projeto.ano",
+  "projeto.estudio",
+  "projeto.episodios",
+  "projeto.tags",
+  "projeto.generos",
+  "projeto.temporada",
+  "projeto.agenda",
+  "projeto.classificacao",
+  "projeto.pais",
+  "projeto.fonte",
+  "projeto.produtores",
+  "projeto.nota",
+  "projeto.inicioEm",
+  "projeto.fimEm",
+  "projeto.trailerUrl",
 ];
 
 const POST_PLACEHOLDERS = [
-  "post.id",
-  "post.title",
-  "post.slug",
-  "post.url",
-  "post.status",
-  "post.author",
-  "post.authorAvatarUrl",
-  "post.publishedAt",
-  "post.updatedAt",
-  "post.excerpt",
-  "post.tags",
-  "post.coverImageUrl",
-  "post.coverAlt",
-  "post.imageUrl",
-  "post.ogImageUrl",
+  "postagem.id",
+  "postagem.titulo",
+  "postagem.slug",
+  "postagem.url",
+  "postagem.status",
+  "postagem.autor",
+  "postagem.autorAvatarUrl",
+  "postagem.publicadoEm",
+  "postagem.atualizadoEm",
+  "postagem.resumo",
+  "postagem.tags",
+  "postagem.capaUrl",
+  "postagem.capaAlt",
+  "postagem.imagemUrl",
+  "postagem.ogImagemUrl",
 ];
 
-const CHAPTER_PLACEHOLDERS = [
-  "chapter.number",
-  "chapter.volume",
-  "chapter.title",
-  "chapter.synopsis",
-  "chapter.releaseDate",
-  "chapter.updatedAt",
-  "chapter.coverImageUrl",
-  "chapter.imageUrl",
-  "chapter.ogImageUrl",
+const CONTENT_PLACEHOLDERS = [
+  "conteudo.tipo",
+  "conteudo.numero",
+  "conteudo.volume",
+  "conteudo.titulo",
+  "conteudo.sinopse",
+  "conteudo.url",
+  "conteudo.dataLancamento",
+  "conteudo.atualizadoEm",
+  "conteudo.capaUrl",
+  "conteudo.imagemUrl",
+  "conteudo.ogImagemUrl",
+  "conteudo.formato",
+  "conteudo.status",
+  "conteudo.rotulo",
 ];
 
 const UPDATE_PLACEHOLDERS = [
-  "update.kind",
-  "update.reason",
-  "update.unit",
-  "update.episodeNumber",
-  "update.volume",
+  "atualizacao.tipo",
+  "atualizacao.motivo",
 ];
 
 const PLACEHOLDER_ALLOWLIST = {
@@ -630,13 +730,13 @@ const PLACEHOLDER_ALLOWLIST = {
   project_release: new Set([
     ...COMMON_PLACEHOLDERS_CANONICAL,
     ...PROJECT_PLACEHOLDERS,
-    ...CHAPTER_PLACEHOLDERS,
+    ...CONTENT_PLACEHOLDERS,
     ...UPDATE_PLACEHOLDERS,
   ]),
   project_adjust: new Set([
     ...COMMON_PLACEHOLDERS_CANONICAL,
     ...PROJECT_PLACEHOLDERS,
-    ...CHAPTER_PLACEHOLDERS,
+    ...CONTENT_PLACEHOLDERS,
     ...UPDATE_PLACEHOLDERS,
   ]),
 };
@@ -688,7 +788,7 @@ export const validateEditorialWebhookSettingsPlaceholders = (settings) => {
       const allowlist = getEditorialPlaceholderAllowlist(eventKey);
       collectTemplateEntries(template, eventKey).forEach((entry) => {
         extractTemplatePlaceholders(entry.value).forEach((placeholder) => {
-          const canonicalPlaceholder = canonicalizeMentionPlaceholder(placeholder);
+          const canonicalPlaceholder = canonicalizeTemplatePlaceholder(placeholder);
           if (allowlist.has(canonicalPlaceholder)) {
             return;
           }
@@ -740,7 +840,7 @@ export const renderTemplateString = (template, context) =>
   (() => {
     TEMPLATE_PLACEHOLDER_PATTERN.lastIndex = 0;
     return String(template || "").replace(TEMPLATE_PLACEHOLDER_PATTERN, (_match, rawPath) =>
-      resolvePathValue(context, canonicalizeMentionPlaceholder(String(rawPath || "").trim())),
+      resolvePathValue(context, canonicalizeTemplatePlaceholder(String(rawPath || "").trim())),
     );
   })();
 
@@ -849,6 +949,67 @@ const pickFirstText = (...values) => {
   return "";
 };
 
+const normalizeContentKind = (value) =>
+  String(value || "")
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .trim()
+    .toLowerCase();
+
+const resolveContentTypeLabel = ({ update, project, chapter } = {}) => {
+  const explicit = pickFirstText(update?.unit, update?.contentType, chapter?.type);
+  const normalized = normalizeContentKind(explicit);
+  if (normalized.startsWith("cap")) {
+    return "Capitulo";
+  }
+  if (normalized.startsWith("epi")) {
+    return "Episodio";
+  }
+  if (normalized.includes("extra")) {
+    return "Extra";
+  }
+  if (normalized.includes("especial")) {
+    return "Especial";
+  }
+
+  const projectType = normalizeContentKind(project?.type);
+  if (projectType.includes("manga") || projectType.includes("novel")) {
+    return "Capitulo";
+  }
+  return "Episodio";
+};
+
+const resolveContentFormatLabel = (value) => {
+  const normalized = normalizeContentKind(value);
+  if (normalized === "images") {
+    return "Imagem";
+  }
+  if (normalized === "lexical") {
+    return "Texto";
+  }
+  return String(value || "").trim();
+};
+
+const resolvePublicationStatusLabel = (value) => {
+  const normalized = normalizeContentKind(value);
+  if (normalized === "published" || normalized === "publicado") {
+    return "Publicado";
+  }
+  if (normalized === "draft" || normalized === "rascunho") {
+    return "Rascunho";
+  }
+  return String(value || "").trim();
+};
+
+const buildContentLabel = ({ contentType, number, title, chapter } = {}) => {
+  const explicit = pickFirstText(chapter?.displayLabel, chapter?.label);
+  if (explicit) {
+    return explicit;
+  }
+  const numeric = Number.isFinite(Number(number)) ? String(Number(number)) : "";
+  return [contentType, numeric].filter(Boolean).join(" ").trim();
+};
+
 export const buildEditorialEventContext = ({
   eventKey,
   occurredAt,
@@ -925,107 +1086,218 @@ export const buildEditorialEventContext = ({
     fallbackSiteImageUrl,
     DEFAULT_IMAGE_PLACEHOLDER_PATH,
   );
+  const contentNumber = Number.isFinite(Number(safeUpdate.episodeNumber))
+    ? Number(safeUpdate.episodeNumber)
+    : Number.isFinite(Number(safeChapter.number))
+      ? Number(safeChapter.number)
+      : "";
+  const contentVolume = Number.isFinite(Number(safeUpdate.volume))
+    ? Number(safeUpdate.volume)
+    : Number.isFinite(Number(safeChapter.volume))
+      ? Number(safeChapter.volume)
+      : "";
+  const contentType = resolveContentTypeLabel({
+    update: safeUpdate,
+    project: safeProject,
+    chapter: safeChapter,
+  });
+  const contentLabel = buildContentLabel({
+    contentType,
+    number: contentNumber,
+    chapter: safeChapter,
+  });
+  const contentTitle = pickFirstText(
+    safeChapter.title,
+    contentLabel,
+    normalizeContentKind(contentType) === "extra" ? "Extra" : "",
+  );
+  const contentPathNumber = contentNumber ? String(contentNumber) : "";
+  const contentUrl =
+    projectId && contentPathNumber
+      ? `${normalizedOrigin}/projeto/${projectId}/leitura/${contentPathNumber}`
+      : projectId
+        ? `${normalizedOrigin}/projeto/${projectId}`
+        : "";
+  const site = {
+    name: String(siteName || ""),
+    nome: String(siteName || ""),
+    url: String(siteUrl || normalizedOrigin),
+    logoUrl: String(siteLogoUrl || ""),
+    coverImageUrl: String(siteCoverImageUrl || ""),
+    capaUrl: String(siteCoverImageUrl || ""),
+    faviconUrl: String(siteFaviconUrl || ""),
+  };
+  const event = {
+    key: String(eventKey || ""),
+    chave: String(eventKey || ""),
+    label: resolveEditorialEventLabel(eventKey),
+    rotulo: resolveEditorialEventLabel(eventKey),
+    occurredAt: String(occurredAt || new Date().toISOString()),
+    ocorridoEm: String(occurredAt || new Date().toISOString()),
+  };
+  const mention = {
+    type: String(safeMentions.typeMention || safeMentions.categoryMention || ""),
+    tipo: String(safeMentions.typeMention || safeMentions.categoryMention || ""),
+    category: String(safeMentions.categoryMention || safeMentions.typeMention || ""),
+    project: String(safeMentions.projectMention || ""),
+    projeto: String(safeMentions.projectMention || ""),
+    release: String(safeMentions.releaseMention || safeMentions.generalMention || ""),
+    lancamento: String(safeMentions.releaseMention || safeMentions.generalMention || ""),
+    general: String(safeMentions.generalMention || safeMentions.releaseMention || ""),
+    all: String(safeMentions.allMention || ""),
+    todos: String(safeMentions.allMention || ""),
+  };
+  const authorContext = {
+    name: resolvedAuthorName,
+    nome: resolvedAuthorName,
+    avatarUrl: resolvedAuthorAvatarUrl,
+  };
+  const postContext = {
+    id: String(safePost.id || ""),
+    title: String(safePost.title || ""),
+    titulo: String(safePost.title || ""),
+    slug: postSlug,
+    url: postSlug ? `${normalizedOrigin}/postagem/${postSlug}` : "",
+    status: String(safePost.status || ""),
+    author: String(safePost.author || ""),
+    autor: String(safePost.author || ""),
+    authorAvatarUrl: resolvedAuthorAvatarUrl,
+    autorAvatarUrl: resolvedAuthorAvatarUrl,
+    publishedAt: String(safePost.publishedAt || ""),
+    publicadoEm: String(safePost.publishedAt || ""),
+    updatedAt: String(safePost.updatedAt || ""),
+    atualizadoEm: String(safePost.updatedAt || ""),
+    excerpt: String(safePost.excerpt || ""),
+    resumo: String(safePost.excerpt || ""),
+    tags: asArray(safePost.tags)
+      .map((item) => String(item || ""))
+      .filter(Boolean),
+    coverImageUrl: String(safePost.coverImageUrl || ""),
+    capaUrl: String(safePost.coverImageUrl || ""),
+    coverAlt: String(safePost.coverAlt || ""),
+    capaAlt: String(safePost.coverAlt || ""),
+    imageUrl: resolvedPostImageUrl,
+    imagemUrl: resolvedPostImageUrl,
+    ogImageUrl: resolvedPostOgImageUrl,
+    ogImagemUrl: resolvedPostOgImageUrl,
+  };
+  const projectContext = {
+    id: projectId,
+    title: String(safeProject.title || ""),
+    titulo: String(safeProject.title || ""),
+    type: String(safeProject.type || ""),
+    tipo: String(safeProject.type || ""),
+    category: String(safeMentions.type || safeMentions.categoryLabel || ""),
+    categoria: String(safeMentions.type || safeMentions.categoryLabel || ""),
+    url: projectId ? `${normalizedOrigin}/projeto/${projectId}` : "",
+    cover: String(safeProject.cover || ""),
+    capaUrl: String(safeProject.cover || ""),
+    banner: String(safeProject.banner || ""),
+    bannerUrl: String(safeProject.banner || ""),
+    heroImageUrl: String(safeProject.heroImageUrl || ""),
+    heroImagemUrl: String(safeProject.heroImageUrl || ""),
+    synopsis: String(safeProject.synopsis || ""),
+    sinopse: String(safeProject.synopsis || ""),
+    status: String(safeProject.status || ""),
+    year: String(safeProject.year || ""),
+    ano: String(safeProject.year || ""),
+    studio: String(safeProject.studio || ""),
+    estudio: String(safeProject.studio || ""),
+    episodes: String(safeProject.episodes || ""),
+    episodios: String(safeProject.episodes || ""),
+    tags: asArray(safeProject.tags)
+      .map((item) => String(item || ""))
+      .filter(Boolean),
+    genres: asArray(safeProject.genres)
+      .map((item) => String(item || ""))
+      .filter(Boolean),
+    generos: asArray(safeProject.genres)
+      .map((item) => String(item || ""))
+      .filter(Boolean),
+    season: String(safeProject.season || ""),
+    temporada: String(safeProject.season || ""),
+    schedule: String(safeProject.schedule || ""),
+    agenda: String(safeProject.schedule || ""),
+    rating: String(safeProject.rating || ""),
+    classificacao: String(safeProject.rating || ""),
+    country: String(safeProject.country || ""),
+    pais: String(safeProject.country || ""),
+    source: String(safeProject.source || ""),
+    fonte: String(safeProject.source || ""),
+    producers: asArray(safeProject.producers)
+      .map((item) => String(item || ""))
+      .filter(Boolean),
+    produtores: asArray(safeProject.producers)
+      .map((item) => String(item || ""))
+      .filter(Boolean),
+    score: Number.isFinite(Number(safeProject.score)) ? Number(safeProject.score) : "",
+    nota: Number.isFinite(Number(safeProject.score)) ? Number(safeProject.score) : "",
+    startDate: String(safeProject.startDate || ""),
+    inicioEm: String(safeProject.startDate || ""),
+    endDate: String(safeProject.endDate || ""),
+    fimEm: String(safeProject.endDate || ""),
+    trailerUrl: String(safeProject.trailerUrl || ""),
+    imageUrl: resolvedProjectImageUrl,
+    imagemUrl: resolvedProjectImageUrl,
+    backdropImageUrl: resolvedProjectBackdropImageUrl,
+    fundoImagemUrl: resolvedProjectBackdropImageUrl,
+    ogImageUrl: resolvedProjectOgImageUrl,
+    ogImagemUrl: resolvedProjectOgImageUrl,
+  };
+  const contentContext = {
+    type: contentType,
+    tipo: contentType,
+    number: contentNumber,
+    numero: contentNumber,
+    volume: contentVolume,
+    title: contentTitle,
+    titulo: contentTitle,
+    synopsis: String(safeChapter.synopsis || ""),
+    sinopse: String(safeChapter.synopsis || ""),
+    url: contentUrl,
+    releaseDate: String(safeChapter.releaseDate || ""),
+    dataLancamento: String(safeChapter.releaseDate || ""),
+    updatedAt: String(safeChapter.updatedAt || ""),
+    atualizadoEm: String(safeChapter.updatedAt || ""),
+    coverImageUrl: chapterCoverImageUrl,
+    capaUrl: chapterCoverImageUrl,
+    imageUrl: resolvedChapterImageUrl,
+    imagemUrl: resolvedChapterImageUrl,
+    ogImageUrl: resolvedChapterOgImageUrl,
+    ogImagemUrl: resolvedChapterOgImageUrl,
+    format: resolveContentFormatLabel(safeChapter.contentFormat),
+    formato: resolveContentFormatLabel(safeChapter.contentFormat),
+    status: resolvePublicationStatusLabel(safeChapter.status),
+    label: contentLabel,
+    rotulo: contentLabel,
+  };
+  const updateContext = {
+    kind: String(safeUpdate.kind || ""),
+    tipo: String(safeUpdate.kind || ""),
+    reason: String(safeUpdate.reason || ""),
+    motivo: String(safeUpdate.reason || ""),
+    unit: contentType,
+    episodeNumber: contentNumber,
+    volume: contentVolume,
+  };
 
   return {
-    event: {
-      key: String(eventKey || ""),
-      label: resolveEditorialEventLabel(eventKey),
-      occurredAt: String(occurredAt || new Date().toISOString()),
-    },
-    site: {
-      name: String(siteName || ""),
-      url: String(siteUrl || normalizedOrigin),
-      logoUrl: String(siteLogoUrl || ""),
-      coverImageUrl: String(siteCoverImageUrl || ""),
-      faviconUrl: String(siteFaviconUrl || ""),
-    },
-    mention: {
-      type: String(safeMentions.typeMention || safeMentions.categoryMention || ""),
-      category: String(safeMentions.categoryMention || safeMentions.typeMention || ""),
-      project: String(safeMentions.projectMention || ""),
-      release: String(safeMentions.releaseMention || safeMentions.generalMention || ""),
-      general: String(safeMentions.generalMention || safeMentions.releaseMention || ""),
-      all: String(safeMentions.allMention || ""),
-    },
-    author: {
-      name: resolvedAuthorName,
-      avatarUrl: resolvedAuthorAvatarUrl,
-    },
-    post: {
-      id: String(safePost.id || ""),
-      title: String(safePost.title || ""),
-      slug: postSlug,
-      url: postSlug ? `${normalizedOrigin}/postagem/${postSlug}` : "",
-      status: String(safePost.status || ""),
-      author: String(safePost.author || ""),
-      authorAvatarUrl: resolvedAuthorAvatarUrl,
-      publishedAt: String(safePost.publishedAt || ""),
-      updatedAt: String(safePost.updatedAt || ""),
-      excerpt: String(safePost.excerpt || ""),
-      tags: asArray(safePost.tags)
-        .map((item) => String(item || ""))
-        .filter(Boolean),
-      coverImageUrl: String(safePost.coverImageUrl || ""),
-      coverAlt: String(safePost.coverAlt || ""),
-      imageUrl: resolvedPostImageUrl,
-      ogImageUrl: resolvedPostOgImageUrl,
-    },
-    project: {
-      id: projectId,
-      title: String(safeProject.title || ""),
-      type: String(safeProject.type || ""),
-      category: String(safeMentions.type || safeMentions.categoryLabel || ""),
-      url: projectId ? `${normalizedOrigin}/projeto/${projectId}` : "",
-      cover: String(safeProject.cover || ""),
-      banner: String(safeProject.banner || ""),
-      heroImageUrl: String(safeProject.heroImageUrl || ""),
-      synopsis: String(safeProject.synopsis || ""),
-      status: String(safeProject.status || ""),
-      year: String(safeProject.year || ""),
-      studio: String(safeProject.studio || ""),
-      episodes: String(safeProject.episodes || ""),
-      tags: asArray(safeProject.tags)
-        .map((item) => String(item || ""))
-        .filter(Boolean),
-      genres: asArray(safeProject.genres)
-        .map((item) => String(item || ""))
-        .filter(Boolean),
-      season: String(safeProject.season || ""),
-      schedule: String(safeProject.schedule || ""),
-      rating: String(safeProject.rating || ""),
-      country: String(safeProject.country || ""),
-      source: String(safeProject.source || ""),
-      producers: asArray(safeProject.producers)
-        .map((item) => String(item || ""))
-        .filter(Boolean),
-      score: Number.isFinite(Number(safeProject.score)) ? Number(safeProject.score) : "",
-      startDate: String(safeProject.startDate || ""),
-      endDate: String(safeProject.endDate || ""),
-      trailerUrl: String(safeProject.trailerUrl || ""),
-      imageUrl: resolvedProjectImageUrl,
-      backdropImageUrl: resolvedProjectBackdropImageUrl,
-      ogImageUrl: resolvedProjectOgImageUrl,
-    },
-    chapter: {
-      number: Number.isFinite(Number(safeChapter.number)) ? Number(safeChapter.number) : "",
-      volume: Number.isFinite(Number(safeChapter.volume)) ? Number(safeChapter.volume) : "",
-      title: String(safeChapter.title || ""),
-      synopsis: String(safeChapter.synopsis || ""),
-      releaseDate: String(safeChapter.releaseDate || ""),
-      updatedAt: String(safeChapter.updatedAt || ""),
-      coverImageUrl: chapterCoverImageUrl,
-      imageUrl: resolvedChapterImageUrl,
-      ogImageUrl: resolvedChapterOgImageUrl,
-    },
-    update: {
-      kind: String(safeUpdate.kind || ""),
-      reason: String(safeUpdate.reason || ""),
-      unit: String(safeUpdate.unit || ""),
-      episodeNumber: Number.isFinite(Number(safeUpdate.episodeNumber))
-        ? Number(safeUpdate.episodeNumber)
-        : "",
-      volume: Number.isFinite(Number(safeUpdate.volume)) ? Number(safeUpdate.volume) : "",
-    },
+    event,
+    evento: event,
+    site,
+    mention,
+    mencao: mention,
+    author: authorContext,
+    autor: authorContext,
+    post: postContext,
+    postagem: postContext,
+    project: projectContext,
+    projeto: projectContext,
+    chapter: contentContext,
+    content: contentContext,
+    conteudo: contentContext,
+    update: updateContext,
+    atualizacao: updateContext,
   };
 };
 

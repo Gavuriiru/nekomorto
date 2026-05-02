@@ -25,7 +25,7 @@ import {
 } from "@/components/dashboard/dedicated-editor-sidebar";
 import type { LexicalEditorHandle } from "@/components/lexical/LexicalEditor";
 import LexicalEditorSurface from "@/components/lexical/LexicalEditorSurface";
-import DownloadSourceSelect from "@/components/project-reader/DownloadSourceSelect";
+import DownloadSourcesEditor from "@/components/dashboard/project-editor/DownloadSourcesEditor";
 import MangaChapterPagesEditor from "@/components/project-reader/MangaChapterPagesEditor";
 import MangaWorkflowPanel, {
   type MangaWorkflowPanelHandle,
@@ -56,6 +56,7 @@ import { DEFAULT_PROJECT_COVER_ALT } from "@/lib/image-alt";
 import {
   buildDashboardProjectChapterEditorHref,
   buildDashboardProjectEditorHref,
+  buildProjectPublicHref,
   buildProjectPublicReadingHref,
 } from "@/lib/project-editor-routes";
 import { overlayDraftOnProject } from "@/lib/project-epub";
@@ -470,6 +471,7 @@ const ChapterEditorPane = forwardRef<ChapterEditorPaneHandle, ChapterEditorPaneP
           : "",
       [draft.number, draft.volume, hasActiveChapter, project.id],
     );
+    const publicProjectHref = useMemo(() => buildProjectPublicHref(project.id), [project.id]);
     const chapterTitle = hasActiveChapter
       ? String(draft.title || "").trim() || `Capítulo ${draft.number}`
       : "Nenhum capítulo aberto";
@@ -737,64 +739,17 @@ const ChapterEditorPane = forwardRef<ChapterEditorPaneHandle, ChapterEditorPaneP
               Opcional para capítulos com leitura e download.{" "}
             </p>{" "}
           </div>{" "}
-          <div className="space-y-3">
-            {" "}
-            {(draft.sources || []).map((source, sourceIndex) => (
-              <div
-                key={`chapter-source-${sourceIndex}`}
-                className="grid gap-2 rounded-xl border border-border/60 bg-card/70 p-3"
-              >
-                {" "}
-                <DownloadSourceSelect
-                  value={source.label}
-                  ariaLabel={`Fonte ${sourceIndex + 1}`}
-                  legacyLabels={(draft.sources || []).map((item) => item.label)}
-                  onValueChange={(value) =>
-                    updateDraft((current) => ({
-                      ...current,
-                      sources: (current.sources || []).map((item, index) =>
-                        index === sourceIndex ? { ...item, label: value } : item,
-                      ),
-                    }))
-                  }
-                />{" "}
-                <Input
-                  value={source.url}
-                  onChange={(event) =>
-                    updateDraft((current) => ({
-                      ...current,
-                      sources: (current.sources || []).map((item, index) =>
-                        index === sourceIndex ? { ...item, url: event.target.value } : item,
-                      ),
-                    }))
-                  }
-                  placeholder="URL"
-                  disabled={!String(source.label || "").trim()}
-                />{" "}
-                <div className="flex justify-end">
-                  {" "}
-                  <DashboardActionButton
-                    type="button"
-                    size="sm"
-                    onClick={() =>
-                      updateDraft((current) => ({
-                        ...current,
-                        sources: (current.sources || []).filter(
-                          (_, index) => index !== sourceIndex,
-                        ),
-                      }))
-                    }
-                  >
-                    {" "}
-                    Remover{" "}
-                  </DashboardActionButton>{" "}
-                </div>{" "}
-              </div>
-            ))}{" "}
-            {(draft.sources || []).length === 0 ? (
-              <p className="text-sm text-muted-foreground">Nenhuma fonte cadastrada.</p>
-            ) : null}{" "}
-          </div>{" "}
+          <DownloadSourcesEditor
+            sources={draft.sources || []}
+            sourceAriaLabelPrefix="Fonte"
+            cardClassName="bg-card/70"
+            onChange={(nextSources) =>
+              updateDraft((current) => ({
+                ...current,
+                sources: nextSources,
+              }))
+            }
+          />{" "}
         </div>{" "}
       </WorkspaceSectionCard>
     ) : null;
@@ -1395,6 +1350,12 @@ const ChapterEditorPane = forwardRef<ChapterEditorPaneHandle, ChapterEditorPaneP
                 <Link to={buildDashboardProjectEditorHref(project.id)}>
                   <ArrowLeft className="h-4 w-4" />
                   <span>Voltar ao projeto</span>
+                </Link>
+              </DashboardActionButton>
+              <DashboardActionButton size="sm" asChild>
+                <Link to={publicProjectHref} target="_blank" rel="noreferrer">
+                  <ExternalLink className="h-4 w-4" />
+                  <span>Página pública</span>
                 </Link>
               </DashboardActionButton>
               {hasActiveChapter ? (

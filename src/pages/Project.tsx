@@ -80,6 +80,71 @@ type ProjectFilterPillLinkProps = {
   tone: ProjectFilterPillTone;
 };
 
+const normalizeProjectStaffEntries = (value: unknown) => {
+  const entries = Array.isArray(value)
+    ? value
+    : value && typeof value === "object"
+      ? Object.entries(value).map(([role, members]) => ({ role, members }))
+      : [];
+
+  if (!entries.length) {
+    return [];
+  }
+
+  return entries
+    .map((entry) => {
+      if (!entry || typeof entry !== "object") {
+        return null;
+      }
+
+      const staff = entry as { role?: unknown; members?: unknown };
+      const role = String(staff.role || "").trim();
+      const members = Array.isArray(staff.members)
+        ? staff.members.map((member) => String(member || "").trim()).filter(Boolean)
+        : String(staff.members || "")
+            .split(",")
+            .map((member) => member.trim())
+            .filter(Boolean);
+
+      return role || members.length ? { role, members } : null;
+    })
+    .filter((entry): entry is { role: string; members: string[] } => Boolean(entry));
+};
+
+const shouldProjectStaffEntrySpanColumns = (members: string[]) => {
+  const memberText = members.join(", ");
+  return members.length > 2 || memberText.length > 64;
+};
+
+const buildProjectStaffEntryColumnSpans = (entries: Array<{ members: string[] }>) => {
+  const spans = new Set<number>();
+  let pendingSingleIndex: number | null = null;
+
+  entries.forEach((entry, index) => {
+    if (shouldProjectStaffEntrySpanColumns(entry.members)) {
+      if (pendingSingleIndex !== null) {
+        spans.add(pendingSingleIndex);
+        pendingSingleIndex = null;
+      }
+      spans.add(index);
+      return;
+    }
+
+    if (pendingSingleIndex === null) {
+      pendingSingleIndex = index;
+      return;
+    }
+
+    pendingSingleIndex = null;
+  });
+
+  if (pendingSingleIndex !== null) {
+    spans.add(pendingSingleIndex);
+  }
+
+  return spans;
+};
+
 const projectFilterPillClassName =
   "h-6 min-h-6 min-w-6 gap-0 rounded-full px-2 py-0 text-[10px] uppercase leading-none";
 
@@ -345,6 +410,21 @@ const ProjectPage = () => {
     const genres = Array.isArray(project?.genres) ? project.genres : [];
     return sortByTranslatedLabel(genres, (genre) => translateGenre(genre, genreTranslationMap));
   }, [project?.genres, genreTranslationMap]);
+
+  const animeStaffEntries = useMemo(
+    () => normalizeProjectStaffEntries(project?.animeStaff),
+    [project?.animeStaff],
+  );
+
+  const animeStaffEntryColumnSpans = useMemo(
+    () => buildProjectStaffEntryColumnSpans(animeStaffEntries),
+    [animeStaffEntries],
+  );
+
+  const fansubStaffEntries = useMemo(
+    () => normalizeProjectStaffEntries(project?.staff),
+    [project?.staff],
+  );
 
   const sourceThemeMap = useMemo(() => {
     const map = new Map<string, { color: string; icon?: string; tintIcon: boolean }>();
@@ -626,7 +706,7 @@ const ProjectPage = () => {
     return (
       <Card
         key={key}
-        className={`w-full overflow-hidden rounded-2xl border border-border/60 bg-gradient-card shadow-floating-soft transition-[border-color] duration-200 hover:border-primary/60 ${
+        className={`group/download-card w-full overflow-hidden rounded-2xl border border-border/60 bg-gradient-card shadow-floating-soft transition-[border-color] duration-200 hover:border-primary/60 ${
           isAnimeDownloadCard ? "md:h-[210px]" : "md:min-h-[185px]"
         }`}
       >
@@ -638,7 +718,7 @@ const ProjectPage = () => {
               preset="cardWide"
               mediaVariants={mediaVariants}
               className="h-full w-full"
-              imgClassName="h-full w-full aspect-video object-cover object-center"
+              imgClassName="h-full w-full aspect-video object-cover object-center transition-transform duration-300 group-hover/download-card:scale-105"
             />
           </div>
           <div className="relative h-full md:min-h-[178px] md:pr-0">
@@ -721,7 +801,7 @@ const ProjectPage = () => {
                 ) : null}
               </div>
               {showSynopsis && episode.synopsis ? (
-                <p className="text-sm text-muted-foreground">{episode.synopsis}</p>
+                <p className="whitespace-pre-wrap text-sm text-muted-foreground">{episode.synopsis}</p>
               ) : null}
             </div>
 
@@ -964,7 +1044,7 @@ const ProjectPage = () => {
       <Accordion key={group.label} type="multiple" className="w-full">
         <AccordionItem
           value={group.label}
-          className="w-full overflow-hidden rounded-2xl border border-border/60 bg-card/80 shadow-project-details-card"
+          className="group/download-card w-full overflow-hidden rounded-2xl border border-border/60 bg-card/80 shadow-project-details-card"
         >
           <AccordionTrigger className="items-start gap-3 px-5 py-5 text-left hover:no-underline">
             <div className="grid w-full items-start gap-4 md:grid-cols-[128px_minmax(0,1fr)_auto] md:items-start md:gap-5">
@@ -979,7 +1059,7 @@ const ProjectPage = () => {
                     preset="poster"
                     mediaVariants={mediaVariants}
                     className="h-full w-full"
-                    imgClassName="h-full w-full object-cover object-center"
+                    imgClassName="h-full w-full object-cover object-center transition-transform duration-300 group-hover/download-card:scale-105"
                   />
                 </div>
               </div>
@@ -988,7 +1068,7 @@ const ProjectPage = () => {
                 <p className="text-base font-semibold text-foreground">{group.label}</p>
                 <p className="text-xs text-muted-foreground">{chapterCountLabel}</p>
                 {groupMeta.synopsis ? (
-                  <p className="text-sm text-muted-foreground line-clamp-3 md:line-clamp-2">
+                  <p className="whitespace-pre-wrap text-sm text-muted-foreground line-clamp-3 md:line-clamp-2">
                     {groupMeta.synopsis}
                   </p>
                 ) : null}
@@ -1144,7 +1224,7 @@ const ProjectPage = () => {
                   {project.title}
                 </h1>
                 <p
-                  className="max-w-2xl text-center text-sm text-muted-foreground md:text-left md:text-base animate-slide-up"
+                  className="max-w-2xl whitespace-pre-wrap text-center text-sm text-muted-foreground md:text-left md:text-base animate-slide-up"
                   style={{ animationDelay: "0.2s" }}
                 >
                   {project.synopsis}
@@ -1213,7 +1293,13 @@ const ProjectPage = () => {
           className={`${publicPageLayoutTokens.sectionBase} relative z-10 -mt-8 max-w-6xl pb-12 pt-8 md:-mt-10 md:pt-10 reveal`}
           data-reveal
         >
-          <div className="grid gap-8 lg:grid-cols-[minmax(0,2fr)_minmax(0,1fr)]">
+          <div
+            className={
+              fansubStaffEntries.length
+                ? "grid gap-8 lg:grid-cols-[minmax(0,2fr)_minmax(0,1fr)]"
+                : "grid gap-8"
+            }
+          >
             <div className="space-y-8">
               <Card className="bg-card/80 shadow-lg">
                 <CardContent className="space-y-4 p-6">
@@ -1244,7 +1330,7 @@ const ProjectPage = () => {
                           key={detail.label}
                           className="rounded-xl border border-border/50 bg-background/60 px-4 py-3 transition-[border-color] duration-200 hover:border-primary/60"
                         >
-                          <span className="block text-[10px] font-semibold uppercase tracking-widest text-muted-foreground">
+                          <span className="block text-xs font-semibold uppercase tracking-widest text-primary/80">
                             {detail.label}
                           </span>
                           <p className="mt-1 text-sm font-semibold text-foreground">
@@ -1256,6 +1342,32 @@ const ProjectPage = () => {
                   ) : null}
                 </CardContent>
               </Card>
+
+              {animeStaffEntries.length ? (
+                <Card className="bg-card/70 shadow-md">
+                  <CardContent className="space-y-5 p-6">
+                    <div className="flex items-center gap-3 text-sm font-semibold uppercase tracking-widest text-muted-foreground">
+                      <Users className="h-4 w-4 text-primary" />
+                      Staff do anime
+                    </div>
+                    <div className="grid gap-3 md:grid-cols-2">
+                      {animeStaffEntries.map((staff, index) => (
+                        <div
+                          key={`${staff.role}-${index}`}
+                          className={`rounded-xl border border-border/50 bg-background/60 px-4 py-3 transition-[border-color] duration-200 hover:border-primary/60 ${
+                            animeStaffEntryColumnSpans.has(index) ? "md:col-span-2" : ""
+                          }`}
+                        >
+                          <p className="block text-xs font-semibold uppercase tracking-widest text-primary/80">
+                            {translateAnilistRole(staff.role, staffRoleTranslationMap)}
+                          </p>
+                          <p className="mt-1 text-sm text-foreground">{staff.members.join(", ")}</p>
+                        </div>
+                      ))}
+                    </div>
+                  </CardContent>
+                </Card>
+              ) : null}
 
               {visibleRelations.length > 0 ? (
                 <Card className="bg-card/80 shadow-lg">
@@ -1298,8 +1410,8 @@ const ProjectPage = () => {
               ) : null}
             </div>
 
-            <div className="space-y-6">
-              {project.staff?.length ? (
+            {fansubStaffEntries.length ? (
+              <div className="space-y-6">
                 <Card className="bg-card/70 shadow-md">
                   <CardContent className="space-y-5 p-6">
                     <div className="flex items-center gap-3 text-sm font-semibold uppercase tracking-widest text-muted-foreground">
@@ -1307,10 +1419,10 @@ const ProjectPage = () => {
                       Equipe da fansub
                     </div>
                     <div className="space-y-3">
-                      {project.staff.map((staff) => (
+                      {fansubStaffEntries.map((staff) => (
                         <div
                           key={staff.role}
-                          className="rounded-xl border border-border/50 bg-background/60 px-4 py-3"
+                          className="rounded-xl border border-border/50 bg-background/60 px-4 py-3 transition-[border-color] duration-200 hover:border-primary/60"
                         >
                           <p className="block text-xs font-semibold uppercase tracking-widest text-primary/80">
                             {staff.role}
@@ -1321,32 +1433,8 @@ const ProjectPage = () => {
                     </div>
                   </CardContent>
                 </Card>
-              ) : null}
-
-              {project.animeStaff?.length ? (
-                <Card className="bg-card/70 shadow-md">
-                  <CardContent className="space-y-5 p-6">
-                    <div className="flex items-center gap-3 text-sm font-semibold uppercase tracking-widest text-muted-foreground">
-                      <Users className="h-4 w-4 text-primary" />
-                      Staff
-                    </div>
-                    <div className="space-y-3">
-                      {project.animeStaff.map((staff) => (
-                        <div
-                          key={staff.role}
-                          className="rounded-xl border border-border/50 bg-background/60 px-4 py-3"
-                        >
-                          <p className="block text-xs font-semibold uppercase tracking-widest text-primary/80">
-                            {translateAnilistRole(staff.role, staffRoleTranslationMap)}
-                          </p>
-                          <p className="mt-1 text-sm text-foreground">{staff.members.join(", ")}</p>
-                        </div>
-                      ))}
-                    </div>
-                  </CardContent>
-                </Card>
-              ) : null}
-            </div>
+              </div>
+            ) : null}
           </div>
         </section>
 

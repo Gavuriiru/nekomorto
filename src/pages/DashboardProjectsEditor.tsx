@@ -1194,7 +1194,7 @@ const DashboardProjectsEditor = () => {
                               <img
                                 src={project.cover || "/placeholder.svg"}
                                 alt={project.title}
-                                className="pointer-events-none absolute inset-0 block h-full w-full object-cover object-center"
+                                className="pointer-events-none absolute inset-0 block h-full w-full object-cover object-center transition-transform duration-300 group-hover:scale-105"
                                 loading="lazy"
                               />
                             </div>
@@ -1277,7 +1277,7 @@ const DashboardProjectsEditor = () => {
 
                             <p
                               data-slot="project-card-synopsis"
-                              className={`min-h-0 max-h-[7.5rem] overflow-hidden text-sm leading-5 ${dashboardPageLayoutTokens.cardMetaText}`}
+                              className={`min-h-0 max-h-[7.5rem] overflow-hidden whitespace-pre-wrap text-sm leading-5 ${dashboardPageLayoutTokens.cardMetaText}`}
                               style={{
                                 display: "-webkit-box",
                                 WebkitBoxOrient: "vertical",

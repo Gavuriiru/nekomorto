@@ -12,8 +12,8 @@ import {
   dedicatedEditorSidebarStickyClassName,
   useDedicatedEditorSidebarHeight,
 } from "@/components/dashboard/dedicated-editor-sidebar";
+import DownloadSourcesEditor from "@/components/dashboard/project-editor/DownloadSourcesEditor";
 import LazyImageLibraryDialog from "@/components/lazy/LazyImageLibraryDialog";
-import DownloadSourceSelect from "@/components/project-reader/DownloadSourceSelect";
 import ProjectEditorSectionCard from "@/components/project-reader/ProjectEditorSectionCard";
 import AsyncState from "@/components/ui/async-state";
 import { Badge } from "@/components/ui/badge";
@@ -1608,66 +1608,16 @@ const DashboardProjectEpisodeEditor = () => {
                         </div>
                         <DashboardFieldStack>
                           <Label className="text-sm">Fontes de download</Label>
-                          <div className="space-y-3">
-                            {(activeDraft.sources || []).map((source, sourceIndex) => (
-                              <div
-                                key={`anime-episode-source-${sourceIndex}`}
-                                className="grid gap-2 rounded-xl border border-border/60 bg-background/40 p-3"
-                              >
-                                <DownloadSourceSelect
-                                  value={source.label}
-                                  ariaLabel={`Fonte ${sourceIndex + 1}`}
-                                  legacyLabels={(activeDraft.sources || []).map(
-                                    (item) => item.label,
-                                  )}
-                                  onValueChange={(value) =>
-                                    updateDraft((current) => ({
-                                      ...current,
-                                      sources: (current.sources || []).map((item, index) =>
-                                        index === sourceIndex ? { ...item, label: value } : item,
-                                      ),
-                                    }))
-                                  }
-                                />
-                                <Input
-                                  value={source.url}
-                                  onChange={(event) =>
-                                    updateDraft((current) => ({
-                                      ...current,
-                                      sources: (current.sources || []).map((item, index) =>
-                                        index === sourceIndex
-                                          ? { ...item, url: event.target.value }
-                                          : item,
-                                      ),
-                                    }))
-                                  }
-                                  placeholder="URL"
-                                  disabled={!String(source.label || "").trim()}
-                                />
-                                <div className="flex justify-end">
-                                  <DashboardActionButton
-                                    type="button"
-                                    size="sm"
-                                    onClick={() =>
-                                      updateDraft((current) => ({
-                                        ...current,
-                                        sources: (current.sources || []).filter(
-                                          (_, index) => index !== sourceIndex,
-                                        ),
-                                      }))
-                                    }
-                                  >
-                                    Remover
-                                  </DashboardActionButton>
-                                </div>
-                              </div>
-                            ))}
-                            {(activeDraft.sources || []).length === 0 ? (
-                              <p className="text-sm text-muted-foreground">
-                                Nenhuma fonte cadastrada.
-                              </p>
-                            ) : null}
-                          </div>
+                          <DownloadSourcesEditor
+                            sources={activeDraft.sources || []}
+                            sourceAriaLabelPrefix="Fonte"
+                            onChange={(nextSources) =>
+                              updateDraft((current) => ({
+                                ...current,
+                                sources: nextSources,
+                              }))
+                            }
+                          />
                         </DashboardFieldStack>
                       </ProjectEditorSectionCard>
                     </div>

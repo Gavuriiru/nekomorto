@@ -2588,7 +2588,7 @@ const DashboardPosts = () => {
                                 preset="card"
                                 mediaVariants={mediaVariants}
                                 className="absolute inset-0 block h-full w-full"
-                                imgClassName="absolute inset-0 block h-full w-full object-cover object-center"
+                                imgClassName="absolute inset-0 block h-full w-full object-cover object-center transition-transform duration-300 group-hover:scale-105"
                                 loading="lazy"
                               />
                             ) : (

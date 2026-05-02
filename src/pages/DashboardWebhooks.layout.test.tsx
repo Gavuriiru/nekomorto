@@ -676,18 +676,25 @@ describe("DashboardWebhooks layout", () => {
       "h-9",
     );
 
-    expect(screen.getByDisplayValue("{{post.imageUrl}}")).toBeInTheDocument();
+    expect(screen.getByDisplayValue("{{postagem.imagemUrl}}")).toBeInTheDocument();
     expect(
-      screen.getByDisplayValue("{{project.backdropImageUrl}}"),
+      screen.getByDisplayValue("{{projeto.fundoImagemUrl}}"),
     ).toBeInTheDocument();
 
     expect(screen.getByText(/^#[0-9A-F]{6}$/i)).toBeInTheDocument();
-    expect(screen.getByText("{{mention.type}}")).toBeInTheDocument();
-    expect(screen.getByText("{{mention.release}}")).toBeInTheDocument();
-    expect(screen.getByText("{{post.imageUrl}}")).toBeInTheDocument();
-    expect(screen.getByText("{{post.ogImageUrl}}")).toBeInTheDocument();
+    expect(screen.getByText("{{mencao.tipo}}")).toBeInTheDocument();
+    expect(screen.getByText("{{mencao.lancamento}}")).toBeInTheDocument();
+    expect(screen.getByText("{{mencao.tipo}}")).toHaveAttribute(
+      "title",
+      "Mostra a menção do cargo configurado para o tipo do projeto. Ex.: <@&123456789>.",
+    );
+    expect(screen.getByText("{{postagem.imagemUrl}}")).toHaveAttribute(
+      "title",
+      "Mostra a melhor imagem disponível para a postagem. Ex.: capa, OG ou imagem padrão.",
+    );
+    expect(screen.getByText("{{postagem.ogImagemUrl}}")).toBeInTheDocument();
     expect(
-      screen.getByText("{{project.backdropImageUrl}}"),
+      screen.getByText("{{projeto.fundoImagemUrl}}"),
     ).toBeInTheDocument();
     expect(screen.queryByText("{{mention.category}}")).not.toBeInTheDocument();
     expect(screen.queryByText("{{mention.general}}")).not.toBeInTheDocument();
@@ -704,24 +711,28 @@ describe("DashboardWebhooks layout", () => {
 
     await waitFor(() => {
       expect(
-        screen.getByDisplayValue("{{project.imageUrl}}"),
+        screen.getByDisplayValue("{{projeto.imagemUrl}}"),
       ).toBeInTheDocument();
     });
     expect(
-      screen.getByDisplayValue("{{chapter.imageUrl}}"),
+      screen.getByDisplayValue("{{conteudo.imagemUrl}}"),
     ).toBeInTheDocument();
-    expect(screen.getAllByText("{{project.imageUrl}}").length).toBeGreaterThan(
+    expect(screen.getAllByText("{{projeto.imagemUrl}}").length).toBeGreaterThan(
       0,
     );
     expect(
-      screen.getAllByText("{{project.ogImageUrl}}").length,
+      screen.getAllByText("{{projeto.ogImagemUrl}}").length,
     ).toBeGreaterThan(0);
-    expect(screen.getAllByText("{{chapter.imageUrl}}").length).toBeGreaterThan(
+    expect(screen.getAllByText("{{conteudo.imagemUrl}}").length).toBeGreaterThan(
       0,
     );
     expect(
-      screen.getAllByText("{{chapter.ogImageUrl}}").length,
+      screen.getAllByText("{{conteudo.ogImagemUrl}}").length,
     ).toBeGreaterThan(0);
+    expect(screen.getByText("{{conteudo.tipo}}")).toHaveAttribute(
+      "title",
+      "Mostra Capítulo, Episódio, Extra ou Especial conforme o conteúdo. Ex.: Capítulo.",
+    );
   });
 
   it("permite carregar a página com grant de integrações", async () => {
@@ -992,7 +1003,7 @@ describe("DashboardWebhooks layout", () => {
     });
 
     fireEvent.click(screen.getByRole("button", { name: /Novo post/i }));
-    fireEvent.change(screen.getByDisplayValue("{{mention.all}}"), {
+    fireEvent.change(screen.getByDisplayValue("{{mencao.todos}}"), {
       target: { value: "rascunho local" },
     });
     fireEvent.click(

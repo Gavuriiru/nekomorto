@@ -57,6 +57,11 @@ export type PublicBootstrapVolumeEntry = {
   coverImageAlt: string;
 };
 
+export type PublicBootstrapProjectStaff = {
+  role: string;
+  members: string[];
+};
+
 export type PublicBootstrapProject = {
   id: string;
   title: string;
@@ -80,6 +85,8 @@ export type PublicBootstrapProject = {
   animationStudios: string[];
   episodes: string;
   producers: string[];
+  staff: PublicBootstrapProjectStaff[];
+  animeStaff: PublicBootstrapProjectStaff[];
   readerConfig?: {
     direction?: "rtl" | "ltr";
     layout?: "single" | "double" | "scroll-vertical" | "scroll-horizontal";
