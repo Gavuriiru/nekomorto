@@ -26,6 +26,14 @@ import AsyncState from "@/components/ui/async-state";
 import { Badge } from "@/components/ui/badge";
 import { ColorPicker } from "@/components/ui/color-picker";
 import CompactPagination from "@/components/ui/compact-pagination";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
 import { Label } from "@/components/ui/label";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Switch } from "@/components/ui/switch";
@@ -36,7 +44,7 @@ import { usePageMeta } from "@/hooks/use-page-meta";
 import { getApiBase } from "@/lib/api-base";
 import { apiFetch } from "@/lib/api-client";
 import { resolveGrants } from "@/lib/access-control";
-import { Loader2, Plus, RotateCcw, Save, Send, Trash2 } from "lucide-react";
+import { ClipboardPaste, Copy, Loader2, Plus, RotateCcw, Save, Send, Trash2 } from "lucide-react";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useNavigate } from "react-router-dom";
 
@@ -183,6 +191,21 @@ type WebhookSettingsSources = {
   operational: string;
   security: string;
 };
+type EditorialWebhookTemplatePackage = {
+  kind: "nekomorto.editorialWebhookTemplate";
+  version: 1;
+  channelKey: ChannelKey;
+  eventKey: EventKey;
+  template: Template;
+};
+type TemplateClipboardDialogState =
+  | {
+      mode: "copy" | "paste";
+      channelKey: ChannelKey;
+      eventKey: EventKey;
+      value: string;
+    }
+  | null;
 
 const CHANNEL_EVENTS: Record<ChannelKey, EventKey[]> = {
   posts: ["post_create", "post_update"],
@@ -223,6 +246,8 @@ const WEBHOOK_DELIVERY_STATUS_VARIANTS: Record<
   failed: "danger",
 };
 const WEBHOOK_ACCORDION_CONTENT_CLASSNAME = "space-y-4 px-1";
+const EDITORIAL_WEBHOOK_TEMPLATE_KIND = "nekomorto.editorialWebhookTemplate";
+const EDITORIAL_WEBHOOK_TEMPLATE_VERSION = 1;
 
 const COMMON_PLACEHOLDERS = [
   "evento.chave",
@@ -779,6 +804,102 @@ const normalizeHexColor = (value: string, fallback: string) => {
   return fallback;
 };
 
+const normalizeTemplateField = (value: unknown): TemplateField => {
+  const parsed =
+    value && typeof value === "object" && !Array.isArray(value)
+      ? (value as Partial<TemplateField>)
+      : {};
+  return {
+    name: String(parsed.name || ""),
+    value: String(parsed.value || ""),
+    inline: parsed.inline === true,
+  };
+};
+
+const normalizeTemplateEmbed = (value: unknown, fallbackColor: string): TemplateEmbed => {
+  const parsed =
+    value && typeof value === "object" && !Array.isArray(value)
+      ? (value as Partial<TemplateEmbed>)
+      : {};
+  return {
+    title: String(parsed.title || ""),
+    description: String(parsed.description || ""),
+    footerText: String(parsed.footerText || ""),
+    footerIconUrl: String(parsed.footerIconUrl || ""),
+    url: String(parsed.url || ""),
+    color: normalizeHexColor(String(parsed.color || ""), fallbackColor),
+    authorName: String(parsed.authorName || ""),
+    authorIconUrl: String(parsed.authorIconUrl || ""),
+    authorUrl: String(parsed.authorUrl || ""),
+    thumbnailUrl: String(parsed.thumbnailUrl || ""),
+    imageUrl: String(parsed.imageUrl || ""),
+    fields: Array.isArray(parsed.fields) ? parsed.fields.map(normalizeTemplateField) : [],
+  };
+};
+
+const normalizeTemplateForClipboard = (template: Template, eventKey: EventKey): Template =>
+  migrateTemplateAliasesDeep({
+    content: String(template.content || ""),
+    embed: normalizeTemplateEmbed(template.embed, DEFAULT_EVENT_COLORS[eventKey]),
+  });
+
+const buildEditorialTemplatePackage = (
+  channelKey: ChannelKey,
+  eventKey: EventKey,
+  template: Template,
+): EditorialWebhookTemplatePackage => ({
+  kind: EDITORIAL_WEBHOOK_TEMPLATE_KIND,
+  version: EDITORIAL_WEBHOOK_TEMPLATE_VERSION,
+  channelKey,
+  eventKey,
+  template: normalizeTemplateForClipboard(template, eventKey),
+});
+
+const parseEditorialTemplatePackage = (value: string, fallbackEventKey: EventKey) => {
+  let parsed: unknown;
+  try {
+    parsed = JSON.parse(value);
+  } catch {
+    throw new Error("invalid_json");
+  }
+
+  if (!parsed || typeof parsed !== "object" || Array.isArray(parsed)) {
+    throw new Error("invalid_template_package");
+  }
+  const envelope = parsed as Partial<EditorialWebhookTemplatePackage>;
+  if (
+    envelope.kind !== EDITORIAL_WEBHOOK_TEMPLATE_KIND ||
+    envelope.version !== EDITORIAL_WEBHOOK_TEMPLATE_VERSION
+  ) {
+    throw new Error("invalid_template_package");
+  }
+  if (!envelope.template || typeof envelope.template !== "object" || Array.isArray(envelope.template)) {
+    throw new Error("invalid_template_package");
+  }
+
+  const templateCandidate = envelope.template as Partial<Template>;
+  if (
+    typeof templateCandidate.content !== "string" ||
+    !templateCandidate.embed ||
+    typeof templateCandidate.embed !== "object" ||
+    Array.isArray(templateCandidate.embed)
+  ) {
+    throw new Error("invalid_template_package");
+  }
+
+  return {
+    channelKey: envelope.channelKey,
+    eventKey: envelope.eventKey,
+    template: normalizeTemplateForClipboard(
+      {
+        content: templateCandidate.content,
+        embed: templateCandidate.embed as TemplateEmbed,
+      },
+      fallbackEventKey,
+    ),
+  };
+};
+
 const EMPTY_DELIVERY_SUMMARY: WebhookDeliverySummary = {
   queued: 0,
   processing: 0,
@@ -1011,6 +1132,9 @@ const DashboardWebhooks = () => {
   });
   const [isTestingOperational, setIsTestingOperational] = useState(false);
   const [isTestingSecurity, setIsTestingSecurity] = useState(false);
+  const [templateClipboardDialog, setTemplateClipboardDialog] =
+    useState<TemplateClipboardDialogState>(null);
+  const [templateClipboardBusyKey, setTemplateClipboardBusyKey] = useState("");
   const [deliveryFilters, setDeliveryFilters] = useState<{
     scope: string;
     status: string;
@@ -1632,6 +1756,84 @@ const DashboardWebhooks = () => {
     }
   }, [apiBase, projectTypes, settings, validateSection]);
 
+  const applyTemplatePackage = useCallback(
+    (channelKey: ChannelKey, eventKey: EventKey, rawValue: string) => {
+      try {
+        const parsed = parseEditorialTemplatePackage(rawValue, eventKey);
+        setTemplate(channelKey, eventKey, () => parsed.template);
+        const isDifferentEvent =
+          parsed.channelKey !== channelKey || parsed.eventKey !== eventKey;
+        toast({
+          title: isDifferentEvent ? "Template colado com aviso" : "Template colado",
+          description: isDifferentEvent
+            ? "Template colado de outro evento; revise os placeholders antes de salvar."
+            : "Template aplicado ao rascunho do evento.",
+          intent: isDifferentEvent ? "warning" : "success",
+        });
+        return true;
+      } catch {
+        toast({
+          title: "Template inválido",
+          description: "Cole um JSON de template editorial válido.",
+          variant: "destructive",
+        });
+        return false;
+      }
+    },
+    [setTemplate],
+  );
+
+  const handleCopyTemplate = useCallback(
+    async (channelKey: ChannelKey, eventKey: EventKey, template: Template) => {
+      const clipboardKey = `${channelKey}:${eventKey}`;
+      const serialized = JSON.stringify(
+        buildEditorialTemplatePackage(channelKey, eventKey, template),
+        null,
+        2,
+      );
+      setTemplateClipboardBusyKey(clipboardKey);
+      try {
+        await navigator.clipboard.writeText(serialized);
+        toast({
+          title: "Template copiado",
+          description: "JSON do template copiado para a área de transferência.",
+          intent: "success",
+        });
+      } catch {
+        setTemplateClipboardDialog({
+          mode: "copy",
+          channelKey,
+          eventKey,
+          value: serialized,
+        });
+      } finally {
+        setTemplateClipboardBusyKey("");
+      }
+    },
+    [],
+  );
+
+  const handlePasteTemplate = useCallback(
+    async (channelKey: ChannelKey, eventKey: EventKey) => {
+      const clipboardKey = `${channelKey}:${eventKey}`;
+      setTemplateClipboardBusyKey(clipboardKey);
+      try {
+        const rawValue = await navigator.clipboard.readText();
+        applyTemplatePackage(channelKey, eventKey, rawValue);
+      } catch {
+        setTemplateClipboardDialog({
+          mode: "paste",
+          channelKey,
+          eventKey,
+          value: "",
+        });
+      } finally {
+        setTemplateClipboardBusyKey("");
+      }
+    },
+    [applyTemplatePackage],
+  );
+
   const handleTest = useCallback(
     async (eventKey: EventKey) => {
       setTestingByEvent((previous) => ({ ...previous, [eventKey]: true }));
@@ -2078,35 +2280,76 @@ const DashboardWebhooks = () => {
                                     className="space-y-4"
                                     data-testid={`dashboard-webhooks-event-content-${channelKey}-${eventKey}`}
                                   >
-                                    <div className="flex flex-wrap items-center gap-2">
-                                      <span className="text-xs text-muted-foreground">
-                                        Evento ativo
-                                      </span>
-                                      <Switch
-                                        checked={Boolean(channel.events[eventKey])}
-                                        onCheckedChange={(checked) =>
-                                          patchChannel(
-                                            channelKey,
-                                            (item) =>
-                                              ({
-                                                ...item,
-                                                events: {
-                                                  ...item.events,
-                                                  [eventKey]: checked,
-                                                },
-                                              }) as EditorialSettings["channels"][ChannelKey],
-                                          )
-                                        }
-                                      />
-                                      <DashboardActionButton
-                                        type="button"
-                                        size="sm"
-                                        disabled={testingByEvent[eventKey]}
-                                        onClick={() => void handleTest(eventKey)}
-                                      >
-                                        <Send className="h-3.5 w-3.5" />
-                                        {testingByEvent[eventKey] ? "Enviando..." : "Enviar teste"}
-                                      </DashboardActionButton>
+                                    <div
+                                      className={`flex flex-col gap-3 rounded-xl px-3 py-3 md:flex-row md:items-center md:justify-between ${dashboardPageLayoutTokens.cardActionSurface}`}
+                                    >
+                                      <div className="flex flex-wrap items-center gap-2">
+                                        <span className="text-sm font-medium">Evento ativo</span>
+                                        <Switch
+                                          checked={Boolean(channel.events[eventKey])}
+                                          onCheckedChange={(checked) =>
+                                            patchChannel(
+                                              channelKey,
+                                              (item) =>
+                                                ({
+                                                  ...item,
+                                                  events: {
+                                                    ...item.events,
+                                                    [eventKey]: checked,
+                                                  },
+                                                }) as EditorialSettings["channels"][ChannelKey],
+                                            )
+                                          }
+                                        />
+                                        <Badge variant="outline" className="font-mono text-[11px]">
+                                          {eventKey}
+                                        </Badge>
+                                      </div>
+                                      <div className="flex flex-wrap items-center gap-2">
+                                        <DashboardActionButton
+                                          type="button"
+                                          size="sm"
+                                          disabled={
+                                            templateClipboardBusyKey ===
+                                            `${channelKey}:${eventKey}`
+                                          }
+                                          onClick={() =>
+                                            void handleCopyTemplate(
+                                              channelKey,
+                                              eventKey,
+                                              template,
+                                            )
+                                          }
+                                        >
+                                          <Copy className="h-3.5 w-3.5" />
+                                          Copiar template
+                                        </DashboardActionButton>
+                                        <DashboardActionButton
+                                          type="button"
+                                          size="sm"
+                                          disabled={
+                                            templateClipboardBusyKey ===
+                                            `${channelKey}:${eventKey}`
+                                          }
+                                          onClick={() =>
+                                            void handlePasteTemplate(channelKey, eventKey)
+                                          }
+                                        >
+                                          <ClipboardPaste className="h-3.5 w-3.5" />
+                                          Colar template
+                                        </DashboardActionButton>
+                                        <DashboardActionButton
+                                          type="button"
+                                          size="sm"
+                                          disabled={testingByEvent[eventKey]}
+                                          onClick={() => void handleTest(eventKey)}
+                                        >
+                                          <Send className="h-3.5 w-3.5" />
+                                          {testingByEvent[eventKey]
+                                            ? "Enviando..."
+                                            : "Enviar teste"}
+                                        </DashboardActionButton>
+                                      </div>
                                     </div>
 
                                     <DashboardFieldStack>
@@ -2124,7 +2367,7 @@ const DashboardWebhooks = () => {
                                     </DashboardFieldStack>
 
                                     <div className="space-y-2">
-                                      <h4 className="text-xs font-semibold uppercase tracking-[0.15em] text-muted-foreground">
+                                      <h4 className="text-sm font-semibold text-foreground">
                                         Autor e miniatura
                                       </h4>
                                       <div className="grid gap-2 md:grid-cols-3">
@@ -2188,7 +2431,7 @@ const DashboardWebhooks = () => {
                                     </div>
 
                                     <div className="space-y-2">
-                                      <h4 className="text-xs font-semibold uppercase tracking-[0.15em] text-muted-foreground">
+                                      <h4 className="text-sm font-semibold text-foreground">
                                         Título e URL da embed
                                       </h4>
                                       <div className="grid gap-2 md:grid-cols-2">
@@ -2361,7 +2604,7 @@ const DashboardWebhooks = () => {
                                     </DashboardFieldStack>
 
                                     <div className="space-y-2">
-                                      <h4 className="text-xs font-semibold uppercase tracking-[0.15em] text-muted-foreground">
+                                      <h4 className="text-sm font-semibold text-foreground">
                                         Rodapé
                                       </h4>
                                       <div className="grid gap-2 md:grid-cols-2">
@@ -2425,7 +2668,7 @@ const DashboardWebhooks = () => {
                                     </DashboardFieldStack>
 
                                     <div className="space-y-2">
-                                      <h4 className="text-xs font-semibold uppercase tracking-[0.15em] text-muted-foreground">
+                                      <h4 className="text-sm font-semibold text-foreground">
                                         Placeholders disponíveis
                                       </h4>
                                       <div className="flex flex-wrap gap-2">
@@ -2935,6 +3178,73 @@ const DashboardWebhooks = () => {
             </AccordionItem>
           </Accordion>
         )}
+        <Dialog
+          open={Boolean(templateClipboardDialog)}
+          onOpenChange={(open) => {
+            if (!open) {
+              setTemplateClipboardDialog(null);
+            }
+          }}
+        >
+          <DialogContent className="max-w-2xl">
+            <DialogHeader>
+              <DialogTitle>
+                {templateClipboardDialog?.mode === "copy"
+                  ? "Copiar template"
+                  : "Colar template"}
+              </DialogTitle>
+              <DialogDescription>
+                {templateClipboardDialog?.mode === "copy"
+                  ? "Copie o JSON abaixo manualmente."
+                  : "Cole o JSON exportado de outro evento editorial."}
+              </DialogDescription>
+            </DialogHeader>
+            <Textarea
+              value={templateClipboardDialog?.value || ""}
+              readOnly={templateClipboardDialog?.mode === "copy"}
+              onChange={(event) =>
+                setTemplateClipboardDialog((previous) =>
+                  previous ? { ...previous, value: event.target.value } : previous,
+                )
+              }
+              className="min-h-64 font-mono text-xs"
+              aria-label={
+                templateClipboardDialog?.mode === "copy"
+                  ? "JSON do template"
+                  : "JSON para colar"
+              }
+            />
+            <DialogFooter className="gap-2">
+              <DashboardActionButton
+                type="button"
+                onClick={() => setTemplateClipboardDialog(null)}
+              >
+                Fechar
+              </DashboardActionButton>
+              {templateClipboardDialog?.mode === "paste" ? (
+                <DashboardActionButton
+                  type="button"
+                  tone="primary"
+                  onClick={() => {
+                    if (!templateClipboardDialog) {
+                      return;
+                    }
+                    const applied = applyTemplatePackage(
+                      templateClipboardDialog.channelKey,
+                      templateClipboardDialog.eventKey,
+                      templateClipboardDialog.value,
+                    );
+                    if (applied) {
+                      setTemplateClipboardDialog(null);
+                    }
+                  }}
+                >
+                  Aplicar
+                </DashboardActionButton>
+              ) : null}
+            </DialogFooter>
+          </DialogContent>
+        </Dialog>
       </DashboardPageContainer>
     </DashboardShell>
   );

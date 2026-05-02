@@ -16,6 +16,8 @@ import DashboardWebhooks, { __testing } from "@/pages/DashboardWebhooks";
 const apiFetchMock = vi.hoisted(() => vi.fn());
 const toastMock = vi.hoisted(() => vi.fn());
 const dismissToastMock = vi.hoisted(() => vi.fn());
+const clipboardWriteTextMock = vi.hoisted(() => vi.fn());
+const clipboardReadTextMock = vi.hoisted(() => vi.fn());
 
 vi.mock("@/components/DashboardShell", () => ({
   default: ({ children }: { children: ReactNode }) => <div>{children}</div>,
@@ -422,6 +424,15 @@ describe("DashboardWebhooks layout", () => {
     toastMock.mockReset();
     toastMock.mockReturnValue("dashboard-webhooks-refresh-toast");
     dismissToastMock.mockReset();
+    clipboardWriteTextMock.mockReset();
+    clipboardReadTextMock.mockReset();
+    Object.defineProperty(navigator, "clipboard", {
+      configurable: true,
+      value: {
+        writeText: clipboardWriteTextMock,
+        readText: clipboardReadTextMock,
+      },
+    });
     (
       window as Window & { __BOOTSTRAP_PUBLIC_ME__?: unknown }
     ).__BOOTSTRAP_PUBLIC_ME__ = undefined;
@@ -1052,6 +1063,257 @@ describe("DashboardWebhooks layout", () => {
       requestPayload.settings?.editorial.channels.posts.templates.post_create
         .content,
     ).toBe("rascunho local");
+  });
+
+  it("copia o template editorial como JSON versionado", async () => {
+    clipboardWriteTextMock.mockResolvedValue(undefined);
+    setupApiMock();
+
+    renderWithDashboardSession(
+      <MemoryRouter initialEntries={["/dashboard/webhooks"]}>
+        <DashboardWebhooks />
+      </MemoryRouter>,
+    );
+
+    await screen.findByRole("heading", { name: /Webhooks/i });
+    fireEvent.click(screen.getByRole("button", { name: /Novo post/i }));
+    fireEvent.click(
+      within(
+        screen.getByTestId("dashboard-webhooks-event-posts-post_create"),
+      ).getByRole("button", { name: /Copiar template/i }),
+    );
+
+    await waitFor(() => {
+      expect(clipboardWriteTextMock).toHaveBeenCalledTimes(1);
+    });
+
+    const copied = JSON.parse(
+      String(clipboardWriteTextMock.mock.calls[0]?.[0] || "{}"),
+    );
+    expect(copied).toEqual(
+      expect.objectContaining({
+        kind: "nekomorto.editorialWebhookTemplate",
+        version: 1,
+        channelKey: "posts",
+        eventKey: "post_create",
+      }),
+    );
+    expect(copied.template.content).toBe("{{mencao.todos}}");
+    expect(copied.template.embed).toEqual(
+      expect.objectContaining({
+        title: "{{postagem.titulo}}",
+        color: "#3b82f6",
+      }),
+    );
+    expect(toastMock).toHaveBeenCalledWith(
+      expect.objectContaining({ title: "Template copiado" }),
+    );
+  });
+
+  it("cola conteudo, embed, cor e campos customizados no evento atual", async () => {
+    clipboardReadTextMock.mockResolvedValue(
+      JSON.stringify({
+        kind: "nekomorto.editorialWebhookTemplate",
+        version: 1,
+        channelKey: "posts",
+        eventKey: "post_create",
+        template: {
+          content: "conteudo colado",
+          embed: {
+            title: "Titulo colado",
+            description: "Descricao colada",
+            footerText: "Rodape colado",
+            footerIconUrl: "https://cdn.local/footer.png",
+            url: "https://nekomorto.local/post",
+            color: "abc123",
+            authorName: "Autor colado",
+            authorIconUrl: "https://cdn.local/author.png",
+            authorUrl: "https://nekomorto.local/autor",
+            thumbnailUrl: "https://cdn.local/thumb.png",
+            imageUrl: "https://cdn.local/image.png",
+            fields: [{ name: "Campo", value: "Valor", inline: true }],
+          },
+        },
+      }),
+    );
+    setupApiMock();
+
+    renderWithDashboardSession(
+      <MemoryRouter initialEntries={["/dashboard/webhooks"]}>
+        <DashboardWebhooks />
+      </MemoryRouter>,
+    );
+
+    await screen.findByRole("heading", { name: /Webhooks/i });
+    fireEvent.click(screen.getByRole("button", { name: /Novo post/i }));
+    fireEvent.click(
+      within(
+        screen.getByTestId("dashboard-webhooks-event-posts-post_create"),
+      ).getByRole("button", { name: /Colar template/i }),
+    );
+
+    expect(await screen.findByDisplayValue("conteudo colado")).toBeInTheDocument();
+    expect(screen.getByDisplayValue("Titulo colado")).toBeInTheDocument();
+    expect(screen.getByDisplayValue("Descricao colada")).toBeInTheDocument();
+    expect(screen.getByText("#ABC123")).toBeInTheDocument();
+    expect(screen.getByDisplayValue("Campo")).toBeInTheDocument();
+    expect(screen.getByDisplayValue("Valor")).toBeInTheDocument();
+    expect(toastMock).toHaveBeenCalledWith(
+      expect.objectContaining({ title: "Template colado" }),
+    );
+  });
+
+  it("cola template de outro evento e mostra aviso", async () => {
+    clipboardReadTextMock.mockResolvedValue(
+      JSON.stringify({
+        kind: "nekomorto.editorialWebhookTemplate",
+        version: 1,
+        channelKey: "projects",
+        eventKey: "project_release",
+        template: {
+          content: "template de projeto",
+          embed: {
+            title: "Projeto colado",
+            description: "",
+            footerText: "",
+            footerIconUrl: "",
+            url: "",
+            color: "#10b981",
+            authorName: "",
+            authorIconUrl: "",
+            authorUrl: "",
+            thumbnailUrl: "",
+            imageUrl: "",
+            fields: [],
+          },
+        },
+      }),
+    );
+    setupApiMock();
+
+    renderWithDashboardSession(
+      <MemoryRouter initialEntries={["/dashboard/webhooks"]}>
+        <DashboardWebhooks />
+      </MemoryRouter>,
+    );
+
+    await screen.findByRole("heading", { name: /Webhooks/i });
+    fireEvent.click(screen.getByRole("button", { name: /Novo post/i }));
+    fireEvent.click(
+      within(
+        screen.getByTestId("dashboard-webhooks-event-posts-post_create"),
+      ).getByRole("button", { name: /Colar template/i }),
+    );
+
+    expect(await screen.findByDisplayValue("template de projeto")).toBeInTheDocument();
+    expect(toastMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        title: "Template colado com aviso",
+        description:
+          "Template colado de outro evento; revise os placeholders antes de salvar.",
+      }),
+    );
+  });
+
+  it("nao altera o template quando o JSON colado e invalido", async () => {
+    clipboardReadTextMock.mockResolvedValue("{json invalido");
+    setupApiMock();
+
+    renderWithDashboardSession(
+      <MemoryRouter initialEntries={["/dashboard/webhooks"]}>
+        <DashboardWebhooks />
+      </MemoryRouter>,
+    );
+
+    await screen.findByRole("heading", { name: /Webhooks/i });
+    fireEvent.click(screen.getByRole("button", { name: /Novo post/i }));
+    const eventPanel = screen.getByTestId(
+      "dashboard-webhooks-event-content-posts-post_create",
+    );
+    const contentInput = within(eventPanel).getByDisplayValue("{{mencao.todos}}");
+    fireEvent.click(
+      within(
+        screen.getByTestId("dashboard-webhooks-event-posts-post_create"),
+      ).getByRole("button", { name: /Colar template/i }),
+    );
+
+    await waitFor(() => {
+      expect(toastMock).toHaveBeenCalledWith(
+        expect.objectContaining({ title: "Template inválido" }),
+      );
+    });
+    expect(contentInput).toHaveValue("{{mencao.todos}}");
+  });
+
+  it("converte aliases antigos ao colar template", async () => {
+    clipboardReadTextMock.mockResolvedValue(
+      JSON.stringify({
+        kind: "nekomorto.editorialWebhookTemplate",
+        version: 1,
+        channelKey: "posts",
+        eventKey: "post_create",
+        template: {
+          content: "{{mention.all}}",
+          embed: {
+            title: "{{post.title}}",
+            description: "{{post.excerpt}}",
+            footerText: "{{site.name}}",
+            footerIconUrl: "",
+            url: "{{post.url}}",
+            color: "#3b82f6",
+            authorName: "{{author.name}}",
+            authorIconUrl: "{{author.avatarUrl}}",
+            authorUrl: "{{site.url}}",
+            thumbnailUrl: "{{post.imageUrl}}",
+            imageUrl: "",
+            fields: [{ name: "Resumo", value: "{{post.excerpt}}", inline: false }],
+          },
+        },
+      }),
+    );
+    setupApiMock();
+
+    renderWithDashboardSession(
+      <MemoryRouter initialEntries={["/dashboard/webhooks"]}>
+        <DashboardWebhooks />
+      </MemoryRouter>,
+    );
+
+    await screen.findByRole("heading", { name: /Webhooks/i });
+    fireEvent.click(screen.getByRole("button", { name: /Novo post/i }));
+    fireEvent.click(
+      within(
+        screen.getByTestId("dashboard-webhooks-event-posts-post_create"),
+      ).getByRole("button", { name: /Colar template/i }),
+    );
+
+    expect(await screen.findByDisplayValue("{{mencao.todos}}")).toBeInTheDocument();
+    expect(screen.getByDisplayValue("{{postagem.titulo}}")).toBeInTheDocument();
+    expect(screen.getAllByDisplayValue("{{postagem.resumo}}").length).toBeGreaterThan(0);
+  });
+
+  it("renderiza a toolbar de template no evento aberto", async () => {
+    setupApiMock();
+
+    renderWithDashboardSession(
+      <MemoryRouter initialEntries={["/dashboard/webhooks"]}>
+        <DashboardWebhooks />
+      </MemoryRouter>,
+    );
+
+    await screen.findByRole("heading", { name: /Webhooks/i });
+    fireEvent.click(screen.getByRole("button", { name: /Novo post/i }));
+
+    const eventCard = screen.getByTestId("dashboard-webhooks-event-posts-post_create");
+    expect(
+      within(eventCard).getByRole("button", { name: /Copiar template/i }),
+    ).toBeInTheDocument();
+    expect(
+      within(eventCard).getByRole("button", { name: /Colar template/i }),
+    ).toBeInTheDocument();
+    expect(
+      within(eventCard).getByRole("button", { name: /Enviar teste/i }),
+    ).toBeInTheDocument();
   });
 
   it("preserva o rascunho local quando o save encontra conflito de revisao", async () => {
