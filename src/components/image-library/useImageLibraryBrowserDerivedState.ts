@@ -90,25 +90,40 @@ export const useImageLibraryBrowserDerivedState = ({
 
   const sortLibraryItems = useCallback(
     (items: LibraryImageItem[]) => {
-      const next = [...items];
-      next.sort((left, right) => {
-        if (sortMode === "name") {
-          return compareNaturalTextPtBr(toEffectiveName(left), toEffectiveName(right));
-        }
-        const leftTs = new Date(left.createdAt || 0).getTime();
-        const rightTs = new Date(right.createdAt || 0).getTime();
-        const safeLeftTs = Number.isFinite(leftTs) ? leftTs : 0;
-        const safeRightTs = Number.isFinite(rightTs) ? rightTs : 0;
-        if (sortMode === "oldest") {
-          if (safeLeftTs !== safeRightTs) {
-            return safeLeftTs - safeRightTs;
-          }
-        } else if (safeLeftTs !== safeRightTs) {
-          return safeRightTs - safeLeftTs;
-        }
-        return compareNaturalTextPtBr(toEffectiveName(left), toEffectiveName(right));
+      if (sortMode === "name") {
+        const next = [...items];
+        next.sort((left, right) =>
+          compareNaturalTextPtBr(toEffectiveName(left), toEffectiveName(right)),
+        );
+        return next;
+      }
+
+      // ⚡ Bolt Performance Optimization:
+      // Precompute timestamps in a single O(N) pass to avoid expensive
+      // O(N log N) `new Date().getTime()` allocations inside the `.sort()` comparator.
+      const mapped = items.map((item) => {
+        const ts = new Date(item.createdAt || 0).getTime();
+        return {
+          item,
+          timestamp: Number.isFinite(ts) ? ts : 0,
+        };
       });
-      return next;
+
+      mapped.sort((leftWrapper, rightWrapper) => {
+        if (sortMode === "oldest") {
+          if (leftWrapper.timestamp !== rightWrapper.timestamp) {
+            return leftWrapper.timestamp - rightWrapper.timestamp;
+          }
+        } else if (leftWrapper.timestamp !== rightWrapper.timestamp) {
+          return rightWrapper.timestamp - leftWrapper.timestamp;
+        }
+        return compareNaturalTextPtBr(
+          toEffectiveName(leftWrapper.item),
+          toEffectiveName(rightWrapper.item),
+        );
+      });
+
+      return mapped.map((wrapper) => wrapper.item);
     },
     [sortMode],
   );
