@@ -4,7 +4,9 @@ import ProjectMemberCombobox from "@/components/dashboard/ProjectMemberCombobox"
 import ReorderControls from "@/components/ReorderControls";
 import { AccordionContent, AccordionItem, AccordionTrigger } from "@/components/ui/accordion";
 import { Badge } from "@/components/ui/badge";
+import { badgeVariants } from "@/components/ui/badge-variants";
 import { translateAnilistRole } from "@/lib/project-taxonomy";
+import { cn } from "@/lib/utils";
 import { type Dispatch, memo, type SetStateAction } from "react";
 
 import type { ProjectForm, ProjectStaff } from "./dashboard-projects-editor-types";
@@ -13,6 +15,8 @@ import ProjectEditorAccordionHeader from "./ProjectEditorAccordionHeader";
 const Button = DashboardActionButton;
 
 type StaffFieldKey = "staff" | "animeStaff";
+
+const normalizeMemberKey = (value: string) => String(value || "").trim().toLowerCase();
 
 type ProjectEditorStaffSectionProps = {
   cardClassName: string;
@@ -74,6 +78,24 @@ const ProjectEditorStaffSectionComponent = ({
       return staffKey === "staff"
         ? { ...prev, staff: nextEntries }
         : { ...prev, animeStaff: nextEntries };
+    });
+  };
+
+  const removeMember = (roleIndex: number, member: string) => {
+    const memberKey = normalizeMemberKey(member);
+    updateStaffEntries((current) => {
+      const next = [...current];
+      const currentRole = next[roleIndex];
+      if (!currentRole) {
+        return current;
+      }
+      next[roleIndex] = {
+        ...currentRole,
+        members: (currentRole.members || []).filter(
+          (item) => normalizeMemberKey(item) !== memberKey,
+        ),
+      };
+      return next;
     });
   };
 
@@ -178,6 +200,7 @@ const ProjectEditorStaffSectionComponent = ({
                   <ProjectMemberCombobox
                     value={memberInput[index] || ""}
                     options={memberDirectory}
+                    excludedValues={role.members || []}
                     onValueChange={(nextValue) =>
                       setMemberInput((prev) => ({
                         ...prev,
@@ -187,13 +210,15 @@ const ProjectEditorStaffSectionComponent = ({
                     onCommit={(member) => onCommitMember(index, member)}
                     placeholder="Adicionar membro"
                   />
-                  <DashboardActionButton
-                    type="button"
-                    size="sm"
-                    onClick={() => onCommitMember(index)}
-                  >
-                    Adicionar
-                  </DashboardActionButton>
+                  {variant === "anime" ? (
+                    <DashboardActionButton
+                      type="button"
+                      size="sm"
+                      onClick={() => onCommitMember(index)}
+                    >
+                      Adicionar
+                    </DashboardActionButton>
+                  ) : null}
                 </div>
                 <div className="mt-2 flex flex-wrap gap-2">
                   {(role.members || []).map((member) =>
@@ -203,27 +228,25 @@ const ProjectEditorStaffSectionComponent = ({
                         <button
                           type="button"
                           className="rounded-sm p-0.5 text-muted-foreground transition hover:text-foreground"
-                          onClick={() =>
-                            updateStaffEntries((current) => {
-                              const next = [...current];
-                              next[index] = {
-                                ...next[index],
-                                members: (next[index].members || []).filter(
-                                  (item) => item !== member,
-                                ),
-                              };
-                              return next;
-                            })
-                          }
+                          onClick={() => removeMember(index, member)}
                           aria-label={`Remover ${member}`}
                         >
                           x
                         </button>
                       </Badge>
                     ) : (
-                      <Badge key={member} variant="secondary">
+                      <button
+                        key={member}
+                        type="button"
+                        className={cn(
+                          badgeVariants({ variant: "secondary" }),
+                          "cursor-pointer hover:bg-secondary/70 focus-visible:ring-2 focus-visible:ring-ring",
+                        )}
+                        onClick={() => removeMember(index, member)}
+                        aria-label={`Remover ${member}`}
+                      >
                         {member}
-                      </Badge>
+                      </button>
                     ),
                   )}
                 </div>

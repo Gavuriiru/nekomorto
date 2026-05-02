@@ -5,6 +5,7 @@ import { Combobox } from "@/components/dashboard/dashboard-form-controls";
 type ProjectMemberComboboxProps = {
   value: string;
   options: string[];
+  excludedValues?: string[];
   placeholder?: string;
   onValueChange: (value: string) => void;
   onCommit: (value: string) => void;
@@ -21,11 +22,17 @@ const normalizeSearchValue = (value: string) =>
 const ProjectMemberCombobox = ({
   value,
   options,
+  excludedValues = [],
   placeholder = "Adicionar membro",
   onValueChange,
   onCommit,
   disabled = false,
 }: ProjectMemberComboboxProps) => {
+  const excludedOptions = useMemo(
+    () => new Set(excludedValues.map((option) => normalizeSearchValue(option))),
+    [excludedValues],
+  );
+
   const normalizedOptions = useMemo(() => {
     const seen = new Set<string>();
     const next: Array<{
@@ -38,7 +45,7 @@ const ProjectMemberCombobox = ({
     options.forEach((option) => {
       const trimmedOption = String(option || "").trim();
       const normalizedOption = normalizeSearchValue(trimmedOption);
-      if (!trimmedOption || seen.has(normalizedOption)) {
+      if (!trimmedOption || seen.has(normalizedOption) || excludedOptions.has(normalizedOption)) {
         return;
       }
 
@@ -52,7 +59,10 @@ const ProjectMemberCombobox = ({
     });
 
     return next;
-  }, [options]);
+  }, [excludedOptions, options]);
+
+  const normalizedInput = normalizeSearchValue(value);
+  const canCreateValue = !normalizedInput || !excludedOptions.has(normalizedInput);
 
   return (
     <Combobox
@@ -67,7 +77,7 @@ const ProjectMemberCombobox = ({
       placeholder={placeholder}
       disabled={disabled}
       searchable
-      allowCreate
+      allowCreate={canCreateValue}
       emptyMessage="Nenhum membro encontrado."
       createLabel={(nextValue) => `Adicionar "${nextValue}"`}
     />

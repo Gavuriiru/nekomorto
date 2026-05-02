@@ -427,10 +427,25 @@ describe("DashboardProjectsEditor edit query", () => {
 
     expect(fansubMemberInput.value).toBe("");
     expect(within(editorDialog).getByText("Jose Gabriel")).toBeInTheDocument();
-    expectDashboardActionButtonTokens(
-      within(editorDialog).getAllByRole("button", { name: /^Adicionar$/i })[0],
-      "h-9",
+    expect(
+      within(editorDialog).queryByRole("button", { name: /^Adicionar$/i }),
+    ).not.toBeInTheDocument();
+
+    fireEvent.focus(fansubMemberInput);
+    expect(
+      within(document.body).queryByRole("option", { name: "Jose Gabriel" }),
+    ).not.toBeInTheDocument();
+
+    fireEvent.keyDown(fansubMemberInput, { key: "Escape" });
+    fireEvent.click(
+      within(editorDialog).getByRole("button", { name: "Remover Jose Gabriel" }),
     );
+    expect(within(editorDialog).queryByText("Jose Gabriel")).not.toBeInTheDocument();
+
+    fireEvent.focus(fansubMemberInput);
+    expect(
+      await within(document.body).findByRole("option", { name: "Jose Gabriel" }),
+    ).toBeInTheDocument();
 
     fireEvent.click(
       within(editorDialog).getByRole("button", { name: /Staff/i }),

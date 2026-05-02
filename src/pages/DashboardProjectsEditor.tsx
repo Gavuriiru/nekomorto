@@ -808,6 +808,7 @@ const DashboardProjectsEditor = () => {
       if (!name) {
         return;
       }
+      const nameKey = name.toLowerCase();
       setFormState((prev) => {
         const next = [...prev.staff];
         const currentRole = next[index];
@@ -817,7 +818,9 @@ const DashboardProjectsEditor = () => {
         const members = currentRole.members || [];
         next[index] = {
           ...currentRole,
-          members: members.includes(name) ? members : [...members, name],
+          members: members.some((member) => member.toLowerCase() === nameKey)
+            ? members
+            : [...members, name],
         };
         return { ...prev, staff: next };
       });
