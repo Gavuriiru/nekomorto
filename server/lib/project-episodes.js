@@ -113,13 +113,35 @@ export const findPublishedImageEpisodeWithoutPages = (episodes) => {
   return null;
 };
 
-export const findPublishedEpisodeWithoutPublicAccess = (projectType, episodes) => {
+export const findPublishedEpisodeWithoutPublicAccess = (
+  projectType,
+  episodes,
+  { existingEpisodes = null } = {},
+) => {
   const list = Array.isArray(episodes) ? episodes : [];
+  const priorList = Array.isArray(existingEpisodes) ? existingEpisodes : null;
   for (let index = 0; index < list.length; index += 1) {
     const episode = list[index];
     const publicationState = resolveProjectEpisodePublicationState(projectType, episode);
     if (!publicationState.errorCode) {
       continue;
+    }
+    // If we have a prior snapshot, skip episodes that were already broken before this edit.
+    // Only block episodes that are newly broken (newly published without sources, or new episodes
+    // added already published without sources). This lets users fix one episode at a time
+    // without being blocked by pre-existing issues in other episodes.
+    if (priorList !== null) {
+      const key = buildEpisodeKey(episode?.number, episode?.volume);
+      const priorEpisode = priorList.find(
+        (ep) => buildEpisodeKey(ep?.number, ep?.volume) === key,
+      );
+      if (priorEpisode) {
+        const priorState = resolveProjectEpisodePublicationState(projectType, priorEpisode);
+        if (priorState.errorCode) {
+          // Was already broken before this save — skip, don't block.
+          continue;
+        }
+      }
     }
     return {
       index,

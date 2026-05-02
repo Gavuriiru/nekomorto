@@ -2,6 +2,7 @@ import { findPublishedEpisodeWithoutPublicAccess } from "../../../lib/project-ep
 
 export const prepareLocalizedProjectMutation = async ({
   PUBLIC_UPLOADS_DIR,
+  existingProject = null,
   findDuplicateEpisodeKey,
   findDuplicateVolumeCover,
   findPublishedImageEpisodeWithoutPages,
@@ -46,9 +47,13 @@ export const prepareLocalizedProjectMutation = async ({
   }
 
   if (requirePublicContentForPublication) {
+    const existingEpisodes = Array.isArray(existingProject?.episodeDownloads)
+      ? existingProject.episodeDownloads
+      : null;
     const publishedEpisodeWithoutPublicAccess = findPublishedEpisodeWithoutPublicAccess(
       normalizedProject.type || "",
       normalizedProject.episodeDownloads,
+      { existingEpisodes },
     );
     if (publishedEpisodeWithoutPublicAccess) {
       return {

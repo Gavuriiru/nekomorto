@@ -584,9 +584,15 @@ const DashboardProjectEpisodeEditor = () => {
           return null;
         }
         if (publicationFailure) {
+          const errorKey = typeof data?.key === "string" ? data.key : "";
+          const episodeNumber = errorKey ? Number(errorKey.split(":")[0]) : null;
+          const episodeSuffix =
+            Number.isFinite(episodeNumber) && episodeNumber !== null
+              ? ` (Episódio ${episodeNumber})`
+              : "";
           toast({
             title: publicationFailure.title,
-            description: publicationFailure.description,
+            description: `${publicationFailure.description}${episodeSuffix}`,
             variant: "destructive",
           });
           return null;

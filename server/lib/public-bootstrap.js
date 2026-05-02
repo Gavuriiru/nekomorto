@@ -116,6 +116,10 @@ const sanitizeEpisodeDownloads = (episodes) =>
           coverImageUrl: safeString(episode?.coverImageUrl),
           coverImageAlt: safeString(episode?.coverImageAlt),
           sourceType: safeString(episode?.sourceType),
+          hash: safeString(episode?.hash) || undefined,
+          sizeBytes: Number.isFinite(Number(episode?.sizeBytes))
+            ? Math.max(0, Number(episode.sizeBytes))
+            : undefined,
           sources: safeSources(episode?.sources),
           progressStage: safeString(episode?.progressStage),
           completedStages: safeStringArray(episode?.completedStages),

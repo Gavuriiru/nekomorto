@@ -19,6 +19,8 @@ export type PublicBootstrapEpisode = {
   coverImageUrl: string;
   coverImageAlt: string;
   sourceType: string;
+  hash?: string;
+  sizeBytes?: number;
   sources: Array<{ label: string; url: string }>;
   progressStage: string;
   completedStages: string[];

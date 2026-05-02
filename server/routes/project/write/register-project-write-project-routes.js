@@ -72,6 +72,7 @@ export const registerProjectWriteProjectRoutes = ({
     ])[0];
     const localizedUpdate = await prepareLocalizedProjectMutation({
       PUBLIC_UPLOADS_DIR,
+      existingProject: existing,
       findDuplicateEpisodeKey,
       findDuplicateVolumeCover,
       findPublishedImageEpisodeWithoutPages,
