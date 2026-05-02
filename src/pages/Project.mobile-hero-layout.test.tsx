@@ -101,8 +101,13 @@ const expectContextualSourceButtonTokens = (element: HTMLElement) => {
   const tokens = classTokens(element);
 
   expect(tokens).toEqual(
-    expect.arrayContaining(["rounded-full", "bg-card/70", "hover:bg-primary/10"]),
+    expect.arrayContaining([
+      "rounded-full",
+      "bg-card/70",
+      "hover:bg-[var(--download-source-hover-bg)]",
+    ]),
   );
+  expect(tokens).not.toContain("hover:bg-primary/10");
   expect(tokens).not.toContain("border-primary/70");
   expect(tokens).not.toContain("bg-primary/10");
 };
@@ -657,6 +662,12 @@ describe("Project mobile hero layout", () => {
     );
 
     await screen.findByText("Sobre o projeto");
+
+    const formatField = findAncestor(screen.getByText("Formato"), (candidate) =>
+      classTokens(candidate).includes("border-border/50"),
+    );
+    expect(formatField).not.toBeNull();
+    expect(classTokens(formatField as HTMLElement)).toContain("hover:border-primary/60");
 
     const findSectionCard = (label: string) => {
       const element = screen.getByText(label);

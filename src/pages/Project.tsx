@@ -14,6 +14,7 @@ import {
   Share2,
   Users,
 } from "lucide-react";
+import type { CSSProperties } from "react";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { Link, useParams } from "react-router-dom";
 
@@ -69,6 +70,10 @@ import NotFound from "./NotFound";
 
 type ProjectFilterPillTone = "secondary" | "outline";
 
+type DownloadSourceButtonStyle = CSSProperties & {
+  "--download-source-hover-bg": string;
+};
+
 type ProjectFilterPillLinkProps = {
   label: string;
   to: string;
@@ -83,6 +88,24 @@ const ProjectFilterPillLink = ({ label, to, tone }: ProjectFilterPillLinkProps) 
     <Link to={to}>{label}</Link>
   </PillButton>
 );
+
+const buildDownloadSourceHoverColor = (color: string) => {
+  const trimmed = color.trim();
+  if (/^#[0-9a-fA-F]{6}$/.test(trimmed)) {
+    return `${trimmed}24`;
+  }
+  if (/^#[0-9a-fA-F]{3}$/.test(trimmed)) {
+    const [, red, green, blue] = trimmed;
+    return `#${red}${red}${green}${green}${blue}${blue}24`;
+  }
+  return `color-mix(in srgb, ${trimmed} 14%, transparent)`;
+};
+
+const buildDownloadSourceButtonStyle = (color: string): DownloadSourceButtonStyle => ({
+  borderColor: `${color}99`,
+  color,
+  "--download-source-hover-bg": buildDownloadSourceHoverColor(color),
+});
 
 const normalizeProjectRouteKey = (value: unknown) =>
   String(value || "")
@@ -603,7 +626,7 @@ const ProjectPage = () => {
     return (
       <Card
         key={key}
-        className={`w-full overflow-hidden rounded-2xl border border-border/60 bg-gradient-card shadow-floating-soft ${
+        className={`w-full overflow-hidden rounded-2xl border border-border/60 bg-gradient-card shadow-floating-soft transition-[border-color] duration-200 hover:border-primary/60 ${
           isAnimeDownloadCard ? "md:h-[210px]" : "md:min-h-[185px]"
         }`}
       >
@@ -726,8 +749,8 @@ const ProjectPage = () => {
                         asChild
                         variant="outline"
                         size="sm"
-                        className="h-9 w-9 rounded-full bg-card/70 px-0 text-sm hover:bg-primary/10 md:w-auto md:px-4"
-                        style={{ borderColor: `${color}99`, color }}
+                        className="h-9 w-9 rounded-full bg-card/70 px-0 text-sm hover:bg-[var(--download-source-hover-bg)] md:w-auto md:px-4"
+                        style={buildDownloadSourceButtonStyle(color)}
                       >
                         <a
                           href={source.url}
@@ -828,8 +851,8 @@ const ProjectPage = () => {
                       asChild
                       variant="outline"
                       size="sm"
-                      className="h-9 w-9 rounded-full bg-card/70 px-0 text-sm hover:bg-primary/10 md:w-auto md:px-4"
-                      style={{ borderColor: `${color}99`, color }}
+                      className="h-9 w-9 rounded-full bg-card/70 px-0 text-sm hover:bg-[var(--download-source-hover-bg)] md:w-auto md:px-4"
+                      style={buildDownloadSourceButtonStyle(color)}
                     >
                       <a
                         href={source.url}
@@ -1219,7 +1242,7 @@ const ProjectPage = () => {
                       {projectDetails.map((detail) => (
                         <div
                           key={detail.label}
-                          className="rounded-xl border border-border/50 bg-background/60 px-4 py-3"
+                          className="rounded-xl border border-border/50 bg-background/60 px-4 py-3 transition-[border-color] duration-200 hover:border-primary/60"
                         >
                           <span className="block text-[10px] font-semibold uppercase tracking-widest text-muted-foreground">
                             {detail.label}

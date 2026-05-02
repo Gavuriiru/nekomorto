@@ -152,6 +152,7 @@ describe("Project mobile download card layout", () => {
     );
     expect(episodeCard).not.toBeNull();
     expect(classTokens(episodeCard as HTMLElement)).toContain("w-full");
+    expect(classTokens(episodeCard as HTMLElement)).toContain("hover:border-primary/60");
     expect(classTokens(episodeCard as HTMLElement)).toContain("md:h-[210px]");
     expect(classTokens(episodeCard as HTMLElement)).toContain("shadow-floating-soft");
     expect(classTokens(episodeCard as HTMLElement)).not.toContain(
@@ -222,6 +223,9 @@ describe("Project mobile download card layout", () => {
     expect(sourceLink).toHaveAttribute("aria-label", "Google Drive");
     expect(classTokens(sourceLink)).toContain("w-9");
     expect(classTokens(sourceLink)).toContain("px-0");
+    expect(classTokens(sourceLink)).toContain("hover:bg-[var(--download-source-hover-bg)]");
+    expect(classTokens(sourceLink)).not.toContain("hover:bg-primary/10");
+    expect(sourceLink.getAttribute("style")).toContain("--download-source-hover-bg: #34A85324");
     expect(classTokens(sourceLink)).toContain("md:w-auto");
     expect(classTokens(sourceLink)).toContain("md:px-4");
     expect(classTokens(sourceLink)).toContain("justify-center");
