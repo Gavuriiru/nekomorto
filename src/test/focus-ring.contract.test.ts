@@ -253,7 +253,8 @@ describe("focus ring contract", () => {
     expect(muiFieldsSource).toContain(
       '"& .MuiPickersSectionList-section, & .MuiPickersSectionList-sectionContent, & .MuiPickersInputBase-sectionContent"',
     );
-    expect(muiFieldsSource).toContain('color: "inherit"');
+    expect(muiFieldsSource).toContain('color: "hsl(var(--foreground))"');
+    expect(muiFieldsSource).toContain('WebkitTextFillColor: "hsl(var(--foreground))"');
     expect(muiFieldsSource).toContain('outline: "none"');
     expect(muiFieldsSource).toContain(
       '"& .MuiPickersSectionList-root::selection, & .MuiPickersSectionList-sectionContent::selection, & .MuiPickersInputBase-sectionContent::selection"',
@@ -261,7 +262,7 @@ describe("focus ring contract", () => {
     expect(muiFieldsSource).toContain(
       '"& .MuiPickersSectionList-root::-moz-selection, & .MuiPickersSectionList-sectionContent::-moz-selection, & .MuiPickersInputBase-sectionContent::-moz-selection"',
     );
-    expect(muiFieldsSource).toContain('backgroundColor: "transparent"');
+    expect(muiFieldsSource).toContain('backgroundColor: "hsl(var(--primary) / 0.22)"');
     expect(muiFieldsSource).toContain('"& .MuiInputBase-input, & .MuiPickersInputBase-input"');
     expect(muiFieldsSource).toContain('size: "small"');
     expect(muiFieldsSource).toContain(

@@ -100,22 +100,29 @@ const muiTextFieldSx = {
   },
   "& .MuiPickersSectionList-section, & .MuiPickersSectionList-sectionContent, & .MuiPickersInputBase-sectionContent":
     {
-      color: "inherit",
+      color: "hsl(var(--foreground))",
       fontFamily: "inherit",
       fontSize: "inherit",
       lineHeight: "inherit",
       letterSpacing: "inherit",
       outline: "none",
+      WebkitTextFillColor: "hsl(var(--foreground))",
     },
   "& .MuiPickersSectionList-root::selection, & .MuiPickersSectionList-sectionContent::selection, & .MuiPickersInputBase-sectionContent::selection":
     {
-      backgroundColor: "transparent",
-      color: "inherit",
+      backgroundColor: "hsl(var(--primary) / 0.22)",
+      color: "hsl(var(--foreground))",
+      WebkitTextFillColor: "hsl(var(--foreground))",
     },
   "& .MuiPickersSectionList-root::-moz-selection, & .MuiPickersSectionList-sectionContent::-moz-selection, & .MuiPickersInputBase-sectionContent::-moz-selection":
     {
-      backgroundColor: "transparent",
-      color: "inherit",
+      backgroundColor: "hsl(var(--primary) / 0.22)",
+      color: "hsl(var(--foreground))",
+    },
+  "& .MuiPickersInputBase-root.Mui-disabled .MuiPickersSectionList-section, & .MuiPickersInputBase-root.Mui-disabled .MuiPickersSectionList-sectionContent, & .MuiPickersInputBase-root.Mui-disabled .MuiPickersInputBase-sectionContent":
+    {
+      color: "hsl(var(--muted-foreground) / 0.72)",
+      WebkitTextFillColor: "hsl(var(--muted-foreground) / 0.72)",
     },
   "& .MuiInputBase-input, & .MuiPickersInputBase-input": {
     color: "hsl(var(--foreground))",
