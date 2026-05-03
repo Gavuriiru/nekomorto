@@ -101,7 +101,9 @@ import {
   findToolbarScrollRoot,
   getScrollRootTop,
   getStickyTopPx,
+  getToolbarAvailableContentWidth,
   isToolbarStickyStuck,
+  measureToolbarRequiredWidth,
 } from "./sticky-state";
 import {
   clearFormatting,
@@ -354,7 +356,7 @@ function ElementFormatDropdown({
   return (
     <DropDown
       disabled={disabled}
-      buttonLabel={formatOption.name}
+      buttonLabel="Alinhar"
       buttonIconClassName={`icon ${
         isRTL ? formatOption.iconRTL : formatOption.icon
       }`}
@@ -520,7 +522,7 @@ export default function ToolbarPlugin({
       return;
     }
 
-    const availableWidth = toolbar.clientWidth;
+    const availableWidth = getToolbarAvailableContentWidth(toolbar);
     if (!availableWidth) {
       return;
     }
@@ -532,7 +534,7 @@ export default function ToolbarPlugin({
       toolbar.style.visibility = "hidden";
       toolbar.classList.remove("toolbar--compact");
     }
-    const fullWidth = Math.ceil(toolbar.scrollWidth);
+    const fullWidth = Math.ceil(measureToolbarRequiredWidth(toolbar));
     if (wasCompact) {
       toolbar.classList.add("toolbar--compact");
       toolbar.style.visibility = previousVisibility;
