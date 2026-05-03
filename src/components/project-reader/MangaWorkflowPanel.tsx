@@ -497,6 +497,8 @@ const StagePagesGrid = memo(
       itemCount: chapter.pages.length,
       onCommit: (fromIndex, toIndex) => onReorderPages(chapter.id, fromIndex, toIndex),
       scope: "manga-stage-page",
+      touchLongPressDelayMs: 350,
+      touchLongPressMoveTolerance: 48,
     });
 
     const previewPages = useMemo(() => {
@@ -545,6 +547,7 @@ const StagePagesGrid = memo(
                 isDragged={isDragged}
                 isPreviewTarget={isDropTarget}
                 isPressed={pressedStagePage === page}
+                isTouchReorderActive={Boolean(pressedStagePage === page && stagePageDragState)}
                 disabled={isImporting}
                 reorderMotion={shouldReduceMotion ? "reduced" : "spring"}
                 reorderTransition={reorderTransition}

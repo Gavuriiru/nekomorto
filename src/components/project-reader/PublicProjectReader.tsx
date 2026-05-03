@@ -1125,6 +1125,11 @@ const PublicProjectReaderContent = ({
     (viewportMode === "viewport" && isWidthImageFit(visualState.imageFit));
   const shouldPanPaginatedImage = paginated && shouldEnableInlineImagePan;
   const shouldPanPaginatedVertically = paginated && shouldEnablePaginatedVerticalPan;
+  const shouldTopAlignPaginatedImage =
+    shouldPanPaginatedVertically && isPannableNoLimitImageFit(visualState.imageFit);
+  const shouldSafeCenterPaginatedImage =
+    shouldPanPaginatedVertically && isWidthImageFit(visualState.imageFit);
+  const shouldContainPaginatedOverscroll = shouldPanPaginatedImage && viewportWidth < 768;
   const shouldPanVerticalImage = layout === "scroll-vertical" && shouldEnableInlineImagePan;
   const initialChapterPageSeedRef = useRef({
     chapterValue: currentChapterValue,
@@ -4773,7 +4778,8 @@ const PublicProjectReaderContent = ({
   const paginatedStripClassName = cn(
     "mx-auto flex items-center justify-center gap-0",
     shouldPanPaginatedImage ? "w-max min-w-full justify-start" : "w-full",
-    shouldPanPaginatedVertically ? "items-start" : "",
+    shouldTopAlignPaginatedImage ? "items-start" : "",
+    shouldSafeCenterPaginatedImage ? "[align-items:safe_center]" : "",
     layout === "double" && direction === "rtl" ? "md:flex-row-reverse" : "md:flex-row",
   );
 
@@ -4805,8 +4811,10 @@ const PublicProjectReaderContent = ({
         data-testid="project-reading-paginated-scroll-lane"
         className={cn(
           "no-scrollbar flex w-full items-center justify-center overflow-x-auto",
-          shouldPanPaginatedVertically ? "items-start overflow-y-auto" : "overflow-y-hidden",
-          shouldPanPaginatedImage || shouldPanPaginatedVertically ? "overscroll-contain" : "",
+          shouldPanPaginatedVertically ? "overflow-y-auto" : "overflow-y-hidden",
+          shouldTopAlignPaginatedImage ? "items-start" : "",
+          shouldSafeCenterPaginatedImage ? "[align-items:safe_center]" : "",
+          shouldContainPaginatedOverscroll ? "overscroll-contain" : "",
           shouldPanPaginatedImage ? "justify-start" : "",
           isCinemaMode || layout === "double" ? "px-0" : "px-2 md:px-4",
         )}
@@ -4815,7 +4823,8 @@ const PublicProjectReaderContent = ({
           className={cn(
             "relative flex min-h-0 flex-1 items-center justify-center",
             shouldPanPaginatedImage ? "w-max min-w-full justify-start" : "w-full",
-            shouldPanPaginatedVertically ? "items-start" : "",
+            shouldTopAlignPaginatedImage ? "items-start" : "",
+            shouldSafeCenterPaginatedImage ? "[align-items:safe_center]" : "",
           )}
         >
           {paginatedBufferedSlotIndices.map((slotIndex) => {
@@ -4852,7 +4861,8 @@ const PublicProjectReaderContent = ({
                   shouldPanPaginatedImage && isActiveSlot
                     ? "w-max max-w-none shrink-0 justify-start"
                     : "",
-                  shouldPanPaginatedVertically && isActiveSlot ? "items-start" : "",
+                  shouldTopAlignPaginatedImage && isActiveSlot ? "items-start" : "",
+                  shouldSafeCenterPaginatedImage && isActiveSlot ? "[align-items:safe_center]" : "",
                 )}
               >
                 <div
@@ -4905,7 +4915,8 @@ const PublicProjectReaderContent = ({
                           shouldPanPaginatedImage
                             ? "w-auto max-w-none shrink-0 flex-none justify-start"
                             : "",
-                          shouldPanPaginatedVertically ? "items-start" : "",
+                          shouldTopAlignPaginatedImage ? "items-start" : "",
+                          shouldSafeCenterPaginatedImage ? "[align-items:safe_center]" : "",
                         )}
                       >
                         {renderReaderPage(page, pageIndex, {

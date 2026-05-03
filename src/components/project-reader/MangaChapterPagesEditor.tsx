@@ -162,6 +162,8 @@ const MangaChapterPagesGrid = memo(
       itemCount: pages.length,
       onCommit: onMovePage,
       scope: "manga-page",
+      touchLongPressDelayMs: 350,
+      touchLongPressMoveTolerance: 48,
     });
     const dragIndex = pointerDragState?.isDragging ? pointerDragState.sourceIndex : null;
     const dragOverIndex = pointerDragState?.isDragging ? pointerDragState.overIndex : null;
@@ -198,6 +200,7 @@ const MangaChapterPagesGrid = memo(
           isDragged={isDragged}
           isPreviewTarget={isPreviewTarget}
           isPressed={pressedPage === page}
+          isTouchReorderActive={Boolean(pressedPage === page && pointerDragState)}
           disabled={isUploading}
           mediaVariants={mediaVariants}
           canJoinWithNext={canJoinWithNext}

@@ -156,6 +156,12 @@ const mockStagePageSurfaceRects = (count: number) => {
   });
 };
 
+const waitForTouchLongPress = async () => {
+  await act(async () => {
+    await new Promise((resolve) => window.setTimeout(resolve, 370));
+  });
+};
+
 const renderWorkflow = (options?: {
   onSelectedStageChapterChange?: (chapter: StageChapter | null) => void;
   onOpenImportedChapter?: (
@@ -650,6 +656,61 @@ describe("MangaWorkflowPanel", () => {
 
     await waitFor(() => {
       expect(getStagePageOrder()).toEqual(["blob:002.jpg", "blob:003.jpg", "blob:001.jpg"]);
+      expect(screen.getByTestId("a11y-live-region")).toHaveTextContent(/movida para a posi/i);
+    });
+  });
+
+  it("exige long press no touch antes de reordenar paginas do lote", async () => {
+    renderWorkflow({
+      initialStagedChapters: [createStageChapterFixture(3)],
+      initialSelectedStageChapterId: "stage-forward",
+    });
+
+    await screen.findByTestId("manga-stage-page-surface-0");
+    mockStagePageSurfaceRects(3);
+    const surface = screen.getByTestId("manga-stage-page-surface-0");
+
+    fireEvent.pointerDown(surface, {
+      pointerId: 31,
+      pointerType: "touch",
+      clientX: 40,
+      clientY: 40,
+    });
+    fireEvent.pointerMove(window, {
+      pointerId: 31,
+      pointerType: "touch",
+      clientX: 280,
+      clientY: 40,
+    });
+
+    expect(getStagePageOrder()).toEqual(["blob:001.jpg", "blob:002.jpg", "blob:003.jpg"]);
+
+    fireEvent.pointerDown(surface, {
+      pointerId: 32,
+      pointerType: "touch",
+      clientX: 40,
+      clientY: 40,
+    });
+    await waitForTouchLongPress();
+    fireEvent.pointerMove(window, {
+      pointerId: 32,
+      pointerType: "touch",
+      clientX: 280,
+      clientY: 40,
+    });
+
+    await waitFor(() => {
+      expect(getStagePageOrder()).toEqual(["blob:002.jpg", "blob:003.jpg", "blob:001.jpg"]);
+    });
+
+    fireEvent.pointerUp(window, {
+      pointerId: 32,
+      pointerType: "touch",
+      clientX: 280,
+      clientY: 40,
+    });
+
+    await waitFor(() => {
       expect(screen.getByTestId("a11y-live-region")).toHaveTextContent(/movida para a posi/i);
     });
   });

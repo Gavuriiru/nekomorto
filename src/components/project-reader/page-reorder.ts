@@ -67,7 +67,11 @@ export type PointerReorderState = {
   pointerId: number;
   startX: number;
   startY: number;
+  lastX: number;
+  lastY: number;
   isDragging: boolean;
+  isLongPressPending?: boolean;
+  isLongPressActive?: boolean;
 };
 
 type PointerReorderMove = {
@@ -79,8 +83,6 @@ type PointerReorderMove = {
 type PointerReorderGeometry = {
   rects: ReorderSurfaceRect[];
   itemCount: number;
-  scrollX: number;
-  scrollY: number;
 };
 
 type UsePointerReorderOptions<TElement extends HTMLElement> = {
@@ -89,6 +91,8 @@ type UsePointerReorderOptions<TElement extends HTMLElement> = {
   itemCount: number;
   onCommit: (fromIndex: number, toIndex: number) => void;
   scope: string;
+  touchLongPressDelayMs?: number;
+  touchLongPressMoveTolerance?: number;
 };
 
 export const usePointerReorder = <TElement extends HTMLElement>({
@@ -97,11 +101,15 @@ export const usePointerReorder = <TElement extends HTMLElement>({
   itemCount,
   onCommit,
   scope,
+  touchLongPressDelayMs = 0,
+  touchLongPressMoveTolerance = 48,
 }: UsePointerReorderOptions<TElement>) => {
   const pointerDragStateRef = useRef<PointerReorderState | null>(null);
   const reorderGeometryRef = useRef<PointerReorderGeometry | null>(null);
   const queuedPointerMoveRef = useRef<PointerReorderMove | null>(null);
   const pointerMoveFrameRef = useRef<number | null>(null);
+  const pointerTargetRef = useRef<HTMLElement | null>(null);
+  const longPressTimerRef = useRef<number | null>(null);
   const disabledRef = useRef(disabled);
   const onCommitRef = useRef(onCommit);
   const [pointerDragState, setPointerDragState] = useState<PointerReorderState | null>(null);
@@ -119,8 +127,6 @@ export const usePointerReorder = <TElement extends HTMLElement>({
     const nextGeometry = {
       rects,
       itemCount,
-      scrollX: window.scrollX,
-      scrollY: window.scrollY,
     };
     reorderGeometryRef.current = nextGeometry;
     return nextGeometry;
@@ -128,16 +134,22 @@ export const usePointerReorder = <TElement extends HTMLElement>({
 
   const getReorderGeometry = useCallback(() => {
     const current = reorderGeometryRef.current;
-    if (
-      !current ||
-      current.itemCount !== itemCount ||
-      current.scrollX !== window.scrollX ||
-      current.scrollY !== window.scrollY
-    ) {
+    if (!current || current.itemCount !== itemCount) {
       return captureReorderGeometry();
     }
     return current;
   }, [captureReorderGeometry, itemCount]);
+
+  const cancelLongPressTimer = useCallback(() => {
+    if (
+      longPressTimerRef.current !== null &&
+      typeof window !== "undefined" &&
+      typeof window.clearTimeout === "function"
+    ) {
+      window.clearTimeout(longPressTimerRef.current);
+    }
+    longPressTimerRef.current = null;
+  }, []);
 
   const cancelScheduledPointerMove = useCallback(() => {
     if (
@@ -152,11 +164,21 @@ export const usePointerReorder = <TElement extends HTMLElement>({
   }, []);
 
   const clearDragState = useCallback(() => {
+    cancelLongPressTimer();
     cancelScheduledPointerMove();
+    const current = pointerDragStateRef.current;
+    if (current && pointerTargetRef.current && Number.isFinite(current.pointerId)) {
+      try {
+        pointerTargetRef.current.releasePointerCapture(current.pointerId);
+      } catch {
+        // Ignore release failures for pointers that were already cancelled.
+      }
+    }
     pointerDragStateRef.current = null;
+    pointerTargetRef.current = null;
     reorderGeometryRef.current = null;
     setPointerDragState(null);
-  }, [cancelScheduledPointerMove]);
+  }, [cancelLongPressTimer, cancelScheduledPointerMove]);
 
   useEffect(() => clearDragState, [clearDragState]);
 
@@ -178,6 +200,30 @@ export const usePointerReorder = <TElement extends HTMLElement>({
 
       const current = pointerDragStateRef.current;
       if (!current || (Number.isFinite(pointerId) && current.pointerId !== pointerId)) {
+        return;
+      }
+
+      if (current.isLongPressPending && !current.isLongPressActive) {
+        if (
+          hasExceededPointerDragThreshold({
+            startX: current.startX,
+            startY: current.startY,
+            clientX,
+            clientY,
+            threshold: touchLongPressMoveTolerance,
+          })
+        ) {
+          clearDragState();
+          return;
+        }
+
+        const nextPendingState = {
+          ...current,
+          lastX: clientX,
+          lastY: clientY,
+        };
+        pointerDragStateRef.current = nextPendingState;
+        setPointerDragState(nextPendingState);
         return;
       }
 
@@ -208,12 +254,13 @@ export const usePointerReorder = <TElement extends HTMLElement>({
       const nextState = {
         ...current,
         isDragging: true,
+        isLongPressPending: false,
         overIndex: nextOverIndex,
       };
       pointerDragStateRef.current = nextState;
       setPointerDragState(nextState);
     },
-    [getReorderGeometry],
+    [clearDragState, getReorderGeometry, touchLongPressMoveTolerance],
   );
 
   const schedulePointerMove = useCallback(
@@ -294,13 +341,45 @@ export const usePointerReorder = <TElement extends HTMLElement>({
         pointerId: event.pointerId,
         startX: event.clientX,
         startY: event.clientY,
+        lastX: event.clientX,
+        lastY: event.clientY,
         isDragging: false,
+        isLongPressPending: event.pointerType === "touch" && touchLongPressDelayMs > 0,
+        isLongPressActive: event.pointerType !== "touch" || touchLongPressDelayMs <= 0,
       };
       pointerDragStateRef.current = nextState;
-      captureReorderGeometry();
+      pointerTargetRef.current = event.currentTarget;
       setPointerDragState(nextState);
+
+      if (nextState.isLongPressPending) {
+        longPressTimerRef.current = window.setTimeout(() => {
+          const current = pointerDragStateRef.current;
+          if (!current || current.pointerId !== event.pointerId || disabledRef.current) {
+            return;
+          }
+          try {
+            pointerTargetRef.current?.setPointerCapture(current.pointerId);
+          } catch {
+            // Pointer capture can fail in older browsers or test environments.
+          }
+          captureReorderGeometry();
+          const activeState = {
+            ...current,
+            startX: current.lastX,
+            startY: current.lastY,
+            isLongPressPending: false,
+            isLongPressActive: true,
+          };
+          pointerDragStateRef.current = activeState;
+          setPointerDragState(activeState);
+          longPressTimerRef.current = null;
+        }, touchLongPressDelayMs);
+        return;
+      }
+
+      captureReorderGeometry();
     },
-    [captureReorderGeometry],
+    [captureReorderGeometry, touchLongPressDelayMs],
   );
 
   const cancelPointerReorder = useCallback(
@@ -326,6 +405,14 @@ export const usePointerReorder = <TElement extends HTMLElement>({
     }
 
     const handleWindowPointerMove = (event: globalThis.PointerEvent) => {
+      const current = pointerDragStateRef.current;
+      if (
+        current &&
+        current.pointerId === event.pointerId &&
+        (current.isLongPressActive || current.isDragging)
+      ) {
+        event.preventDefault();
+      }
       schedulePointerMove({
         pointerId: event.pointerId,
         clientX: event.clientX,

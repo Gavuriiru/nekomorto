@@ -1,5 +1,5 @@
 import { fireEvent, render, screen, waitFor, within } from "@testing-library/react";
-import { type MouseEventHandler, useState } from "react";
+import { act, type MouseEventHandler, useState } from "react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 import MangaChapterPagesEditor from "@/components/project-reader/MangaChapterPagesEditor";
@@ -184,6 +184,12 @@ const createPointerEvent = (
     pointerType: { value: options.pointerType },
   });
   return event;
+};
+
+const waitForTouchLongPress = async () => {
+  await act(async () => {
+    await new Promise((resolve) => window.setTimeout(resolve, 370));
+  });
 };
 
 const renderEditor = (options?: { chapter?: ProjectEpisode }) => {
@@ -432,7 +438,7 @@ describe("MangaChapterPagesEditor", () => {
     ]);
   });
 
-  it("bloqueia menu nativo e captura o pointer para reordenar no touch", async () => {
+  it("exige long press no touch antes de capturar o gesto e reordenar", async () => {
     const { onChangeSpy } = renderEditor({
       chapter: createChapterFixture({
         pages: createPageFixtures(3),
@@ -476,8 +482,9 @@ describe("MangaChapterPagesEditor", () => {
     });
     const preventPointerDown = vi.spyOn(pointerDownEvent, "preventDefault");
     fireEvent(surface, pointerDownEvent);
-    expect(preventPointerDown).toHaveBeenCalled();
-    expect(setPointerCapture).toHaveBeenCalledWith(11);
+    expect(preventPointerDown).not.toHaveBeenCalled();
+    expect(setPointerCapture).not.toHaveBeenCalled();
+    expect(surface).toHaveStyle({ touchAction: "none" });
 
     fireEvent.pointerMove(window, {
       pointerId: 11,
@@ -486,6 +493,55 @@ describe("MangaChapterPagesEditor", () => {
       clientY: 40,
     });
 
+    expect(getPageOrder()).toEqual([
+      "https://cdn.test/page-1.jpg",
+      "https://cdn.test/page-2.jpg",
+      "https://cdn.test/page-3.jpg",
+    ]);
+    await waitFor(() => {
+      expect(surface).toHaveAttribute("data-surface-active", "false");
+    });
+
+    const longPressPointerDownEvent = createPointerEvent("pointerdown", {
+      pointerId: 12,
+      pointerType: "touch",
+      clientX: 40,
+      clientY: 40,
+    });
+    fireEvent(surface, longPressPointerDownEvent);
+    await waitForTouchLongPress();
+    await waitFor(() => {
+      expect(surface).toHaveStyle({ touchAction: "none" });
+    });
+
+    fireEvent.pointerUp(window, {
+      pointerId: 12,
+      pointerType: "touch",
+      clientX: 40,
+      clientY: 40,
+    });
+    expect(onChangeSpy).not.toHaveBeenCalled();
+
+    const activePointerDownEvent = createPointerEvent("pointerdown", {
+      pointerId: 13,
+      pointerType: "touch",
+      clientX: 40,
+      clientY: 40,
+    });
+    fireEvent(surface, activePointerDownEvent);
+    fireEvent.pointerMove(window, {
+      pointerId: 13,
+      pointerType: "touch",
+      clientX: 70,
+      clientY: 50,
+    });
+    await waitForTouchLongPress();
+    fireEvent.pointerMove(window, {
+      pointerId: 13,
+      pointerType: "touch",
+      clientX: 280,
+      clientY: 40,
+    });
     await waitFor(() => {
       expect(getPageOrder()).toEqual([
         "https://cdn.test/page-2.jpg",
@@ -495,7 +551,7 @@ describe("MangaChapterPagesEditor", () => {
     });
 
     fireEvent.pointerUp(window, {
-      pointerId: 11,
+      pointerId: 13,
       pointerType: "touch",
       clientX: 280,
       clientY: 40,
@@ -508,6 +564,68 @@ describe("MangaChapterPagesEditor", () => {
         "https://cdn.test/page-3.jpg",
         "https://cdn.test/page-1.jpg",
       ]);
+    });
+  });
+
+  it("mantem a geometria capturada quando a janela rola durante o reorder por touch", async () => {
+    const { onChangeSpy } = renderEditor({
+      chapter: createChapterFixture({
+        pages: createPageFixtures(4),
+      }),
+    });
+    mockPageSurfaceRects(4);
+
+    const surface = screen.getByTestId("manga-page-surface-2");
+    fireEvent.pointerDown(surface, {
+      pointerId: 21,
+      pointerType: "touch",
+      clientX: 280,
+      clientY: 40,
+    });
+    await waitForTouchLongPress();
+
+    const originalScrollY = window.scrollY;
+    Object.defineProperty(window, "scrollY", {
+      configurable: true,
+      value: 1200,
+    });
+
+    fireEvent.pointerMove(window, {
+      pointerId: 21,
+      pointerType: "touch",
+      clientX: 40,
+      clientY: 40,
+    });
+
+    await waitFor(() => {
+      expect(getPageOrder()).toEqual([
+        "https://cdn.test/page-3.jpg",
+        "https://cdn.test/page-1.jpg",
+        "https://cdn.test/page-2.jpg",
+        "https://cdn.test/page-4.jpg",
+      ]);
+    });
+
+    fireEvent.pointerUp(window, {
+      pointerId: 21,
+      pointerType: "touch",
+      clientX: 40,
+      clientY: 40,
+    });
+
+    await waitFor(() => {
+      const lastCall = onChangeSpy.mock.lastCall?.[0] as ProjectEpisode | undefined;
+      expect(lastCall?.pages?.map((page) => page.imageUrl)).toEqual([
+        "https://cdn.test/page-3.jpg",
+        "https://cdn.test/page-1.jpg",
+        "https://cdn.test/page-2.jpg",
+        "https://cdn.test/page-4.jpg",
+      ]);
+    });
+
+    Object.defineProperty(window, "scrollY", {
+      configurable: true,
+      value: originalScrollY,
     });
   });
 

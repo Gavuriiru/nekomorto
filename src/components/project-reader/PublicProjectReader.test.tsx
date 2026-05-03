@@ -1013,11 +1013,14 @@ describe("PublicProjectReader", () => {
     const image = screen.getByRole("img", { name: /P.gina 1/i });
 
     expect(lane).toHaveClass("no-scrollbar", "overflow-x-auto", "overflow-y-auto");
-    expect(lane).toHaveClass("items-start", "overscroll-contain");
+    expect(lane.className).toContain("[align-items:safe_center]");
+    expect(lane).not.toHaveClass("items-start", "overscroll-contain");
     expect(lane).not.toHaveClass("overflow-y-hidden");
-    expect(strip).toHaveClass("w-full", "items-start");
+    expect(strip).toHaveClass("w-full");
+    expect(strip.className).toContain("[align-items:safe_center]");
     expect(strip).not.toHaveClass("w-max");
-    expect(slot).toHaveClass("w-full", "items-start");
+    expect(slot).toHaveClass("w-full");
+    expect(slot.className).toContain("[align-items:safe_center]");
     expect(slot).not.toHaveClass("w-max", "max-w-none", "shrink-0");
     expect(page.parentElement).toHaveClass("w-full");
     expect(page).toHaveClass("w-full", "min-w-0");
@@ -1070,7 +1073,7 @@ describe("PublicProjectReader", () => {
     const image = within(page).getByRole("img", { name: /P.gina 1/i });
 
     expect(lane).toHaveClass("no-scrollbar", "overflow-x-auto", "overflow-y-auto");
-    expect(lane).toHaveClass("overscroll-contain");
+    expect(lane).not.toHaveClass("overscroll-contain");
     expect(lane).toHaveClass("items-start", "justify-start");
     expect(lane).not.toHaveClass("overflow-y-hidden");
     expect(strip).toHaveClass("w-max", "min-w-full", "justify-start");
@@ -1097,11 +1100,14 @@ describe("PublicProjectReader", () => {
     const image = within(page).getByRole("img", { name: /P.gina 1/i });
 
     expect(lane).toHaveClass("no-scrollbar", "overflow-x-auto", "overflow-y-auto");
-    expect(lane).toHaveClass("items-start", "overscroll-contain");
+    expect(lane.className).toContain("[align-items:safe_center]");
+    expect(lane).not.toHaveClass("items-start", "overscroll-contain");
     expect(lane).not.toHaveClass("overflow-y-hidden");
-    expect(strip).toHaveClass("w-full", "items-start");
+    expect(strip).toHaveClass("w-full");
+    expect(strip.className).toContain("[align-items:safe_center]");
     expect(strip).not.toHaveClass("w-max");
-    expect(slot).toHaveClass("w-full", "items-start");
+    expect(slot).toHaveClass("w-full");
+    expect(slot.className).toContain("[align-items:safe_center]");
     expect(slot).not.toHaveClass("w-max", "max-w-none", "shrink-0");
     expect(page.parentElement).toHaveClass("flex-1", "min-w-0");
     expect(page).toHaveClass("w-full", "min-w-0");

@@ -6,6 +6,7 @@ import {
   memo,
   type MouseEvent,
   type PointerEvent,
+  type TouchEvent,
   useEffect,
   useRef,
   useState,
@@ -32,6 +33,7 @@ type MangaPageTileProps = {
   isDragged: boolean;
   isPreviewTarget: boolean;
   isPressed?: boolean;
+  isTouchReorderActive?: boolean;
   disabled: boolean;
   mediaVariants?: UploadMediaVariantsMap | null;
   canJoinWithNext?: boolean;
@@ -121,6 +123,7 @@ const MangaPageTile = ({
   isDragged,
   isPreviewTarget,
   isPressed = false,
+  isTouchReorderActive = false,
   disabled,
   mediaVariants,
   canJoinWithNext = false,
@@ -200,7 +203,7 @@ const MangaPageTile = ({
 
   const handleSurfacePointerDown = (event: PointerEvent<HTMLDivElement>) => {
     clearKeyboardFocusState();
-    if (event.pointerType !== "mouse") {
+    if (event.pointerType !== "mouse" && isTouchReorderActive) {
       event.preventDefault();
       try {
         event.currentTarget.setPointerCapture(event.pointerId);
@@ -212,6 +215,14 @@ const MangaPageTile = ({
   };
 
   const handleSurfacePointerMove = (event: PointerEvent<HTMLDivElement>) => {
+    if (event.pointerType !== "mouse" && isTouchReorderActive) {
+      event.preventDefault();
+      try {
+        event.currentTarget.setPointerCapture(event.pointerId);
+      } catch {
+        // Pointer capture can fail in older browsers or test environments.
+      }
+    }
     onPointerMove?.(event);
   };
 
@@ -220,7 +231,7 @@ const MangaPageTile = ({
   };
 
   const handleSurfacePointerUp = (event: PointerEvent<HTMLDivElement>) => {
-    if (event.pointerType !== "mouse") {
+    if (event.pointerType !== "mouse" && isTouchReorderActive) {
       try {
         event.currentTarget.releasePointerCapture(event.pointerId);
       } catch {
@@ -235,7 +246,7 @@ const MangaPageTile = ({
   };
 
   const handleSurfacePointerCancel = (event: PointerEvent<HTMLDivElement>) => {
-    if (event.pointerType !== "mouse") {
+    if (event.pointerType !== "mouse" && isTouchReorderActive) {
       try {
         event.currentTarget.releasePointerCapture(event.pointerId);
       } catch {
@@ -247,6 +258,12 @@ const MangaPageTile = ({
 
   const handleSurfaceLostPointerCapture = (event: PointerEvent<HTMLDivElement>) => {
     onLostPointerCapture?.(event);
+  };
+
+  const handleSurfaceTouchMove = (event: TouchEvent<HTMLDivElement>) => {
+    if (isTouchReorderActive) {
+      event.preventDefault();
+    }
   };
 
   const handleSurfaceContextMenu = (event: MouseEvent<HTMLDivElement>) => {
@@ -299,6 +316,7 @@ const MangaPageTile = ({
         onPointerUp={handleSurfacePointerUp}
         onPointerCancel={handleSurfacePointerCancel}
         onLostPointerCapture={handleSurfaceLostPointerCapture}
+        onTouchMove={handleSurfaceTouchMove}
         onContextMenu={handleSurfaceContextMenu}
         onMouseMove={handleSurfaceMouseMove}
         onMouseUp={handleSurfaceMouseUp}
@@ -489,6 +507,7 @@ const areMangaPageTilePropsEqual = (previous: MangaPageTileProps, next: MangaPag
   previous.isDragged === next.isDragged &&
   previous.isPreviewTarget === next.isPreviewTarget &&
   previous.isPressed === next.isPressed &&
+  previous.isTouchReorderActive === next.isTouchReorderActive &&
   previous.disabled === next.disabled &&
   previous.mediaVariants === next.mediaVariants &&
   previous.canJoinWithNext === next.canJoinWithNext &&
