@@ -94,8 +94,13 @@ const sanitizeVolumeEntries = (entries) =>
 const sanitizeEpisodeDownloads = (episodes) =>
   Array.isArray(episodes)
     ? episodes.map((episode) => {
-        const hasPages = hasProjectEpisodePages(episode);
-        const pageCount = getProjectEpisodePageCount(episode);
+        const hasPages = Boolean(episode?.hasPages) || hasProjectEpisodePages(episode);
+        const pageCount = Number.isFinite(Number(episode?.pageCount))
+          ? Math.max(0, Number(episode.pageCount))
+          : getProjectEpisodePageCount(episode);
+        const hasContent =
+          Boolean(episode?.hasContent) ||
+          (typeof episode?.content === "string" && episode.content.trim().length > 0);
         return {
           number: Number.isFinite(Number(episode?.number)) ? Number(episode.number) : 0,
           volume: Number.isFinite(Number(episode?.volume)) ? Number(episode.volume) : undefined,
@@ -130,7 +135,7 @@ const sanitizeEpisodeDownloads = (episodes) =>
           ),
           pageCount: hasPages || pageCount > 0 ? pageCount : undefined,
           hasPages,
-          hasContent: typeof episode?.content === "string" && episode.content.trim().length > 0,
+          hasContent,
         };
       })
     : [];

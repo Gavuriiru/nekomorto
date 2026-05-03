@@ -968,6 +968,20 @@ const ProjectPage = () => {
     );
   };
 
+  const buildChapterListItemKey = (chapter: EpisodeItem, index: number) => {
+    const readingOrder = Number(chapter.readingOrder);
+    const readingOrderKey = Number.isFinite(readingOrder) ? String(readingOrder) : "none";
+    const entryKind = getEpisodeEntryKind(chapter);
+    const labelKey = String(chapter.displayLabel || chapter.title || "").trim() || "untitled";
+    return [
+      buildEpisodeKey(chapter.number, chapter.volume),
+      entryKind,
+      readingOrderKey,
+      labelKey,
+      index,
+    ].join(":");
+  };
+
   const volumeGroups = useMemo(() => {
     const groups = new Map<string, VolumeGroup>();
     const allItems = isChapterBased ? sortedReadableChapters : sortedDownloadableEpisodes;
@@ -1085,10 +1099,10 @@ const ProjectPage = () => {
           </AccordionTrigger>
           <AccordionContent className="px-5 pt-0 pb-6">
             <div className="grid gap-4">
-              {group.items.map((chapter) =>
+              {group.items.map((chapter, chapterIndex) =>
                 renderChapterDownloadCard(
                   chapter,
-                  buildEpisodeKey(chapter.number, chapter.volume),
+                  buildChapterListItemKey(chapter, chapterIndex),
                   {
                     allowReadAction,
                   },

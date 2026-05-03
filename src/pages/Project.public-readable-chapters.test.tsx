@@ -290,4 +290,126 @@ describe("Project public readable chapters", () => {
     expectSharedPrimaryButtonTokens(readLink);
     expect(screen.queryByText(/Nenhum cap.tulo publicado ainda/i)).not.toBeInTheDocument();
   });
+
+  it("lista todos os capitulos publicados em multiplos volumes com extras e numeros repetidos", async () => {
+    const project = {
+      ...baseProject,
+      type: "Light Novel",
+      volumeEntries: [
+        {
+          volume: 2,
+          synopsis: "Volume 2",
+          coverImageUrl: "",
+          coverImageAlt: "",
+        },
+        {
+          volume: 7,
+          synopsis: "Volume 7",
+          coverImageUrl: "",
+          coverImageAlt: "",
+        },
+        {
+          volume: 14,
+          synopsis: "Volume 14",
+          coverImageUrl: "",
+          coverImageAlt: "",
+        },
+      ],
+      episodeDownloads: [
+        {
+          number: 100000,
+          volume: 2,
+          title: "Table of Contents",
+          entryKind: "extra",
+          displayLabel: "Table of Contents",
+          readingOrder: 1,
+          sources: [],
+          publicationStatus: "published",
+          hasContent: true,
+        },
+        {
+          number: 1,
+          volume: 2,
+          title: "Previously",
+          entryKind: "main",
+          readingOrder: 13,
+          sources: [],
+          publicationStatus: "published",
+          hasContent: true,
+        },
+        {
+          number: 100000,
+          volume: 7,
+          title: "Table of Contents",
+          entryKind: "extra",
+          displayLabel: "Extra",
+          readingOrder: 2,
+          sources: [],
+          publicationStatus: "published",
+          hasContent: true,
+        },
+        {
+          number: 57,
+          volume: 7,
+          title: "Chapter 57: The Mysterious Kidnappers",
+          entryKind: "main",
+          readingOrder: 15,
+          sources: [],
+          publicationStatus: "published",
+          hasContent: true,
+        },
+        {
+          number: 100000,
+          volume: 14,
+          title: "Table of Contents",
+          entryKind: "extra",
+          displayLabel: "Extra",
+          readingOrder: 1,
+          sources: [],
+          publicationStatus: "published",
+          hasContent: true,
+        },
+        {
+          number: 101,
+          volume: 14,
+          title: "Chapter 101: The Elven Village",
+          entryKind: "main",
+          readingOrder: 10,
+          sources: [],
+          publicationStatus: "published",
+          hasContent: true,
+        },
+      ],
+    };
+
+    setupApiMock(project);
+
+    render(
+      <MemoryRouter>
+        <ProjectPage />
+      </MemoryRouter>,
+    );
+
+    await screen.findByRole("heading", { name: "Projeto Teste" });
+    expect(screen.getByText(/6\s+dispon.veis/i)).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: /Volume 2/i })).toHaveTextContent(
+      /2 cap.tulos dispon.veis/i,
+    );
+    expect(screen.getByRole("button", { name: /Volume 7/i })).toHaveTextContent(
+      /2 cap.tulos dispon.veis/i,
+    );
+    expect(screen.getByRole("button", { name: /Volume 14/i })).toHaveTextContent(
+      /2 cap.tulos dispon.veis/i,
+    );
+
+    fireEvent.click(screen.getByRole("button", { name: /Volume 2/i }));
+    fireEvent.click(screen.getByRole("button", { name: /Volume 7/i }));
+    fireEvent.click(screen.getByRole("button", { name: /Volume 14/i }));
+
+    expect(screen.getAllByText("Table of Contents")).toHaveLength(3);
+    expect(screen.getByText("Previously")).toBeInTheDocument();
+    expect(screen.getByText("Chapter 57: The Mysterious Kidnappers")).toBeInTheDocument();
+    expect(screen.getByText("Chapter 101: The Elven Village")).toBeInTheDocument();
+    expect(screen.getAllByRole("link", { name: /Ler (cap.tulo|extra)/i })).toHaveLength(6);
+  });
 });

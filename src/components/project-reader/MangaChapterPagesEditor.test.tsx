@@ -1,5 +1,5 @@
 import { fireEvent, render, screen, waitFor, within } from "@testing-library/react";
-import { useState } from "react";
+import { type MouseEventHandler, useState } from "react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 import MangaChapterPagesEditor from "@/components/project-reader/MangaChapterPagesEditor";
@@ -20,6 +20,7 @@ vi.mock("@/components/UploadPicture", () => ({
     className,
     imgClassName,
     mediaVariants,
+    onContextMenu,
     preset,
     sizes,
   }: {
@@ -29,6 +30,7 @@ vi.mock("@/components/UploadPicture", () => ({
     className?: string;
     imgClassName?: string;
     mediaVariants?: Record<string, unknown> | null;
+    onContextMenu?: MouseEventHandler<HTMLImageElement>;
     preset?: string;
     sizes?: string;
   }) => (
@@ -42,6 +44,7 @@ vi.mock("@/components/UploadPicture", () => ({
         data-has-media-variants={mediaVariants ? "true" : "false"}
         data-preset={preset}
         sizes={sizes}
+        onContextMenu={onContextMenu}
       />
     </picture>
   ),
@@ -160,6 +163,27 @@ const mockPageSurfaceRects = (count: number) => {
       },
     );
   });
+};
+
+const createPointerEvent = (
+  type: string,
+  options: {
+    button?: number;
+    clientX: number;
+    clientY: number;
+    pointerId: number;
+    pointerType: string;
+  },
+) => {
+  const event = new Event(type, { bubbles: true, cancelable: true });
+  Object.defineProperties(event, {
+    button: { value: options.button ?? 0 },
+    clientX: { value: options.clientX },
+    clientY: { value: options.clientY },
+    pointerId: { value: options.pointerId },
+    pointerType: { value: options.pointerType },
+  });
+  return event;
 };
 
 const renderEditor = (options?: { chapter?: ProjectEpisode }) => {
@@ -297,6 +321,10 @@ describe("MangaChapterPagesEditor", () => {
       "object-top",
     );
     expect(screen.getByTestId("manga-page-surface-0")).toHaveClass("select-none");
+    expect(screen.getByTestId("manga-page-surface-0")).toHaveStyle({
+      touchAction: "none",
+      userSelect: "none",
+    });
 
     const draggedSurface = screen.getByTestId("manga-page-surface-1");
     expect(draggedSurface).toHaveAttribute("data-surface-active", "false");
@@ -402,6 +430,85 @@ describe("MangaChapterPagesEditor", () => {
       "https://cdn.test/page-2.jpg",
       "https://cdn.test/page-1.jpg",
     ]);
+  });
+
+  it("bloqueia menu nativo e captura o pointer para reordenar no touch", async () => {
+    const { onChangeSpy } = renderEditor({
+      chapter: createChapterFixture({
+        pages: createPageFixtures(3),
+      }),
+    });
+    mockPageSurfaceRects(3);
+
+    const surface = screen.getByTestId("manga-page-surface-0");
+    const setPointerCapture = vi.fn();
+    const releasePointerCapture = vi.fn();
+    Object.defineProperty(surface, "setPointerCapture", {
+      configurable: true,
+      value: setPointerCapture,
+    });
+    Object.defineProperty(surface, "releasePointerCapture", {
+      configurable: true,
+      value: releasePointerCapture,
+    });
+
+    const contextMenuEvent = new MouseEvent("contextmenu", {
+      bubbles: true,
+      cancelable: true,
+    });
+    const preventContextMenu = vi.spyOn(contextMenuEvent, "preventDefault");
+    fireEvent(surface, contextMenuEvent);
+    expect(preventContextMenu).toHaveBeenCalled();
+
+    const imageContextMenuEvent = new MouseEvent("contextmenu", {
+      bubbles: true,
+      cancelable: true,
+    });
+    const preventImageContextMenu = vi.spyOn(imageContextMenuEvent, "preventDefault");
+    fireEvent(screen.getAllByTestId("upload-picture")[0], imageContextMenuEvent);
+    expect(preventImageContextMenu).toHaveBeenCalled();
+
+    const pointerDownEvent = createPointerEvent("pointerdown", {
+      pointerId: 11,
+      pointerType: "touch",
+      clientX: 40,
+      clientY: 40,
+    });
+    const preventPointerDown = vi.spyOn(pointerDownEvent, "preventDefault");
+    fireEvent(surface, pointerDownEvent);
+    expect(preventPointerDown).toHaveBeenCalled();
+    expect(setPointerCapture).toHaveBeenCalledWith(11);
+
+    fireEvent.pointerMove(window, {
+      pointerId: 11,
+      pointerType: "touch",
+      clientX: 280,
+      clientY: 40,
+    });
+
+    await waitFor(() => {
+      expect(getPageOrder()).toEqual([
+        "https://cdn.test/page-2.jpg",
+        "https://cdn.test/page-3.jpg",
+        "https://cdn.test/page-1.jpg",
+      ]);
+    });
+
+    fireEvent.pointerUp(window, {
+      pointerId: 11,
+      pointerType: "touch",
+      clientX: 280,
+      clientY: 40,
+    });
+
+    await waitFor(() => {
+      const lastCall = onChangeSpy.mock.lastCall?.[0] as ProjectEpisode | undefined;
+      expect(lastCall?.pages?.map((page) => page.imageUrl)).toEqual([
+        "https://cdn.test/page-2.jpg",
+        "https://cdn.test/page-3.jpg",
+        "https://cdn.test/page-1.jpg",
+      ]);
+    });
   });
 
   it("move uma pagina para frente mesmo quando o drop termina fora do card original", async () => {

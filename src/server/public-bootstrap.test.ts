@@ -405,6 +405,95 @@ describe("public bootstrap payload", () => {
     expect(chapter).not.toHaveProperty("content");
   });
 
+  it("preserves precomputed lightweight readable chapter flags without heavy content", () => {
+    const payload = buildPublicBootstrapPayload({
+      settings: {},
+      pages: {},
+      projects: [
+        {
+          id: "project-ln",
+          title: "Projeto Light Novel",
+          synopsis: "Sinopse",
+          description: "",
+          type: "Light Novel",
+          status: "Em andamento",
+          tags: [],
+          genres: [],
+          cover: "/uploads/project-ln-cover.jpg",
+          coverAlt: "Capa do projeto light novel",
+          banner: "",
+          bannerAlt: "",
+          heroImageUrl: "",
+          heroImageAlt: "",
+          studio: "",
+          animationStudios: [],
+          episodes: "10 capitulos",
+          producers: [],
+          volumeEntries: [],
+          volumeCovers: [],
+          episodeDownloads: [
+            {
+              number: 100000,
+              volume: 2,
+              title: "Table of Contents",
+              entryKind: "extra",
+              displayLabel: "Table of Contents",
+              readingOrder: 1,
+              contentFormat: "lexical",
+              pageCount: 0,
+              hasContent: true,
+              hasPages: false,
+              sources: [],
+            },
+            {
+              number: 57,
+              volume: 7,
+              title: "Chapter 57: The Mysterious Kidnappers",
+              entryKind: "main",
+              readingOrder: 15,
+              contentFormat: "lexical",
+              hasContent: true,
+              hasPages: false,
+              sources: [],
+            },
+          ],
+        },
+      ],
+      posts: [],
+      updates: [],
+      teamMembers: [],
+      teamLinkTypes: [],
+      tagTranslations: {},
+      generatedAt: "2026-03-12T10:00:00.000Z",
+    });
+
+    const project = payload.projects[0] as Record<string, unknown>;
+    const chapters = project.episodeDownloads as Array<Record<string, unknown>>;
+
+    expect(chapters).toEqual([
+      expect.objectContaining({
+        number: 100000,
+        volume: 2,
+        entryKind: "extra",
+        displayLabel: "Table of Contents",
+        pageCount: undefined,
+        hasPages: false,
+        hasContent: true,
+      }),
+      expect.objectContaining({
+        number: 57,
+        volume: 7,
+        entryKind: "main",
+        hasPages: false,
+        hasContent: true,
+      }),
+    ]);
+    expect(chapters[0]).not.toHaveProperty("content");
+    expect(chapters[0]).not.toHaveProperty("pages");
+    expect(chapters[1]).not.toHaveProperty("content");
+    expect(chapters[1]).not.toHaveProperty("pages");
+  });
+
   it("sanitizes lightweight in-progress items for public bootstrap consumers", () => {
     const payload = buildPublicBootstrapPayload({
       settings: {},

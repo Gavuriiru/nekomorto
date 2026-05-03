@@ -200,6 +200,14 @@ const MangaPageTile = ({
 
   const handleSurfacePointerDown = (event: PointerEvent<HTMLDivElement>) => {
     clearKeyboardFocusState();
+    if (event.pointerType !== "mouse") {
+      event.preventDefault();
+      try {
+        event.currentTarget.setPointerCapture(event.pointerId);
+      } catch {
+        // Pointer capture can fail in older browsers or test environments.
+      }
+    }
     onPointerDown?.(event, index);
   };
 
@@ -212,6 +220,13 @@ const MangaPageTile = ({
   };
 
   const handleSurfacePointerUp = (event: PointerEvent<HTMLDivElement>) => {
+    if (event.pointerType !== "mouse") {
+      try {
+        event.currentTarget.releasePointerCapture(event.pointerId);
+      } catch {
+        // Ignore release failures for pointers that were already cancelled.
+      }
+    }
     onPointerUp?.(event);
   };
 
@@ -220,11 +235,22 @@ const MangaPageTile = ({
   };
 
   const handleSurfacePointerCancel = (event: PointerEvent<HTMLDivElement>) => {
+    if (event.pointerType !== "mouse") {
+      try {
+        event.currentTarget.releasePointerCapture(event.pointerId);
+      } catch {
+        // Ignore release failures for pointers that were already cancelled.
+      }
+    }
     onPointerCancel?.(event);
   };
 
   const handleSurfaceLostPointerCapture = (event: PointerEvent<HTMLDivElement>) => {
     onLostPointerCapture?.(event);
+  };
+
+  const handleSurfaceContextMenu = (event: MouseEvent<HTMLDivElement>) => {
+    event.preventDefault();
   };
 
   const stopActionPointerPropagation = (event: PointerEvent<HTMLButtonElement>) => {
@@ -273,6 +299,7 @@ const MangaPageTile = ({
         onPointerUp={handleSurfacePointerUp}
         onPointerCancel={handleSurfacePointerCancel}
         onLostPointerCapture={handleSurfaceLostPointerCapture}
+        onContextMenu={handleSurfaceContextMenu}
         onMouseMove={handleSurfaceMouseMove}
         onMouseUp={handleSurfaceMouseUp}
         onMouseEnter={() => setIsSurfaceHovered(true)}
@@ -297,6 +324,11 @@ const MangaPageTile = ({
           isSurfaceActive ? "shadow-manga-page-active" : "",
           "focus:outline-none focus-visible:ring-2 focus-visible:ring-primary/30",
         )}
+        style={{
+          touchAction: "none",
+          WebkitUserSelect: "none",
+          userSelect: "none",
+        }}
       >
         <UploadPicture
           src={src}
@@ -305,6 +337,7 @@ const MangaPageTile = ({
           mediaVariants={mediaVariants}
           sizes="(min-width: 1280px) 200px, (min-width: 1024px) 30vw, (min-width: 640px) 50vw, 100vw"
           draggable={false}
+          onContextMenu={(event) => event.preventDefault()}
           className="h-full w-full select-none"
           imgClassName="h-full w-full select-none object-cover object-top"
         />
