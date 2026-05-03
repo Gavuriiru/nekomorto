@@ -462,8 +462,24 @@ const getRenderablePageAspectRatio = (
 const usesViewportBoundedHeight = (imageFit: string) =>
   imageFit === "both" || imageFit === "height";
 
-const resolveEffectiveImageFit = ({ imageFit, layout }: { imageFit: string; layout: string }) =>
-  imageFit === "width" && layout !== "double" ? "none" : imageFit;
+const resolveEffectiveImageFit = ({
+  imageFit,
+  layout,
+  viewportMode,
+}: {
+  imageFit: string;
+  layout: string;
+  viewportMode: "viewport" | "natural";
+}) =>
+  imageFit === "width" &&
+  layout !== "double" &&
+  (viewportMode === "natural" || layout === "scroll-horizontal")
+    ? "none"
+    : imageFit;
+
+const isPannableNoLimitImageFit = (imageFit: string) => imageFit === "none";
+const isMobilePannableHeightImageFit = (imageFit: string) => imageFit === "height";
+const isWidthImageFit = (imageFit: string) => imageFit === "width";
 
 const getSafeAreaInset = (edge: "top" | "right" | "bottom" | "left") =>
   `calc(env(safe-area-inset-${edge}, 0px) + ${PROGRESS_EDGE_OFFSET_PX}px)`;
@@ -1099,7 +1115,17 @@ const PublicProjectReaderContent = ({
   const effectiveImageFit = resolveEffectiveImageFit({
     imageFit: visualState.imageFit,
     layout,
+    viewportMode,
   });
+  const shouldEnableInlineImagePan =
+    isPannableNoLimitImageFit(visualState.imageFit) ||
+    (viewportWidth < 768 && isMobilePannableHeightImageFit(visualState.imageFit));
+  const shouldEnablePaginatedVerticalPan =
+    isPannableNoLimitImageFit(visualState.imageFit) ||
+    (viewportMode === "viewport" && isWidthImageFit(visualState.imageFit));
+  const shouldPanPaginatedImage = paginated && shouldEnableInlineImagePan;
+  const shouldPanPaginatedVertically = paginated && shouldEnablePaginatedVerticalPan;
+  const shouldPanVerticalImage = layout === "scroll-vertical" && shouldEnableInlineImagePan;
   const initialChapterPageSeedRef = useRef({
     chapterValue: currentChapterValue,
     search: location.search,
@@ -4738,9 +4764,16 @@ const PublicProjectReaderContent = ({
     [],
   );
 
+  const mobilePannableHeightPageClassName =
+    visualState.imageFit === "height" ? "w-auto max-w-none shrink-0 items-center" : undefined;
+  const mobilePannableHeightSurfaceClassName =
+    visualState.imageFit === "height"
+      ? "inline-flex h-full w-auto max-w-none shrink-0 items-center justify-center"
+      : undefined;
   const paginatedStripClassName = cn(
     "mx-auto flex items-center justify-center gap-0",
-    "w-full",
+    shouldPanPaginatedImage ? "w-max min-w-full justify-start" : "w-full",
+    shouldPanPaginatedVertically ? "items-start" : "",
     layout === "double" && direction === "rtl" ? "md:flex-row-reverse" : "md:flex-row",
   );
 
@@ -4771,11 +4804,20 @@ const PublicProjectReaderContent = ({
       <div
         data-testid="project-reading-paginated-scroll-lane"
         className={cn(
-          "flex w-full items-center justify-center overflow-x-auto overflow-y-hidden",
+          "no-scrollbar flex w-full items-center justify-center overflow-x-auto",
+          shouldPanPaginatedVertically ? "items-start overflow-y-auto" : "overflow-y-hidden",
+          shouldPanPaginatedImage || shouldPanPaginatedVertically ? "overscroll-contain" : "",
+          shouldPanPaginatedImage ? "justify-start" : "",
           isCinemaMode || layout === "double" ? "px-0" : "px-2 md:px-4",
         )}
       >
-        <div className="relative flex min-h-0 w-full flex-1 items-center justify-center">
+        <div
+          className={cn(
+            "relative flex min-h-0 flex-1 items-center justify-center",
+            shouldPanPaginatedImage ? "w-max min-w-full justify-start" : "w-full",
+            shouldPanPaginatedVertically ? "items-start" : "",
+          )}
+        >
           {paginatedBufferedSlotIndices.map((slotIndex) => {
             const slot = slots[slotIndex];
             if (!slot) {
@@ -4807,6 +4849,10 @@ const PublicProjectReaderContent = ({
                     : isActiveSlot
                       ? "relative z-10 flex w-full items-center justify-center"
                       : "pointer-events-none absolute inset-0 z-0 flex items-center justify-center opacity-0",
+                  shouldPanPaginatedImage && isActiveSlot
+                    ? "w-max max-w-none shrink-0 justify-start"
+                    : "",
+                  shouldPanPaginatedVertically && isActiveSlot ? "items-start" : "",
                 )}
               >
                 <div
@@ -4848,19 +4894,33 @@ const PublicProjectReaderContent = ({
                     return (
                       <div
                         key={`slot-page-${slotIndex}-${pageIndex}`}
-                        className={getPaginatedSlotClassName({
-                          layout,
-                          imageFit: pageImageFit,
-                          direction,
-                          pagePosition,
-                          centerSinglePage: shouldCenterBufferedDoubleSlot,
-                        })}
+                        className={cn(
+                          getPaginatedSlotClassName({
+                            layout,
+                            imageFit: pageImageFit,
+                            direction,
+                            pagePosition,
+                            centerSinglePage: shouldCenterBufferedDoubleSlot,
+                          }),
+                          shouldPanPaginatedImage
+                            ? "w-auto max-w-none shrink-0 flex-none justify-start"
+                            : "",
+                          shouldPanPaginatedVertically ? "items-start" : "",
+                        )}
                       >
                         {renderReaderPage(page, pageIndex, {
+                          className: shouldPanPaginatedImage
+                            ? mobilePannableHeightPageClassName
+                            : undefined,
                           imageFetchPriority: isActiveSlot ? "high" : "auto",
                           imageFit: pageImageFit,
                           imageLoading: paginatedWarmPageIndices.has(pageIndex) ? "eager" : "lazy",
-                          surfaceClassName: spreadAlignmentClassName,
+                          surfaceClassName: cn(
+                            spreadAlignmentClassName,
+                            shouldPanPaginatedImage
+                              ? mobilePannableHeightSurfaceClassName
+                              : undefined,
+                          ),
                         })}
                       </div>
                     );
@@ -4922,7 +4982,8 @@ const PublicProjectReaderContent = ({
         ref={verticalScrollRef}
         data-testid="project-reading-vertical-scroll"
         className={cn(
-          "no-scrollbar h-full w-full min-h-0 overflow-x-hidden overflow-y-auto",
+          "no-scrollbar h-full w-full min-h-0 overflow-y-auto",
+          shouldPanVerticalImage ? "overflow-x-auto overscroll-contain" : "overflow-x-hidden",
           isCinemaMode ? "px-0 py-0" : "mx-auto px-2 py-2 md:px-4 md:py-4",
         )}
         style={verticalScrollViewportStyle}
@@ -4931,15 +4992,27 @@ const PublicProjectReaderContent = ({
         <div
           ref={verticalScrollStripRef}
           data-testid="project-reading-vertical-strip"
-          className="mx-auto flex w-full flex-col items-center gap-0"
+          className={cn(
+            "flex flex-col items-center gap-0",
+            shouldPanVerticalImage ? "mx-0 w-max min-w-full" : "mx-auto w-full",
+          )}
         >
           {renderablePages.map((page, pageIndex) => (
             <div
               key={`vertical-page-${pageIndex}`}
-              className={effectiveImageFit === "none" ? "w-auto max-w-none" : "w-full"}
+              className={
+                shouldPanVerticalImage || effectiveImageFit === "none"
+                  ? "w-auto max-w-none"
+                  : "w-full"
+              }
               style={getContinuousVerticalPageContainerStyle(page, effectiveImageFit)}
             >
-              {renderContinuousPage(page, pageIndex)}
+              {renderContinuousPage(
+                page,
+                pageIndex,
+                shouldPanVerticalImage ? mobilePannableHeightPageClassName : undefined,
+                shouldPanVerticalImage ? mobilePannableHeightSurfaceClassName : undefined,
+              )}
             </div>
           ))}
         </div>

@@ -948,6 +948,250 @@ describe("PublicProjectReader", () => {
     });
   });
 
+  it("allows horizontal pan for single-page fit height on mobile", async () => {
+    setVisualViewport({ width: 390, height: 640 });
+    renderReader({ layout: "single", imageFit: "height" });
+
+    const stage = screen.getByTestId("project-reading-stage");
+    const lane = screen.getByTestId("project-reading-paginated-scroll-lane");
+    const strip = screen.getByTestId("project-reading-paginated-strip");
+    const slot = screen.getByTestId("reader-paginated-slot-0");
+    const page = screen.getByTestId("reader-page-0");
+    const surface = screen.getByTestId("reader-page-surface-0");
+    const image = screen.getByRole("img", { name: /P.gina 1/i });
+
+    expect(lane).toHaveClass("overflow-x-auto", "overflow-y-hidden", "overscroll-contain");
+    expect(lane).toHaveClass("justify-start");
+    expect(strip).toHaveClass("w-max", "min-w-full", "justify-start");
+    expect(slot).toHaveClass("w-max", "max-w-none", "shrink-0", "justify-start");
+    expect(page.parentElement).toHaveClass("w-auto", "max-w-none", "flex-none");
+    expect(page).toHaveClass("w-auto", "max-w-none", "shrink-0");
+    expect(page).not.toHaveClass("w-full");
+    expect(surface).toHaveClass("inline-flex", "h-full", "w-auto", "max-w-none", "shrink-0");
+    expect(surface).not.toHaveClass("w-full");
+    expect(image).toHaveClass("h-full", "w-auto", "max-w-none");
+
+    await waitFor(() => {
+      expect(surface.style.height).toBe(stage.style.height);
+    });
+  });
+
+  it("preserves natural dimensions for single-page no-limit fit on mobile", async () => {
+    setVisualViewport({ width: 390, height: 640 });
+    renderReader({ layout: "single", imageFit: "none" });
+
+    const lane = screen.getByTestId("project-reading-paginated-scroll-lane");
+    const strip = screen.getByTestId("project-reading-paginated-strip");
+    const page = screen.getByTestId("reader-page-0");
+    const surface = screen.getByTestId("reader-page-surface-0");
+    const image = screen.getByRole("img", { name: /P.gina 1/i });
+
+    expect(lane).toHaveClass("overflow-x-auto", "overscroll-contain");
+    expect(strip).toHaveClass("w-max", "min-w-full");
+    expect(page.parentElement).toHaveClass("w-auto", "max-w-none", "flex-none");
+    expect(page).toHaveClass("w-auto", "max-w-none", "shrink-0");
+    expect(page).not.toHaveClass("w-full");
+    expect(surface).toHaveClass("inline-flex", "h-auto", "w-auto", "max-w-none", "shrink-0");
+    expect(surface).not.toHaveClass("w-full", "max-w-full");
+    expect(image).toHaveClass("h-auto", "w-auto", "max-h-none", "max-w-none");
+    expect(image).not.toHaveClass("w-full", "h-full", "max-w-full");
+
+    await waitFor(() => {
+      expect(surface.style.height).toBe("");
+    });
+  });
+
+  it("keeps single-page fit width constrained to the viewport width on mobile", async () => {
+    setVisualViewport({ width: 390, height: 640 });
+    renderReader({ layout: "single", imageFit: "width" });
+
+    const lane = screen.getByTestId("project-reading-paginated-scroll-lane");
+    const strip = screen.getByTestId("project-reading-paginated-strip");
+    const slot = screen.getByTestId("reader-paginated-slot-0");
+    const page = screen.getByTestId("reader-page-0");
+    const surface = screen.getByTestId("reader-page-surface-0");
+    const image = screen.getByRole("img", { name: /P.gina 1/i });
+
+    expect(lane).toHaveClass("no-scrollbar", "overflow-x-auto", "overflow-y-auto");
+    expect(lane).toHaveClass("items-start", "overscroll-contain");
+    expect(lane).not.toHaveClass("overflow-y-hidden");
+    expect(strip).toHaveClass("w-full", "items-start");
+    expect(strip).not.toHaveClass("w-max");
+    expect(slot).toHaveClass("w-full", "items-start");
+    expect(slot).not.toHaveClass("w-max", "max-w-none", "shrink-0");
+    expect(page.parentElement).toHaveClass("w-full");
+    expect(page).toHaveClass("w-full", "min-w-0");
+    expect(page).not.toHaveClass("w-auto", "max-w-none", "shrink-0");
+    expect(surface).toHaveClass("flex", "h-auto", "w-full", "max-w-full");
+    expect(surface).not.toHaveClass("inline-flex", "max-w-none", "shrink-0");
+    expect(image).toHaveClass("h-auto", "w-full", "max-w-full");
+    expect(image).not.toHaveClass("w-auto", "max-w-none", "h-full");
+
+    await waitFor(() => {
+      expect(surface.style.height).toBe("");
+    });
+  });
+
+  it("allows both-axis pan for double-page no-limit fit on mobile", async () => {
+    setVisualViewport({ width: 390, height: 640 });
+    renderReader({ layout: "double", imageFit: "none", firstPageSingle: false });
+
+    const lane = screen.getByTestId("project-reading-paginated-scroll-lane");
+    const strip = screen.getByTestId("project-reading-paginated-strip");
+    const slot = screen.getByTestId("reader-paginated-slot-0");
+    const page = screen.getByTestId("reader-page-0");
+    const surface = screen.getByTestId("reader-page-surface-0");
+    const image = within(page).getByRole("img", { name: /P.gina 1/i });
+
+    expect(lane).toHaveClass("overflow-x-auto", "overflow-y-auto", "overscroll-contain");
+    expect(lane).toHaveClass("items-start", "justify-start");
+    expect(lane).not.toHaveClass("overflow-y-hidden");
+    expect(strip).toHaveClass("w-max", "min-w-full", "justify-start");
+    expect(slot).toHaveClass("w-max", "max-w-none", "shrink-0", "items-start", "justify-start");
+    expect(page.parentElement).toHaveClass("w-auto", "max-w-none", "flex-none");
+    expect(page).toHaveClass("w-auto", "max-w-none", "shrink-0");
+    expect(page).not.toHaveClass("w-full");
+    expect(surface).toHaveClass("inline-flex", "h-auto", "w-auto", "max-w-none", "shrink-0");
+    expect(image).toHaveClass("h-auto", "w-auto", "max-h-none", "max-w-none");
+
+    await waitFor(() => {
+      expect(surface.style.height).toBe("");
+    });
+  });
+
+  it("allows both-axis pan for double-page no-limit fit on desktop", async () => {
+    renderReader({ layout: "double", imageFit: "none", firstPageSingle: false });
+
+    const lane = screen.getByTestId("project-reading-paginated-scroll-lane");
+    const strip = screen.getByTestId("project-reading-paginated-strip");
+    const slot = screen.getByTestId("reader-paginated-slot-0");
+    const page = screen.getByTestId("reader-page-0");
+    const surface = screen.getByTestId("reader-page-surface-0");
+    const image = within(page).getByRole("img", { name: /P.gina 1/i });
+
+    expect(lane).toHaveClass("no-scrollbar", "overflow-x-auto", "overflow-y-auto");
+    expect(lane).toHaveClass("overscroll-contain");
+    expect(lane).toHaveClass("items-start", "justify-start");
+    expect(lane).not.toHaveClass("overflow-y-hidden");
+    expect(strip).toHaveClass("w-max", "min-w-full", "justify-start");
+    expect(slot).toHaveClass("w-max", "max-w-none", "shrink-0", "items-start", "justify-start");
+    expect(page.parentElement).toHaveClass("w-auto", "max-w-none", "flex-none");
+    expect(page).toHaveClass("w-auto", "max-w-none", "shrink-0");
+    expect(page).not.toHaveClass("w-full");
+    expect(surface).toHaveClass("inline-flex", "h-auto", "w-auto", "max-w-none", "shrink-0");
+    expect(image).toHaveClass("h-auto", "w-auto", "max-h-none", "max-w-none");
+
+    await waitFor(() => {
+      expect(surface.style.height).toBe("");
+    });
+  });
+
+  it("allows vertical pan for double-page fit width on desktop without exposing native scrollbars", async () => {
+    renderReader({ layout: "double", imageFit: "width", firstPageSingle: false });
+
+    const lane = screen.getByTestId("project-reading-paginated-scroll-lane");
+    const strip = screen.getByTestId("project-reading-paginated-strip");
+    const slot = screen.getByTestId("reader-paginated-slot-0");
+    const page = screen.getByTestId("reader-page-0");
+    const surface = screen.getByTestId("reader-page-surface-0");
+    const image = within(page).getByRole("img", { name: /P.gina 1/i });
+
+    expect(lane).toHaveClass("no-scrollbar", "overflow-x-auto", "overflow-y-auto");
+    expect(lane).toHaveClass("items-start", "overscroll-contain");
+    expect(lane).not.toHaveClass("overflow-y-hidden");
+    expect(strip).toHaveClass("w-full", "items-start");
+    expect(strip).not.toHaveClass("w-max");
+    expect(slot).toHaveClass("w-full", "items-start");
+    expect(slot).not.toHaveClass("w-max", "max-w-none", "shrink-0");
+    expect(page.parentElement).toHaveClass("flex-1", "min-w-0");
+    expect(page).toHaveClass("w-full", "min-w-0");
+    expect(page).not.toHaveClass("w-auto", "max-w-none", "shrink-0");
+    expect(surface).toHaveClass("flex", "h-auto", "w-full", "max-w-full");
+    expect(image).toHaveClass("h-auto", "w-full", "max-w-full");
+
+    await waitFor(() => {
+      expect(surface.style.height).toBe("");
+    });
+  });
+
+  it("allows horizontal pan for double-page fit height on mobile", async () => {
+    setVisualViewport({ width: 390, height: 640 });
+    renderReader({ layout: "double", imageFit: "height", firstPageSingle: false });
+
+    const stage = screen.getByTestId("project-reading-stage");
+    const lane = screen.getByTestId("project-reading-paginated-scroll-lane");
+    const strip = screen.getByTestId("project-reading-paginated-strip");
+    const slot = screen.getByTestId("reader-paginated-slot-0");
+    const page = screen.getByTestId("reader-page-0");
+    const surface = screen.getByTestId("reader-page-surface-0");
+    const image = within(page).getByRole("img", { name: /P.gina 1/i });
+
+    expect(lane).toHaveClass("overflow-x-auto", "overflow-y-hidden", "overscroll-contain");
+    expect(lane).toHaveClass("justify-start");
+    expect(lane).not.toHaveClass("overflow-y-auto");
+    expect(strip).toHaveClass("w-max", "min-w-full", "justify-start");
+    expect(slot).toHaveClass("w-max", "max-w-none", "shrink-0", "justify-start");
+    expect(page.parentElement).toHaveClass("w-auto", "max-w-none", "flex-none");
+    expect(page).toHaveClass("w-auto", "max-w-none", "shrink-0");
+    expect(surface).toHaveClass("inline-flex", "h-full", "w-auto", "max-w-none", "shrink-0");
+    expect(image).toHaveClass("h-full", "w-auto", "max-w-none");
+
+    await waitFor(() => {
+      expect(surface.style.height).toBe(stage.style.height);
+    });
+  });
+
+  it("allows lateral pan in scroll-vertical fit height on mobile", async () => {
+    setVisualViewport({ width: 390, height: 640 });
+    renderReader({ layout: "scroll-vertical", imageFit: "height" });
+
+    const stage = screen.getByTestId("project-reading-stage");
+    const scroll = screen.getByTestId("project-reading-vertical-scroll");
+    const strip = screen.getByTestId("project-reading-vertical-strip");
+    const page = screen.getByTestId("reader-page-0");
+    const surface = screen.getByTestId("reader-page-surface-0");
+    const image = screen.getByRole("img", { name: /P.gina 1/i });
+
+    expect(scroll).toHaveClass("overflow-x-auto", "overflow-y-auto", "overscroll-contain");
+    expect(scroll).not.toHaveClass("overflow-x-hidden");
+    expect(strip).toHaveClass("w-max", "min-w-full");
+    expect(strip).not.toHaveClass("w-full");
+    expect(page.parentElement).toHaveClass("w-auto", "max-w-none");
+    expect(page).toHaveClass("w-auto", "max-w-none", "shrink-0");
+    expect(surface).toHaveClass("inline-flex", "h-full", "w-auto", "max-w-none", "shrink-0");
+    expect(image).toHaveClass("h-full", "w-auto", "max-w-none");
+
+    await waitFor(() => {
+      expect(surface.style.height).toBe(stage.style.height);
+    });
+  });
+
+  it("keeps scroll-vertical no-limit pages natural and horizontally pannable on mobile", async () => {
+    setVisualViewport({ width: 390, height: 640 });
+    renderReader({ layout: "scroll-vertical", imageFit: "none" });
+
+    const scroll = screen.getByTestId("project-reading-vertical-scroll");
+    const strip = screen.getByTestId("project-reading-vertical-strip");
+    const page = screen.getByTestId("reader-page-0");
+    const surface = screen.getByTestId("reader-page-surface-0");
+    const image = screen.getByRole("img", { name: /P.gina 1/i });
+
+    expect(scroll).toHaveClass("overflow-x-auto", "overflow-y-auto", "overscroll-contain");
+    expect(scroll).not.toHaveClass("overflow-x-hidden");
+    expect(strip).toHaveClass("w-max", "min-w-full");
+    expect(page.parentElement).toHaveClass("w-auto", "max-w-none");
+    expect(page).toHaveClass("w-auto", "max-w-none", "shrink-0");
+    expect(page).not.toHaveClass("w-full");
+    expect(surface).toHaveClass("inline-flex", "h-auto", "w-auto", "max-w-none", "shrink-0");
+    expect(surface).not.toHaveClass("w-full", "max-w-full");
+    expect(image).toHaveClass("h-auto", "w-auto", "max-h-none", "max-w-none");
+    expect(image).not.toHaveClass("w-full", "h-full", "max-w-full");
+
+    await waitFor(() => {
+      expect(surface.style.height).toBe("");
+    });
+  });
+
   it.each([
     "both",
     "width",
