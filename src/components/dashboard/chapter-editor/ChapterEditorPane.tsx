@@ -73,8 +73,17 @@ import {
   Plus,
   Trash2,
 } from "lucide-react";
-import type { ChangeEvent, Dispatch, RefObject, SetStateAction } from "react";
-import { forwardRef, useCallback, useEffect, useImperativeHandle, useMemo, useRef } from "react";
+import type { CSSProperties, ChangeEvent, Dispatch, RefObject, SetStateAction } from "react";
+import {
+  forwardRef,
+  useCallback,
+  useEffect,
+  useImperativeHandle,
+  useLayoutEffect,
+  useMemo,
+  useRef,
+  useState,
+} from "react";
 import { Link } from "react-router-dom";
 import {
   normalizeProjectEpisodeContentFormat,
@@ -256,6 +265,7 @@ const ChapterEditorPane = forwardRef<ChapterEditorPaneHandle, ChapterEditorPaneP
     const editorRef = useRef<LexicalEditorHandle | null>(null);
     const mangaWorkflowRef = useRef<MangaWorkflowPanelHandle | null>(null);
     const mainColumnRef = useRef<HTMLDivElement | null>(null);
+    const [chapterEditorToolbarStickyTop, setChapterEditorToolbarStickyTop] = useState(0);
     const cancelLeaveDialogRef = useRef<(() => void) | null>(null);
     const hasPendingLeaveDialogRef = useRef(false);
     const hasActiveChapter = Boolean(activeChapter && activeChapterKey);
@@ -400,6 +410,13 @@ const ChapterEditorPane = forwardRef<ChapterEditorPaneHandle, ChapterEditorPaneP
       mainColumnRef,
       activeChapterKey || selectedVolumeNumber || "neutral",
     );
+    const chapterEditorLexicalWrapperStyle = useMemo(
+      () =>
+        ({
+          "--chapter-editor-toolbar-sticky-top": `${chapterEditorToolbarStickyTop}px`,
+        }) as CSSProperties,
+      [chapterEditorToolbarStickyTop],
+    );
     const selectedVolumeLabel =
       selectedVolumeNumber !== null ? buildChapterVolumeLabel(selectedVolumeNumber) : "Volumes";
     const showVolumeSaveControls = isVolumeDirty || isSavingVolumes;
@@ -414,6 +431,37 @@ const ChapterEditorPane = forwardRef<ChapterEditorPaneHandle, ChapterEditorPaneP
       hasUnsavedChanges,
       requestLeave,
     ]);
+    useLayoutEffect(() => {
+      const dashboardHeader = document.querySelector<HTMLElement>("#dashboard-main-content > header");
+      if (!dashboardHeader) {
+        setChapterEditorToolbarStickyTop(0);
+        return;
+      }
+
+      const updateStickyTop = () => {
+        const nextTop = Math.max(0, Math.ceil(dashboardHeader.getBoundingClientRect().bottom));
+        setChapterEditorToolbarStickyTop((prev) => (prev === nextTop ? prev : nextTop));
+      };
+
+      updateStickyTop();
+      window.addEventListener("resize", updateStickyTop);
+
+      if (typeof ResizeObserver === "undefined") {
+        return () => {
+          window.removeEventListener("resize", updateStickyTop);
+        };
+      }
+
+      const observer = new ResizeObserver(() => {
+        updateStickyTop();
+      });
+      observer.observe(dashboardHeader);
+
+      return () => {
+        observer.disconnect();
+        window.removeEventListener("resize", updateStickyTop);
+      };
+    }, []);
     useEffect(() => {
       if (!hasActiveChapter && !isVolumeDirty) {
         return;
@@ -1027,6 +1075,7 @@ const ChapterEditorPane = forwardRef<ChapterEditorPaneHandle, ChapterEditorPaneP
                   {" "}
                   <LexicalEditorSurface
                     wrapperClassName={`chapter-editor-lexical-wrapper min-w-0 ${chapterEditorLexicalMinHeightClassName}`}
+                    wrapperStyle={chapterEditorLexicalWrapperStyle}
                     wrapperTestId="chapter-lexical-wrapper"
                     fallbackVariant="chapter"
                     fallbackMinHeightClassName={chapterEditorLexicalMinHeightClassName}

@@ -1,134 +1,263 @@
 # Carta Operacional do Projeto
 
-Este arquivo define as bases para toda ação tomada neste repositório. Ele orienta agentes e colaboradores sobre como entender o sistema, propor mudanças, preservar segurança, performance e confiabilidade, e validar o trabalho antes de encerrar uma tarefa.
+Este é o guia de primeiro contexto para agentes no repositório Nekomorto. Use-o para
+entender rapidamente o sistema, escolher os comandos certos e saber quando uma tarefa
+está pronta. Para setup detalhado, deploy, variáveis e troubleshooting, consulte
+`README.md`. Para estilo, consulte `CODE_STYLE.md`.
 
-Use este documento como referência de conduta técnica e critério de decisão. Para setup, comandos detalhados, arquitetura expandida e operação, consulte o `README.md`.
+## 1. Como Trabalhar Neste Repositório
 
-## 1. Propósito e Alcance
+- Explore antes de editar. Leia os arquivos e testes relacionados à área da tarefa.
+- Faça mudanças pequenas, compatíveis com rollback e alinhadas aos padrões existentes.
+- Não mude comportamento da aplicação em tarefas documentais, de organização ou de
+  orientação para agentes.
+- Não reverta mudanças que você não fez. Se o worktree estiver sujo, preserve o trabalho
+  existente e limite o diff ao escopo da tarefa.
+- Não invente comandos, convenções ou fluxos. Derive tudo de `package.json`, README,
+  scripts, CI e código real.
+- Quando houver conflito entre rapidez e robustez, escolha a opção com comportamento
+  previsível, observabilidade suficiente e rollback viável.
 
-- Estas regras se aplicam a código, scripts, migrations, configuração, documentação técnica e operação cotidiana do projeto.
-- Segurança continua sendo obrigatória e não negociável, mas não é o único critério: toda mudança também deve preservar clareza, desempenho, estabilidade e facilidade de manutenção.
-- Quando houver conflito entre rapidez e robustez, prefira a opção que mantém rollback viável, observabilidade suficiente e comportamento previsível.
+## 2. Contexto Rápido do Sistema
 
-## 2. Princípios do Projeto
+- Produto: aplicação Nekomorto com superfície pública, dashboard autenticado, leitura de
+  projetos/posts, uploads, webhooks, analytics e operação de produção.
+- Runtime: frontend React/Vite servido pelo backend Node/Express.
+- Banco: PostgreSQL é a única fonte de verdade do runtime. Sessões também persistem no
+  PostgreSQL.
+- ORM/migrations: Prisma.
+- Deploy esperado: compatível com operação single-instance e Docker/Compose.
+- Performance pública: existe baseline versionado em
+  `reports/perf/public-surface-baseline.json`; não contorne esse ecossistema.
 
-- PostgreSQL é a única fonte de verdade do runtime. Não introduza armazenamento paralelo autoritativo, sincronização oportunista ou caches que possam divergir do banco.
-- Este projeto prioriza simplicidade operacional e compatibilidade com deploy single-instance. Não introduza dependências de infraestrutura extra sem necessidade comprovada.
-- Toda mudança MUST preservar segurança, legibilidade, previsibilidade, capacidade de diagnóstico e rollback viável.
-- Otimizações MUST NOT degradar UX pública, acessibilidade, observabilidade ou contratos já expostos pelo sistema.
-- Prefira mudanças pequenas, incrementais e reversíveis a reescritas amplas sem necessidade.
+## 3. Mapa do Repositório
 
-## 3. Entendimento Mínimo do Sistema
-
-- `src/`: frontend React/Vite, rotas públicas e do dashboard, componentes, hooks, estilos e testes.
-- `server/`: backend Node/Express, auth, sessões, API, uploads, OG images, webhooks, observabilidade e rotas operacionais.
+- `src/`: frontend React/Vite, rotas públicas e dashboard, componentes, hooks, estilos,
+  tipos e testes.
+- `src/server/`: testes e módulos server-side cobertos pela suíte Vitest.
+- `server/`: backend Express, bootstrap, rotas, assets e bibliotecas de runtime.
 - `shared/`: utilitários compartilhados entre cliente e servidor.
-- `prisma/`: schema e migrations do banco.
-- `ops/`: deploy, compose, backup, restore e runbooks operacionais.
-- `scripts/`: automações de build, auditoria, smoke tests, Lighthouse, migrações e manutenção.
-- O backend Express serve a aplicação principal e expõe rotas públicas, autenticadas e operacionais como health, readiness, liveness e metrics.
-- Autenticação, autorização e sessão são server-side. Sessões persistem no PostgreSQL.
-- Uploads podem ser locais ou via object storage, mas o contrato público deve permanecer estável.
-- Já existe baseline de performance pública e monitoramento operacional no projeto; novas mudanças devem respeitar esse ecossistema em vez de contorná-lo.
+- `prisma/`: `schema.prisma` e migrations do PostgreSQL.
+- `scripts/`: automações de setup, Prisma, build, smoke, Lighthouse, uploads, backup e
+  manutenção.
+- `ops/`: Docker/Compose, deploy, backup/restore e runbooks operacionais.
+- `docs/`: schema, migração, auditorias de performance/acessibilidade e remediações.
+- `.github/workflows/`: CodeQL, build/publicação da imagem de produção e performance
+  pública.
+- `public/`: assets públicos versionados. Não coloque segredos aqui.
+- `reports/perf/public-surface-baseline.json`: baseline versionado de performance.
 
-## 4. Regras para Mudanças de Código
+## 4. Setup e Comandos Descobertos
 
-- Explore antes de editar. Não assuma arquitetura, ownership ou fluxo de dados sem ler os pontos relevantes do repositório.
-- Siga `CODE_STYLE.md` para estilo, nomenclatura e padrões de implementação. Use o `README.md` para setup, comandos e operação detalhada.
-- Não duplique lógica entre cliente, servidor e `shared/` quando houver um ponto único apropriado.
-- Prefira aproveitar utilitários, contratos e scripts existentes antes de criar novas variações locais.
-- Toda mudança MUST ser compatível com os contratos atuais, a menos que a tarefa inclua explicitamente uma alteração de contrato.
-- Ao mexer em comportamento sensível, atualize testes, documentação e runbooks afetados no mesmo trabalho.
-- Evite dependências novas quando uma solução simples com a stack atual resolver o problema com menos risco.
+Pré-requisitos derivados do README e `package.json`:
 
-## 5. Segurança Obrigatória
+- Node.js `24.14.x`
+- npm `11.x`
+- PostgreSQL acessível via `DATABASE_URL`
+- Docker + Docker Compose para banco local e stack de produção
 
-### 5.1 Segredos e Ambiente
+Setup local recomendado:
 
-- NEVER coloque API keys, tokens, credenciais ou segredos no frontend (`src/`, `public/` ou qualquer artefato enviado ao cliente).
-- NEVER use `VITE_`, `NEXT_PUBLIC_` ou `REACT_APP_` para valores secretos.
-- ALWAYS carregue segredos apenas no servidor.
-- `.env` MUST estar no `.gitignore` antes de qualquer uso de segredo real.
-- `.env.example` MUST conter apenas placeholders.
+```bash
+npm install
+npm run setup:dev
+```
 
-### 5.2 Banco e Acesso a Dados
+Servidor local:
 
-- PostgreSQL e Prisma são o caminho padrão de acesso a dados. Não introduza queries com concatenação de input de usuário.
-- ALWAYS use queries parametrizadas, APIs seguras do Prisma ou helpers equivalentes do servidor.
-- NEVER use desserialização insegura em dados fornecidos por usuários.
-- Mudanças em schema ou persistência MUST considerar migração, compatibilidade dos dados existentes e impacto operacional.
+```bash
+npm run dev
+```
 
-### 5.3 Autenticação e Autorização
+Modo separado:
 
-- Toda rota que retorna ou modifica dados protegidos MUST passar por middleware de autenticação antes do handler.
-- Requisições não autenticadas a endpoints protegidos MUST retornar `401`.
-- Toda rota baseada em ID de recurso MUST validar ownership ou permissão explícita separadamente da autenticação.
-- Endpoints administrativos MUST validar papel ou permissão administrativa e retornar `403` para quem não puder acessar.
-- Cookies de sessão MUST permanecer `httpOnly`, `secure` e `sameSite: "lax"` em contexto de produção.
+```bash
+npm run dev:server
+npm run dev:client:local-api
+```
 
-### 5.4 Input, Output e Conteúdo
+Build e produção local:
 
-- Todo input de usuário MUST ser validado no servidor. Validação no cliente é apenas UX.
-- NEVER concatene input de usuário em SQL.
-- NEVER use `dangerouslySetInnerHTML`, `innerHTML` ou equivalentes com conteúdo do usuário sem sanitização adequada.
-- Erros para clientes MUST ser genéricos em produção. Stack trace, detalhes de banco, paths internos e nomes de bibliotecas ficam apenas em logs.
-- Security headers MUST continuar centralizados em middleware global do servidor, com CSP, HSTS, `X-Frame-Options`, `X-Content-Type-Options` e `Referrer-Policy` coerentes com o runtime atual.
+```bash
+npm run build
+npm run start
+```
 
-### 5.5 Uploads, URLs Remotas e Integrações
+Prisma:
 
-- Uploads MUST validar tipo real do arquivo, renomear artefatos no servidor e evitar confiar apenas em extensão.
-- URLs fornecidas por usuários MUST aceitar apenas `http` e `https`, bloquear IPs privados ou internos e validar resolução antes do fetch quando houver acesso remoto.
-- CORS MUST usar allowlist explícita. NEVER use `origin: "*"` com `credentials: true`.
-- Endpoints sensíveis como login, registro, reset, webhooks e rotas de alto abuso MUST ter rate limiting apropriado.
-- Webhooks MUST validar autenticidade, tratar idempotência e registrar falhas de forma auditável.
+```bash
+npm run prisma:generate
+npm run prisma:migrate:deploy
+npm run prisma:prepare
+```
 
-### 5.6 Criptografia e Dependências
+Qualidade:
 
-- Password hashing MUST usar bcrypt, Argon2 ou scrypt. NEVER use MD5, SHA-1 ou SHA-256 puro para senha.
-- Antes de instalar dependência nova, verifique maturidade, manutenção, histórico e necessidade real.
-- Dependências de produção devem permanecer pinadas com versões explícitas e lockfile commitado.
+```bash
+npm run lint
+npm run format:check
+npm run format
+npm run typecheck
+npm run typecheck:ts7-preview
+npm run test
+npm run test:a11y
+```
 
-## 6. Performance Obrigatória
+Health, smoke e operação:
 
-- Mudanças em superfícies públicas MUST evitar regressão perceptível de LCP, TBT e CLS.
-- Preserve lazy loading, chunking saudável, preload intencional e a estratégia de shell e boot da experiência pública.
-- Não introduza bibliotecas pesadas, renderizações redundantes, recomputações caras ou fetches em cascata sem necessidade.
-- Ao tocar home, listagem pública, leitura, PWA ou dashboards pesados, considere os scripts Lighthouse já existentes e o baseline versionado em `reports/perf/public-surface-baseline.json`.
-- Se uma otimização local piorar a experiência global, descarte-a ou reprojete-a.
+```bash
+npm run api:health:check -- --base=http://localhost:8080 --expect-source=db --expect-maintenance=false
+npm run api:smoke -- --base=http://localhost:8080
+npm run staging:parity:check
+npm run reports:outdated
+```
 
-## 7. Confiabilidade e Operação
+Performance pública e auditoria:
 
-- Health checks, readiness e liveness não podem ser quebrados por mudanças de código, infra ou configuração.
-- Mudanças com impacto operacional MUST respeitar manutenção, deploy, backup, restore, observabilidade e diagnóstico existentes no projeto.
-- Falhas devem degradar de forma segura: resposta clara para o operador, mensagem genérica para o cliente e detalhes completos apenas em logs e métricas.
-- Jobs, scripts, webhooks e integrações SHOULD ser idempotentes quando a natureza da operação permitir repetição.
-- Não remova telemetria, eventos operacionais, logs úteis ou sinais de saúde sem substituir por algo equivalente ou melhor.
+```bash
+npm run build:audit
+npm run lighthouse:home:mobile
+npm run lighthouse:projects:mobile
+npm run lighthouse:projects:desktop
+npm run lighthouse:reader-pages:mobile
+npm run lighthouse:dashboard:desktop
+npm run lighthouse:public-surface
+npm run lighthouse:public-surface:compare
+```
 
-## 8. Validação Mínima por Tipo de Mudança
+Uploads/storage:
 
-- UI isolada:
-  - Rode `npm run lint`, `npm run typecheck` e `npm run test`.
-  - Rode `npm run test:a11y` se tocar interação, foco, semântica, teclado ou contraste.
-- Superfície pública e performance:
-  - Rode `npm run build` quando houver risco de regressão de build, chunking ou hidratação.
-  - Considere `lighthouse:home:mobile`, `lighthouse:projects:*`, `lighthouse:reader-pages:mobile`, `lighthouse:dashboard:desktop` ou `lighthouse:public-surface` conforme a área alterada.
-- API, auth e permissões:
-  - Rode `npm run lint`, `npm run typecheck` e `npm run test`.
-  - Se houver impacto no runtime ou na disponibilidade, valide também os fluxos de health e smoke relevantes.
-- Banco, migrations e scripts operacionais:
-  - Valide migração, compatibilidade de dados, impacto em rollback e documentação ou runbook afetados.
-  - Não trate migration como detalhe de implementação quando ela muda o risco operacional.
-- Uploads, storage, webhooks e ativos remotos:
-  - Execute os scripts ou checks específicos já existentes para integridade, sync, health ou smoke quando o escopo tocar essas áreas.
-- Mudanças apenas documentais:
-  - Verifique consistência com o estado real do repositório e com os nomes exatos de comandos, paths e contratos citados.
+```bash
+npm run uploads:check-integrity
+npm run uploads:check-integrity -- --mode=fast
+npm run uploads:check-integrity -- --mode=deep
+npm run uploads:sync-to-object-storage -- --dry-run
+npm run uploads:restore-from-object-storage -- --dry-run
+npm run uploads:generate-inventory
+```
 
-## 9. Higiene Documental e de Dependências
+## 5. Convenções de Código
 
-- `AGENTS.md`: regras de ação, decisão e critérios de entrega.
-- `README.md`: arquitetura, setup, comandos, deploy, operação e troubleshooting detalhado.
+- Siga `CODE_STYLE.md`: 2 espaços, ponto e vírgula, aspas duplas, line width 100 e LF.
+- Biome é a ferramenta de lint/format. Configuração em `biome.json`.
+- Use alias `@/` para imports dentro de `src/`.
+- Componentes React são funcionais; hooks ficam no topo; use early returns para estados
+  de carregamento/erro.
+- Prefira `interface` para objetos e props; evite `any`.
+- Interações com banco devem usar Prisma ou helpers server-side seguros.
+- Evite dependências novas. Se forem necessárias, preserve lockfile e justifique a
+  necessidade.
+- Não duplique lógica entre cliente, servidor e `shared/` quando houver ponto único
+  apropriado.
+
+## 6. Segurança Obrigatória
+
+- Nunca coloque API keys, tokens, credenciais ou segredos em `src/`, `public/` ou em
+  qualquer artefato enviado ao cliente.
+- Nunca use `VITE_`, `NEXT_PUBLIC_` ou `REACT_APP_` para valores secretos.
+- `.env` e `.env.*` reais devem permanecer fora do Git; `.env.example` e exemplos em
+  `ops/**` devem conter apenas placeholders.
+- Toda rota protegida deve autenticar antes do handler; endpoints administrativos também
+  devem validar papel/permissão e retornar `403` quando apropriado.
+- Toda rota por ID de recurso deve validar ownership/permissão além da autenticação.
+- Inputs de usuário devem ser validados no servidor. Validação no cliente é apenas UX.
+- Nunca concatene input de usuário em SQL.
+- Nunca use `dangerouslySetInnerHTML`, `innerHTML` ou equivalente com conteúdo de usuário
+  sem sanitização adequada.
+- Erros para clientes devem ser genéricos em produção; detalhes ficam em logs/métricas.
+- Headers de segurança devem continuar centralizados no middleware global do servidor.
+- Uploads devem validar tipo real do arquivo, renomear no servidor e não confiar apenas em
+  extensão.
+- URLs fornecidas por usuários devem aceitar apenas `http` e `https`, bloquear destinos
+  privados/internos e validar resolução antes de fetch remoto quando aplicável.
+- CORS deve usar allowlist explícita. Nunca use `origin: "*"` com `credentials: true`.
+- Endpoints sensíveis como login, registro, reset, webhooks e rotas de alto abuso devem
+  manter rate limiting apropriado.
+- Password hashing deve usar bcrypt, Argon2 ou scrypt. Nunca use MD5, SHA-1 ou SHA-256
+  puro para senha.
+
+## 7. Performance, Acessibilidade e Operação
+
+- Mudanças em superfícies públicas não devem degradar LCP, TBT ou CLS de forma perceptível.
+- Preserve lazy loading, chunking, preload intencional e a estratégia de shell/boot da
+  experiência pública.
+- Não introduza bibliotecas pesadas, renderizações redundantes, recomputações caras ou
+  fetches em cascata sem necessidade.
+- Se tocar home, projetos, leitura, PWA ou dashboards pesados, considere os scripts
+  Lighthouse relevantes e o baseline em `reports/perf/public-surface-baseline.json`.
+- Health, readiness, liveness e metrics não podem ser quebrados por mudanças de código,
+  infra ou configuração.
+- Jobs, scripts, webhooks e integrações devem ser idempotentes quando a operação puder ser
+  repetida.
+- Não remova telemetria, eventos operacionais, logs úteis ou sinais de saúde sem substituir
+  por algo equivalente ou melhor.
+
+## 8. Arquivos Gerados e Áreas a Evitar
+
+Evite editar manualmente ou incluir em diffs sem necessidade:
+
+- `node_modules/`
+- `dist/`, `dev-dist/`, `.vite/`, `.cache/`, coverage e artefatos de build
+- `.lighthouse/` e relatórios gerados, exceto o baseline versionado permitido
+- `reports/*`, exceto `reports/perf/public-surface-baseline.json`
+- `public/uploads/`
+- `server/data/`, exceto exemplos versionados
+- `backups/` e `ops/postgres/backups/`
+- `.claude/worktrees/`, `.claude/settings.local.json`, `.openclaude/`, `.kiro/`,
+  `.agents/`, `skills-lock.json`, `scratch-*`, `tmp/` e arquivos locais de ferramenta
+- `package-lock.json`, salvo quando a mudança em dependências realmente exigir atualização
+
+Antes de tocar migrations, scripts operacionais, uploads, autenticação, permissões,
+cookies, CSP/CORS, webhooks ou schema Prisma, leia o fluxo existente e valide rollback e
+impacto operacional.
+
+## 9. Validação Mínima por Tipo de Mudança
+
+- Documentação: verifique consistência com arquivos reais, comandos reais e paths citados.
+  O `biome.json` atual ignora arquivos Markdown quando caminhos específicos são passados,
+  então revise o diff diretamente e use `git diff --check` para problemas básicos de
+  whitespace.
+- UI isolada: rode `npm run lint`, `npm run typecheck` e `npm run test`; rode
+  `npm run test:a11y` se tocar interação, foco, semântica, teclado ou contraste.
+- Superfície pública/performance: rode `npm run build` quando houver risco de regressão de
+  build, chunking ou hidratação; considere os comandos Lighthouse aplicáveis.
+- API, auth e permissões: rode `npm run lint`, `npm run typecheck` e `npm run test`; se
+  houver impacto de runtime/disponibilidade, valide health e smoke.
+- Banco/migrations/scripts operacionais: valide migração, compatibilidade de dados,
+  rollback e documentação/runbooks afetados.
+- Uploads/storage/webhooks/ativos remotos: rode os checks específicos já existentes para
+  integridade, sync, health ou smoke conforme a área.
+
+## 10. Critérios de Done para Futuras Sessões Codex
+
+Uma tarefa só está pronta quando:
+
+- O pedido do usuário foi atendido dentro do escopo combinado.
+- O diff é pequeno, revisado e não contém mudanças comportamentais acidentais.
+- Contratos públicos, segurança, auth/ownership, acessibilidade, performance e operação
+  foram preservados ou explicitamente tratados.
+- Testes foram adicionados/atualizados quando o risco ou a mudança de comportamento
+  justificou.
+- Os comandos relevantes foram executados, ou a impossibilidade foi registrada com motivo
+  concreto.
+- Documentação/runbooks foram atualizados quando a mudança alterou setup, operação,
+  comandos, env vars, contratos ou fluxos importantes.
+- Arquivos gerados, segredos e artefatos locais foram mantidos fora do diff.
+- A resposta final lista arquivos alterados, verificações executadas, resultados,
+  blockers/unknowns e follow-up recomendado quando houver.
+
+## 11. Referências Internas
+
+- `README.md`: arquitetura, setup, env vars, deploy, operação, backup/restore,
+  troubleshooting e referência rápida de comandos.
 - `CODE_STYLE.md`: estilo, nomenclatura e convenções de implementação.
-- `SECURITY.md`: política de reporte responsável.
-- Evite duplicar listas grandes de comandos ou walkthroughs completos neste arquivo; prefira referências curtas e precisas aos documentos fonte.
-- Quando uma mudança alterar um fluxo importante, atualize a documentação correspondente no mesmo conjunto de trabalho.
-- Se um documento estiver desatualizado em relação ao código, corrija a divergência em vez de empilhar exceções tácitas.
+- `CONTRIBUTING.md`: fluxo de contribuição e checklist de PR.
+- `SECURITY.md`: política de segurança e reporte.
+- `docs/SCHEMA.md`: referência de schema.
+- `docs/DB_MIGRATION_RUNBOOK.md`: operação de migração de dados.
+- `docs/public-performance.md`, `docs/lighthouse-home-mobile.md` e
+  `docs/lighthouse-dashboard-desktop.md`: auditoria de performance.
+- `docs/wcag-2.2-aa-audit-matrix.md`: auditoria de acessibilidade.
+- `ops/postgres/README.md`: stack PostgreSQL self-hosted.
+- `ops/staging/parity-checklist.md`: paridade de staging.
+- `ops/runbooks/`: runbooks de incidentes.

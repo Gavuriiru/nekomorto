@@ -1211,6 +1211,13 @@ COMPOSE_FILE=/srv/nekomorto/docker-compose.prod.yml ENV_FILE=/srv/nekomorto/.env
 
 ## 14. Documentacao Complementar
 
+Orientacao para contribuidores e agentes:
+
+- `AGENTS.md`
+- `CODE_STYLE.md`
+- `CONTRIBUTING.md`
+- `SECURITY.md`
+
 Arquitetura e dados:
 
 - `docs/SCHEMA.md`

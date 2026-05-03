@@ -31,13 +31,15 @@ Obrigado por se interessar em contribuir para o Nekomorto! Este guia ajudará vo
 Usamos o **Biome** para manter a qualidade e consistência do código. Para detalhes sobre convenções de nomenclatura, estrutura de componentes e padrões de projeto, consulte nosso [Guia de Estilo de Código](CODE_STYLE.md).
 
 - Verificar lint: `npm run lint`
+- Verificar formatação sem alterar arquivos: `npm run format:check`
 - Formatar código: `npm run format`
+- Verificar tipos: `npm run typecheck`
 
 **Importante**: Antes de enviar um Pull Request, certifique-se de que seu código foi formatado corretamente.
 
 ### Testes
 Sempre execute os testes antes de enviar mudanças:
-- Rodar todos os testes: `npm test`
+- Rodar todos os testes: `npm run test`
 - Rodar testes em watch mode: `npm run test:watch`
 - Testes de acessibilidade: `npm run test:a11y`
 
@@ -55,7 +57,6 @@ Ao abrir um PR, descreva claramente:
 - Qual problema está sendo resolvido.
 - Quais mudanças foram feitas.
 - Como o revisor pode testar as alterações.
+- Quais comandos de verificação foram executados e seus resultados.
 
 ---
-
-Agradecemos imensamente por ajudar a tornar o Nekomorto melhor! 🐱💀

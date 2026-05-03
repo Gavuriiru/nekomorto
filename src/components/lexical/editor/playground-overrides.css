@@ -221,6 +221,10 @@
   isolation: isolate;
 }
 
+.chapter-editor-content-shell {
+  overflow: visible;
+}
+
 .post-editor-lexical-wrapper
   .lexical-playground.lexical-playground--post-editor-top-flush
   .editor-shell {
@@ -230,6 +234,12 @@
 .post-editor-lexical-wrapper .lexical-playground.lexical-playground--post-editor .toolbar {
   position: sticky;
   top: var(--post-editor-toolbar-sticky-top, 0px);
+  z-index: 19;
+}
+
+.chapter-editor-lexical-wrapper .lexical-playground.lexical-playground--chapter-editor .toolbar {
+  position: sticky;
+  top: var(--chapter-editor-toolbar-sticky-top, 0px);
   z-index: 19;
 }
 

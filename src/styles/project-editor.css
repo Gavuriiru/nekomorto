@@ -27,6 +27,13 @@
     overscroll-behavior: contain;
   }
 
+  body:has(.chapter-editor-lexical-wrapper)
+    .min-h-screen.overflow-x-hidden.bg-background.text-foreground,
+  body:has(.chapter-editor-lexical-wrapper) #dashboard-main-content {
+    overflow-x: clip !important;
+    overflow-y: visible !important;
+  }
+
   .project-editor-top {
     overflow: hidden;
     overflow: clip;
