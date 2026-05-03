@@ -357,8 +357,8 @@ export const useDashboardProjectsEditorPersistence = ({
     } catch (error) {
       logProjectSaveFailure(error);
       toast({
-        title: "N\u00E3o foi poss\u00EDvel salvar o projeto",
-        description: "A solicita\u00E7\u00E3o falhou antes de receber uma resposta do servidor.",
+        title: "Não foi possível salvar o projeto",
+        description: "A solicitação falhou antes de receber uma resposta do servidor.",
         variant: "destructive",
       });
     }
