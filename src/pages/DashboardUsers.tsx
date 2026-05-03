@@ -72,6 +72,7 @@ import {
   Palette,
   PenTool,
   Play,
+  ShieldOff,
   Sparkles,
   Trash2,
   UserRound,
@@ -3120,42 +3121,40 @@ const DashboardUsers = () => {
                   ) : null}
                 </Accordion>
               </div>
-              <div className="project-editor-footer sticky bottom-0 z-20 flex flex-col gap-3 border-t border-border/60 bg-background/95 px-4 py-3 backdrop-blur-sm supports-backdrop-filter:bg-background/80 md:flex-row md:items-center md:justify-between md:px-6 md:py-3 lg:px-8">
-                <div className="flex flex-wrap items-center gap-2">
-                  {editingUser && canResetManagedUserTotp ? (
-                    <DashboardActionButton
-                      size="sm"
-                      tone="destructive"
-                      onClick={() => setResetMfaTarget(editingUser)}
-                      disabled={isResettingMfa}
-                    >
-                      Redefinir V2F
-                    </DashboardActionButton>
-                  ) : null}
-                  {editingUser ? (
-                    <DashboardActionButton
-                      size="sm"
-                      tone="destructive"
-                      onClick={() => setDeleteTarget(editingUser)}
-                      disabled={
-                        !canManageUsers ||
-                        isPrimaryOwnerRecord ||
-                        editingUser.id === currentUser?.id ||
-                        (isOwnerRecord && !canManageOwners)
-                      }
-                    >
-                      Excluir
-                    </DashboardActionButton>
-                  ) : null}
-                </div>
-                <div className="flex flex-wrap items-center justify-end gap-2 md:ml-auto">
-                  <DashboardActionButton size="sm" onClick={() => handleEditorOpenChange(false)}>
-                    Cancelar
+              <div className="project-editor-footer sticky bottom-0 z-20 flex items-center justify-end gap-2 border-t border-border/60 bg-background/95 px-4 py-3 backdrop-blur-sm supports-backdrop-filter:bg-background/80 md:px-6 md:py-3 lg:px-8">
+                {editingUser && canResetManagedUserTotp ? (
+                  <DashboardActionButton
+                    size="icon"
+                    tone="destructive"
+                    onClick={() => setResetMfaTarget(editingUser)}
+                    disabled={isResettingMfa}
+                    aria-label="Redefinir V2F"
+                  >
+                    <ShieldOff className="h-4 w-4" />
                   </DashboardActionButton>
-                  <DashboardActionButton size="sm" tone="primary" onClick={handleSave}>
-                    Salvar
+                ) : null}
+                {editingUser ? (
+                  <DashboardActionButton
+                    size="icon"
+                    tone="destructive"
+                    onClick={() => setDeleteTarget(editingUser)}
+                    disabled={
+                      !canManageUsers ||
+                      isPrimaryOwnerRecord ||
+                      editingUser.id === currentUser?.id ||
+                      (isOwnerRecord && !canManageOwners)
+                    }
+                    aria-label="Excluir usuário"
+                  >
+                    <Trash2 className="h-4 w-4" />
                   </DashboardActionButton>
-                </div>
+                ) : null}
+                <DashboardActionButton size="sm" onClick={() => handleEditorOpenChange(false)}>
+                  Cancelar
+                </DashboardActionButton>
+                <DashboardActionButton size="sm" tone="primary" onClick={handleSave}>
+                  Salvar
+                </DashboardActionButton>
               </div>
             </div>
           </div>

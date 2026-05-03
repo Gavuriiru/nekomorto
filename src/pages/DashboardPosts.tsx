@@ -2114,98 +2114,85 @@ const DashboardPosts = () => {
                             <ProjectEmbedCard projectId={formState.projectId} />
                           ) : null}
                         </div>
-                        <div className="project-editor-footer sticky bottom-0 z-20 grid min-w-0 grid-cols-2 gap-2 border-t border-border/60 bg-background/95 px-4 py-2 backdrop-blur-sm supports-backdrop-filter:bg-background/80 sm:flex sm:items-center sm:justify-between md:px-6 md:py-2.5 lg:px-8">
-                          <div className="contents sm:flex sm:min-w-0 sm:flex-wrap sm:items-center sm:gap-2">
-                            {editingPostHasRestorableHistory ? (
-                              <DashboardActionButton
-                                size="sm"
-                                onClick={() => void openVersionHistory()}
-                              >
-                                Histórico
-                              </DashboardActionButton>
-                            ) : null}
-                            {editingPost ? (
-                              <DashboardActionButton
-                                size="sm"
-                                tone="destructive"
-                                onClick={handleDelete}
-                              >
-                                Excluir
-                              </DashboardActionButton>
-                            ) : null}
-                          </div>
-                          <div className="contents sm:flex sm:min-w-0 sm:flex-wrap sm:items-center sm:justify-end sm:gap-2">
-                            <div className="contents sm:flex sm:flex-wrap sm:items-center sm:gap-2">
-                            {editorPublicHref ? (
-                              <DashboardActionButton
-                                type="button"
-                                size="sm"
-                                className="h-9 min-h-10 gap-2 px-3 sm:min-h-9 sm:w-10 sm:gap-0 sm:px-0 md:w-auto md:gap-2 md:px-4"
-                                asChild
-                              >
-                                <Link target="_blank" rel="noreferrer" to={editorPublicHref}>
-                                  <Eye className="h-4 w-4" aria-hidden="true" />
-                                  <span className="sr-only md:not-sr-only">Visualizar página</span>
-                                </Link>
-                              </DashboardActionButton>
-                            ) : null}
+                        <div className="project-editor-footer sticky bottom-0 z-20 flex items-center justify-end gap-2 border-t border-border/60 bg-background/95 px-4 py-3 backdrop-blur-sm supports-backdrop-filter:bg-background/80 md:px-6 md:py-3 lg:px-8">
+                          {editingPostHasRestorableHistory ? (
                             <DashboardActionButton
                               size="sm"
-                              className="h-9 min-h-10 sm:min-h-9"
-                              onClick={requestCloseEditor}
+                              onClick={() => void openVersionHistory()}
                             >
-                              Cancelar
+                              Histórico
                             </DashboardActionButton>
-                            </div>
-                            {editingPost ? (
-                              <>
+                          ) : null}
+                          {editorPublicHref ? (
+                            <DashboardActionButton
+                              type="button"
+                              size="icon"
+                              asChild
+                            >
+                              <Link target="_blank" rel="noreferrer" to={editorPublicHref}>
+                                <Eye className="h-4 w-4" aria-hidden="true" />
+                              </Link>
+                            </DashboardActionButton>
+                          ) : null}
+                          {editingPost ? (
+                            <DashboardActionButton
+                              size="icon"
+                              tone="destructive"
+                              onClick={handleDelete}
+                              aria-label="Excluir postagem"
+                            >
+                              <Trash2 className="h-4 w-4" />
+                            </DashboardActionButton>
+                          ) : null}
+                          <DashboardActionButton
+                            size="sm"
+                            onClick={requestCloseEditor}
+                          >
+                            Cancelar
+                          </DashboardActionButton>
+                          {editingPost ? (
+                            <>
+                              <DashboardActionButton
+                                size="sm"
+                                tone="primary"
+                                onClick={() => handleSave()}
+                              >
+                                Salvar
+                              </DashboardActionButton>
+                              {formState.status === "draft" ? (
                                 <DashboardActionButton
                                   size="sm"
                                   tone="primary"
-                                  className="h-9 min-h-10 sm:min-h-9"
-                                  onClick={() => handleSave()}
-                                >
-                                  Salvar
-                                </DashboardActionButton>
-                                {formState.status === "draft" ? (
-                                  <DashboardActionButton
-                                    size="sm"
-                                    tone="primary"
-                                    className="h-9 min-h-10 sm:min-h-9"
-                                    onClick={() => handleSave("published")}
-                                  >
-                                    Publicar agora
-                                  </DashboardActionButton>
-                                ) : null}
-                              </>
-                            ) : (
-                              <>
-                                <DashboardActionButton
-                                  size="sm"
-                                  className="h-9 min-h-10 sm:min-h-9"
-                                  onClick={() => handleSave("draft")}
-                                >
-                                  Salvar rascunho
-                                </DashboardActionButton>
-                                <DashboardActionButton
-                                  size="sm"
-                                  tone="primary"
-                                  className="h-9 min-h-10 sm:min-h-9"
-                                  onClick={() => handleSave("scheduled")}
-                                >
-                                  Agendar
-                                </DashboardActionButton>
-                                <DashboardActionButton
-                                  size="sm"
-                                  tone="primary"
-                                  className="h-9 min-h-10 sm:min-h-9"
                                   onClick={() => handleSave("published")}
                                 >
                                   Publicar agora
                                 </DashboardActionButton>
-                              </>
-                            )}
-                          </div>
+                              ) : null}
+                            </>
+                          ) : (
+                            <>
+                              <DashboardActionButton
+                                size="sm"
+                                onClick={() => handleSave("draft")}
+                              >
+                                Salvar rascunho
+                              </DashboardActionButton>
+                              <DashboardActionButton
+                                size="sm"
+                                tone="primary"
+                                onClick={() => handleSave("scheduled")}
+                              >
+                                Agendar
+                              </DashboardActionButton>
+                              <DashboardActionButton
+                                size="sm"
+                                tone="primary"
+                                onClick={() => handleSave("published")}
+                              >
+                                Publicar agora
+                              </DashboardActionButton>
+                            </>
+                          )}
                         </div>
                       </div>
                     </div>
