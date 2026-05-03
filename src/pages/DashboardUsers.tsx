@@ -1355,7 +1355,7 @@ const DashboardUsers = () => {
     formatSecurityDateTime(value);
 
   const renderConnectedAccountsCard = () => (
-    <div className={`space-y-3 rounded-2xl p-3 ${subtleInsetSurfaceClassName}`}>
+    <div className={`space-y-3 rounded-xl p-2.5 sm:rounded-2xl sm:p-3 ${subtleInsetSurfaceClassName}`}>
       <div className="space-y-1">
         <p className="text-sm font-medium">Métodos de acesso</p>
         <p className="text-xs text-muted-foreground">
@@ -1370,7 +1370,7 @@ const DashboardUsers = () => {
           return (
             <div
               key={provider}
-              className={`flex flex-wrap items-center justify-between gap-3 rounded-xl p-3 ${subtleMutedSurfaceClassName}`}
+              className={`flex flex-wrap min-w-0 items-center justify-between gap-2 rounded-xl p-2.5 sm:p-3 ${subtleMutedSurfaceClassName}`}
             >
               <div className="space-y-1">
                 <div className="flex items-center gap-2">
@@ -2240,8 +2240,8 @@ const DashboardUsers = () => {
           style={
             isMobile
               ? {
-                  width: "calc(100vw - 3rem)",
-                  maxWidth: "300px",
+                  width: "95vw",
+                  maxWidth: "500px",
                 }
               : undefined
           }
@@ -2665,8 +2665,8 @@ const DashboardUsers = () => {
                         />
                       </AccordionTrigger>
                       <AccordionContent className={editorSectionContentClassName}>
-                        <div className={`grid gap-3 rounded-2xl p-4 ${subtleSurfaceClassName}`}>
-                          <div className="flex flex-wrap items-center justify-between gap-2">
+                        <div className={`grid gap-2.5 rounded-xl p-3 sm:rounded-2xl sm:p-4 ${subtleSurfaceClassName}`}>
+                          <div className="flex flex-wrap min-w-0 items-center justify-between gap-2">
                             <div className="space-y-1">
                               <Label className="text-sm font-medium">Segurança da conta</Label>
                               <p className="text-xs text-muted-foreground">
@@ -2697,7 +2697,7 @@ const DashboardUsers = () => {
 
                           {!securitySummary?.totpEnabled ? (
                             <div
-                              className={`space-y-3 rounded-2xl p-3 ${subtleInsetSurfaceClassName}`}
+                              className={`space-y-3 rounded-xl p-2.5 sm:rounded-2xl sm:p-3 ${subtleInsetSurfaceClassName}`}
                             >
                               <DashboardActionButton
                                 size="sm"
@@ -2729,15 +2729,15 @@ const DashboardUsers = () => {
                                         editingUser?.id}
                                     </p>
                                   </div>
-                                  <div className="flex flex-wrap gap-4">
+                                  <div className="flex flex-col gap-4 sm:flex-row">
                                     {securityQrDataUrl ? (
                                       <img
                                         src={securityQrDataUrl}
                                         alt="QR code para configurar V2F"
-                                        className="h-48 w-48 rounded-xl border border-border/60 bg-white p-2"
+                                        className="h-40 w-40 shrink-0 sm:h-48 sm:w-48 rounded-xl border border-border/60 bg-white p-2"
                                       />
                                     ) : (
-                                      <div className="flex h-48 w-48 items-center justify-center rounded-xl border border-dashed border-border/60 text-xs text-muted-foreground">
+                                      <div className="flex h-40 w-40 shrink-0 sm:h-48 sm:w-48 items-center justify-center rounded-xl border border-dashed border-border/60 text-xs text-muted-foreground">
                                         Gerando QR...
                                       </div>
                                     )}
@@ -2814,7 +2814,7 @@ const DashboardUsers = () => {
                             </div>
                           ) : (
                             <div
-                              className={`space-y-2 rounded-2xl p-3 ${subtleInsetSurfaceClassName}`}
+                              className={`space-y-2 rounded-xl p-2.5 sm:rounded-2xl sm:p-3 ${subtleInsetSurfaceClassName}`}
                             >
                               <Input
                                 value={securityDisableCode}
@@ -2833,7 +2833,7 @@ const DashboardUsers = () => {
                           )}
 
                           {securityRecoveryCodes.length > 0 ? (
-                            <div className="space-y-2 rounded-2xl border border-amber-500/30 bg-amber-500/10 p-3">
+                            <div className="space-y-2 rounded-xl p-2.5 sm:rounded-2xl sm:p-3 border border-amber-500/30 bg-amber-500/10">
                               <p className="text-xs font-medium">
                                 Salve estes códigos de recuperação agora:
                               </p>
@@ -2848,9 +2848,9 @@ const DashboardUsers = () => {
                           ) : null}
 
                           <div
-                            className={`space-y-2 rounded-2xl p-3 ${subtleInsetSurfaceClassName}`}
+                            className={`space-y-2 rounded-xl p-2.5 sm:rounded-2xl sm:p-3 ${subtleInsetSurfaceClassName}`}
                           >
-                            <div className="flex items-center justify-between gap-2">
+                            <div className="flex min-w-0 items-center justify-between gap-2">
                               <p className="text-sm font-medium">Sessões ativas</p>
                               <DashboardActionButton
                                 size="sm"
@@ -2874,7 +2874,7 @@ const DashboardUsers = () => {
                                     key={`dashboard-users-security-loading-${index}`}
                                     className={`rounded-xl p-2 ${subtleMutedSurfaceClassName}`}
                                   >
-                                    <div className="flex flex-wrap items-start justify-between gap-2">
+                                    <div className="flex flex-col min-w-0 sm:flex-row sm:items-start sm:justify-between gap-2">
                                       <div className="space-y-2">
                                         <Skeleton className="h-3 w-24" />
                                         <Skeleton className="h-3 w-36" />
@@ -2892,10 +2892,10 @@ const DashboardUsers = () => {
                                 {securitySessions.map((session) => (
                                   <div
                                     key={session.sid}
-                                    className={`flex flex-wrap items-start justify-between gap-2 rounded-xl p-2 ${subtleMutedSurfaceClassName}`}
+                                    className={`flex flex-col sm:flex-row sm:items-start sm:justify-between gap-2 rounded-xl p-2 ${subtleMutedSurfaceClassName}`}
                                   >
                                     <div className="space-y-1">
-                                      <div className="flex flex-wrap items-center gap-2">
+                          <div className="flex flex-wrap min-w-0 items-center gap-2">
                                         <p className="text-xs font-medium">
                                           {isCurrentSecuritySession(session)
                                             ? "Sessão atual"
@@ -2918,7 +2918,7 @@ const DashboardUsers = () => {
                                       <p className="text-[11px] text-muted-foreground">
                                         IP: {session.lastIp || "-"}
                                       </p>
-                                      <p className="max-w-[360px] truncate text-[11px] text-muted-foreground">
+                                        <p className="max-w-[180px] truncate text-[11px] text-muted-foreground sm:max-w-[360px]">
                                         {session.userAgent || "-"}
                                       </p>
                                     </div>
@@ -3120,7 +3120,7 @@ const DashboardUsers = () => {
                   ) : null}
                 </Accordion>
               </div>
-              <div className="project-editor-footer sticky bottom-0 z-20 flex flex-col gap-3 border-t border-border/60 bg-background/95 px-4 py-2 backdrop-blur-sm supports-backdrop-filter:bg-background/80 md:flex-row md:items-center md:justify-between md:px-6 md:py-2.5 lg:px-8">
+              <div className="project-editor-footer sticky bottom-0 z-20 flex flex-col gap-3 border-t border-border/60 bg-background/95 px-4 py-3 backdrop-blur-sm supports-backdrop-filter:bg-background/80 md:flex-row md:items-center md:justify-between md:px-6 md:py-3 lg:px-8">
                 <div className="flex flex-wrap items-center gap-2">
                   {editingUser && canResetManagedUserTotp ? (
                     <DashboardActionButton
@@ -3148,7 +3148,7 @@ const DashboardUsers = () => {
                     </DashboardActionButton>
                   ) : null}
                 </div>
-                <div className="flex flex-wrap items-center justify-end gap-2">
+                <div className="flex flex-wrap items-center justify-end gap-2 md:ml-auto">
                   <DashboardActionButton size="sm" onClick={() => handleEditorOpenChange(false)}>
                     Cancelar
                   </DashboardActionButton>
