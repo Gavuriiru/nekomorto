@@ -221,26 +221,39 @@ describe("DashboardProjectsEditor card layout", () => {
       ]),
     );
     expect(coverShell).not.toBeNull();
-    expect(classTokens(coverShell)).toEqual(
-      expect.arrayContaining(["flex", "justify-center", "px-4", "pt-4", "lg:block"]),
-    );
+    expect(classTokens(coverShell)).toEqual(expect.arrayContaining(["flex", "lg:block"]));
+    expect(classTokens(coverShell)).not.toContain("justify-center");
+    expect(classTokens(coverShell)).not.toContain("px-4");
+    expect(classTokens(coverShell)).not.toContain("pt-4");
     expect(cover).not.toBeNull();
     expect(cover).toHaveStyle({ aspectRatio: "9 / 14" });
     expect(classTokens(cover)).toEqual(
       expect.arrayContaining([
-        "w-[180px]",
-        "max-w-full",
+        "h-auto",
+        "shrink-0",
+        "w-full",
         "overflow-hidden",
         "lg:h-full",
         "lg:w-full",
       ]),
     );
+    expect(classTokens(cover)).not.toContain("max-w-[280px]");
+    expect(classTokens(cover)).not.toContain("w-[180px]");
     expect(classTokens(cover)).not.toContain("h-52");
-    expect(classTokens(cover)).not.toContain("w-full");
+    expect(classTokens(cover)).not.toContain("w-[clamp(170px,62vw,220px)]");
     const coverImage = within(cover as HTMLElement).getByRole("img", { name: "Oshi no Ko" });
     expect(coverImage).toBeInTheDocument();
     expect(classTokens(coverImage)).toEqual(
-      expect.arrayContaining(["transition-transform", "duration-300", "group-hover:scale-105"]),
+      expect.arrayContaining([
+        "absolute",
+        "inset-0",
+        "h-full",
+        "w-full",
+        "object-cover",
+        "transition-transform",
+        "duration-300",
+        "group-hover:scale-105",
+      ]),
     );
     expect(content).not.toBeNull();
     expect(classTokens(content)).toEqual(

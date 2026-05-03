@@ -1689,504 +1689,523 @@ const DashboardPosts = () => {
                     }
                   }}
                 >
-                  <div
-                    className="project-editor-scroll-shell overflow-y-auto no-scrollbar"
-                    onScroll={(event) => {
-                      const nextScrolled = event.currentTarget.scrollTop > 0;
-                      setIsEditorDialogScrolled((prev) =>
-                        prev === nextScrolled ? prev : nextScrolled,
-                      );
-                    }}
-                  >
+                  <div className="project-editor-modal-frame flex max-h-[min(90vh,calc(100dvh-1.5rem))] min-h-0 flex-col">
                     <div
-                      ref={setEditorTopElement}
-                      className="project-editor-top sticky top-0 z-20 border-b border-border/60 bg-background/95 backdrop-blur-sm supports-backdrop-filter:bg-background/80"
-                    >
-                      <DialogHeader className="space-y-0 px-4 pb-2.5 pt-3.5 text-left md:px-6 lg:px-8">
-                        <div className="flex flex-wrap items-start justify-between gap-4">
-                          <div className="space-y-2">
-                            <div className="flex flex-wrap items-center gap-2">
-                              <Badge
-                                variant="secondary"
-                                className="text-[10px] uppercase tracking-[0.12em]"
-                              >
-                                {editorPostLabel}
-                              </Badge>
-                              <Badge
-                                variant="outline"
-                                className="text-[10px] uppercase tracking-[0.12em]"
-                              >
-                                {editorStatusLabel}
-                              </Badge>
-                            </div>
-                            <DialogTitle className="text-xl md:text-2xl">
-                              {editingPost ? "Editar postagem" : "Nova postagem"}
-                            </DialogTitle>
-                            <DialogDescription className="max-w-2xl text-xs md:text-sm">
-                              Crie, edite e publique conteúdos sem sair da listagem.
-                            </DialogDescription>
-                          </div>
-                          <div
-                            className={`rounded-xl px-3 py-1.5 text-right ${subtleSummarySurfaceClassName}`}
-                          >
-                            <p className="text-[11px] uppercase tracking-[0.12em] text-muted-foreground">
-                              Postagem
-                            </p>
-                            <p className="max-w-[260px] truncate text-sm font-medium text-foreground">
-                              {editorPostTitle}
-                            </p>
-                            <p className="max-w-[260px] truncate text-[11px] text-muted-foreground">
-                              {editorPostSlug}
-                            </p>
-                          </div>
-                        </div>
-                      </DialogHeader>
-                      <div className="project-editor-status-bar flex flex-wrap items-center gap-2 border-t border-border/60 px-4 py-1.5 md:px-6 lg:px-8">
-                        <Badge
-                          variant="outline"
-                          className="text-[10px] uppercase tracking-[0.12em]"
-                        >
-                          ID {editorPostId}
-                        </Badge>
-                        <Badge
-                          variant="secondary"
-                          className="text-[10px] uppercase tracking-[0.12em]"
-                        >
-                          {editorStatusLabel}
-                        </Badge>
-                        <Badge
-                          variant="secondary"
-                          className="text-[10px] uppercase tracking-[0.12em]"
-                        >
-                          {editorAuthorLabel}
-                        </Badge>
-                        <span className="max-w-[280px] truncate text-[11px] text-muted-foreground">
-                          {editorProjectLabel}
-                        </span>
-                        <span className="text-[11px] text-muted-foreground">
-                          {editorTagSummary}
-                        </span>
-                      </div>
-                    </div>
-                    <div
-                      onFocusCapture={(event) => {
-                        const target = event.target as HTMLElement | null;
-                        if (target?.closest(".lexical-playground")) {
-                          return;
-                        }
-                        editorRef.current?.blur();
+                      className="project-editor-scroll-shell flex-1 overflow-y-auto no-scrollbar"
+                      onScroll={(event) => {
+                        const nextScrolled = event.currentTarget.scrollTop > 0;
+                        setIsEditorDialogScrolled((prev) =>
+                          prev === nextScrolled ? prev : nextScrolled,
+                        );
                       }}
                     >
-                      <div className="project-editor-layout space-y-4 px-4 pb-4 pt-2.5 md:px-6 md:pb-5 lg:px-8">
-                        <div className="grid gap-3.5 xl:grid-cols-[minmax(0,1.65fr)_minmax(340px,0.95fr)]">
-                          <section
-                            className={`${editorSectionClassName} min-w-0`}
-                            data-state="open"
-                          >
-                            <div className={editorSectionHeaderClassName}>
-                              <PostEditorSectionHeader
-                                title="Conteúdo"
-                                subtitle="Texto principal do post"
-                              />
-                            </div>
-                            <div className={editorSectionContentClassName}>
-                              <div
-                                className="post-editor-lexical-wrapper min-w-0"
-                                style={postEditorLexicalWrapperStyle}
-                              >
-                                <LexicalEditorSurface
-                                  fallbackVariant="post"
-                                  fallbackMinHeightClassName="min-h-[460px] lg:min-h-[680px]"
-                                  ref={editorRef}
-                                  value={formState.contentLexical}
-                                  onChange={(value) =>
-                                    setFormState((prev) => ({
-                                      ...prev,
-                                      contentLexical: value,
-                                    }))
-                                  }
-                                  placeholder="Escreva o conteúdo do post..."
-                                  className="lexical-playground--modal lexical-playground--stretch lexical-playground--post-editor lexical-playground--post-editor-top-flush min-w-0 w-full"
-                                  imageLibraryOptions={postImageLibraryOptions}
-                                  autoFocus={false}
-                                  followCaretScroll
-                                />
-                              </div>
-                            </div>
-                          </section>
-
-                          <aside className="min-w-0 space-y-3.5 md:space-y-4">
-                            <section className={editorSectionClassName} data-state="open">
-                              <div className={editorSectionHeaderClassName}>
-                                <PostEditorSectionHeader
-                                  title="Publicação"
-                                  subtitle={editorStatusLabel}
-                                />
-                              </div>
-                              <div className={`${editorSectionContentClassName} space-y-4`}>
-                                <DashboardFieldStack>
-                                  <Label htmlFor="post-title">Título</Label>
-                                  <Input
-                                    id="post-title"
-                                    value={formState.title}
-                                    onChange={(event) =>
-                                      setFormState((prev) => ({
-                                        ...prev,
-                                        title: event.target.value,
-                                      }))
-                                    }
-                                  />
-                                </DashboardFieldStack>
-                                <DashboardFieldStack>
-                                  <div className="flex items-center justify-between gap-2">
-                                    <Label htmlFor="post-slug">Link</Label>
-                                    <DashboardActionButton
-                                      type="button"
-                                      size="compact"
-                                      onClick={() => setIsSlugCustom((prev) => !prev)}
-                                    >
-                                      {isSlugCustom ? "Automático" : "Personalizar"}
-                                    </DashboardActionButton>
-                                  </div>
-                                  <Input
-                                    id="post-slug"
-                                    value={formState.slug}
-                                    onChange={(event) => {
-                                      setIsSlugCustom(true);
-                                      setFormState((prev) => ({
-                                        ...prev,
-                                        slug: event.target.value,
-                                      }));
-                                    }}
-                                    disabled={!isSlugCustom}
-                                  />
-                                </DashboardFieldStack>
-                                <DashboardFieldStack>
-                                  <Label htmlFor="post-author">Autor</Label>
-                                  <Input
-                                    id="post-author"
-                                    value={formState.author}
-                                    onChange={(event) =>
-                                      setFormState((prev) => ({
-                                        ...prev,
-                                        author: event.target.value,
-                                      }))
-                                    }
-                                  />
-                                </DashboardFieldStack>
-                                <DashboardFieldStack>
-                                  <Label htmlFor="post-status">Status</Label>
-                                  <Combobox
-                                    id="post-status"
-                                    value={formState.status}
-                                    onValueChange={(value) =>
-                                      setFormState((prev) => ({
-                                        ...prev,
-                                        status: value as "draft" | "scheduled" | "published",
-                                      }))
-                                    }
-                                    ariaLabel="Selecionar status"
-                                    options={postStatusOptions}
-                                    placeholder="Selecione"
-                                    searchable={false}
-                                  />
-                                </DashboardFieldStack>
-                                <DashboardFieldStack>
-                                  <Label htmlFor="post-date">Publicação</Label>
-                                  <MuiDateTimeFieldsProvider>
-                                    <div className="grid gap-3 md:grid-cols-[minmax(0,1.2fr)_minmax(0,0.8fr)]">
-                                      <MuiBrazilDateField
-                                        id="post-date"
-                                        value={publishDateValue}
-                                        onChange={handlePublishDateChange}
-                                        className="mui-date-time-field--editor"
-                                      />
-                                      <div className="flex min-w-0 items-stretch gap-2">
-                                        <MuiBrazilTimeField
-                                          id="post-time"
-                                          value={publishTimeValue}
-                                          onChange={handlePublishTimeChange}
-                                          className="mui-date-time-field--editor flex-1"
-                                        />
-                                        <DashboardActionButton
-                                          type="button"
-                                          size="sm"
-                                          className="h-10 shrink-0 rounded-md px-3 text-[13px] md:text-sm"
-                                          onClick={handleSetNow}
-                                        >
-                                          Agora
-                                        </DashboardActionButton>
-                                      </div>
-                                    </div>
-                                  </MuiDateTimeFieldsProvider>
-                                </DashboardFieldStack>
-                              </div>
-                            </section>
-
-                            <section className={editorSectionClassName} data-state="open">
-                              <div className={editorSectionHeaderClassName}>
-                                <PostEditorSectionHeader
-                                  title="Mídia"
-                                  subtitle={editorMediaLabel}
-                                />
-                              </div>
-                              <div className={`${editorSectionContentClassName} space-y-4`}>
-                                <DashboardFieldStack>
-                                  <Label>Capa</Label>
-                                  {editorResolvedCover.coverImageUrl ? (
-                                    <div className="space-y-2">
-                                      <div
-                                        className={`overflow-hidden rounded-lg border border-border/60 bg-muted/20 ${dashboardSubtleSurfaceHoverClassName}`}
-                                      >
-                                        <UploadPicture
-                                          src={editorResolvedCover.coverImageUrl}
-                                          alt={editorResolvedCover.coverAlt}
-                                          preset="card"
-                                          mediaVariants={mediaVariants}
-                                          className="block w-full"
-                                          imgClassName="aspect-3/2 w-full object-cover"
-                                        />
-                                      </div>
-                                      <div className="flex items-center justify-between gap-2 text-xs text-muted-foreground">
-                                        <span className="min-w-0 truncate">
-                                          {editorCoverFileName || "Imagem"}
-                                        </span>
-                                        <Badge
-                                          variant={
-                                            editorResolvedCover.source === "manual"
-                                              ? "secondary"
-                                              : "outline"
-                                          }
-                                          className="shrink-0 text-[10px] uppercase"
-                                        >
-                                          {editorResolvedCover.source === "manual"
-                                            ? "Manual"
-                                            : "Automática"}
-                                        </Badge>
-                                      </div>
-                                    </div>
-                                  ) : (
-                                    <p className="text-xs text-muted-foreground">
-                                      Sem capa definida.
-                                    </p>
-                                  )}
-                                </DashboardFieldStack>
-                                <DashboardActionButton
-                                  type="button"
-                                  size="sm"
-                                  onClick={openLibrary}
+                      <div
+                        ref={setEditorTopElement}
+                        className="project-editor-top sticky top-0 z-20 border-b border-border/60 bg-background/95 backdrop-blur-sm supports-backdrop-filter:bg-background/80"
+                      >
+                        <DialogHeader className="space-y-0 px-4 pb-2.5 pt-3.5 text-left md:px-6 lg:px-8">
+                          <div className="flex flex-wrap items-start justify-between gap-4">
+                            <div className="space-y-2">
+                              <div className="flex flex-wrap items-center gap-2">
+                                <Badge
+                                  variant="secondary"
+                                  className="text-[10px] uppercase tracking-[0.12em]"
                                 >
-                                  Biblioteca
-                                </DashboardActionButton>
+                                  {editorPostLabel}
+                                </Badge>
+                                <Badge
+                                  variant="outline"
+                                  className="text-[10px] uppercase tracking-[0.12em]"
+                                >
+                                  {editorStatusLabel}
+                                </Badge>
                               </div>
-                            </section>
-
-                            <section className={editorSectionClassName} data-state="open">
+                              <DialogTitle className="text-xl md:text-2xl">
+                                {editingPost ? "Editar postagem" : "Nova postagem"}
+                              </DialogTitle>
+                              <DialogDescription className="max-w-2xl text-xs md:text-sm">
+                                Crie, edite e publique conteúdos sem sair da listagem.
+                              </DialogDescription>
+                            </div>
+                            <div
+                              className={`rounded-xl px-3 py-1.5 text-right ${subtleSummarySurfaceClassName}`}
+                            >
+                              <p className="text-[11px] uppercase tracking-[0.12em] text-muted-foreground">
+                                Postagem
+                              </p>
+                              <p className="max-w-[260px] truncate text-sm font-medium text-foreground">
+                                {editorPostTitle}
+                              </p>
+                              <p className="max-w-[260px] truncate text-[11px] text-muted-foreground">
+                                {editorPostSlug}
+                              </p>
+                            </div>
+                          </div>
+                        </DialogHeader>
+                        <div className="project-editor-status-bar flex flex-wrap items-center gap-2 border-t border-border/60 px-4 py-1.5 md:px-6 lg:px-8">
+                          <Badge
+                            variant="outline"
+                            className="text-[10px] uppercase tracking-[0.12em]"
+                          >
+                            ID {editorPostId}
+                          </Badge>
+                          <Badge
+                            variant="secondary"
+                            className="text-[10px] uppercase tracking-[0.12em]"
+                          >
+                            {editorStatusLabel}
+                          </Badge>
+                          <Badge
+                            variant="secondary"
+                            className="text-[10px] uppercase tracking-[0.12em]"
+                          >
+                            {editorAuthorLabel}
+                          </Badge>
+                          <span className="max-w-[280px] truncate text-[11px] text-muted-foreground">
+                            {editorProjectLabel}
+                          </span>
+                          <span className="text-[11px] text-muted-foreground">
+                            {editorTagSummary}
+                          </span>
+                        </div>
+                      </div>
+                      <div
+                        onFocusCapture={(event) => {
+                          const target = event.target as HTMLElement | null;
+                          if (target?.closest(".lexical-playground")) {
+                            return;
+                          }
+                          editorRef.current?.blur();
+                        }}
+                      >
+                        <div className="project-editor-layout space-y-4 px-4 pb-4 pt-2.5 md:px-6 md:pb-5 lg:px-8">
+                          <div className="grid gap-3.5 xl:grid-cols-[minmax(0,1.65fr)_minmax(340px,0.95fr)]">
+                            <section
+                              className={`${editorSectionClassName} min-w-0`}
+                              data-state="open"
+                            >
                               <div className={editorSectionHeaderClassName}>
                                 <PostEditorSectionHeader
-                                  title="Relacionamento"
-                                  subtitle={editorProjectLabel}
+                                  title="Conteúdo"
+                                  subtitle="Texto principal do post"
                                 />
                               </div>
-                              <DashboardFieldStack className={editorSectionContentClassName}>
-                                <Label>Projeto associado</Label>
-                                <Combobox
-                                  value={formState.projectId || "none"}
-                                  onValueChange={(value) =>
-                                    setFormState((prev) => ({
-                                      ...prev,
-                                      projectId: value === "none" ? "" : value,
-                                    }))
-                                  }
-                                  ariaLabel="Selecionar projeto associado"
-                                  options={[
-                                    { value: "none", label: "Nenhum" },
-                                    ...projects.map((project) => ({
-                                      value: project.id,
-                                      label: project.title,
-                                    })),
-                                  ]}
-                                  placeholder="Selecione"
-                                  searchable
-                                  searchPlaceholder="Buscar projeto"
-                                  emptyMessage="Nenhum projeto encontrado."
-                                />
-                              </DashboardFieldStack>
+                              <div className={editorSectionContentClassName}>
+                                <div
+                                  className="post-editor-lexical-wrapper min-w-0"
+                                  style={postEditorLexicalWrapperStyle}
+                                >
+                                  <LexicalEditorSurface
+                                    fallbackVariant="post"
+                                    fallbackMinHeightClassName="min-h-[460px] lg:min-h-[680px]"
+                                    ref={editorRef}
+                                    value={formState.contentLexical}
+                                    onChange={(value) =>
+                                      setFormState((prev) => ({
+                                        ...prev,
+                                        contentLexical: value,
+                                      }))
+                                    }
+                                    placeholder="Escreva o conteúdo do post..."
+                                    className="lexical-playground--modal lexical-playground--stretch lexical-playground--post-editor lexical-playground--post-editor-top-flush min-w-0 w-full"
+                                    imageLibraryOptions={postImageLibraryOptions}
+                                    autoFocus={false}
+                                    followCaretScroll
+                                  />
+                                </div>
+                              </div>
                             </section>
 
-                            <section className={editorSectionClassName} data-state="open">
-                              <div className={editorSectionHeaderClassName}>
-                                <PostEditorSectionHeader title="Tags" subtitle={editorTagSummary} />
-                              </div>
-                              <div className={`${editorSectionContentClassName} space-y-4`}>
-                                <div className="flex flex-wrap gap-2">
-                                  {mergedTags.map((tag) => {
-                                    const isProjectTag = projectTags.includes(tag);
-                                    const tagIndex = mergedTags.indexOf(tag);
-                                    const tagLabel = displayTag(tag);
-                                    const tagHint = isProjectTag
-                                      ? `Tag ${tagLabel}. Arraste para reordenar ou use Alt+Seta para mover.`
-                                      : `Tag ${tagLabel}. Clique para remover, arraste para reordenar ou use Alt+Seta para mover.`;
-                                    return (
-                                      <div key={`tag-${tag}`} className="flex items-center gap-1">
-                                        <button
-                                          type="button"
-                                          className="group cursor-grab active:cursor-grabbing"
-                                          draggable
-                                          onDragStart={() => handleTagDragStart(tag)}
-                                          onDragEnd={() => setDraggedTag(null)}
-                                          onDragOver={(event) => event.preventDefault()}
-                                          onDrop={() => handleTagDrop(tag)}
-                                          onKeyDown={(event) =>
-                                            handleTagKeyDown(event, tag, tagIndex)
-                                          }
-                                          onClick={() => {
-                                            if (!isProjectTag) {
-                                              handleRemoveTag(tag);
-                                            }
-                                          }}
-                                          title={tagHint}
-                                          aria-label={tagHint}
-                                        >
-                                          <Badge
-                                            variant={isProjectTag ? "secondary" : "outline"}
-                                            className="text-[10px] uppercase"
-                                          >
-                                            {tagLabel}
-                                            {isProjectTag ? null : (
-                                              <span className="ml-2 text-[10px] text-muted-foreground group-hover:text-foreground">
-                                                ?
-                                              </span>
-                                            )}
-                                          </Badge>
-                                        </button>
-                                      </div>
-                                    );
-                                  })}
-                                  {mergedTags.length === 0 ? (
-                                    <span className="text-xs text-muted-foreground">
-                                      Sem tags ainda.
-                                    </span>
-                                  ) : null}
-                                </div>
-                                <div className="flex flex-wrap gap-2">
-                                  <Input
-                                    ref={tagInputRef}
-                                    value={tagInput}
-                                    onChange={(event) => setTagInput(event.target.value)}
-                                    placeholder="Adicionar tag"
-                                    list="post-tag-options"
-                                    onBlur={() => {
-                                      if (tagInput.trim()) {
-                                        handleAddTag();
-                                      }
-                                    }}
-                                    onKeyDown={(event) => {
-                                      if (event.key === "Enter" || event.key === ",") {
-                                        event.preventDefault();
-                                        handleAddTag();
-                                      }
-                                    }}
+                            <aside className="min-w-0 space-y-3.5 md:space-y-4">
+                              <section className={editorSectionClassName} data-state="open">
+                                <div className={editorSectionHeaderClassName}>
+                                  <PostEditorSectionHeader
+                                    title="Publicação"
+                                    subtitle={editorStatusLabel}
                                   />
-                                  <datalist id="post-tag-options">
-                                    {availableTags.map((tag) => (
-                                      <option key={tag} value={tag} />
-                                    ))}
-                                  </datalist>
+                                </div>
+                                <div className={`${editorSectionContentClassName} space-y-4`}>
+                                  <DashboardFieldStack>
+                                    <Label htmlFor="post-title">Título</Label>
+                                    <Input
+                                      id="post-title"
+                                      value={formState.title}
+                                      onChange={(event) =>
+                                        setFormState((prev) => ({
+                                          ...prev,
+                                          title: event.target.value,
+                                        }))
+                                      }
+                                    />
+                                  </DashboardFieldStack>
+                                  <DashboardFieldStack>
+                                    <div className="flex items-center justify-between gap-2">
+                                      <Label htmlFor="post-slug">Link</Label>
+                                      <DashboardActionButton
+                                        type="button"
+                                        size="compact"
+                                        onClick={() => setIsSlugCustom((prev) => !prev)}
+                                      >
+                                        {isSlugCustom ? "Automático" : "Personalizar"}
+                                      </DashboardActionButton>
+                                    </div>
+                                    <Input
+                                      id="post-slug"
+                                      value={formState.slug}
+                                      onChange={(event) => {
+                                        setIsSlugCustom(true);
+                                        setFormState((prev) => ({
+                                          ...prev,
+                                          slug: event.target.value,
+                                        }));
+                                      }}
+                                      disabled={!isSlugCustom}
+                                    />
+                                  </DashboardFieldStack>
+                                  <DashboardFieldStack>
+                                    <Label htmlFor="post-author">Autor</Label>
+                                    <Input
+                                      id="post-author"
+                                      value={formState.author}
+                                      onChange={(event) =>
+                                        setFormState((prev) => ({
+                                          ...prev,
+                                          author: event.target.value,
+                                        }))
+                                      }
+                                    />
+                                  </DashboardFieldStack>
+                                  <DashboardFieldStack>
+                                    <Label htmlFor="post-status">Status</Label>
+                                    <Combobox
+                                      id="post-status"
+                                      value={formState.status}
+                                      onValueChange={(value) =>
+                                        setFormState((prev) => ({
+                                          ...prev,
+                                          status: value as "draft" | "scheduled" | "published",
+                                        }))
+                                      }
+                                      ariaLabel="Selecionar status"
+                                      options={postStatusOptions}
+                                      placeholder="Selecione"
+                                      searchable={false}
+                                    />
+                                  </DashboardFieldStack>
+                                  <DashboardFieldStack>
+                                    <Label htmlFor="post-date">Publicação</Label>
+                                    <MuiDateTimeFieldsProvider>
+                                      <div className="grid gap-3 md:grid-cols-[minmax(0,1.2fr)_minmax(0,0.8fr)]">
+                                        <MuiBrazilDateField
+                                          id="post-date"
+                                          value={publishDateValue}
+                                          onChange={handlePublishDateChange}
+                                          className="mui-date-time-field--editor"
+                                        />
+                                        <div className="flex min-w-0 items-stretch gap-2">
+                                          <MuiBrazilTimeField
+                                            id="post-time"
+                                            value={publishTimeValue}
+                                            onChange={handlePublishTimeChange}
+                                            className="mui-date-time-field--editor flex-1"
+                                          />
+                                          <DashboardActionButton
+                                            type="button"
+                                            size="sm"
+                                            className="h-10 shrink-0 rounded-md px-3 text-[13px] md:text-sm"
+                                            onClick={handleSetNow}
+                                          >
+                                            Agora
+                                          </DashboardActionButton>
+                                        </div>
+                                      </div>
+                                    </MuiDateTimeFieldsProvider>
+                                  </DashboardFieldStack>
+                                </div>
+                              </section>
+
+                              <section className={editorSectionClassName} data-state="open">
+                                <div className={editorSectionHeaderClassName}>
+                                  <PostEditorSectionHeader
+                                    title="Mídia"
+                                    subtitle={editorMediaLabel}
+                                  />
+                                </div>
+                                <div className={`${editorSectionContentClassName} space-y-4`}>
+                                  <DashboardFieldStack>
+                                    <Label>Capa</Label>
+                                    {editorResolvedCover.coverImageUrl ? (
+                                      <div className="space-y-2">
+                                        <div
+                                          className={`overflow-hidden rounded-lg border border-border/60 bg-muted/20 ${dashboardSubtleSurfaceHoverClassName}`}
+                                        >
+                                          <UploadPicture
+                                            src={editorResolvedCover.coverImageUrl}
+                                            alt={editorResolvedCover.coverAlt}
+                                            preset="card"
+                                            mediaVariants={mediaVariants}
+                                            className="block w-full"
+                                            imgClassName="aspect-3/2 w-full object-cover"
+                                          />
+                                        </div>
+                                        <div className="flex items-center justify-between gap-2 text-xs text-muted-foreground">
+                                          <span className="min-w-0 truncate">
+                                            {editorCoverFileName || "Imagem"}
+                                          </span>
+                                          <Badge
+                                            variant={
+                                              editorResolvedCover.source === "manual"
+                                                ? "secondary"
+                                                : "outline"
+                                            }
+                                            className="shrink-0 text-[10px] uppercase"
+                                          >
+                                            {editorResolvedCover.source === "manual"
+                                              ? "Manual"
+                                              : "Automática"}
+                                          </Badge>
+                                        </div>
+                                      </div>
+                                    ) : (
+                                      <p className="text-xs text-muted-foreground">
+                                        Sem capa definida.
+                                      </p>
+                                    )}
+                                  </DashboardFieldStack>
                                   <DashboardActionButton
                                     type="button"
                                     size="sm"
-                                    onClick={handleAddTag}
+                                    onClick={openLibrary}
                                   >
-                                    Adicionar
+                                    Biblioteca
                                   </DashboardActionButton>
                                 </div>
-                              </div>
-                            </section>
-                          </aside>
-                        </div>
+                              </section>
 
-                        {formState.projectId ? (
-                          <ProjectEmbedCard projectId={formState.projectId} />
-                        ) : null}
-                      </div>
-                      <div className="project-editor-footer sticky bottom-0 z-20 grid gap-3 border-t border-border/60 bg-background/95 px-4 py-2 backdrop-blur-sm supports-backdrop-filter:bg-background/80 md:flex md:items-center md:justify-between md:px-6 md:py-2.5 lg:px-8">
-                        <div className="flex min-w-0 flex-wrap items-center gap-2">
-                          {editingPostHasRestorableHistory ? (
-                            <DashboardActionButton
-                              size="sm"
-                              onClick={() => void openVersionHistory()}
-                            >
-                              Histórico
-                            </DashboardActionButton>
-                          ) : null}
-                          {editingPost ? (
-                            <DashboardActionButton
-                              size="sm"
-                              tone="destructive"
-                              onClick={handleDelete}
-                            >
-                              Excluir
-                            </DashboardActionButton>
+                              <section className={editorSectionClassName} data-state="open">
+                                <div className={editorSectionHeaderClassName}>
+                                  <PostEditorSectionHeader
+                                    title="Relacionamento"
+                                    subtitle={editorProjectLabel}
+                                  />
+                                </div>
+                                <DashboardFieldStack className={editorSectionContentClassName}>
+                                  <Label>Projeto associado</Label>
+                                  <Combobox
+                                    value={formState.projectId || "none"}
+                                    onValueChange={(value) =>
+                                      setFormState((prev) => ({
+                                        ...prev,
+                                        projectId: value === "none" ? "" : value,
+                                      }))
+                                    }
+                                    ariaLabel="Selecionar projeto associado"
+                                    options={[
+                                      { value: "none", label: "Nenhum" },
+                                      ...projects.map((project) => ({
+                                        value: project.id,
+                                        label: project.title,
+                                      })),
+                                    ]}
+                                    placeholder="Selecione"
+                                    searchable
+                                    searchPlaceholder="Buscar projeto"
+                                    emptyMessage="Nenhum projeto encontrado."
+                                  />
+                                </DashboardFieldStack>
+                              </section>
+
+                              <section className={editorSectionClassName} data-state="open">
+                                <div className={editorSectionHeaderClassName}>
+                                  <PostEditorSectionHeader
+                                    title="Tags"
+                                    subtitle={editorTagSummary}
+                                  />
+                                </div>
+                                <div className={`${editorSectionContentClassName} space-y-4`}>
+                                  <div className="flex flex-wrap gap-2">
+                                    {mergedTags.map((tag) => {
+                                      const isProjectTag = projectTags.includes(tag);
+                                      const tagIndex = mergedTags.indexOf(tag);
+                                      const tagLabel = displayTag(tag);
+                                      const tagHint = isProjectTag
+                                        ? `Tag ${tagLabel}. Arraste para reordenar ou use Alt+Seta para mover.`
+                                        : `Tag ${tagLabel}. Clique para remover, arraste para reordenar ou use Alt+Seta para mover.`;
+                                      return (
+                                        <div key={`tag-${tag}`} className="flex items-center gap-1">
+                                          <button
+                                            type="button"
+                                            className="group cursor-grab active:cursor-grabbing"
+                                            draggable
+                                            onDragStart={() => handleTagDragStart(tag)}
+                                            onDragEnd={() => setDraggedTag(null)}
+                                            onDragOver={(event) => event.preventDefault()}
+                                            onDrop={() => handleTagDrop(tag)}
+                                            onKeyDown={(event) =>
+                                              handleTagKeyDown(event, tag, tagIndex)
+                                            }
+                                            onClick={() => {
+                                              if (!isProjectTag) {
+                                                handleRemoveTag(tag);
+                                              }
+                                            }}
+                                            title={tagHint}
+                                            aria-label={tagHint}
+                                          >
+                                            <Badge
+                                              variant={isProjectTag ? "secondary" : "outline"}
+                                              className="text-[10px] uppercase"
+                                            >
+                                              {tagLabel}
+                                              {isProjectTag ? null : (
+                                                <span className="ml-2 text-[10px] text-muted-foreground group-hover:text-foreground">
+                                                  ?
+                                                </span>
+                                              )}
+                                            </Badge>
+                                          </button>
+                                        </div>
+                                      );
+                                    })}
+                                    {mergedTags.length === 0 ? (
+                                      <span className="text-xs text-muted-foreground">
+                                        Sem tags ainda.
+                                      </span>
+                                    ) : null}
+                                  </div>
+                                  <div className="flex flex-wrap gap-2">
+                                    <Input
+                                      ref={tagInputRef}
+                                      value={tagInput}
+                                      onChange={(event) => setTagInput(event.target.value)}
+                                      placeholder="Adicionar tag"
+                                      list="post-tag-options"
+                                      onBlur={() => {
+                                        if (tagInput.trim()) {
+                                          handleAddTag();
+                                        }
+                                      }}
+                                      onKeyDown={(event) => {
+                                        if (event.key === "Enter" || event.key === ",") {
+                                          event.preventDefault();
+                                          handleAddTag();
+                                        }
+                                      }}
+                                    />
+                                    <datalist id="post-tag-options">
+                                      {availableTags.map((tag) => (
+                                        <option key={tag} value={tag} />
+                                      ))}
+                                    </datalist>
+                                    <DashboardActionButton
+                                      type="button"
+                                      size="sm"
+                                      onClick={handleAddTag}
+                                    >
+                                      Adicionar
+                                    </DashboardActionButton>
+                                  </div>
+                                </div>
+                              </section>
+                            </aside>
+                          </div>
+
+                          {formState.projectId ? (
+                            <ProjectEmbedCard projectId={formState.projectId} />
                           ) : null}
                         </div>
-                        <div className="grid min-w-0 grid-cols-2 gap-2 sm:flex sm:flex-wrap sm:items-center sm:justify-end">
-                          {editorPublicHref ? (
-                            <DashboardActionButton
-                              type="button"
-                              size="sm"
-                              className="w-full gap-2 px-3 sm:w-10 sm:gap-0 sm:px-0 md:w-auto md:gap-2 md:px-4"
-                              asChild
-                            >
-                              <Link target="_blank" rel="noreferrer" to={editorPublicHref}>
-                                <Eye className="h-4 w-4" aria-hidden="true" />
-                                <span className="sr-only md:not-sr-only">Visualizar página</span>
-                              </Link>
-                            </DashboardActionButton>
-                          ) : null}
-                          <DashboardActionButton size="sm" onClick={requestCloseEditor}>
-                            Cancelar
-                          </DashboardActionButton>
-                          {editingPost ? (
-                            <>
+                        <div className="project-editor-footer sticky bottom-0 z-20 grid min-w-0 grid-cols-2 gap-2 border-t border-border/60 bg-background/95 px-4 py-2 backdrop-blur-sm supports-backdrop-filter:bg-background/80 sm:flex sm:items-center sm:justify-between md:px-6 md:py-2.5 lg:px-8">
+                          <div className="contents sm:flex sm:min-w-0 sm:flex-wrap sm:items-center sm:gap-2">
+                            {editingPostHasRestorableHistory ? (
                               <DashboardActionButton
                                 size="sm"
-                                tone="primary"
-                                onClick={() => handleSave()}
+                                onClick={() => void openVersionHistory()}
                               >
-                                Salvar
+                                Histórico
                               </DashboardActionButton>
-                              {formState.status === "draft" ? (
+                            ) : null}
+                            {editingPost ? (
+                              <DashboardActionButton
+                                size="sm"
+                                tone="destructive"
+                                onClick={handleDelete}
+                              >
+                                Excluir
+                              </DashboardActionButton>
+                            ) : null}
+                          </div>
+                          <div className="contents sm:flex sm:min-w-0 sm:flex-wrap sm:items-center sm:justify-end sm:gap-2">
+                            <div className="contents sm:flex sm:flex-wrap sm:items-center sm:gap-2">
+                            {editorPublicHref ? (
+                              <DashboardActionButton
+                                type="button"
+                                size="sm"
+                                className="h-9 min-h-10 gap-2 px-3 sm:min-h-9 sm:w-10 sm:gap-0 sm:px-0 md:w-auto md:gap-2 md:px-4"
+                                asChild
+                              >
+                                <Link target="_blank" rel="noreferrer" to={editorPublicHref}>
+                                  <Eye className="h-4 w-4" aria-hidden="true" />
+                                  <span className="sr-only md:not-sr-only">Visualizar página</span>
+                                </Link>
+                              </DashboardActionButton>
+                            ) : null}
+                            <DashboardActionButton
+                              size="sm"
+                              className="h-9 min-h-10 sm:min-h-9"
+                              onClick={requestCloseEditor}
+                            >
+                              Cancelar
+                            </DashboardActionButton>
+                            </div>
+                            {editingPost ? (
+                              <>
                                 <DashboardActionButton
                                   size="sm"
                                   tone="primary"
+                                  className="h-9 min-h-10 sm:min-h-9"
+                                  onClick={() => handleSave()}
+                                >
+                                  Salvar
+                                </DashboardActionButton>
+                                {formState.status === "draft" ? (
+                                  <DashboardActionButton
+                                    size="sm"
+                                    tone="primary"
+                                    className="h-9 min-h-10 sm:min-h-9"
+                                    onClick={() => handleSave("published")}
+                                  >
+                                    Publicar agora
+                                  </DashboardActionButton>
+                                ) : null}
+                              </>
+                            ) : (
+                              <>
+                                <DashboardActionButton
+                                  size="sm"
+                                  className="h-9 min-h-10 sm:min-h-9"
+                                  onClick={() => handleSave("draft")}
+                                >
+                                  Salvar rascunho
+                                </DashboardActionButton>
+                                <DashboardActionButton
+                                  size="sm"
+                                  tone="primary"
+                                  className="h-9 min-h-10 sm:min-h-9"
+                                  onClick={() => handleSave("scheduled")}
+                                >
+                                  Agendar
+                                </DashboardActionButton>
+                                <DashboardActionButton
+                                  size="sm"
+                                  tone="primary"
+                                  className="h-9 min-h-10 sm:min-h-9"
                                   onClick={() => handleSave("published")}
                                 >
                                   Publicar agora
                                 </DashboardActionButton>
-                              ) : null}
-                            </>
-                          ) : (
-                            <>
-                              <DashboardActionButton size="sm" onClick={() => handleSave("draft")}>
-                                Salvar rascunho
-                              </DashboardActionButton>
-                              <DashboardActionButton
-                                size="sm"
-                                tone="primary"
-                                onClick={() => handleSave("scheduled")}
-                              >
-                                Agendar
-                              </DashboardActionButton>
-                              <DashboardActionButton
-                                size="sm"
-                                tone="primary"
-                                onClick={() => handleSave("published")}
-                              >
-                                Publicar agora
-                              </DashboardActionButton>
-                            </>
-                          )}
+                              </>
+                            )}
+                          </div>
                         </div>
                       </div>
                     </div>

@@ -34,7 +34,7 @@ const ImageLibraryDialog = ({
     <>
       <Dialog open={props.open} onOpenChange={props.onOpenChange}>
         <DialogContent
-          className="flex h-[92vh] w-[96vw] max-w-5xl flex-col overflow-hidden p-3 data-[state=open]:animate-none data-[state=closed]:animate-none sm:h-[90vh] sm:w-[92vw] sm:p-6 [&>button]:hidden"
+          className="flex max-h-[min(92vh,calc(100dvh-1rem))] w-[96vw] max-w-5xl flex-col overflow-hidden p-3 data-[state=open]:animate-none data-[state=closed]:animate-none sm:h-[90vh] sm:w-[92vw] sm:p-6 [&>button]:hidden"
           containerClassName="z-200"
           overlayClassName="z-190 data-[state=open]:animate-none data-[state=closed]:animate-none"
           onEscapeKeyDown={(event) => event.preventDefault()}
@@ -46,10 +46,12 @@ const ImageLibraryDialog = ({
             </DialogDescription>
           </DialogHeader>
 
-          <ImageLibraryUploadPanel {...uploadPanelProps} />
-          <ImageLibraryBrowserPane {...browserProps} />
+          <div className="-mx-1 min-h-0 flex-1 overflow-y-auto overflow-x-hidden px-1 overscroll-contain no-scrollbar">
+            <ImageLibraryUploadPanel {...uploadPanelProps} />
+            <ImageLibraryBrowserPane {...browserProps} />
+          </div>
 
-          <div className="sticky bottom-0 z-10 -mx-3 mt-3 flex flex-col gap-3 border-t border-border/60 bg-background/95 px-3 pb-1 pt-3 backdrop-blur sm:static sm:mx-0 sm:mt-4 sm:flex-row sm:items-center sm:justify-between sm:bg-transparent sm:p-0 sm:pt-4 sm:backdrop-blur-none">
+          <div className="-mx-3 mt-3 flex shrink-0 flex-col gap-3 border-t border-border/60 bg-background/95 px-3 pb-1 pt-3 backdrop-blur sm:mx-0 sm:mt-4 sm:flex-row sm:items-center sm:justify-between sm:bg-transparent sm:p-0 sm:pt-4 sm:backdrop-blur-none">
             <div className="flex flex-col gap-2 sm:flex-row">
               {footerProps.allowDeselect ? (
                 <DashboardActionButton

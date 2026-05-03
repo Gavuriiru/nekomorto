@@ -43,6 +43,7 @@ import { Switch } from "@/components/ui/switch";
 import { toast } from "@/components/ui/use-toast";
 import { useDashboardCurrentUser } from "@/hooks/use-dashboard-current-user";
 import { useEditorScrollLock } from "@/hooks/use-editor-scroll-lock";
+import { useIsMobile } from "@/hooks/use-mobile";
 import { usePageMeta } from "@/hooks/use-page-meta";
 import { useSiteSettings } from "@/hooks/use-site-settings";
 import {
@@ -531,6 +532,7 @@ const roleIconRegistry: Record<string, typeof Globe> = {
 
 const DashboardUsers = () => {
   usePageMeta({ title: "Usuários", noIndex: true });
+  const isMobile = useIsMobile();
   const navigate = useNavigate();
   const [searchParams, setSearchParams] = useSearchParams();
   const apiBase = getApiBase();
@@ -1916,10 +1918,10 @@ const DashboardUsers = () => {
   };
 
   const editorSectionClassName =
-    "project-editor-section rounded-2xl border border-border/60 bg-card/70 px-4";
+    "project-editor-section min-w-0 overflow-hidden rounded-2xl border border-border/60 bg-card/70 px-4";
   const editorSectionTriggerClassName =
-    "project-editor-section-trigger flex w-full items-start gap-4 py-3.5 text-left hover:no-underline md:py-4";
-  const editorSectionContentClassName = "project-editor-section-content pb-2.5 px-1";
+    "project-editor-section-trigger flex min-w-0 w-full items-start gap-4 py-3.5 text-left hover:no-underline md:py-4";
+  const editorSectionContentClassName = "project-editor-section-content min-w-0 px-1 pb-2.5";
   const subtleSummarySurfaceClassName = `border border-border/60 bg-card/65 ${dashboardSubtleSurfaceHoverClassName}`;
   const subtleSurfaceClassName = `border border-border/60 bg-card/60 ${dashboardSubtleSurfaceHoverClassName}`;
   const subtleInsetSurfaceClassName = `border border-border/60 bg-background/60 ${dashboardSubtleSurfaceHoverClassName}`;
@@ -2232,9 +2234,17 @@ const DashboardUsers = () => {
       <Dialog open={isDialogOpen} onOpenChange={handleEditorOpenChange} modal={false}>
         {isDialogOpen ? <DashboardEditorBackdrop /> : null}
         <DialogContent
-          className={`project-editor-dialog ${dashboardEditorDialogWidthClassName} gap-0 p-0 ${
+          className={`project-editor-dialog sm:w-auto sm:${dashboardEditorDialogWidthClassName} sm:max-w-[min(1760px,calc(100vw-1rem))] gap-0 p-0 ${
             isEditorDialogScrolled ? "editor-modal-scrolled" : ""
           }`}
+          style={
+            isMobile
+              ? {
+                  width: "calc(100vw - 3rem)",
+                  maxWidth: "300px",
+                }
+              : undefined
+          }
           onPointerDownOutside={(event) => {
             if (isLibraryOpen) {
               event.preventDefault();
@@ -2246,888 +2256,906 @@ const DashboardUsers = () => {
             }
           }}
         >
-          <div
-            className="project-editor-scroll-shell overflow-y-auto no-scrollbar"
-            onScroll={(event) => {
-              const nextScrolled = event.currentTarget.scrollTop > 0;
-              setIsEditorDialogScrolled((prev) => (prev === nextScrolled ? prev : nextScrolled));
-            }}
-          >
-            <div className="project-editor-top sticky top-0 z-20 border-b border-border/60 bg-background/95 backdrop-blur-sm supports-backdrop-filter:bg-background/80">
-              <DialogHeader className="space-y-0 px-4 pb-2.5 pt-3.5 text-left md:px-6 lg:px-8">
-                <div className="flex flex-wrap items-start justify-between gap-4">
-                  <div className="space-y-2">
-                    <div className="flex flex-wrap items-center gap-2">
-                      <Badge
-                        variant="secondary"
-                        className="text-[10px] uppercase tracking-[0.12em]"
-                      >
-                        {editorUserLabel}
-                      </Badge>
-                      {ownerToggle || isOwnerRecord ? (
+          <div className="project-editor-modal-frame flex max-h-[min(90vh,calc(100dvh-1.5rem))] min-h-0 w-full min-w-0 flex-col overflow-x-clip">
+            <div
+              className="project-editor-scroll-shell min-w-0 flex-1 overflow-y-auto no-scrollbar"
+              onScroll={(event) => {
+                const nextScrolled = event.currentTarget.scrollTop > 0;
+                setIsEditorDialogScrolled((prev) => (prev === nextScrolled ? prev : nextScrolled));
+              }}
+            >
+              <div className="project-editor-top sticky top-0 z-20 min-w-0 border-b border-border/60 bg-background/95 backdrop-blur-sm supports-backdrop-filter:bg-background/80">
+                <DialogHeader className="space-y-0 px-4 pb-2.5 pt-3.5 text-left md:px-6 lg:px-8">
+                  <div className="flex min-w-0 flex-col gap-4 sm:flex-row sm:flex-wrap sm:items-start sm:justify-between">
+                    <div className="space-y-2">
+                      <div className="flex flex-wrap items-center gap-2">
                         <Badge
-                          variant="outline"
+                          variant="secondary"
                           className="text-[10px] uppercase tracking-[0.12em]"
                         >
-                          Dono
+                          {editorUserLabel}
                         </Badge>
-                      ) : null}
-                    </div>
-                    <DialogTitle className="text-xl md:text-2xl">
-                      {editingUser ? "Editar usuário" : "Adicionar usuário"}
-                    </DialogTitle>
-                    <DialogDescription className="max-w-2xl text-xs md:text-sm">
-                      {editorDialogDescription}
-                    </DialogDescription>
-                  </div>
-                  <div
-                    className={`rounded-xl px-3 py-1.5 text-right ${subtleSummarySurfaceClassName}`}
-                  >
-                    <p className="text-[11px] uppercase tracking-[0.12em] text-muted-foreground">
-                      Usuário
-                    </p>
-                    <p className="max-w-[240px] truncate text-sm font-medium text-foreground">
-                      {editorUserTitle}
-                    </p>
-                  </div>
-                </div>
-              </DialogHeader>
-              <div className="project-editor-status-bar flex flex-wrap items-center gap-2 border-t border-border/60 px-4 py-1.5 md:px-6 lg:px-8">
-                {showEditorIdBadge ? (
-                  <Badge variant="outline" className="text-[10px] uppercase tracking-[0.12em]">
-                    ID {editorUserId}
-                  </Badge>
-                ) : null}
-                <Badge variant="secondary" className="text-[10px] uppercase tracking-[0.12em]">
-                  {editorAccessRoleLabel}
-                </Badge>
-                <Badge variant="secondary" className="text-[10px] uppercase tracking-[0.12em]">
-                  {editorStatusLabel}
-                </Badge>
-                <span className="text-[11px] text-muted-foreground">
-                  {formState.socials.length} redes
-                </span>
-                <span className="text-[11px] text-muted-foreground">
-                  {stripOwnerRole(formState.roles).length} funções
-                </span>
-              </div>
-            </div>
-
-            <div className="project-editor-layout grid gap-3.5 px-4 pb-4 pt-2.5 md:gap-4 md:px-6 md:pb-5 lg:gap-5 lg:px-8">
-              {basicProfileOnlyEdit ? (
-                <div
-                  className={`rounded-2xl px-4 py-3 text-xs text-muted-foreground ${subtleSurfaceClassName}`}
-                >
-                  Você só pode alterar informações básicas deste usuário.
-                </div>
-              ) : null}
-              <Accordion
-                type="multiple"
-                value={editorAccordionValue}
-                onValueChange={setEditorAccordionValue}
-                className="project-editor-accordion space-y-2.5"
-              >
-                <AccordionItem value="dados-principais" className={editorSectionClassName}>
-                  <AccordionTrigger className={editorSectionTriggerClassName}>
-                    <ProjectEditorAccordionHeader
-                      title="Dados principais"
-                      subtitle={editorUserTitle}
-                    />
-                  </AccordionTrigger>
-                  <AccordionContent className={editorSectionContentClassName}>
-                    <div className="grid gap-4 md:grid-cols-2">
-                      {showInternalIdField ? (
-                        <DashboardFieldStack>
-                          <Label htmlFor="user-id">ID interno</Label>
-                          <Input
-                            id="user-id"
-                            value={formState.id}
-                            onChange={(event) =>
-                              setFormState((prev) => ({ ...prev, id: event.target.value }))
-                            }
-                            placeholder={
-                              editingUser ? "ID interno" : "Gerado automaticamente ao salvar"
-                            }
-                            disabled={Boolean(editingUser) || !canManageUsers}
-                          />
-                          {!editingUser ? (
-                            <p className="text-xs text-muted-foreground">
-                              Você pode deixar em branco para gerar o ID interno automaticamente.
-                            </p>
-                          ) : null}
-                        </DashboardFieldStack>
-                      ) : null}
-                      <DashboardFieldStack>
-                        <Label htmlFor="user-name">Nome</Label>
-                        <Input
-                          id="user-name"
-                          value={formState.name}
-                          onChange={(event) =>
-                            setFormState((prev) => ({ ...prev, name: event.target.value }))
-                          }
-                          placeholder="Nome exibido"
-                          disabled={!canEditBasicFields}
-                        />
-                      </DashboardFieldStack>
-                      <DashboardFieldStack>
-                        <Label htmlFor="user-phrase">Frase</Label>
-                        <Input
-                          id="user-phrase"
-                          value={formState.phrase}
-                          onChange={(event) =>
-                            setFormState((prev) => ({ ...prev, phrase: event.target.value }))
-                          }
-                          placeholder="Frase curta"
-                          disabled={!canEditBasicFields}
-                        />
-                      </DashboardFieldStack>
-                      {showAccessEmailField ? (
-                        <DashboardFieldStack>
-                          <Label htmlFor="user-email">E-mail de acesso</Label>
-                          <Input
-                            id="user-email"
-                            type="email"
-                            value={formState.email}
-                            onChange={(event) =>
-                              setFormState((prev) => ({ ...prev, email: event.target.value }))
-                            }
-                            placeholder="usuario@exemplo.com"
-                            disabled={!canEditBasicFields}
-                          />
-                        </DashboardFieldStack>
-                      ) : null}
-                      <DashboardFieldStack className="md:col-span-2">
-                        <Label htmlFor="user-bio">Bio</Label>
-                        <Textarea
-                          id="user-bio"
-                          value={formState.bio}
-                          onChange={(event) =>
-                            setFormState((prev) => ({ ...prev, bio: event.target.value }))
-                          }
-                          placeholder="Texto da bio"
-                          rows={4}
-                          disabled={!canEditBasicFields}
-                        />
-                      </DashboardFieldStack>
-                    </div>
-                  </AccordionContent>
-                </AccordionItem>
-
-                <AccordionItem value="perfil-publico" className={editorSectionClassName}>
-                  <AccordionTrigger className={editorSectionTriggerClassName}>
-                    <ProjectEditorAccordionHeader
-                      title="Perfil público"
-                      subtitle={`${formState.socials.length} redes • avatar e obras`}
-                    />
-                  </AccordionTrigger>
-                  <AccordionContent className={editorSectionContentClassName}>
-                    <div className="grid gap-4">
-                      <div className="grid gap-3">
-                        <Label>Obras favoritas (até 3 por categoria)</Label>
-                        <div className="grid gap-4 md:grid-cols-2">
-                          {FAVORITE_WORK_CATEGORIES.map((category) => {
-                            const categoryLabel = category === "manga" ? "Mangá" : "Anime";
-                            return (
-                              <div
-                                key={category}
-                                className={`space-y-2 rounded-xl p-3 ${subtleSurfaceClassName}`}
-                              >
-                                <p className="text-xs font-semibold uppercase tracking-[0.12em] text-muted-foreground">
-                                  {categoryLabel}
-                                </p>
-                                <div className="grid gap-2">
-                                  {formState.favoriteWorksDraft[category].map((value, index) => (
-                                    <Input
-                                      key={`${category}-${index}`}
-                                      id={`user-favorite-works-${category}-${index + 1}`}
-                                      aria-label={`${categoryLabel} ${index + 1}`}
-                                      value={value}
-                                      onChange={(event) =>
-                                        setFormState((prev) => {
-                                          const nextCategory = [
-                                            ...prev.favoriteWorksDraft[category],
-                                          ] as [string, string, string];
-                                          nextCategory[index] = event.target.value;
-                                          return {
-                                            ...prev,
-                                            favoriteWorksDraft: {
-                                              ...prev.favoriteWorksDraft,
-                                              [category]: nextCategory,
-                                            },
-                                          };
-                                        })
-                                      }
-                                      placeholder={`${categoryLabel} ${index + 1}`}
-                                      disabled={!canEditBasicFields}
-                                    />
-                                  ))}
-                                </div>
-                              </div>
-                            );
-                          })}
-                        </div>
-                        <p className="text-xs text-muted-foreground">
-                          Espaços e edição livre são preservados durante a digitação; a normalização
-                          ocorre ao salvar.
-                        </p>
-                      </div>
-                      <DashboardFieldStack>
-                        <Label>Avatar</Label>
-                        <div className="flex flex-wrap items-center gap-3">
-                          {formState.avatarUrl ? (
-                            <DashboardAvatar
-                              avatarUrl={toAvatarRenderUrl(
-                                formState.avatarUrl,
-                                editorAvatarPreviewRevision,
-                              )}
-                              name={formState.name || "Avatar"}
-                              sizeClassName="h-12 w-12"
-                              frameClassName={`border border-border/60 bg-card/60 ${dashboardSubtleSurfaceHoverClassName}`}
-                              fallbackClassName="bg-card/60 text-xs text-foreground"
-                              fallbackText={(formState.name || "U").slice(0, 1).toUpperCase()}
-                            />
-                          ) : (
-                            <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-full border border-dashed border-border/60 text-[10px] text-muted-foreground">
-                              Sem imagem
-                            </div>
-                          )}
-                          <DashboardActionButton
-                            type="button"
-                            size="sm"
-                            onClick={openLibrary}
-                            disabled={!canEditBasicFields}
+                        {ownerToggle || isOwnerRecord ? (
+                          <Badge
+                            variant="outline"
+                            className="text-[10px] uppercase tracking-[0.12em]"
                           >
-                            Biblioteca
-                          </DashboardActionButton>
-                        </div>
-                      </DashboardFieldStack>
-                      <DashboardFieldStack>
-                        <Label>Links e redes</Label>
-                        <div className="grid gap-3">
-                          {formState.socials.length === 0 ? (
-                            <p className="text-xs text-muted-foreground">Nenhum link adicionado.</p>
-                          ) : null}
-                          {formState.socials.map((social, index) => {
-                            const availableLinkTypes =
-                              linkTypes.length > 0 ? linkTypes : fallbackLinkTypes;
-                            const selectedOption =
-                              availableLinkTypes.find((option) => option.id === social.label) ||
-                              availableLinkTypes.find((option) => option.label === social.label) ||
-                              null;
-                            const selectedLabel = selectedOption?.label || "Selecione a rede";
-
-                            return (
-                              <div
-                                key={`${social.label}-${index}`}
-                                data-testid={`user-social-row-${index}`}
-                                className={`overflow-x-auto rounded-xl p-2 ${
-                                  socialDragOverIndex === index
-                                    ? `${subtleSurfaceClassName} border-primary/40 bg-primary/5`
-                                    : subtleSurfaceClassName
-                                }`}
-                                onDragOver={(event) => handleSocialDragOver(event, index)}
-                                onDrop={(event) => handleSocialDrop(event, index)}
-                              >
-                                <div className="grid grid-cols-[auto_auto_auto_minmax(0,1fr)_auto] items-center gap-2">
-                                  <DashboardActionButton
-                                    type="button"
-                                    size="icon"
-                                    draggable={canEditBasicFields}
-                                    className="cursor-grab border-border/60 bg-background/60 text-muted-foreground hover:border-primary/40 hover:bg-primary/5 hover:text-primary active:cursor-grabbing disabled:cursor-not-allowed"
-                                    aria-label={`Arrastar rede ${social.label || index + 1}`}
-                                    onDragStart={(event) => handleSocialDragStart(event, index)}
-                                    onDragEnd={clearSocialDragState}
-                                    disabled={!canEditBasicFields}
-                                  >
-                                    <GripVertical className="h-4 w-4" />
-                                  </DashboardActionButton>
-                                  <ReorderControls
-                                    label={`rede ${social.label || index + 1}`}
-                                    index={index}
-                                    total={formState.socials.length}
-                                    onMove={(targetIndex) => moveSocialLink(index, targetIndex)}
-                                    disabled={!canEditBasicFields}
-                                    buttonClassName={subtleReorderButtonClassName}
-                                  />
-                                  <Combobox
-                                    value={social.label}
-                                    onValueChange={(value) =>
-                                      setFormState((prev) => {
-                                        const next = [...prev.socials];
-                                        next[index] = { ...next[index], label: value };
-                                        return { ...prev, socials: next };
-                                      })
-                                    }
-                                    disabled={!canEditBasicFields}
-                                    ariaLabel={selectedLabel}
-                                    options={availableLinkTypes.map((option) => {
-                                      const isCustomIcon = isIconUrl(option.icon);
-                                      const Icon = socialIconMap[option.icon] || Globe;
-                                      return {
-                                        value: option.id,
-                                        label: option.label,
-                                        icon: isCustomIcon ? (
-                                          <ThemedSvgLogo
-                                            url={option.icon}
-                                            label={option.label}
-                                            className={`${dropdownRichIconClassName} text-primary`}
-                                          />
-                                        ) : (
-                                          Icon
-                                        ),
-                                      };
-                                    })}
-                                    placeholder="Rede"
-                                    searchable
-                                    searchPlaceholder="Buscar rede"
-                                    emptyMessage="Nenhuma rede encontrada."
-                                    className="h-10 w-14 shrink-0 justify-center gap-1 bg-background/60 px-2"
-                                  />
-                                  <Input
-                                    className="min-w-0"
-                                    value={social.href}
-                                    onChange={(event) =>
-                                      setFormState((prev) => {
-                                        const next = [...prev.socials];
-                                        next[index] = { ...next[index], href: event.target.value };
-                                        return { ...prev, socials: next };
-                                      })
-                                    }
-                                    placeholder="https://"
-                                    disabled={!canEditBasicFields}
-                                  />
-                                  <DashboardActionButton
-                                    type="button"
-                                    tone="destructive"
-                                    size="icon"
-                                    className="shrink-0 text-destructive hover:text-destructive"
-                                    aria-label={`Remover rede ${social.label || index + 1}`}
-                                    onClick={() =>
-                                      setFormState((prev) => ({
-                                        ...prev,
-                                        socials: prev.socials.filter((_, idx) => idx !== index),
-                                      }))
-                                    }
-                                    disabled={!canEditBasicFields}
-                                  >
-                                    <Trash2 className="h-4 w-4" />
-                                  </DashboardActionButton>
-                                </div>
-                              </div>
-                            );
-                          })}
-                          <DashboardActionButton
-                            type="button"
-                            size="sm"
-                            onClick={() =>
-                              setFormState((prev) => ({
-                                ...prev,
-                                socials: [...prev.socials, { label: "", href: "" }],
-                              }))
-                            }
-                            disabled={!canEditBasicFields}
-                          >
-                            Adicionar link
-                          </DashboardActionButton>
-                        </div>
-                      </DashboardFieldStack>
-                    </div>
-                  </AccordionContent>
-                </AccordionItem>
-
-                {showSelfSecuritySection ? (
-                  <AccordionItem value="seguranca" className={editorSectionClassName}>
-                    <AccordionTrigger className={editorSectionTriggerClassName}>
-                      <ProjectEditorAccordionHeader
-                        title="Segurança"
-                        subtitle={`V2F ${securitySummary?.totpEnabled ? "ativa" : "inativa"}`}
-                      />
-                    </AccordionTrigger>
-                    <AccordionContent className={editorSectionContentClassName}>
-                      <div className={`grid gap-3 rounded-2xl p-4 ${subtleSurfaceClassName}`}>
-                        <div className="flex flex-wrap items-center justify-between gap-2">
-                          <div className="space-y-1">
-                            <Label className="text-sm font-medium">Segurança da conta</Label>
-                            <p className="text-xs text-muted-foreground">
-                              Configure a V2F e gerencie suas sessões ativas.
-                            </p>
-                          </div>
-                          <DashboardActionButton
-                            size="sm"
-                            onClick={() => void refreshSelfSecurity()}
-                          >
-                            Atualizar
-                          </DashboardActionButton>
-                        </div>
-
-                        <div className="flex flex-wrap items-center gap-2">
-                          <Badge className="bg-card/80 text-muted-foreground">
-                            V2F {securitySummary?.totpEnabled ? "Ativa" : "Inativa"}
+                            Dono
                           </Badge>
-                          <Badge className="bg-card/80 text-muted-foreground">
-                            Recuperação: {securitySummary?.recoveryCodesRemaining ?? 0}
-                          </Badge>
-                          <Badge className="bg-card/80 text-muted-foreground">
-                            Sessões: {securitySummary?.activeSessionsCount ?? 0}
-                          </Badge>
-                        </div>
-
-                        {renderConnectedAccountsCard()}
-
-                        {!securitySummary?.totpEnabled ? (
-                          <div
-                            className={`space-y-3 rounded-2xl p-3 ${subtleInsetSurfaceClassName}`}
-                          >
-                            <DashboardActionButton
-                              size="sm"
-                              tone="primary"
-                              onClick={startSelfEnrollment}
-                            >
-                              Ativar V2F
-                            </DashboardActionButton>
-                            {securityEnrollment ? (
-                              <div className="space-y-3">
-                                <div className="flex flex-wrap items-center gap-3">
-                                  {securityEnrollment.iconUrl ? (
-                                    <img
-                                      src={securityEnrollment.iconUrl}
-                                      alt="Ícone da conta"
-                                      className="h-9 w-9 rounded-full border border-border/60 object-cover"
-                                      referrerPolicy="no-referrer"
-                                    />
-                                  ) : null}
-                                  <p className="text-xs text-muted-foreground">
-                                    {securityEnrollment.issuer ||
-                                      securitySummary?.issuer ||
-                                      "Nekomata"}
-                                    :
-                                    {securityEnrollment.accountLabel ||
-                                      securitySummary?.accountLabel ||
-                                      currentUser?.username ||
-                                      currentUser?.name ||
-                                      editingUser?.id}
-                                  </p>
-                                </div>
-                                <div className="flex flex-wrap gap-4">
-                                  {securityQrDataUrl ? (
-                                    <img
-                                      src={securityQrDataUrl}
-                                      alt="QR code para configurar V2F"
-                                      className="h-48 w-48 rounded-xl border border-border/60 bg-white p-2"
-                                    />
-                                  ) : (
-                                    <div className="flex h-48 w-48 items-center justify-center rounded-xl border border-dashed border-border/60 text-xs text-muted-foreground">
-                                      Gerando QR...
-                                    </div>
-                                  )}
-                                  <div className="min-w-0 flex-1 space-y-2">
-                                    <code className="block break-all rounded bg-card px-3 py-2 text-xs">
-                                      {securityEnrollment.manualSecret}
-                                    </code>
-                                    <div className="flex flex-wrap gap-2">
-                                      <DashboardActionButton
-                                        size="sm"
-                                        onClick={async () => {
-                                          try {
-                                            await navigator.clipboard.writeText(
-                                              securityEnrollment.manualSecret,
-                                            );
-                                            toast({ title: "Segredo copiado" });
-                                          } catch {
-                                            toast({
-                                              title: "Não foi possível copiar",
-                                              variant: "destructive",
-                                            });
-                                          }
-                                        }}
-                                      >
-                                        Copiar segredo
-                                      </DashboardActionButton>
-                                      <DashboardActionButton
-                                        size="sm"
-                                        onClick={async () => {
-                                          try {
-                                            await navigator.clipboard.writeText(
-                                              securityEnrollment.otpauthUrl,
-                                            );
-                                            toast({ title: "URL de V2F copiada" });
-                                          } catch {
-                                            toast({
-                                              title: "Não foi possível copiar",
-                                              variant: "destructive",
-                                            });
-                                          }
-                                        }}
-                                      >
-                                        Copiar URL de V2F
-                                      </DashboardActionButton>
-                                      <DashboardActionButton
-                                        size="sm"
-                                        onClick={startSelfEnrollment}
-                                      >
-                                        Reiniciar ativação
-                                      </DashboardActionButton>
-                                    </div>
-                                    <Input
-                                      value={securityEnrollCode}
-                                      onChange={(event) =>
-                                        setSecurityEnrollCode(event.target.value)
-                                      }
-                                      placeholder="Código da V2F"
-                                    />
-                                    <DashboardActionButton
-                                      size="sm"
-                                      tone="primary"
-                                      onClick={confirmSelfEnrollment}
-                                      disabled={
-                                        !securityEnrollCode.trim() ||
-                                        !securityEnrollment.enrollmentToken
-                                      }
-                                    >
-                                      Confirmar ativação
-                                    </DashboardActionButton>
-                                  </div>
-                                </div>
-                              </div>
-                            ) : null}
-                          </div>
-                        ) : (
-                          <div
-                            className={`space-y-2 rounded-2xl p-3 ${subtleInsetSurfaceClassName}`}
-                          >
-                            <Input
-                              value={securityDisableCode}
-                              onChange={(event) => setSecurityDisableCode(event.target.value)}
-                              placeholder="Código da V2F ou código de recuperação"
-                            />
-                            <DashboardActionButton
-                              size="sm"
-                              tone="destructive"
-                              onClick={disableSelfTotp}
-                              disabled={!securityDisableCode.trim()}
-                            >
-                              Desativar V2F
-                            </DashboardActionButton>
-                          </div>
-                        )}
-
-                        {securityRecoveryCodes.length > 0 ? (
-                          <div className="space-y-2 rounded-2xl border border-amber-500/30 bg-amber-500/10 p-3">
-                            <p className="text-xs font-medium">
-                              Salve estes códigos de recuperação agora:
-                            </p>
-                            <div className="grid gap-1 md:grid-cols-2">
-                              {securityRecoveryCodes.map((code) => (
-                                <code key={code} className="rounded bg-card px-2 py-1 text-xs">
-                                  {code}
-                                </code>
-                              ))}
-                            </div>
-                          </div>
                         ) : null}
-
-                        <div className={`space-y-2 rounded-2xl p-3 ${subtleInsetSurfaceClassName}`}>
-                          <div className="flex items-center justify-between gap-2">
-                            <p className="text-sm font-medium">Sessões ativas</p>
-                            <DashboardActionButton
-                              size="sm"
-                              tone="destructive"
-                              onClick={revokeSelfOthers}
-                              disabled={isLoadingSecurity}
-                            >
-                              Encerrar outras
-                            </DashboardActionButton>
-                          </div>
-                          {isLoadingSecurity ? (
-                            <div
-                              className="space-y-2"
-                              data-testid="dashboard-users-security-loading"
-                              role="status"
-                              aria-live="polite"
-                              aria-busy="true"
-                            >
-                              {Array.from({ length: 2 }).map((_, index) => (
-                                <div
-                                  key={`dashboard-users-security-loading-${index}`}
-                                  className={`rounded-xl p-2 ${subtleMutedSurfaceClassName}`}
-                                >
-                                  <div className="flex flex-wrap items-start justify-between gap-2">
-                                    <div className="space-y-2">
-                                      <Skeleton className="h-3 w-24" />
-                                      <Skeleton className="h-3 w-36" />
-                                    </div>
-                                    <Skeleton className="h-6 w-20 rounded-full" />
-                                  </div>
-                                </div>
-                              ))}
-                              <span className="sr-only">Carregando sessões...</span>
-                            </div>
-                          ) : securitySessions.length === 0 ? (
-                            <p className="text-xs text-muted-foreground">Nenhuma sessão ativa.</p>
-                          ) : (
-                            <div className="space-y-2">
-                              {securitySessions.map((session) => (
-                                <div
-                                  key={session.sid}
-                                  className={`flex flex-wrap items-start justify-between gap-2 rounded-xl p-2 ${subtleMutedSurfaceClassName}`}
-                                >
-                                  <div className="space-y-1">
-                                    <div className="flex flex-wrap items-center gap-2">
-                                      <p className="text-xs font-medium">
-                                        {isCurrentSecuritySession(session)
-                                          ? "Sessão atual"
-                                          : "Sessão remota"}
-                                      </p>
-                                      {isCurrentSecuritySession(session) ? (
-                                        <Badge variant="accent">Atual</Badge>
-                                      ) : null}
-                                      {session.isPendingMfa ? (
-                                        <Badge variant="warning">Pendente V2F</Badge>
-                                      ) : null}
-                                    </div>
-                                    <p className="text-[11px] text-muted-foreground">
-                                      Última atividade: {formatSecurityDateTime(session.lastSeenAt)}
-                                    </p>
-                                    <p className="text-[11px] text-muted-foreground">
-                                      Criada em: {formatSecurityDateTime(session.createdAt)}
-                                    </p>
-                                    <p className="text-[11px] text-muted-foreground">
-                                      IP: {session.lastIp || "-"}
-                                    </p>
-                                    <p className="max-w-[360px] truncate text-[11px] text-muted-foreground">
-                                      {session.userAgent || "-"}
-                                    </p>
-                                  </div>
-                                  {!isCurrentSecuritySession(session) ? (
-                                    <DashboardActionButton
-                                      size="sm"
-                                      tone="destructive"
-                                      onClick={() => revokeSelfSession(session.sid)}
-                                    >
-                                      Encerrar
-                                    </DashboardActionButton>
-                                  ) : null}
-                                </div>
-                              ))}
-                            </div>
-                          )}
-                        </div>
                       </div>
-                    </AccordionContent>
-                  </AccordionItem>
+                      <DialogTitle className="text-xl md:text-2xl">
+                        {editingUser ? "Editar usuário" : "Adicionar usuário"}
+                      </DialogTitle>
+                      <DialogDescription className="max-w-2xl text-xs md:text-sm">
+                        {editorDialogDescription}
+                      </DialogDescription>
+                    </div>
+                    <div
+                      className={`w-full min-w-0 rounded-xl px-3 py-1.5 text-left sm:w-auto sm:text-right ${subtleSummarySurfaceClassName}`}
+                    >
+                      <p className="text-[11px] uppercase tracking-[0.12em] text-muted-foreground">
+                        Usuário
+                      </p>
+                      <p className="min-w-0 max-w-[240px] truncate text-sm font-medium text-foreground">
+                        {editorUserTitle}
+                      </p>
+                    </div>
+                  </div>
+                </DialogHeader>
+                <div className="project-editor-status-bar flex min-w-0 max-w-full flex-wrap items-center gap-2 overflow-hidden border-t border-border/60 px-4 py-1.5 md:px-6 lg:px-8">
+                  {showEditorIdBadge ? (
+                    <Badge
+                      variant="outline"
+                      className="w-full min-w-0 max-w-full truncate text-[10px] uppercase tracking-[0.12em] sm:w-auto"
+                    >
+                      <span className="truncate">ID {editorUserId}</span>
+                    </Badge>
+                  ) : null}
+                  <Badge variant="secondary" className="text-[10px] uppercase tracking-[0.12em]">
+                    {editorAccessRoleLabel}
+                  </Badge>
+                  <Badge variant="secondary" className="text-[10px] uppercase tracking-[0.12em]">
+                    {editorStatusLabel}
+                  </Badge>
+                  <span className="min-w-0 max-w-[7.5rem] truncate text-[11px] text-muted-foreground">
+                    {formState.socials.length} redes
+                  </span>
+                  <span className="min-w-0 max-w-[9rem] truncate text-[11px] text-muted-foreground">
+                    {stripOwnerRole(formState.roles).length} funções
+                  </span>
+                </div>
+              </div>
+
+              <div className="project-editor-layout grid min-w-0 gap-3.5 px-4 pb-4 pt-2.5 md:gap-4 md:px-6 md:pb-5 lg:gap-5 lg:px-8">
+                {basicProfileOnlyEdit ? (
+                  <div
+                    className={`min-w-0 rounded-2xl px-4 py-3 text-xs text-muted-foreground ${subtleSurfaceClassName}`}
+                  >
+                    Você só pode alterar informações básicas deste usuário.
+                  </div>
                 ) : null}
-                {canEditAccessControls ? (
-                  <AccordionItem value="acesso-permissoes" className={editorSectionClassName}>
+                <Accordion
+                  type="multiple"
+                  value={editorAccordionValue}
+                  onValueChange={setEditorAccordionValue}
+                  className="project-editor-accordion min-w-0 space-y-2.5"
+                >
+                  <AccordionItem value="dados-principais" className={editorSectionClassName}>
                     <AccordionTrigger className={editorSectionTriggerClassName}>
                       <ProjectEditorAccordionHeader
-                        title="Acesso e permissões"
-                        subtitle={`${editorAccessRoleLabel} • ${
-                          stripOwnerRole(formState.roles).length
-                        } funções`}
+                        title="Dados principais"
+                        subtitle={editorUserTitle}
                       />
                     </AccordionTrigger>
                     <AccordionContent className={editorSectionContentClassName}>
-                      <div className="grid gap-4">
-                        <div className="grid gap-2">
-                          <Label>Funções</Label>
-                          {!canEditRoles && (
-                            <p className="text-xs text-muted-foreground">
-                              Apenas donos com permissão de acesso podem alterar funções de equipe.
-                            </p>
-                          )}
-                          <div className="flex flex-wrap gap-2">
-                            {roleOptions.map((role) => {
-                              const isSelected = formState.roles.includes(role);
-                              const iconKey = roleIconMap.get(role);
-                              const RoleIcon = iconKey
-                                ? roleIconRegistry[String(iconKey).toLowerCase()]
-                                : null;
-                              return (
-                                <Button
-                                  key={role}
-                                  type="button"
-                                  variant={isSelected ? "default" : "outline"}
-                                  onClick={() => toggleRole(role)}
-                                  disabled={!canEditRoles}
-                                >
-                                  {RoleIcon ? <RoleIcon className="h-4 w-4" /> : null}
-                                  {role}
-                                </Button>
-                              );
-                            })}
-                          </div>
-                          {isOwnerRecord && (
-                            <p className="text-xs text-muted-foreground">
-                              A badge de dono é automática.
-                            </p>
-                          )}
-                        </div>
-                        <DashboardFieldStack>
-                          <Label>Papel de acesso</Label>
-                          <DashboardFieldStack density="compact">
-                            <Combobox
-                              value={formState.accessRole}
-                              onValueChange={(value) =>
-                                setFormState((prev) => ({
-                                  ...prev,
-                                  accessRole: value === "admin" ? "admin" : "normal",
-                                  permissions:
-                                    value === "admin"
-                                      ? Array.from(
-                                          new Set([
-                                            ...prev.permissions,
-                                            ...permissionOptions
-                                              .filter((option) =>
-                                                DEFAULT_ADMIN_PERMISSION_SET.has(option.id),
-                                              )
-                                              .map((option) => option.id),
-                                          ]),
-                                        )
-                                      : prev.permissions.filter(
-                                          (permission) =>
-                                            !DEFAULT_ADMIN_PERMISSION_SET.has(permission),
-                                        ),
-                                }))
+                      <div className="grid gap-4 md:grid-cols-2">
+                        {showInternalIdField ? (
+                          <DashboardFieldStack>
+                            <Label htmlFor="user-id">ID interno</Label>
+                            <Input
+                              id="user-id"
+                              value={formState.id}
+                              onChange={(event) =>
+                                setFormState((prev) => ({ ...prev, id: event.target.value }))
                               }
-                              disabled={!canEditAccessControls || isOwnerRecord}
-                              ariaLabel="Selecionar papel de acesso"
-                              options={accessRoleOptions.map((option) => ({
-                                value: option.id,
-                                label: option.label,
-                              }))}
-                              placeholder="Selecione um papel"
-                              searchable={false}
+                              placeholder={
+                                editingUser ? "ID interno" : "Gerado automaticamente ao salvar"
+                              }
+                              disabled={Boolean(editingUser) || !canManageUsers}
                             />
-                            {isOwnerRecord ? (
+                            {!editingUser ? (
                               <p className="text-xs text-muted-foreground">
-                                O papel de dono é definido pela governança de owners.
+                                Você pode deixar em branco para gerar o ID interno automaticamente.
                               </p>
                             ) : null}
                           </DashboardFieldStack>
+                        ) : null}
+                        <DashboardFieldStack>
+                          <Label htmlFor="user-name">Nome</Label>
+                          <Input
+                            id="user-name"
+                            value={formState.name}
+                            onChange={(event) =>
+                              setFormState((prev) => ({ ...prev, name: event.target.value }))
+                            }
+                            placeholder="Nome exibido"
+                            disabled={!canEditBasicFields}
+                          />
                         </DashboardFieldStack>
-                        <div className="grid gap-2">
-                          <Label>Permissões</Label>
-                          {isOwnerRecord && (
-                            <Badge className="w-fit bg-primary/20 text-primary">Acesso total</Badge>
-                          )}
-                          {!isOwnerRecord && isAdminForm && (
-                            <Badge className="w-fit bg-card/80 text-muted-foreground">
-                              Administrador
-                            </Badge>
-                          )}
-                          <div className="flex flex-wrap gap-2">
-                            {permissionOptions.map((permission) => {
-                              const isSelected = effectivePermissions.includes(permission.id);
+                        <DashboardFieldStack>
+                          <Label htmlFor="user-phrase">Frase</Label>
+                          <Input
+                            id="user-phrase"
+                            value={formState.phrase}
+                            onChange={(event) =>
+                              setFormState((prev) => ({ ...prev, phrase: event.target.value }))
+                            }
+                            placeholder="Frase curta"
+                            disabled={!canEditBasicFields}
+                          />
+                        </DashboardFieldStack>
+                        {showAccessEmailField ? (
+                          <DashboardFieldStack>
+                            <Label htmlFor="user-email">E-mail de acesso</Label>
+                            <Input
+                              id="user-email"
+                              type="email"
+                              value={formState.email}
+                              onChange={(event) =>
+                                setFormState((prev) => ({ ...prev, email: event.target.value }))
+                              }
+                              placeholder="usuario@exemplo.com"
+                              disabled={!canEditBasicFields}
+                            />
+                          </DashboardFieldStack>
+                        ) : null}
+                        <DashboardFieldStack className="md:col-span-2">
+                          <Label htmlFor="user-bio">Bio</Label>
+                          <Textarea
+                            id="user-bio"
+                            value={formState.bio}
+                            onChange={(event) =>
+                              setFormState((prev) => ({ ...prev, bio: event.target.value }))
+                            }
+                            placeholder="Texto da bio"
+                            rows={4}
+                            disabled={!canEditBasicFields}
+                          />
+                        </DashboardFieldStack>
+                      </div>
+                    </AccordionContent>
+                  </AccordionItem>
+
+                  <AccordionItem value="perfil-publico" className={editorSectionClassName}>
+                    <AccordionTrigger className={editorSectionTriggerClassName}>
+                      <ProjectEditorAccordionHeader
+                        title="Perfil público"
+                        subtitle={`${formState.socials.length} redes • avatar e obras`}
+                      />
+                    </AccordionTrigger>
+                    <AccordionContent className={editorSectionContentClassName}>
+                      <div className="grid min-w-0 gap-4">
+                        <div className="grid min-w-0 gap-3">
+                          <Label>Obras favoritas (até 3 por categoria)</Label>
+                          <div className="grid min-w-0 gap-4 md:grid-cols-2">
+                            {FAVORITE_WORK_CATEGORIES.map((category) => {
+                              const categoryLabel = category === "manga" ? "Mangá" : "Anime";
                               return (
-                                <Button
-                                  key={permission.id}
-                                  type="button"
-                                  variant={isSelected ? "default" : "outline"}
-                                  onClick={() => togglePermission(permission.id)}
-                                  disabled={!canEditAccessControls || isOwnerRecord}
+                                <div
+                                  key={category}
+                                  className={`min-w-0 space-y-2 rounded-xl p-3 ${subtleSurfaceClassName}`}
                                 >
-                                  {permission.label}
-                                </Button>
+                                  <p className="text-xs font-semibold uppercase tracking-[0.12em] text-muted-foreground">
+                                    {categoryLabel}
+                                  </p>
+                                  <div className="grid min-w-0 gap-2">
+                                    {formState.favoriteWorksDraft[category].map((value, index) => (
+                                      <Input
+                                        key={`${category}-${index}`}
+                                        id={`user-favorite-works-${category}-${index + 1}`}
+                                        aria-label={`${categoryLabel} ${index + 1}`}
+                                        value={value}
+                                        onChange={(event) =>
+                                          setFormState((prev) => {
+                                            const nextCategory = [
+                                              ...prev.favoriteWorksDraft[category],
+                                            ] as [string, string, string];
+                                            nextCategory[index] = event.target.value;
+                                            return {
+                                              ...prev,
+                                              favoriteWorksDraft: {
+                                                ...prev.favoriteWorksDraft,
+                                                [category]: nextCategory,
+                                              },
+                                            };
+                                          })
+                                        }
+                                        placeholder={`${categoryLabel} ${index + 1}`}
+                                        disabled={!canEditBasicFields}
+                                      />
+                                    ))}
+                                  </div>
+                                </div>
                               );
                             })}
                           </div>
-                          {!canEditAccessControls && (
-                            <p className="text-xs text-muted-foreground">
-                              Apenas donos com permissão de acesso podem alterar permissões de
-                              acesso.
-                            </p>
-                          )}
+                          <p className="text-xs text-muted-foreground">
+                            Espaços e edição livre são preservados durante a digitação; a
+                            normalização ocorre ao salvar.
+                          </p>
                         </div>
-                        {canManageUsers ? (
-                          <DashboardFieldStack>
-                            <Label>Dono</Label>
-                            <DashboardFieldStack density="compact">
-                              <div
-                                className={`flex items-center justify-between gap-4 rounded-2xl px-4 py-3 ${subtleSurfaceClassName}`}
-                              >
-                                <span className="text-sm text-muted-foreground">
-                                  Permite acesso total ao painel e às configurações críticas.
-                                </span>
-                                <Switch
-                                  checked={ownerToggle}
-                                  onCheckedChange={setOwnerToggle}
-                                  disabled={!canManageOwners || isPrimaryOwnerRecord}
-                                />
+                        <DashboardFieldStack className="min-w-0">
+                          <Label>Avatar</Label>
+                          <div className="flex flex-wrap items-center gap-3">
+                            {formState.avatarUrl ? (
+                              <DashboardAvatar
+                                avatarUrl={toAvatarRenderUrl(
+                                  formState.avatarUrl,
+                                  editorAvatarPreviewRevision,
+                                )}
+                                name={formState.name || "Avatar"}
+                                sizeClassName="h-12 w-12"
+                                frameClassName={`border border-border/60 bg-card/60 ${dashboardSubtleSurfaceHoverClassName}`}
+                                fallbackClassName="bg-card/60 text-xs text-foreground"
+                                fallbackText={(formState.name || "U").slice(0, 1).toUpperCase()}
+                              />
+                            ) : (
+                              <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-full border border-dashed border-border/60 text-[10px] text-muted-foreground">
+                                Sem imagem
                               </div>
-                              {!canManageOwners ? (
-                                <p className="text-xs text-muted-foreground">
-                                  Apenas o primeiro dono pode promover ou rebaixar outros donos.
-                                </p>
+                            )}
+                            <DashboardActionButton
+                              type="button"
+                              size="sm"
+                              onClick={openLibrary}
+                              disabled={!canEditBasicFields}
+                            >
+                              Biblioteca
+                            </DashboardActionButton>
+                          </div>
+                        </DashboardFieldStack>
+                        <DashboardFieldStack className="min-w-0">
+                          <Label>Links e redes</Label>
+                          <div className="grid min-w-0 gap-3">
+                            {formState.socials.length === 0 ? (
+                              <p className="text-xs text-muted-foreground">
+                                Nenhum link adicionado.
+                              </p>
+                            ) : null}
+                            {formState.socials.map((social, index) => {
+                              const availableLinkTypes =
+                                linkTypes.length > 0 ? linkTypes : fallbackLinkTypes;
+                              const selectedOption =
+                                availableLinkTypes.find((option) => option.id === social.label) ||
+                                availableLinkTypes.find(
+                                  (option) => option.label === social.label,
+                                ) ||
+                                null;
+                              const selectedLabel = selectedOption?.label || "Selecione a rede";
+
+                              return (
+                                <div
+                                  key={`${social.label}-${index}`}
+                                  data-testid={`user-social-row-${index}`}
+                                  className={`min-w-0 rounded-xl p-2 ${
+                                    socialDragOverIndex === index
+                                      ? `${subtleSurfaceClassName} border-primary/40 bg-primary/5`
+                                      : subtleSurfaceClassName
+                                  }`}
+                                  onDragOver={(event) => handleSocialDragOver(event, index)}
+                                  onDrop={(event) => handleSocialDrop(event, index)}
+                                >
+                                  <div className="grid min-w-0 grid-cols-[auto_auto_minmax(0,1fr)_auto] items-center gap-2 sm:grid-cols-[auto_auto_auto_minmax(0,1fr)_auto]">
+                                    <DashboardActionButton
+                                      type="button"
+                                      size="icon"
+                                      draggable={canEditBasicFields}
+                                      className="cursor-grab border-border/60 bg-background/60 text-muted-foreground hover:border-primary/40 hover:bg-primary/5 hover:text-primary active:cursor-grabbing disabled:cursor-not-allowed"
+                                      aria-label={`Arrastar rede ${social.label || index + 1}`}
+                                      onDragStart={(event) => handleSocialDragStart(event, index)}
+                                      onDragEnd={clearSocialDragState}
+                                      disabled={!canEditBasicFields}
+                                    >
+                                      <GripVertical className="h-4 w-4" />
+                                    </DashboardActionButton>
+                                    <ReorderControls
+                                      label={`rede ${social.label || index + 1}`}
+                                      index={index}
+                                      total={formState.socials.length}
+                                      onMove={(targetIndex) => moveSocialLink(index, targetIndex)}
+                                      disabled={!canEditBasicFields}
+                                      buttonClassName={subtleReorderButtonClassName}
+                                    />
+                                    <Combobox
+                                      value={social.label}
+                                      onValueChange={(value) =>
+                                        setFormState((prev) => {
+                                          const next = [...prev.socials];
+                                          next[index] = { ...next[index], label: value };
+                                          return { ...prev, socials: next };
+                                        })
+                                      }
+                                      disabled={!canEditBasicFields}
+                                      ariaLabel={selectedLabel}
+                                      options={availableLinkTypes.map((option) => {
+                                        const isCustomIcon = isIconUrl(option.icon);
+                                        const Icon = socialIconMap[option.icon] || Globe;
+                                        return {
+                                          value: option.id,
+                                          label: option.label,
+                                          icon: isCustomIcon ? (
+                                            <ThemedSvgLogo
+                                              url={option.icon}
+                                              label={option.label}
+                                              className={`${dropdownRichIconClassName} text-primary`}
+                                            />
+                                          ) : (
+                                            Icon
+                                          ),
+                                        };
+                                      })}
+                                      placeholder="Rede"
+                                      searchable
+                                      searchPlaceholder="Buscar rede"
+                                      emptyMessage="Nenhuma rede encontrada."
+                                      className="col-span-2 h-10 min-w-0 max-w-full w-full justify-between gap-1 bg-background/60 px-2 sm:col-span-1 sm:min-w-[9.5rem] sm:w-auto"
+                                    />
+                                    <Input
+                                      className="col-span-4 min-w-0 max-w-full"
+                                      value={social.href}
+                                      onChange={(event) =>
+                                        setFormState((prev) => {
+                                          const next = [...prev.socials];
+                                          next[index] = {
+                                            ...next[index],
+                                            href: event.target.value,
+                                          };
+                                          return { ...prev, socials: next };
+                                        })
+                                      }
+                                      placeholder="https://"
+                                      disabled={!canEditBasicFields}
+                                    />
+                                    <DashboardActionButton
+                                      type="button"
+                                      tone="destructive"
+                                      size="icon"
+                                      className="justify-self-end text-destructive hover:text-destructive sm:col-start-auto sm:shrink-0"
+                                      aria-label={`Remover rede ${social.label || index + 1}`}
+                                      onClick={() =>
+                                        setFormState((prev) => ({
+                                          ...prev,
+                                          socials: prev.socials.filter((_, idx) => idx !== index),
+                                        }))
+                                      }
+                                      disabled={!canEditBasicFields}
+                                    >
+                                      <Trash2 className="h-4 w-4" />
+                                    </DashboardActionButton>
+                                  </div>
+                                </div>
+                              );
+                            })}
+                            <DashboardActionButton
+                              type="button"
+                              size="sm"
+                              onClick={() =>
+                                setFormState((prev) => ({
+                                  ...prev,
+                                  socials: [...prev.socials, { label: "", href: "" }],
+                                }))
+                              }
+                              disabled={!canEditBasicFields}
+                            >
+                              Adicionar link
+                            </DashboardActionButton>
+                          </div>
+                        </DashboardFieldStack>
+                      </div>
+                    </AccordionContent>
+                  </AccordionItem>
+
+                  {showSelfSecuritySection ? (
+                    <AccordionItem value="seguranca" className={editorSectionClassName}>
+                      <AccordionTrigger className={editorSectionTriggerClassName}>
+                        <ProjectEditorAccordionHeader
+                          title="Segurança"
+                          subtitle={`V2F ${securitySummary?.totpEnabled ? "ativa" : "inativa"}`}
+                        />
+                      </AccordionTrigger>
+                      <AccordionContent className={editorSectionContentClassName}>
+                        <div className={`grid gap-3 rounded-2xl p-4 ${subtleSurfaceClassName}`}>
+                          <div className="flex flex-wrap items-center justify-between gap-2">
+                            <div className="space-y-1">
+                              <Label className="text-sm font-medium">Segurança da conta</Label>
+                              <p className="text-xs text-muted-foreground">
+                                Configure a V2F e gerencie suas sessões ativas.
+                              </p>
+                            </div>
+                            <DashboardActionButton
+                              size="sm"
+                              onClick={() => void refreshSelfSecurity()}
+                            >
+                              Atualizar
+                            </DashboardActionButton>
+                          </div>
+
+                          <div className="flex flex-wrap items-center gap-2">
+                            <Badge className="bg-card/80 text-muted-foreground">
+                              V2F {securitySummary?.totpEnabled ? "Ativa" : "Inativa"}
+                            </Badge>
+                            <Badge className="bg-card/80 text-muted-foreground">
+                              Recuperação: {securitySummary?.recoveryCodesRemaining ?? 0}
+                            </Badge>
+                            <Badge className="bg-card/80 text-muted-foreground">
+                              Sessões: {securitySummary?.activeSessionsCount ?? 0}
+                            </Badge>
+                          </div>
+
+                          {renderConnectedAccountsCard()}
+
+                          {!securitySummary?.totpEnabled ? (
+                            <div
+                              className={`space-y-3 rounded-2xl p-3 ${subtleInsetSurfaceClassName}`}
+                            >
+                              <DashboardActionButton
+                                size="sm"
+                                tone="primary"
+                                onClick={startSelfEnrollment}
+                              >
+                                Ativar V2F
+                              </DashboardActionButton>
+                              {securityEnrollment ? (
+                                <div className="space-y-3">
+                                  <div className="flex flex-wrap items-center gap-3">
+                                    {securityEnrollment.iconUrl ? (
+                                      <img
+                                        src={securityEnrollment.iconUrl}
+                                        alt="Ícone da conta"
+                                        className="h-9 w-9 rounded-full border border-border/60 object-cover"
+                                        referrerPolicy="no-referrer"
+                                      />
+                                    ) : null}
+                                    <p className="text-xs text-muted-foreground">
+                                      {securityEnrollment.issuer ||
+                                        securitySummary?.issuer ||
+                                        "Nekomata"}
+                                      :
+                                      {securityEnrollment.accountLabel ||
+                                        securitySummary?.accountLabel ||
+                                        currentUser?.username ||
+                                        currentUser?.name ||
+                                        editingUser?.id}
+                                    </p>
+                                  </div>
+                                  <div className="flex flex-wrap gap-4">
+                                    {securityQrDataUrl ? (
+                                      <img
+                                        src={securityQrDataUrl}
+                                        alt="QR code para configurar V2F"
+                                        className="h-48 w-48 rounded-xl border border-border/60 bg-white p-2"
+                                      />
+                                    ) : (
+                                      <div className="flex h-48 w-48 items-center justify-center rounded-xl border border-dashed border-border/60 text-xs text-muted-foreground">
+                                        Gerando QR...
+                                      </div>
+                                    )}
+                                    <div className="min-w-0 flex-1 space-y-2">
+                                      <code className="block break-all rounded bg-card px-3 py-2 text-xs">
+                                        {securityEnrollment.manualSecret}
+                                      </code>
+                                      <div className="flex flex-wrap gap-2">
+                                        <DashboardActionButton
+                                          size="sm"
+                                          onClick={async () => {
+                                            try {
+                                              await navigator.clipboard.writeText(
+                                                securityEnrollment.manualSecret,
+                                              );
+                                              toast({ title: "Segredo copiado" });
+                                            } catch {
+                                              toast({
+                                                title: "Não foi possível copiar",
+                                                variant: "destructive",
+                                              });
+                                            }
+                                          }}
+                                        >
+                                          Copiar segredo
+                                        </DashboardActionButton>
+                                        <DashboardActionButton
+                                          size="sm"
+                                          onClick={async () => {
+                                            try {
+                                              await navigator.clipboard.writeText(
+                                                securityEnrollment.otpauthUrl,
+                                              );
+                                              toast({ title: "URL de V2F copiada" });
+                                            } catch {
+                                              toast({
+                                                title: "Não foi possível copiar",
+                                                variant: "destructive",
+                                              });
+                                            }
+                                          }}
+                                        >
+                                          Copiar URL de V2F
+                                        </DashboardActionButton>
+                                        <DashboardActionButton
+                                          size="sm"
+                                          onClick={startSelfEnrollment}
+                                        >
+                                          Reiniciar ativação
+                                        </DashboardActionButton>
+                                      </div>
+                                      <Input
+                                        value={securityEnrollCode}
+                                        onChange={(event) =>
+                                          setSecurityEnrollCode(event.target.value)
+                                        }
+                                        placeholder="Código da V2F"
+                                      />
+                                      <DashboardActionButton
+                                        size="sm"
+                                        tone="primary"
+                                        onClick={confirmSelfEnrollment}
+                                        disabled={
+                                          !securityEnrollCode.trim() ||
+                                          !securityEnrollment.enrollmentToken
+                                        }
+                                      >
+                                        Confirmar ativação
+                                      </DashboardActionButton>
+                                    </div>
+                                  </div>
+                                </div>
                               ) : null}
-                              {isPrimaryOwnerRecord ? (
+                            </div>
+                          ) : (
+                            <div
+                              className={`space-y-2 rounded-2xl p-3 ${subtleInsetSurfaceClassName}`}
+                            >
+                              <Input
+                                value={securityDisableCode}
+                                onChange={(event) => setSecurityDisableCode(event.target.value)}
+                                placeholder="Código da V2F ou código de recuperação"
+                              />
+                              <DashboardActionButton
+                                size="sm"
+                                tone="destructive"
+                                onClick={disableSelfTotp}
+                                disabled={!securityDisableCode.trim()}
+                              >
+                                Desativar V2F
+                              </DashboardActionButton>
+                            </div>
+                          )}
+
+                          {securityRecoveryCodes.length > 0 ? (
+                            <div className="space-y-2 rounded-2xl border border-amber-500/30 bg-amber-500/10 p-3">
+                              <p className="text-xs font-medium">
+                                Salve estes códigos de recuperação agora:
+                              </p>
+                              <div className="grid gap-1 md:grid-cols-2">
+                                {securityRecoveryCodes.map((code) => (
+                                  <code key={code} className="rounded bg-card px-2 py-1 text-xs">
+                                    {code}
+                                  </code>
+                                ))}
+                              </div>
+                            </div>
+                          ) : null}
+
+                          <div
+                            className={`space-y-2 rounded-2xl p-3 ${subtleInsetSurfaceClassName}`}
+                          >
+                            <div className="flex items-center justify-between gap-2">
+                              <p className="text-sm font-medium">Sessões ativas</p>
+                              <DashboardActionButton
+                                size="sm"
+                                tone="destructive"
+                                onClick={revokeSelfOthers}
+                                disabled={isLoadingSecurity}
+                              >
+                                Encerrar outras
+                              </DashboardActionButton>
+                            </div>
+                            {isLoadingSecurity ? (
+                              <div
+                                className="space-y-2"
+                                data-testid="dashboard-users-security-loading"
+                                role="status"
+                                aria-live="polite"
+                                aria-busy="true"
+                              >
+                                {Array.from({ length: 2 }).map((_, index) => (
+                                  <div
+                                    key={`dashboard-users-security-loading-${index}`}
+                                    className={`rounded-xl p-2 ${subtleMutedSurfaceClassName}`}
+                                  >
+                                    <div className="flex flex-wrap items-start justify-between gap-2">
+                                      <div className="space-y-2">
+                                        <Skeleton className="h-3 w-24" />
+                                        <Skeleton className="h-3 w-36" />
+                                      </div>
+                                      <Skeleton className="h-6 w-20 rounded-full" />
+                                    </div>
+                                  </div>
+                                ))}
+                                <span className="sr-only">Carregando sessões...</span>
+                              </div>
+                            ) : securitySessions.length === 0 ? (
+                              <p className="text-xs text-muted-foreground">Nenhuma sessão ativa.</p>
+                            ) : (
+                              <div className="space-y-2">
+                                {securitySessions.map((session) => (
+                                  <div
+                                    key={session.sid}
+                                    className={`flex flex-wrap items-start justify-between gap-2 rounded-xl p-2 ${subtleMutedSurfaceClassName}`}
+                                  >
+                                    <div className="space-y-1">
+                                      <div className="flex flex-wrap items-center gap-2">
+                                        <p className="text-xs font-medium">
+                                          {isCurrentSecuritySession(session)
+                                            ? "Sessão atual"
+                                            : "Sessão remota"}
+                                        </p>
+                                        {isCurrentSecuritySession(session) ? (
+                                          <Badge variant="accent">Atual</Badge>
+                                        ) : null}
+                                        {session.isPendingMfa ? (
+                                          <Badge variant="warning">Pendente V2F</Badge>
+                                        ) : null}
+                                      </div>
+                                      <p className="text-[11px] text-muted-foreground">
+                                        Última atividade:{" "}
+                                        {formatSecurityDateTime(session.lastSeenAt)}
+                                      </p>
+                                      <p className="text-[11px] text-muted-foreground">
+                                        Criada em: {formatSecurityDateTime(session.createdAt)}
+                                      </p>
+                                      <p className="text-[11px] text-muted-foreground">
+                                        IP: {session.lastIp || "-"}
+                                      </p>
+                                      <p className="max-w-[360px] truncate text-[11px] text-muted-foreground">
+                                        {session.userAgent || "-"}
+                                      </p>
+                                    </div>
+                                    {!isCurrentSecuritySession(session) ? (
+                                      <DashboardActionButton
+                                        size="sm"
+                                        tone="destructive"
+                                        onClick={() => revokeSelfSession(session.sid)}
+                                      >
+                                        Encerrar
+                                      </DashboardActionButton>
+                                    ) : null}
+                                  </div>
+                                ))}
+                              </div>
+                            )}
+                          </div>
+                        </div>
+                      </AccordionContent>
+                    </AccordionItem>
+                  ) : null}
+                  {canEditAccessControls ? (
+                    <AccordionItem value="acesso-permissoes" className={editorSectionClassName}>
+                      <AccordionTrigger className={editorSectionTriggerClassName}>
+                        <ProjectEditorAccordionHeader
+                          title="Acesso e permissões"
+                          subtitle={`${editorAccessRoleLabel} • ${
+                            stripOwnerRole(formState.roles).length
+                          } funções`}
+                        />
+                      </AccordionTrigger>
+                      <AccordionContent className={editorSectionContentClassName}>
+                        <div className="grid gap-4">
+                          <div className="grid gap-2">
+                            <Label>Funções</Label>
+                            {!canEditRoles && (
+                              <p className="text-xs text-muted-foreground">
+                                Apenas donos com permissão de acesso podem alterar funções de
+                                equipe.
+                              </p>
+                            )}
+                            <div className="flex flex-wrap gap-2">
+                              {roleOptions.map((role) => {
+                                const isSelected = formState.roles.includes(role);
+                                const iconKey = roleIconMap.get(role);
+                                const RoleIcon = iconKey
+                                  ? roleIconRegistry[String(iconKey).toLowerCase()]
+                                  : null;
+                                return (
+                                  <Button
+                                    key={role}
+                                    type="button"
+                                    variant={isSelected ? "default" : "outline"}
+                                    onClick={() => toggleRole(role)}
+                                    disabled={!canEditRoles}
+                                  >
+                                    {RoleIcon ? <RoleIcon className="h-4 w-4" /> : null}
+                                    {role}
+                                  </Button>
+                                );
+                              })}
+                            </div>
+                            {isOwnerRecord && (
+                              <p className="text-xs text-muted-foreground">
+                                A badge de dono é automática.
+                              </p>
+                            )}
+                          </div>
+                          <DashboardFieldStack>
+                            <Label>Papel de acesso</Label>
+                            <DashboardFieldStack density="compact">
+                              <Combobox
+                                value={formState.accessRole}
+                                onValueChange={(value) =>
+                                  setFormState((prev) => ({
+                                    ...prev,
+                                    accessRole: value === "admin" ? "admin" : "normal",
+                                    permissions:
+                                      value === "admin"
+                                        ? Array.from(
+                                            new Set([
+                                              ...prev.permissions,
+                                              ...permissionOptions
+                                                .filter((option) =>
+                                                  DEFAULT_ADMIN_PERMISSION_SET.has(option.id),
+                                                )
+                                                .map((option) => option.id),
+                                            ]),
+                                          )
+                                        : prev.permissions.filter(
+                                            (permission) =>
+                                              !DEFAULT_ADMIN_PERMISSION_SET.has(permission),
+                                          ),
+                                  }))
+                                }
+                                disabled={!canEditAccessControls || isOwnerRecord}
+                                ariaLabel="Selecionar papel de acesso"
+                                options={accessRoleOptions.map((option) => ({
+                                  value: option.id,
+                                  label: option.label,
+                                }))}
+                                placeholder="Selecione um papel"
+                                searchable={false}
+                              />
+                              {isOwnerRecord ? (
                                 <p className="text-xs text-muted-foreground">
-                                  O primeiro dono não pode ser rebaixado.
+                                  O papel de dono é definido pela governança de owners.
                                 </p>
                               ) : null}
                             </DashboardFieldStack>
                           </DashboardFieldStack>
-                        ) : null}
-                        <DashboardFieldStack>
-                          <Label>Status</Label>
-                          <div
-                            className={`flex items-center justify-between gap-4 rounded-2xl px-4 py-3 ${subtleSurfaceClassName}`}
-                          >
-                            <span className="text-sm text-muted-foreground">
-                              {formState.status === "active" ? "Ativo" : "Aposentado"}
-                            </span>
-                            <Switch
-                              checked={formState.status === "active"}
-                              onCheckedChange={(checked) =>
-                                setFormState((prev) => ({
-                                  ...prev,
-                                  status: checked ? "active" : "retired",
-                                }))
-                              }
-                              disabled={!canEditStatus}
-                            />
+                          <div className="grid gap-2">
+                            <Label>Permissões</Label>
+                            {isOwnerRecord && (
+                              <Badge className="w-fit bg-primary/20 text-primary">
+                                Acesso total
+                              </Badge>
+                            )}
+                            {!isOwnerRecord && isAdminForm && (
+                              <Badge className="w-fit bg-card/80 text-muted-foreground">
+                                Administrador
+                              </Badge>
+                            )}
+                            <div className="flex flex-wrap gap-2">
+                              {permissionOptions.map((permission) => {
+                                const isSelected = effectivePermissions.includes(permission.id);
+                                return (
+                                  <Button
+                                    key={permission.id}
+                                    type="button"
+                                    variant={isSelected ? "default" : "outline"}
+                                    onClick={() => togglePermission(permission.id)}
+                                    disabled={!canEditAccessControls || isOwnerRecord}
+                                  >
+                                    {permission.label}
+                                  </Button>
+                                );
+                              })}
+                            </div>
+                            {!canEditAccessControls && (
+                              <p className="text-xs text-muted-foreground">
+                                Apenas donos com permissão de acesso podem alterar permissões de
+                                acesso.
+                              </p>
+                            )}
                           </div>
-                        </DashboardFieldStack>
-                      </div>
-                    </AccordionContent>
-                  </AccordionItem>
-                ) : null}
-              </Accordion>
-            </div>
-            <div className="project-editor-footer sticky bottom-0 z-20 flex flex-col gap-3 border-t border-border/60 bg-background/95 px-4 py-2 backdrop-blur-sm supports-backdrop-filter:bg-background/80 md:flex-row md:items-center md:justify-between md:px-6 md:py-2.5 lg:px-8">
-              <div className="flex flex-wrap items-center gap-2">
-                {editingUser && canResetManagedUserTotp ? (
-                  <DashboardActionButton
-                    size="sm"
-                    tone="destructive"
-                    onClick={() => setResetMfaTarget(editingUser)}
-                    disabled={isResettingMfa}
-                  >
-                    Redefinir V2F
-                  </DashboardActionButton>
-                ) : null}
-                {editingUser ? (
-                  <DashboardActionButton
-                    size="sm"
-                    tone="destructive"
-                    onClick={() => setDeleteTarget(editingUser)}
-                    disabled={
-                      !canManageUsers ||
-                      isPrimaryOwnerRecord ||
-                      editingUser.id === currentUser?.id ||
-                      (isOwnerRecord && !canManageOwners)
-                    }
-                  >
-                    Excluir
-                  </DashboardActionButton>
-                ) : null}
+                          {canManageUsers ? (
+                            <DashboardFieldStack>
+                              <Label>Dono</Label>
+                              <DashboardFieldStack density="compact">
+                                <div
+                                  className={`flex items-center justify-between gap-4 rounded-2xl px-4 py-3 ${subtleSurfaceClassName}`}
+                                >
+                                  <span className="text-sm text-muted-foreground">
+                                    Permite acesso total ao painel e às configurações críticas.
+                                  </span>
+                                  <Switch
+                                    checked={ownerToggle}
+                                    onCheckedChange={setOwnerToggle}
+                                    disabled={!canManageOwners || isPrimaryOwnerRecord}
+                                  />
+                                </div>
+                                {!canManageOwners ? (
+                                  <p className="text-xs text-muted-foreground">
+                                    Apenas o primeiro dono pode promover ou rebaixar outros donos.
+                                  </p>
+                                ) : null}
+                                {isPrimaryOwnerRecord ? (
+                                  <p className="text-xs text-muted-foreground">
+                                    O primeiro dono não pode ser rebaixado.
+                                  </p>
+                                ) : null}
+                              </DashboardFieldStack>
+                            </DashboardFieldStack>
+                          ) : null}
+                          <DashboardFieldStack>
+                            <Label>Status</Label>
+                            <div
+                              className={`flex items-center justify-between gap-4 rounded-2xl px-4 py-3 ${subtleSurfaceClassName}`}
+                            >
+                              <span className="text-sm text-muted-foreground">
+                                {formState.status === "active" ? "Ativo" : "Aposentado"}
+                              </span>
+                              <Switch
+                                checked={formState.status === "active"}
+                                onCheckedChange={(checked) =>
+                                  setFormState((prev) => ({
+                                    ...prev,
+                                    status: checked ? "active" : "retired",
+                                  }))
+                                }
+                                disabled={!canEditStatus}
+                              />
+                            </div>
+                          </DashboardFieldStack>
+                        </div>
+                      </AccordionContent>
+                    </AccordionItem>
+                  ) : null}
+                </Accordion>
               </div>
-              <div className="flex flex-wrap items-center justify-end gap-2">
-                <DashboardActionButton size="sm" onClick={() => handleEditorOpenChange(false)}>
-                  Cancelar
-                </DashboardActionButton>
-                <DashboardActionButton size="sm" tone="primary" onClick={handleSave}>
-                  Salvar
-                </DashboardActionButton>
+              <div className="project-editor-footer sticky bottom-0 z-20 flex flex-col gap-3 border-t border-border/60 bg-background/95 px-4 py-2 backdrop-blur-sm supports-backdrop-filter:bg-background/80 md:flex-row md:items-center md:justify-between md:px-6 md:py-2.5 lg:px-8">
+                <div className="flex flex-wrap items-center gap-2">
+                  {editingUser && canResetManagedUserTotp ? (
+                    <DashboardActionButton
+                      size="sm"
+                      tone="destructive"
+                      onClick={() => setResetMfaTarget(editingUser)}
+                      disabled={isResettingMfa}
+                    >
+                      Redefinir V2F
+                    </DashboardActionButton>
+                  ) : null}
+                  {editingUser ? (
+                    <DashboardActionButton
+                      size="sm"
+                      tone="destructive"
+                      onClick={() => setDeleteTarget(editingUser)}
+                      disabled={
+                        !canManageUsers ||
+                        isPrimaryOwnerRecord ||
+                        editingUser.id === currentUser?.id ||
+                        (isOwnerRecord && !canManageOwners)
+                      }
+                    >
+                      Excluir
+                    </DashboardActionButton>
+                  ) : null}
+                </div>
+                <div className="flex flex-wrap items-center justify-end gap-2">
+                  <DashboardActionButton size="sm" onClick={() => handleEditorOpenChange(false)}>
+                    Cancelar
+                  </DashboardActionButton>
+                  <DashboardActionButton size="sm" tone="primary" onClick={handleSave}>
+                    Salvar
+                  </DashboardActionButton>
+                </div>
               </div>
             </div>
           </div>

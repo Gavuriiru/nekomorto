@@ -578,6 +578,7 @@ describe("DashboardPosts edit query", () => {
     });
 
     const editorDialog = document.querySelector(".project-editor-dialog") as HTMLElement | null;
+    const editorFrame = document.querySelector(".project-editor-modal-frame") as HTMLElement | null;
     const editorScrollShell = document.querySelector(
       ".project-editor-scroll-shell",
     ) as HTMLElement | null;
@@ -603,6 +604,7 @@ describe("DashboardPosts edit query", () => {
     });
 
     expect(editorDialog).not.toBeNull();
+    expect(editorFrame).not.toBeNull();
     expect(editorScrollShell).not.toBeNull();
     expect(editorTop).not.toBeNull();
     expect(editorFooter).not.toBeNull();
@@ -612,6 +614,15 @@ describe("DashboardPosts edit query", () => {
     expect(editorSectionContent).not.toBeNull();
     expect(document.querySelector(".project-editor-dialog-surface")).toBeNull();
     expect(classTokens(editorScrollShell as HTMLElement)).toContain("overflow-y-auto");
+    expect(classTokens(editorFrame as HTMLElement)).toEqual(
+      expect.arrayContaining([
+        "flex",
+        "max-h-[min(90vh,calc(100dvh-1.5rem))]",
+        "min-h-0",
+        "flex-col",
+      ]),
+    );
+    expect(classTokens(editorScrollShell as HTMLElement)).toContain("flex-1");
     expect(classTokens(editorScrollShell as HTMLElement)).not.toContain("max-h-[94vh]");
     expect(classTokens(editorTop as HTMLElement)).toContain("sticky");
     expect(classTokens(editorFooter as HTMLElement)).toContain("sticky");
@@ -663,10 +674,23 @@ describe("DashboardPosts edit query", () => {
     const publishButton = within(editorDialog).getByRole("button", {
       name: "Publicar agora",
     });
+    const mobileActionCluster = saveButton.closest(".project-editor-footer");
+    expect(mobileActionCluster).not.toBeNull();
+    expect(classTokens(mobileActionCluster as HTMLElement)).toEqual(
+      expect.arrayContaining(["grid", "grid-cols-2", "gap-2", "sm:flex"]),
+    );
+    expect(deleteButton.closest(".project-editor-footer")).toBe(mobileActionCluster);
+    expect(cancelButton.closest(".project-editor-footer")).toBe(mobileActionCluster);
+    expect(mobileActionCluster).toContainElement(saveButton);
+    expect(mobileActionCluster).toContainElement(publishButton);
     expectStableDashboardActionButton(cancelButton, "h-9");
     expectDestructiveDashboardActionButton(deleteButton, "h-9");
     expectPrimaryDashboardActionButton(saveButton, "h-9");
     expectPrimaryDashboardActionButton(publishButton, "h-9");
+    expect(classTokens(saveButton)).not.toContain("w-full");
+    expect(classTokens(saveButton)).not.toContain("sm:w-auto");
+    expect(classTokens(publishButton)).not.toContain("w-full");
+    expect(classTokens(publishButton)).not.toContain("sm:w-auto");
     expectEditorSectionHeader(editorDialog, "Conteúdo", "Texto principal do post");
     expectEditorSectionHeader(editorDialog, "Publicação", "Rascunho");
     expectEditorSectionHeader(editorDialog, "Mídia", "Sem capa");

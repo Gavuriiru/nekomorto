@@ -6,6 +6,7 @@ import { MemoryRouter, useLocation } from "react-router-dom";
 import { describe, expect, it, vi } from "vitest";
 
 const apiFetchMock = vi.hoisted(() => vi.fn());
+const useIsMobileMock = vi.hoisted(() => vi.fn());
 
 vi.mock("@/components/DashboardShell", () => ({
   default: ({ children }: { children: ReactNode }) => <div>{children}</div>,
@@ -17,6 +18,10 @@ vi.mock("@/components/ImageLibraryDialog", () => ({
 
 vi.mock("@/hooks/use-page-meta", () => ({
   usePageMeta: () => undefined,
+}));
+
+vi.mock("@/hooks/use-mobile", () => ({
+  useIsMobile: () => useIsMobileMock(),
 }));
 
 vi.mock("@/hooks/use-site-settings", () => ({
@@ -224,7 +229,95 @@ const LocationProbe = () => {
 };
 
 describe("DashboardUsers edit query", () => {
+  it("aplica largura mobile real via style inline e preserva o layout truncavel", async () => {
+    useIsMobileMock.mockReturnValue(true);
+    setupApiMock();
+
+    render(
+      <MemoryRouter initialEntries={["/dashboard/usuarios?edit=me"]}>
+        <DashboardUsers />
+      </MemoryRouter>,
+    );
+
+    await screen.findByRole("heading", { name: /editar usu.rio/i });
+
+    const editorDialog = document.querySelector(".project-editor-dialog") as HTMLElement | null;
+    const editorFrame = document.querySelector(".project-editor-modal-frame") as HTMLElement | null;
+    const editorScrollShell = document.querySelector(
+      ".project-editor-scroll-shell",
+    ) as HTMLElement | null;
+    const editorTop = document.querySelector(".project-editor-top") as HTMLElement | null;
+    const editorLayout = document.querySelector(".project-editor-layout") as HTMLElement | null;
+    const editorAccordion = document.querySelector(
+      ".project-editor-accordion",
+    ) as HTMLElement | null;
+    const editorSectionContent = document.querySelector(
+      ".project-editor-section-content",
+    ) as HTMLElement | null;
+    const editorStatusBar = document.querySelector(".project-editor-status-bar") as HTMLElement | null;
+    const editorIdBadge = editorStatusBar
+      ? (within(editorStatusBar).getByText(/^ID\s/i).parentElement as HTMLElement | null)
+      : null;
+
+    expect(editorDialog).not.toBeNull();
+    expect(editorFrame).not.toBeNull();
+    expect(editorScrollShell).not.toBeNull();
+    expect(editorTop).not.toBeNull();
+    expect(editorLayout).not.toBeNull();
+    expect(editorAccordion).not.toBeNull();
+    expect(editorSectionContent).not.toBeNull();
+    expect(editorStatusBar).not.toBeNull();
+    expect(classTokens(editorDialog as HTMLElement)).not.toContain("w-[min(calc(100vw-3rem),320px)]");
+    expect(classTokens(editorDialog as HTMLElement)).not.toContain("max-w-[320px]");
+    expect(classTokens(editorDialog as HTMLElement)).toContain("sm:w-auto");
+    expect(classTokens(editorDialog as HTMLElement)).toContain(
+      "sm:max-w-[min(1760px,calc(100vw-1rem))]",
+    );
+    expect(editorDialog?.style.width).toBe("calc(100vw - 3rem)");
+    expect(editorDialog?.style.maxWidth).toBe("300px");
+    expect(classTokens(editorFrame as HTMLElement)).toEqual(
+      expect.arrayContaining(["w-full", "min-w-0", "overflow-x-clip"]),
+    );
+    expect(classTokens(editorScrollShell as HTMLElement)).toContain("min-w-0");
+    expect(classTokens(editorTop as HTMLElement)).toContain("min-w-0");
+    expect(classTokens(editorLayout as HTMLElement)).toContain("min-w-0");
+    expect(classTokens(editorAccordion as HTMLElement)).toContain("min-w-0");
+    expect(classTokens(editorSectionContent as HTMLElement)).toContain("min-w-0");
+    expect(classTokens(editorStatusBar as HTMLElement)).toEqual(
+      expect.arrayContaining(["overflow-hidden", "flex-wrap"]),
+    );
+    expect(classTokens(editorIdBadge as HTMLElement)).toEqual(
+      expect.arrayContaining(["w-full", "min-w-0", "sm:w-auto"]),
+    );
+    expect(within(editorStatusBar as HTMLElement).getByText(/redes$/i)).toHaveClass("truncate");
+    expect(within(editorStatusBar as HTMLElement).getByText(/fun..es$/i)).toHaveClass("truncate");
+  });
+
+  it("remove o override inline no sm+ e restaura o comportamento largo", async () => {
+    useIsMobileMock.mockReturnValue(false);
+    setupApiMock();
+
+    render(
+      <MemoryRouter initialEntries={["/dashboard/usuarios?edit=me"]}>
+        <DashboardUsers />
+      </MemoryRouter>,
+    );
+
+    await screen.findByRole("heading", { name: /editar usu.rio/i });
+
+    const editorDialog = document.querySelector(".project-editor-dialog") as HTMLElement | null;
+
+    expect(editorDialog).not.toBeNull();
+    expect(editorDialog?.getAttribute("style") || "").not.toContain("width:");
+    expect(editorDialog?.getAttribute("style") || "").not.toContain("max-width:");
+    expect(classTokens(editorDialog as HTMLElement)).toContain("sm:w-auto");
+    expect(classTokens(editorDialog as HTMLElement)).toContain(
+      `sm:${dashboardEditorDialogWidthClassName}`,
+    );
+  });
+
   it("abre criacao automaticamente com ?create=1 e limpa a query", async () => {
+    useIsMobileMock.mockReturnValue(false);
     setupApiMock();
 
     render(
@@ -246,6 +339,7 @@ describe("DashboardUsers edit query", () => {
   });
 
   it("inicializa o papel de acesso como admin para payload legado", async () => {
+    useIsMobileMock.mockReturnValue(false);
     const adminUser: TestUser = {
       id: "user-2",
       name: "Colaborador Admin",
@@ -288,6 +382,7 @@ describe("DashboardUsers edit query", () => {
   });
 
   it("limpa permissões automáticas quando volta de administrador para normal", async () => {
+    useIsMobileMock.mockReturnValue(false);
     const managedUser: TestUser = {
       id: "user-2",
       name: "Colaborador Normal",
@@ -304,6 +399,7 @@ describe("DashboardUsers edit query", () => {
       favoriteWorks: { manga: [], anime: [] },
       order: 0,
     };
+    useIsMobileMock.mockReturnValue(false);
     setupApiMock({
       currentUser: defaultCurrentUser,
       users: [defaultCurrentUser, managedUser],
@@ -348,6 +444,7 @@ describe("DashboardUsers edit query", () => {
   });
 
   it("esconde id interno, e-mail de acesso e badge de id para self-edit sem privilégio de gestão", async () => {
+    useIsMobileMock.mockReturnValue(false);
     setupApiMock({
       currentUserGrants: {
         usuarios: false,
@@ -395,6 +492,7 @@ describe("DashboardUsers edit query", () => {
   });
 
   it("abre self-edit com fallback do /api/me quando /api/users retorna 403", async () => {
+    useIsMobileMock.mockReturnValue(false);
     setupApiMock({
       currentUserGrants: {
         usuarios: false,
@@ -626,7 +724,11 @@ describe("DashboardUsers edit query", () => {
   });
 
   it("controla classe editor-modal-scrolled no dialog ao rolar e fechar", async () => {
-    setupApiMock();
+    const userWithSocials = {
+      ...defaultCurrentUser,
+      socials: [{ label: "x", href: "https://x.com/nekomata" }],
+    };
+    setupApiMock({ currentUser: userWithSocials, users: [userWithSocials] });
 
     render(
       <MemoryRouter initialEntries={["/dashboard/usuarios?edit=me"]}>
@@ -642,6 +744,7 @@ describe("DashboardUsers edit query", () => {
     });
 
     const editorDialog = document.querySelector(".project-editor-dialog") as HTMLElement | null;
+    const editorFrame = document.querySelector(".project-editor-modal-frame") as HTMLElement | null;
     const editorScrollShell = document.querySelector(
       ".project-editor-scroll-shell",
     ) as HTMLElement | null;
@@ -656,6 +759,7 @@ describe("DashboardUsers edit query", () => {
     const editorAccordion = document.querySelector(
       ".project-editor-accordion",
     ) as HTMLElement | null;
+    const socialRow = document.querySelector('[data-testid="user-social-row-0"]');
     const editorBackdrop = screen.getByTestId("dashboard-editor-backdrop");
     const legacyBackdrop = Array.from(document.body.querySelectorAll("div")).find((node) => {
       const tokens = classTokens(node as HTMLElement);
@@ -669,6 +773,7 @@ describe("DashboardUsers edit query", () => {
       );
     });
     expect(editorDialog).not.toBeNull();
+    expect(editorFrame).not.toBeNull();
     expect(editorScrollShell).not.toBeNull();
     expect(editorHeader).not.toBeNull();
     expect(editorStatusBar).not.toBeNull();
@@ -678,14 +783,62 @@ describe("DashboardUsers edit query", () => {
     expect(editorTop?.className).toContain("sticky");
     expect(editorFooter?.className).toContain("sticky");
     expect(document.querySelector(".project-editor-dialog-surface")).toBeNull();
-    expect(classTokens(editorDialog as HTMLElement)).toContain(dashboardEditorDialogWidthClassName);
+    expect(classTokens(editorDialog as HTMLElement)).toContain(
+      `sm:${dashboardEditorDialogWidthClassName}`,
+    );
     expect(classTokens(editorDialog as HTMLElement)).not.toContain("max-w-5xl");
+    expect(classTokens(editorDialog as HTMLElement)).toContain(
+      "sm:max-w-[min(1760px,calc(100vw-1rem))]",
+    );
+    expect(classTokens(editorDialog as HTMLElement)).toContain("sm:w-auto");
+    expect((editorDialog as HTMLElement).getAttribute("style") || "").not.toContain("width:");
+    expect((editorDialog as HTMLElement).getAttribute("style") || "").not.toContain("max-width:");
     expect(classTokens(editorDialog as HTMLElement)).not.toContain("h-[85vh]");
     expect(classTokens(editorDialog as HTMLElement)).not.toContain("overflow-hidden");
     expect(classTokens(editorDialog as HTMLElement)).not.toContain("sm:rounded-2xl");
     expect(classTokens(editorDialog as HTMLElement)).toContain("p-0");
+    expect(classTokens(editorFrame as HTMLElement)).toEqual(
+      expect.arrayContaining([
+        "flex",
+        "max-h-[min(90vh,calc(100dvh-1.5rem))]",
+        "min-h-0",
+        "flex-col",
+        "overflow-x-clip",
+      ]),
+    );
     expect(classTokens(editorScrollShell as HTMLElement)).toContain("overflow-y-auto");
+    expect(classTokens(editorScrollShell as HTMLElement)).toContain("flex-1");
+    expect(classTokens(editorScrollShell as HTMLElement)).toContain("min-w-0");
     expect(classTokens(editorScrollShell as HTMLElement)).not.toContain("overscroll-contain");
+    expect(classTokens(editorTop as HTMLElement)).toContain("min-w-0");
+    expect(classTokens(editorLayout as HTMLElement)).toContain("min-w-0");
+    expect(classTokens(editorAccordion as HTMLElement)).toContain("min-w-0");
+    expect(classTokens(editorSectionContent as HTMLElement)).toContain("min-w-0");
+    expect(classTokens(socialRow)).toContain("min-w-0");
+    expect(classTokens(socialRow)).not.toContain("overflow-x-auto");
+    expect(classTokens(editorStatusBar as HTMLElement)).toEqual(
+      expect.arrayContaining(["min-w-0", "max-w-full", "overflow-hidden", "flex-wrap"]),
+    );
+    const editorSummaryCard = within(editorDialog as HTMLElement)
+      .getByText(/^Usuário$/i)
+      .closest("div.rounded-xl");
+    expect(editorSummaryCard).not.toBeNull();
+    expect(classTokens(editorSummaryCard)).toEqual(
+      expect.arrayContaining(["w-full", "text-left", "sm:w-auto", "sm:text-right"]),
+    );
+    const socialCountMeta = within(editorStatusBar as HTMLElement).getByText(/redes$/i);
+    const rolesCountMeta = within(editorStatusBar as HTMLElement).getByText(/fun..es$/i);
+    expect(classTokens(socialCountMeta as HTMLElement)).toEqual(
+      expect.arrayContaining(["truncate", "max-w-[7.5rem]"]),
+    );
+    expect(classTokens(rolesCountMeta as HTMLElement)).toEqual(
+      expect.arrayContaining(["truncate", "max-w-[9rem]"]),
+    );
+    const editorIdBadge = within(editorStatusBar as HTMLElement).getByText(/^ID\s/i).parentElement;
+    expect(editorIdBadge).not.toBeNull();
+    expect(classTokens(editorIdBadge)).toEqual(
+      expect.arrayContaining(["w-full", "max-w-full", "min-w-0", "truncate", "sm:w-auto"]),
+    );
     expect(editorBackdrop).toHaveClass("bg-black/80", "backdrop-blur-xs");
     expect(legacyBackdrop).toBeUndefined();
 

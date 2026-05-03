@@ -175,6 +175,38 @@
   height: auto;
 }
 
+.lexical-playground.lexical-playground--modal.lexical-playground--post-editor,
+.lexical-playground.lexical-playground--modal.lexical-playground--chapter-editor {
+  min-height: 0;
+  height: auto;
+}
+
+.lexical-playground.lexical-playground--modal.lexical-playground--post-editor .editor-shell,
+.lexical-playground.lexical-playground--modal.lexical-playground--post-editor .editor-container,
+.lexical-playground.lexical-playground--modal.lexical-playground--post-editor .editor-scroller,
+.lexical-playground.lexical-playground--modal.lexical-playground--post-editor .editor,
+.lexical-playground
+  .lexical-playground--modal.lexical-playground--post-editor
+  .ContentEditable__root,
+.lexical-playground.lexical-playground--modal.lexical-playground--chapter-editor .editor-shell,
+.lexical-playground
+  .lexical-playground--modal.lexical-playground--chapter-editor
+  .editor-container,
+.lexical-playground.lexical-playground--modal.lexical-playground--chapter-editor .editor-scroller,
+.lexical-playground.lexical-playground--modal.lexical-playground--chapter-editor .editor,
+.lexical-playground
+  .lexical-playground--modal.lexical-playground--chapter-editor
+  .ContentEditable__root {
+  min-height: 0;
+}
+
+.lexical-playground.lexical-playground--modal.lexical-playground--post-editor .editor-scroller,
+.lexical-playground
+  .lexical-playground--modal.lexical-playground--chapter-editor
+  .editor-scroller {
+  overflow: hidden;
+}
+
 @media (max-width: 1025px) {
   .lexical-playground.lexical-playground--post-editor .editor-scroller,
   .lexical-playground.lexical-playground--post-editor .editor,
@@ -186,6 +218,24 @@
   .lexical-playground.lexical-playground--chapter-editor .editor,
   .lexical-playground.lexical-playground--chapter-editor .ContentEditable__root {
     min-height: 420px;
+  }
+
+  .lexical-playground.lexical-playground--modal.lexical-playground--post-editor .editor-scroller,
+  .lexical-playground.lexical-playground--modal.lexical-playground--post-editor .editor,
+  .lexical-playground
+    .lexical-playground--modal.lexical-playground--post-editor
+    .ContentEditable__root {
+    min-height: 260px;
+  }
+
+  .lexical-playground
+    .lexical-playground--modal.lexical-playground--chapter-editor
+    .editor-scroller,
+  .lexical-playground .lexical-playground--modal.lexical-playground--chapter-editor .editor,
+  .lexical-playground
+    .lexical-playground--modal.lexical-playground--chapter-editor
+    .ContentEditable__root {
+    min-height: 320px;
   }
 }
 

@@ -1047,7 +1047,7 @@ const DashboardProjectsEditor = () => {
           <section className="mt-8 space-y-6">
             <div
               data-testid="dashboard-projects-toolbar"
-              className="relative z-30 grid min-w-0 gap-3 animate-slide-up opacity-0 sm:flex sm:items-start sm:justify-between"
+              className="relative z-10 grid min-w-0 gap-3 animate-slide-up opacity-0 sm:flex sm:items-start sm:justify-between"
             >
               <div className="grid min-w-0 gap-3 sm:grid-cols-2 lg:flex lg:flex-wrap lg:items-center">
                 <div className="min-w-0 sm:col-span-2 lg:w-full lg:max-w-sm">
@@ -1117,13 +1117,13 @@ const DashboardProjectsEditor = () => {
                     lift={false}
                     className={`${dashboardPageLayoutTokens.listCardSolid} overflow-hidden`}
                   >
-                    <CardContent className="grid min-h-[360px] gap-0 p-0 lg:h-[342px] lg:min-h-0 lg:grid-cols-[220px_1fr]">
-                      <div className="flex justify-center px-4 pt-4 lg:block lg:px-0 lg:pt-0">
-                        <Skeleton
-                          className="w-[180px] max-w-full rounded-none lg:h-full lg:w-full"
-                          style={{ aspectRatio: PROJECT_COVER_ASPECT_RATIO }}
-                        />
-                      </div>
+                      <CardContent className="grid min-h-[360px] gap-0 p-0 lg:h-[342px] lg:min-h-0 lg:grid-cols-[220px_1fr]">
+                        <div className="flex lg:block">
+                          <Skeleton
+                            className="h-auto w-full shrink-0 rounded-none lg:h-full lg:w-full"
+                            style={{ aspectRatio: PROJECT_COVER_ASPECT_RATIO }}
+                          />
+                        </div>
                       <div className="space-y-4 p-4 lg:p-6">
                         <div className="flex gap-2">
                           <Skeleton className="h-5 w-20" />
@@ -1187,11 +1187,11 @@ const DashboardProjectsEditor = () => {
                         >
                           <div
                             data-slot="project-card-cover-shell"
-                            className="flex justify-center px-4 pt-4 lg:block lg:px-0 lg:pt-0"
+                            className="flex lg:block"
                           >
                             <div
                               data-slot="project-card-cover"
-                              className="relative w-[180px] max-w-full overflow-hidden lg:h-full lg:w-full"
+                              className="relative h-auto w-full shrink-0 overflow-hidden lg:h-full lg:w-full"
                               style={{ aspectRatio: PROJECT_COVER_ASPECT_RATIO }}
                             >
                               <img

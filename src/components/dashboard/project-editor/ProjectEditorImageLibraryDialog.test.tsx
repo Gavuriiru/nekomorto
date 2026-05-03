@@ -20,6 +20,11 @@ const mockJsonResponse = (ok: boolean, payload: unknown, status = ok ? 200 : 500
 
 const originalScrollIntoView = HTMLElement.prototype.scrollIntoView;
 
+const classTokens = (element: Element | null) =>
+  String(element?.className || "")
+    .split(/\s+/)
+    .filter(Boolean);
+
 describe("ProjectEditorImageLibraryDialog", () => {
   beforeEach(() => {
     HTMLElement.prototype.scrollIntoView = vi.fn();
@@ -121,6 +126,26 @@ describe("ProjectEditorImageLibraryDialog", () => {
       {},
       { timeout: 5000 },
     );
+
+    const dialog = screen.getByRole("dialog");
+    const scrollBody = Array.from(dialog.querySelectorAll("div")).find((node) => {
+      const tokens = classTokens(node);
+      return (
+        tokens.includes("min-h-0") &&
+        tokens.includes("flex-1") &&
+        tokens.includes("overflow-y-auto") &&
+        tokens.includes("overflow-x-hidden") &&
+        tokens.includes("overscroll-contain")
+      );
+    });
+    const footer = Array.from(dialog.querySelectorAll("div")).find((node) =>
+      classTokens(node).includes("shrink-0"),
+    );
+
+    expect(classTokens(dialog)).toContain("max-h-[min(92vh,calc(100dvh-1rem))]");
+    expect(classTokens(dialog)).not.toContain("h-[92vh]");
+    expect(scrollBody).toBeDefined();
+    expect(footer).toBeDefined();
 
     const fileInput = document.querySelector('input[type="file"]') as HTMLInputElement | null;
     expect(fileInput).toBeTruthy();

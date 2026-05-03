@@ -53,9 +53,9 @@ const ImageLibraryUploadPanel = ({
   const [fileStatus, setFileStatus] = useState(DEFAULT_FILE_STATUS);
 
   return (
-    <div className="mt-2 grid min-w-0 gap-2 sm:gap-3 lg:grid-cols-[1.25fr_0.95fr]">
+    <div className="mt-2 grid min-w-0 gap-2 sm:gap-3 lg:grid-cols-[minmax(0,1.25fr)_minmax(260px,0.95fr)]">
       <div
-        className={`flex h-full flex-col rounded-2xl border border-dashed border-border/70 bg-card/50 p-3 text-sm text-muted-foreground transition sm:p-4 ${
+        className={`flex h-full min-w-0 flex-col rounded-2xl border border-dashed border-border/70 bg-card/50 p-3 text-sm text-muted-foreground transition sm:p-4 ${
           isDragActive ? "ring-2 ring-inset ring-primary/60 border-primary/60" : ""
         }`}
         aria-busy={isUploading}
@@ -136,15 +136,15 @@ const ImageLibraryUploadPanel = ({
         </div>
       </div>
       <div
-        className="rounded-2xl border border-border/60 bg-card/70 p-3 space-y-3 sm:p-4"
+        className="min-w-0 space-y-3 rounded-2xl border border-border/60 bg-card/70 p-3 sm:p-4"
         aria-busy={isUploading}
       >
         {showUrlImport ? (
           <div className="space-y-2">
             <Label>Importar por URL</Label>
-            <div className="grid min-w-0 gap-2 sm:flex sm:items-center">
+            <div className="grid min-w-0 gap-2 xl:flex xl:items-center">
               <Input
-                className="min-w-0 sm:flex-1"
+                className="min-w-0 xl:flex-1"
                 value={urlInput}
                 onChange={(event) => setUrlInput(event.target.value)}
                 placeholder="https://site.com/imagem.png"
@@ -152,7 +152,7 @@ const ImageLibraryUploadPanel = ({
               <Button
                 type="button"
                 size="sm"
-                className="w-full shrink-0 px-3 sm:w-auto"
+                className="w-full shrink-0 px-3 xl:w-auto"
                 onClick={() => void handleImportFromUrl()}
                 disabled={isUploading || !urlInput.trim()}
                 aria-busy={isUploading}
