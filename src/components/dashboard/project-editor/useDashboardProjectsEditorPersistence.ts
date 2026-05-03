@@ -181,7 +181,7 @@ export const useDashboardProjectsEditorPersistence = ({
           savePreparation.code,
         );
         toast({
-          title: publicationFailure?.title || "N\u00E3o foi poss\u00EDvel publicar o epis\u00F3dio",
+          title: publicationFailure?.title || "Não foi possível publicar o episódio",
           description:
             publicationFailure?.description ||
             "Revise o epis\u00F3dio antes de tentar salvar novamente.",
