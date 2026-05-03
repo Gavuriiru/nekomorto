@@ -2995,7 +2995,7 @@ const DashboardWebhooks = () => {
                 </div>
 
                 <div
-                  className={`grid gap-3 ${dashboardPageLayoutTokens.surfaceInset} rounded-xl p-3 md:grid-cols-[repeat(3,minmax(0,1fr))_auto]`}
+                  className={`grid min-w-0 gap-3 ${dashboardPageLayoutTokens.surfaceInset} rounded-xl p-3 md:grid-cols-[repeat(3,minmax(0,1fr))_auto]`}
                 >
                   <DashboardFieldStack>
                     <Label>Escopo</Label>
@@ -3058,6 +3058,7 @@ const DashboardWebhooks = () => {
                     <DashboardActionButton
                       type="button"
                       size="sm"
+                      className="w-full justify-center md:w-auto"
                       onClick={() => void loadDeliveries({ page: deliveryFilters.page })}
                       disabled={isLoadingDeliveries}
                     >
@@ -3099,11 +3100,11 @@ const DashboardWebhooks = () => {
                       return (
                         <div
                           key={delivery.id}
-                          className={`${dashboardPageLayoutTokens.surfaceInset} rounded-xl p-4`}
+                          className={`${dashboardPageLayoutTokens.surfaceInset} min-w-0 rounded-xl p-4`}
                           data-testid={`dashboard-webhooks-delivery-${delivery.id}`}
                         >
                           <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
-                            <div className="space-y-3">
+                            <div className="min-w-0 space-y-3">
                               <div className="flex flex-wrap items-center gap-2">
                                 <Badge
                                   variant={
@@ -3117,11 +3118,15 @@ const DashboardWebhooks = () => {
                                   {WEBHOOK_DELIVERY_SCOPE_LABELS[delivery.scope] || delivery.scope}
                                 </Badge>
                                 <Badge variant="secondary">{channelLabel}</Badge>
-                                <span className="text-sm font-medium">{eventLabel}</span>
+                                <span className="min-w-0 break-words text-sm font-medium">
+                                  {eventLabel}
+                                </span>
                               </div>
 
-                              <div className="space-y-1 text-sm">
-                                <p className="font-medium">{delivery.targetLabel || "-"}</p>
+                              <div className="min-w-0 space-y-1 text-sm">
+                                <p className="break-all font-medium">
+                                  {delivery.targetLabel || "-"}
+                                </p>
                                 <p className="text-xs text-muted-foreground">
                                   Tentativas: {delivery.attemptCount}/{delivery.maxAttempts}
                                   {delivery.statusCode ? ` | HTTP ${delivery.statusCode}` : ""}
@@ -3138,20 +3143,23 @@ const DashboardWebhooks = () => {
                                   </p>
                                 ) : null}
                                 {resourceSummary ? (
-                                  <p className="text-xs text-muted-foreground">
+                                  <p className="break-words text-xs text-muted-foreground">
                                     Recursos: {resourceSummary}
                                   </p>
                                 ) : null}
                                 {delivery.error ? (
-                                  <p className="text-xs text-destructive">{delivery.error}</p>
+                                  <p className="break-words text-xs text-destructive">
+                                    {delivery.error}
+                                  </p>
                                 ) : null}
                               </div>
                             </div>
 
-                            <div className="flex items-start gap-2">
+                            <div className="flex items-start gap-2 lg:justify-end">
                               <DashboardActionButton
                                 type="button"
                                 size="sm"
+                                className="w-full justify-center sm:w-auto"
                                 onClick={() => void handleRetryDelivery(delivery.id)}
                                 disabled={
                                   !delivery.isRetryable || retryingDeliveryId === delivery.id

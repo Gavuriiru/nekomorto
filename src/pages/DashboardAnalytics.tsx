@@ -776,85 +776,130 @@ const DashboardAnalytics = () => {
               </CardHeader>
               <CardContent>
                 {topEntries.length ? (
-                  <Table className="table-fixed">
-                    <colgroup>
-                      <col className="sm:w-[140px]" />
-                      <col />
-                      <col className="sm:w-[96px]" />
-                      <col className="sm:w-[96px]" />
-                    </colgroup>
-                    <TableHeader>
-                      <TableRow>
-                        <TableHead>Tipo</TableHead>
-                        <TableHead>Título</TableHead>
-                        <TableHead className="text-right">Views</TableHead>
-                        <TableHead className="text-right">Únicas</TableHead>
-                      </TableRow>
-                    </TableHeader>
-                    <TableBody>
+                  <>
+                    <div className="grid gap-3 sm:hidden" data-testid="analytics-ranking-mobile">
                       {topEntries.map((entry) => {
                         const entryHref = getTopContentHref(entry.resourceType, entry.resourceId);
-                        return (
-                          <TableRow
+                        const mobileContent = (
+                          <>
+                            <div className="flex min-w-0 flex-wrap items-center gap-2">
+                              <Badge variant="secondary">
+                                {formatResourceType(entry.resourceType)}
+                              </Badge>
+                              <span className="text-xs text-foreground/70">
+                                {formatInt(entry.views)} views
+                              </span>
+                              <span className="text-xs text-foreground/70">
+                                {formatInt(entry.uniqueViews)} únicas
+                              </span>
+                            </div>
+                            <p className="mt-3 break-words text-sm font-medium text-foreground">
+                              {entry.title}
+                            </p>
+                          </>
+                        );
+
+                        return entryHref ? (
+                          <Link
                             key={`${entry.resourceType}:${entry.resourceId}`}
-                            className={entryHref ? "[&:hover>td]:!bg-transparent" : undefined}
+                            to={entryHref}
+                            className={`${dashboardPageLayoutTokens.surfaceInset} block min-w-0 p-4 transition hover:bg-muted/50 focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-primary/60 focus-visible:ring-inset`}
+                            aria-label={`Abrir ${formatResourceType(entry.resourceType)} ${entry.title}`}
                           >
-                            {entryHref ? (
-                              <TableCell colSpan={4} className="p-0">
-                                <Link
-                                  to={entryHref}
-                                  className="group grid w-full gap-3 rounded-lg px-4 py-4 text-sm transition hover:bg-muted/50 focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-primary/60 focus-visible:ring-inset sm:grid-cols-[140px_minmax(0,1fr)_96px_96px] sm:items-center sm:gap-0 sm:px-0"
-                                  aria-label={`Abrir ${formatResourceType(entry.resourceType)} ${entry.title}`}
-                                >
-                                  <span className="flex flex-col gap-1 sm:px-4">
-                                    <span className="text-[11px] font-medium uppercase tracking-wide text-foreground/70 sm:hidden">
-                                      Tipo
-                                    </span>
-                                    <span className="text-foreground/70">
-                                      {formatResourceType(entry.resourceType)}
-                                    </span>
-                                  </span>
-                                  <span className="min-w-0 flex flex-col gap-1 sm:px-4">
-                                    <span className="text-[11px] font-medium uppercase tracking-wide text-foreground/70 sm:hidden">
-                                      Título
-                                    </span>
-                                    <span className="truncate font-medium text-foreground">
-                                      {entry.title}
-                                    </span>
-                                  </span>
-                                  <span className="flex flex-col gap-1 sm:px-4 sm:text-right">
-                                    <span className="text-[11px] font-medium uppercase tracking-wide text-foreground/70 sm:hidden">
-                                      Views
-                                    </span>
-                                    <span className="sm:text-right">{formatInt(entry.views)}</span>
-                                  </span>
-                                  <span className="flex flex-col gap-1 sm:px-4 sm:text-right">
-                                    <span className="text-[11px] font-medium uppercase tracking-wide text-foreground/70 sm:hidden">
-                                      Unicas
-                                    </span>
-                                    <span className="sm:text-right">
-                                      {formatInt(entry.uniqueViews)}
-                                    </span>
-                                  </span>
-                                </Link>
-                              </TableCell>
-                            ) : (
-                              <>
-                                <TableCell>{formatResourceType(entry.resourceType)}</TableCell>
-                                <TableCell>{entry.title}</TableCell>
-                                <TableCell className="text-right">
-                                  {formatInt(entry.views)}
-                                </TableCell>
-                                <TableCell className="text-right">
-                                  {formatInt(entry.uniqueViews)}
-                                </TableCell>
-                              </>
-                            )}
-                          </TableRow>
+                            {mobileContent}
+                          </Link>
+                        ) : (
+                          <div
+                            key={`${entry.resourceType}:${entry.resourceId}`}
+                            className={`${dashboardPageLayoutTokens.surfaceInset} min-w-0 p-4`}
+                          >
+                            {mobileContent}
+                          </div>
                         );
                       })}
-                    </TableBody>
-                  </Table>
+                    </div>
+                    <Table className="hidden table-fixed sm:table">
+                      <colgroup>
+                        <col className="sm:w-[140px]" />
+                        <col />
+                        <col className="sm:w-[96px]" />
+                        <col className="sm:w-[96px]" />
+                      </colgroup>
+                      <TableHeader>
+                        <TableRow>
+                          <TableHead>Tipo</TableHead>
+                          <TableHead>Título</TableHead>
+                          <TableHead className="text-right">Views</TableHead>
+                          <TableHead className="text-right">Únicas</TableHead>
+                        </TableRow>
+                      </TableHeader>
+                      <TableBody>
+                        {topEntries.map((entry) => {
+                          const entryHref = getTopContentHref(entry.resourceType, entry.resourceId);
+                          return (
+                            <TableRow
+                              key={`${entry.resourceType}:${entry.resourceId}`}
+                              className={entryHref ? "[&:hover>td]:!bg-transparent" : undefined}
+                            >
+                              {entryHref ? (
+                                <TableCell colSpan={4} className="p-0">
+                                  <Link
+                                    to={entryHref}
+                                    className="group grid w-full gap-3 rounded-lg px-4 py-4 text-sm transition hover:bg-muted/50 focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-primary/60 focus-visible:ring-inset sm:grid-cols-[140px_minmax(0,1fr)_96px_96px] sm:items-center sm:gap-0 sm:px-0"
+                                    aria-label={`Abrir ${formatResourceType(entry.resourceType)} ${entry.title}`}
+                                  >
+                                    <span className="flex flex-col gap-1 sm:px-4">
+                                      <span className="text-[11px] font-medium uppercase tracking-wide text-foreground/70 sm:hidden">
+                                        Tipo
+                                      </span>
+                                      <span className="text-foreground/70">
+                                        {formatResourceType(entry.resourceType)}
+                                      </span>
+                                    </span>
+                                    <span className="min-w-0 flex flex-col gap-1 sm:px-4">
+                                      <span className="text-[11px] font-medium uppercase tracking-wide text-foreground/70 sm:hidden">
+                                        Título
+                                      </span>
+                                      <span className="truncate font-medium text-foreground">
+                                        {entry.title}
+                                      </span>
+                                    </span>
+                                    <span className="flex flex-col gap-1 sm:px-4 sm:text-right">
+                                      <span className="text-[11px] font-medium uppercase tracking-wide text-foreground/70 sm:hidden">
+                                        Views
+                                      </span>
+                                      <span className="sm:text-right">
+                                        {formatInt(entry.views)}
+                                      </span>
+                                    </span>
+                                    <span className="flex flex-col gap-1 sm:px-4 sm:text-right">
+                                      <span className="text-[11px] font-medium uppercase tracking-wide text-foreground/70 sm:hidden">
+                                        Unicas
+                                      </span>
+                                      <span className="sm:text-right">
+                                        {formatInt(entry.uniqueViews)}
+                                      </span>
+                                    </span>
+                                  </Link>
+                                </TableCell>
+                              ) : (
+                                <>
+                                  <TableCell>{formatResourceType(entry.resourceType)}</TableCell>
+                                  <TableCell>{entry.title}</TableCell>
+                                  <TableCell className="text-right">
+                                    {formatInt(entry.views)}
+                                  </TableCell>
+                                  <TableCell className="text-right">
+                                    {formatInt(entry.uniqueViews)}
+                                  </TableCell>
+                                </>
+                              )}
+                            </TableRow>
+                          );
+                        })}
+                      </TableBody>
+                    </Table>
+                  </>
                 ) : (
                   <AsyncState
                     kind="empty"

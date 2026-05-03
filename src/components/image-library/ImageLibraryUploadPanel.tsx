@@ -53,7 +53,7 @@ const ImageLibraryUploadPanel = ({
   const [fileStatus, setFileStatus] = useState(DEFAULT_FILE_STATUS);
 
   return (
-    <div className="mt-2 grid gap-2 sm:gap-3 lg:grid-cols-[1.25fr_0.95fr]">
+    <div className="mt-2 grid min-w-0 gap-2 sm:gap-3 lg:grid-cols-[1.25fr_0.95fr]">
       <div
         className={`flex h-full flex-col rounded-2xl border border-dashed border-border/70 bg-card/50 p-3 text-sm text-muted-foreground transition sm:p-4 ${
           isDragActive ? "ring-2 ring-inset ring-primary/60 border-primary/60" : ""
@@ -96,19 +96,19 @@ const ImageLibraryUploadPanel = ({
               event.currentTarget.value = "";
             }}
           />
-          <div className="flex flex-wrap items-center gap-3 rounded-xl border border-border/60 bg-background/50 px-3 py-3">
+          <div className="grid min-w-0 gap-2 rounded-xl border border-border/60 bg-background/50 px-3 py-3 sm:flex sm:flex-wrap sm:items-center sm:gap-3">
             <Button
               type="button"
               size="sm"
               variant="outline"
-              className="shrink-0"
+              className="w-full shrink-0 sm:w-auto"
               onClick={() => fileInputRef.current?.click()}
               disabled={isUploading}
               aria-controls={fileInputId}
             >
               {mode === "multiple" ? "Escolher arquivos" : "Escolher arquivo"}
             </Button>
-            <span className="min-w-0 flex-1 truncate text-xs text-muted-foreground">
+            <span className="min-w-0 truncate text-xs text-muted-foreground sm:flex-1">
               {fileStatus}
             </span>
           </div>
@@ -142,8 +142,9 @@ const ImageLibraryUploadPanel = ({
         {showUrlImport ? (
           <div className="space-y-2">
             <Label>Importar por URL</Label>
-            <div className="grid grid-cols-[minmax(0,1fr)_auto] items-center gap-2">
+            <div className="grid min-w-0 gap-2 sm:flex sm:items-center">
               <Input
+                className="min-w-0 sm:flex-1"
                 value={urlInput}
                 onChange={(event) => setUrlInput(event.target.value)}
                 placeholder="https://site.com/imagem.png"
@@ -151,7 +152,7 @@ const ImageLibraryUploadPanel = ({
               <Button
                 type="button"
                 size="sm"
-                className="shrink-0 px-3"
+                className="w-full shrink-0 px-3 sm:w-auto"
                 onClick={() => void handleImportFromUrl()}
                 disabled={isUploading || !urlInput.trim()}
                 aria-busy={isUploading}

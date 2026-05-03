@@ -4,6 +4,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import DashboardShell from "@/components/DashboardShell";
 import DashboardActionButton from "@/components/dashboard/DashboardActionButton";
 import DashboardPageBadge from "@/components/dashboard/DashboardPageBadge";
+import DashboardPageContainer from "@/components/dashboard/DashboardPageContainer";
 import {
   dashboardAnimationDelay,
   dashboardClampedStaggerMs,
@@ -317,212 +318,209 @@ const DashboardSecurity = () => {
 
   return (
     <DashboardShell currentUser={me} isLoadingUser={isLoadingUser}>
-      <main className="pt-24">
-        <section
-          className="mx-auto w-full max-w-6xl space-y-6 px-6 pb-20 md:px-10 reveal"
-          data-reveal
-        >
-          <header className="space-y-2">
-            <DashboardPageBadge data-testid="dashboard-security-header-badge">
-              Segurança
-            </DashboardPageBadge>
-            <h1 className="mt-4 text-3xl font-semibold animate-slide-up">Sessões Ativas</h1>
-            <p
-              className="mt-2 text-sm text-foreground/70 animate-slide-up opacity-0"
-              style={dashboardAnimationDelay(dashboardMotionDelays.headerDescriptionMs)}
-            >
-              Painel somente leitura com sessões ativas e usuário responsável por cada sessão.
-            </p>
-          </header>
-
-          <section
-            className={`space-y-4 rounded-3xl ${dashboardPageLayoutTokens.surfaceSolid} p-6 animate-slide-up opacity-0`}
-            style={dashboardAnimationDelay(dashboardMotionDelays.sectionLeadMs)}
-            data-testid="dashboard-security-sessions-card"
+      <DashboardPageContainer>
+        <header className="space-y-2">
+          <DashboardPageBadge data-testid="dashboard-security-header-badge">
+            Segurança
+          </DashboardPageBadge>
+          <h1 className="mt-4 text-3xl font-semibold animate-slide-up">Sessões Ativas</h1>
+          <p
+            className="mt-2 text-sm text-foreground/70 animate-slide-up opacity-0"
+            style={dashboardAnimationDelay(dashboardMotionDelays.headerDescriptionMs)}
           >
+            Painel somente leitura com sessões ativas e usuário responsável por cada sessão.
+          </p>
+        </header>
+
+        <section
+          className={`space-y-4 rounded-3xl ${dashboardPageLayoutTokens.surfaceSolid} p-4 animate-slide-up opacity-0 sm:p-6`}
+          style={dashboardAnimationDelay(dashboardMotionDelays.sectionLeadMs)}
+          data-testid="dashboard-security-sessions-card"
+        >
+          <div
+            className="flex flex-wrap items-center justify-between gap-3 animate-slide-up opacity-0"
+            style={dashboardAnimationDelay(
+              dashboardMotionDelays.sectionLeadMs + dashboardMotionDelays.sectionStepMs,
+            )}
+          >
+            <div className="flex flex-wrap items-center gap-2">
+              {isInitialLoading ? (
+                <>
+                  <Skeleton className="h-6 w-24 rounded-full" />
+                  <Skeleton className="h-6 w-20 rounded-full" />
+                </>
+              ) : (
+                <>
+                  <Badge variant="static">Total ativo: {total}</Badge>
+                  <Badge variant="static">
+                    Página {page} de {pageCount}
+                  </Badge>
+                </>
+              )}
+            </div>
+            <div className="flex w-full flex-col gap-2 sm:w-auto sm:flex-row sm:items-center">
+              <DashboardActionButton
+                size="sm"
+                onClick={() => void load({ background: true })}
+                disabled={isRefreshing}
+              >
+                Atualizar
+              </DashboardActionButton>
+              <CompactPagination
+                currentPage={page}
+                totalPages={pageCount}
+                disabled={isRefreshing}
+                className="mx-0 w-full justify-start sm:w-auto sm:justify-end"
+                contentClassName="flex-wrap justify-start sm:justify-end"
+                onPageChange={setPage}
+              />
+            </div>
+          </div>
+
+          {hasRetainedLoadError ? (
+            <Alert className="border-border/70 bg-background text-foreground/70">
+              <AlertDescription>Mantendo as últimas sessões carregadas.</AlertDescription>
+            </Alert>
+          ) : null}
+
+          {isInitialLoading ? (
             <div
-              className="flex flex-wrap items-center justify-between gap-3 animate-slide-up opacity-0"
+              className="space-y-3 animate-slide-up opacity-0"
               style={dashboardAnimationDelay(
-                dashboardMotionDelays.sectionLeadMs + dashboardMotionDelays.sectionStepMs,
+                dashboardMotionDelays.sectionLeadMs + dashboardMotionDelays.sectionStepMs * 2,
+              )}
+              data-testid="dashboard-security-loading"
+              role="status"
+              aria-live="polite"
+              aria-busy="true"
+            >
+              {Array.from({ length: 3 }).map((_, index) => (
+                <article
+                  key={`dashboard-security-loading-${index}`}
+                  className={`space-y-3 ${dashboardPageLayoutTokens.surfaceInset} p-4`}
+                >
+                  <div className="flex flex-wrap items-start gap-3 md:flex-nowrap">
+                    <div className="flex min-w-0 flex-1 items-center gap-3">
+                      <Skeleton className="h-10 w-10 rounded-full" />
+                      <div className="space-y-2">
+                        <Skeleton className="h-4 w-28" />
+                        <Skeleton className="h-3 w-20" />
+                      </div>
+                    </div>
+                    <div className="flex gap-2">
+                      <Skeleton className="h-6 w-24 rounded-full" />
+                      <Skeleton className="h-8 w-20" />
+                    </div>
+                  </div>
+                  <div className="grid gap-2 md:grid-cols-2">
+                    <Skeleton className="h-3 w-full" />
+                    <Skeleton className="h-3 w-5/6" />
+                    <Skeleton className="h-3 w-2/3" />
+                    <Skeleton className="h-3 w-full" />
+                  </div>
+                </article>
+              ))}
+              <span className="sr-only">Carregando sessões...</span>
+            </div>
+          ) : hasBlockingLoadError ? (
+            <p
+              className="text-sm text-amber-300 animate-slide-up opacity-0"
+              style={dashboardAnimationDelay(
+                dashboardMotionDelays.sectionLeadMs + dashboardMotionDelays.sectionStepMs * 2,
               )}
             >
-              <div className="flex flex-wrap items-center gap-2">
-                {isInitialLoading ? (
-                  <>
-                    <Skeleton className="h-6 w-24 rounded-full" />
-                    <Skeleton className="h-6 w-20 rounded-full" />
-                  </>
-                ) : (
-                  <>
-                    <Badge variant="static">Total ativo: {total}</Badge>
-                    <Badge variant="static">
-                      Página {page} de {pageCount}
-                    </Badge>
-                  </>
-                )}
-              </div>
-              <div className="flex w-full flex-col gap-2 sm:w-auto sm:flex-row sm:items-center">
-                <DashboardActionButton
-                  size="sm"
-                  onClick={() => void load({ background: true })}
-                  disabled={isRefreshing}
-                >
-                  Atualizar
-                </DashboardActionButton>
-                <CompactPagination
-                  currentPage={page}
-                  totalPages={pageCount}
-                  disabled={isRefreshing}
-                  className="mx-0 w-full justify-start sm:w-auto sm:justify-end"
-                  contentClassName="flex-wrap justify-start sm:justify-end"
-                  onPageChange={setPage}
-                />
-              </div>
-            </div>
+              Não foi possível carregar a lista de sessões ativas.
+            </p>
+          ) : sessions.length === 0 ? (
+            <p
+              className="text-sm text-foreground/70 animate-slide-up opacity-0"
+              style={dashboardAnimationDelay(
+                dashboardMotionDelays.sectionLeadMs + dashboardMotionDelays.sectionStepMs * 2,
+              )}
+            >
+              Nenhuma sessão ativa encontrada.
+            </p>
+          ) : (
+            <div className="space-y-3">
+              {sessions.map((session, index) => {
+                const isRevokingSession = revokingSid === session.sid;
+                const revokeButtonLabel = `${
+                  isRevokingSession ? "Encerrando" : "Encerrar"
+                } sessão de ${session.userName || session.userId || "usuário"}`;
 
-            {hasRetainedLoadError ? (
-              <Alert className="border-border/70 bg-background text-foreground/70">
-                <AlertDescription>Mantendo as últimas sessões carregadas.</AlertDescription>
-              </Alert>
-            ) : null}
-
-            {isInitialLoading ? (
-              <div
-                className="space-y-3 animate-slide-up opacity-0"
-                style={dashboardAnimationDelay(
-                  dashboardMotionDelays.sectionLeadMs + dashboardMotionDelays.sectionStepMs * 2,
-                )}
-                data-testid="dashboard-security-loading"
-                role="status"
-                aria-live="polite"
-                aria-busy="true"
-              >
-                {Array.from({ length: 3 }).map((_, index) => (
+                return (
                   <article
-                    key={`dashboard-security-loading-${index}`}
-                    className={`space-y-3 ${dashboardPageLayoutTokens.surfaceInset} p-4`}
+                    key={session.sid}
+                    className={`space-y-3 ${sessionCardClassName} p-4 animate-slide-up opacity-0`}
+                    style={dashboardAnimationDelay(
+                      dashboardClampedStaggerMs(index, dashboardMotionDelays.sectionLeadMs + 120),
+                    )}
                   >
-                    <div className="flex flex-wrap items-start gap-3 md:flex-nowrap">
-                      <div className="flex min-w-0 flex-1 items-center gap-3">
-                        <Skeleton className="h-10 w-10 rounded-full" />
-                        <div className="space-y-2">
-                          <Skeleton className="h-4 w-28" />
-                          <Skeleton className="h-3 w-20" />
+                    <div className="grid min-w-0 gap-3 md:flex md:items-start md:justify-between">
+                      <div className="flex min-w-0 items-center gap-3">
+                        {session.userAvatarUrl ? (
+                          <img
+                            src={session.userAvatarUrl}
+                            alt={session.userName}
+                            className="h-10 w-10 rounded-full border border-border/70 object-cover"
+                            referrerPolicy="no-referrer"
+                          />
+                        ) : (
+                          <div className="flex h-10 w-10 items-center justify-center rounded-full border border-border/70 bg-card text-xs font-semibold text-foreground/70">
+                            {userInitials(session.userName)}
+                          </div>
+                        )}
+                        <div className="min-w-0 space-y-1">
+                          <p className="break-words text-sm font-medium">{session.userName}</p>
+                          <p
+                            className={`break-all text-xs ${dashboardPageLayoutTokens.cardMetaText}`}
+                          >
+                            ID: {session.userId}
+                          </p>
                         </div>
                       </div>
-                      <div className="flex gap-2">
-                        <Skeleton className="h-6 w-24 rounded-full" />
-                        <Skeleton className="h-8 w-20" />
+                      {session.sid && session.userId && !session.currentForViewer ? (
+                        <DashboardActionButton
+                          size="sm"
+                          tone="destructive"
+                          className="h-9 w-full justify-center px-3 md:order-3 md:w-auto"
+                          onClick={() => requestRevokeSession(session)}
+                          disabled={Boolean(revokingSid)}
+                          aria-label={revokeButtonLabel}
+                          title={revokeButtonLabel}
+                        >
+                          <LogOut className="h-4 w-4" />
+                          <span>{isRevokingSession ? "Encerrando..." : "Encerrar"}</span>
+                        </DashboardActionButton>
+                      ) : null}
+                      <div className="flex min-w-0 flex-wrap gap-2 md:order-2 md:ml-auto md:justify-end">
+                        {session.currentForViewer ? (
+                          <Badge variant="success">Sua sessão atual</Badge>
+                        ) : null}
+                        {session.isPendingMfa ? (
+                          <Badge variant="warning">Pendente V2F</Badge>
+                        ) : null}
                       </div>
                     </div>
-                    <div className="grid gap-2 md:grid-cols-2">
-                      <Skeleton className="h-3 w-full" />
-                      <Skeleton className="h-3 w-5/6" />
-                      <Skeleton className="h-3 w-2/3" />
-                      <Skeleton className="h-3 w-full" />
+                    <div
+                      className={`grid min-w-0 gap-1 text-xs ${dashboardPageLayoutTokens.cardMetaText} md:grid-cols-2`}
+                    >
+                      <p className="min-w-0 break-words">
+                        Criada em: {formatDateTime(session.createdAt)}
+                      </p>
+                      <p className="min-w-0 break-words">
+                        Última atividade: {formatDateTime(session.lastSeenAt)}
+                      </p>
+                      <p className="min-w-0 break-words">IP: {session.lastIp || "-"}</p>
+                      <p className="min-w-0 break-all">User-Agent: {session.userAgent || "-"}</p>
                     </div>
                   </article>
-                ))}
-                <span className="sr-only">Carregando sessões...</span>
-              </div>
-            ) : hasBlockingLoadError ? (
-              <p
-                className="text-sm text-amber-300 animate-slide-up opacity-0"
-                style={dashboardAnimationDelay(
-                  dashboardMotionDelays.sectionLeadMs + dashboardMotionDelays.sectionStepMs * 2,
-                )}
-              >
-                Não foi possível carregar a lista de sessões ativas.
-              </p>
-            ) : sessions.length === 0 ? (
-              <p
-                className="text-sm text-foreground/70 animate-slide-up opacity-0"
-                style={dashboardAnimationDelay(
-                  dashboardMotionDelays.sectionLeadMs + dashboardMotionDelays.sectionStepMs * 2,
-                )}
-              >
-                Nenhuma sessão ativa encontrada.
-              </p>
-            ) : (
-              <div className="space-y-3">
-                {sessions.map((session, index) => {
-                  const isRevokingSession = revokingSid === session.sid;
-                  const revokeButtonLabel = `${
-                    isRevokingSession ? "Encerrando" : "Encerrar"
-                  } sessão de ${session.userName || session.userId || "usuário"}`;
-
-                  return (
-                    <article
-                      key={session.sid}
-                      className={`space-y-3 ${sessionCardClassName} p-4 animate-slide-up opacity-0`}
-                      style={dashboardAnimationDelay(
-                        dashboardClampedStaggerMs(index, dashboardMotionDelays.sectionLeadMs + 120),
-                      )}
-                    >
-                      <div className="flex flex-wrap items-start gap-3 md:flex-nowrap">
-                        <div className="flex min-w-0 flex-1 items-center gap-3">
-                          {session.userAvatarUrl ? (
-                            <img
-                              src={session.userAvatarUrl}
-                              alt={session.userName}
-                              className="h-10 w-10 rounded-full border border-border/70 object-cover"
-                              referrerPolicy="no-referrer"
-                            />
-                          ) : (
-                            <div className="flex h-10 w-10 items-center justify-center rounded-full border border-border/70 bg-card text-xs font-semibold text-foreground/70">
-                              {userInitials(session.userName)}
-                            </div>
-                          )}
-                          <div className="min-w-0 space-y-1">
-                            <p className="break-words text-sm font-medium">{session.userName}</p>
-                            <p
-                              className={`break-all text-xs ${dashboardPageLayoutTokens.cardMetaText}`}
-                            >
-                              ID: {session.userId}
-                            </p>
-                          </div>
-                        </div>
-                        {session.sid && session.userId && !session.currentForViewer ? (
-                          <DashboardActionButton
-                            size="sm"
-                            tone="destructive"
-                            className="order-2 h-9 w-9 shrink-0 px-0 md:order-3 md:w-auto md:px-3"
-                            onClick={() => requestRevokeSession(session)}
-                            disabled={Boolean(revokingSid)}
-                            aria-label={revokeButtonLabel}
-                            title={revokeButtonLabel}
-                          >
-                            <LogOut className="h-4 w-4" />
-                            <span className="hidden md:inline">
-                              {isRevokingSession ? "Encerrando..." : "Encerrar"}
-                            </span>
-                          </DashboardActionButton>
-                        ) : null}
-                        <div className="order-3 flex basis-full flex-wrap gap-2 md:order-2 md:ml-auto md:basis-auto md:justify-end">
-                          {session.currentForViewer ? (
-                            <Badge variant="success">Sua sessão atual</Badge>
-                          ) : null}
-                          {session.isPendingMfa ? (
-                            <Badge variant="warning">Pendente V2F</Badge>
-                          ) : null}
-                        </div>
-                      </div>
-                      <div
-                        className={`grid gap-1 text-xs ${dashboardPageLayoutTokens.cardMetaText} md:grid-cols-2`}
-                      >
-                        <p>Criada em: {formatDateTime(session.createdAt)}</p>
-                        <p>Última atividade: {formatDateTime(session.lastSeenAt)}</p>
-                        <p>IP: {session.lastIp || "-"}</p>
-                        <p className="truncate">User-Agent: {session.userAgent || "-"}</p>
-                      </div>
-                    </article>
-                  );
-                })}
-              </div>
-            )}
-          </section>
+                );
+              })}
+            </div>
+          )}
         </section>
-      </main>
+      </DashboardPageContainer>
       <AlertDialog
         open={Boolean(pendingRevokeSession)}
         onOpenChange={(nextOpen) => {

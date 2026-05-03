@@ -50,8 +50,6 @@
 
   --animate-fade-in: fade-in var(--dashboard-motion-enter-duration, 150ms) ease-out both;
   --animate-slide-up: slide-up var(--dashboard-motion-enter-duration, 150ms) ease-out both;
-  --animate-spin-slow: spin-slow 14s linear infinite;
-
   @keyframes fade-in {
     from {
       opacity: 0;
@@ -71,16 +69,6 @@
     to {
       opacity: 1;
       transform: none;
-    }
-  }
-
-  @keyframes spin-slow {
-    from {
-      transform: rotate(0deg);
-    }
-
-    to {
-      transform: rotate(360deg);
     }
   }
 }
@@ -104,7 +92,6 @@
 }
 
 .no-scrollbar {
-  -ms-overflow-style: none;
   scrollbar-width: none;
 }
 
@@ -236,7 +223,6 @@
     overflow-y: auto;
     overscroll-behavior: contain;
     padding: 0.75rem;
-    -ms-overflow-style: none;
     scrollbar-color: transparent transparent;
     scrollbar-width: none;
   }
@@ -266,7 +252,6 @@
     overflow-y: auto;
     overscroll-behavior: contain;
     padding: 0.5rem;
-    -ms-overflow-style: none;
     scrollbar-color: transparent transparent;
     scrollbar-width: none;
   }
@@ -359,7 +344,6 @@
     --radius: 0.75rem;
 
     /* Custom gradients */
-    --gradient-hero: linear-gradient(180deg, hsl(220 12% 7% / 0.3) 0%, hsl(220 12% 7% / 0.95) 100%);
     --gradient-rainbow: linear-gradient(
       135deg,
       hsl(0 80% 60%) 0%,
@@ -437,11 +421,6 @@
     --badge-neutral-fg: 220 18% 24%;
     --badge-neutral-border: 220 20% 16%;
 
-    --gradient-hero: linear-gradient(
-      180deg,
-      hsl(210 33% 98% / 0.35) 0%,
-      hsl(210 33% 98% / 0.97) 100%
-    );
     --gradient-rainbow: linear-gradient(
       135deg,
       hsl(0 80% 56%) 0%,
@@ -492,17 +471,10 @@
   body {
     @apply bg-background text-foreground font-sans subpixel-antialiased;
     font-family: "Inter", sans-serif;
-    text-rendering: optimizeLegibility;
-    -webkit-font-smoothing: antialiased;
-    -moz-osx-font-smoothing: grayscale;
   }
 
   body :where([class*="border-"]) {
     border-color: transparent;
-  }
-
-  html {
-    scroll-behavior: smooth;
   }
 
   :root {
@@ -670,11 +642,6 @@
     color: hsl(var(--accent-foreground));
   }
 
-  ::-moz-selection {
-    background-color: hsl(var(--accent));
-    color: hsl(var(--accent-foreground));
-  }
-
   .a11y-focus-target {
     scroll-margin-top: 6rem;
   }
@@ -692,7 +659,6 @@
 
   [data-chart] .recharts-surface:focus-visible {
     outline: 2px solid hsl(var(--ring) / 0.45);
-    outline-offset: 2px;
     box-shadow: none;
   }
 
@@ -714,10 +680,6 @@
     background-clip: text;
   }
 
-  .bg-gradient-hero {
-    background: var(--gradient-hero);
-  }
-
   .bg-gradient-card {
     background: var(--gradient-card);
   }
@@ -726,10 +688,6 @@
     background-color: hsl(var(--background));
     background-image: var(--gradient-surface);
     background-repeat: no-repeat;
-  }
-
-  .border-rainbow {
-    border-image: var(--gradient-rainbow) 1;
   }
 }
 

@@ -1047,10 +1047,10 @@ const DashboardProjectsEditor = () => {
           <section className="mt-8 space-y-6">
             <div
               data-testid="dashboard-projects-toolbar"
-              className="relative z-[30] flex flex-wrap items-center justify-between gap-3 animate-slide-up opacity-0"
+              className="relative z-30 grid min-w-0 gap-3 animate-slide-up opacity-0 sm:flex sm:items-start sm:justify-between"
             >
-              <div className="flex flex-1 flex-wrap items-center gap-3">
-                <div className="w-full max-w-sm">
+              <div className="grid min-w-0 gap-3 sm:grid-cols-2 lg:flex lg:flex-wrap lg:items-center">
+                <div className="min-w-0 sm:col-span-2 lg:w-full lg:max-w-sm">
                   <Input
                     value={searchQuery}
                     onChange={(event) => setSearchQuery(event.target.value)}
@@ -1063,7 +1063,7 @@ const DashboardProjectsEditor = () => {
                   options={projectSortOptions}
                   onValueChange={(value) => setSortMode(value as typeof sortMode)}
                   searchable={false}
-                  className="w-[210px]"
+                  className="w-full min-w-0 lg:w-52"
                 />
                 <Combobox
                   ariaLabel="Filtrar por formato"
@@ -1075,11 +1075,14 @@ const DashboardProjectsEditor = () => {
                   onValueChange={setSelectedType}
                   disabled={!hasResolvedProjectTypes}
                   searchable={false}
-                  className="w-[210px]"
+                  className="w-full min-w-0 lg:w-52"
                   placeholder="Todos os formatos"
                 />
               </div>
-              <Badge variant="static" className="text-xs uppercase animate-slide-up opacity-0">
+              <Badge
+                variant="static"
+                className="w-fit text-xs uppercase animate-slide-up opacity-0 sm:justify-self-end"
+              >
                 {sortedProjects.length} projetos
               </Badge>
             </div>
@@ -1180,7 +1183,7 @@ const DashboardProjectsEditor = () => {
                         </button>
                         <div
                           data-slot="project-card-layout"
-                          className="grid min-h-[360px] gap-0 lg:h-[342px] lg:min-h-0 lg:grid-cols-[220px_1fr]"
+                          className="grid min-h-[360px] min-w-0 gap-0 lg:h-[342px] lg:min-h-0 lg:grid-cols-[220px_1fr]"
                         >
                           <div
                             data-slot="project-card-cover-shell"
@@ -1201,11 +1204,11 @@ const DashboardProjectsEditor = () => {
                           </div>
                           <div
                             data-slot="project-card-content"
-                            className="grid h-full min-h-0 overflow-hidden grid-rows-[auto_auto_minmax(0,1fr)_auto] gap-2 p-4 lg:pb-5"
+                            className="grid h-full min-h-0 min-w-0 overflow-hidden grid-rows-[auto_auto_minmax(0,1fr)_auto] gap-2 p-4 lg:pb-5"
                           >
                             <div
                               data-slot="project-card-top"
-                              className="flex items-start justify-between gap-3"
+                              className="grid min-w-0 gap-3 sm:flex sm:items-start sm:justify-between"
                             >
                               <div className="flex min-w-0 flex-wrap items-center gap-2">
                                 <Badge variant="outline" className="text-[10px] uppercase">
@@ -1217,7 +1220,7 @@ const DashboardProjectsEditor = () => {
                               </div>
                               <div
                                 data-slot="project-card-actions"
-                                className="relative z-20 flex shrink-0 flex-wrap items-center gap-1"
+                                className="relative z-20 flex min-w-0 flex-wrap items-center gap-1 sm:justify-end"
                               >
                                 <DashboardActionButton
                                   size="icon-sm"
@@ -1266,18 +1269,20 @@ const DashboardProjectsEditor = () => {
                               </div>
                             </div>
 
-                            <div data-slot="project-card-headline" className="min-h-11">
+                            <div data-slot="project-card-headline" className="min-h-11 min-w-0">
                               <h3 className="clamp-safe-2 break-words text-lg font-semibold leading-tight text-muted-foreground transition-colors duration-300 group-hover:text-primary lg:clamp-safe-1">
                                 {project.title}
                               </h3>
-                              <p className={`text-xs ${dashboardPageLayoutTokens.cardMetaText}`}>
+                              <p
+                                className={`min-w-0 truncate text-xs ${dashboardPageLayoutTokens.cardMetaText}`}
+                              >
                                 {project.studio}
                               </p>
                             </div>
 
                             <p
                               data-slot="project-card-synopsis"
-                              className={`min-h-0 max-h-[7.5rem] overflow-hidden whitespace-pre-wrap text-sm leading-5 ${dashboardPageLayoutTokens.cardMetaText}`}
+                              className={`min-h-0 max-h-[7.5rem] overflow-hidden whitespace-pre-wrap break-words text-sm leading-5 ${dashboardPageLayoutTokens.cardMetaText}`}
                               style={{
                                 display: "-webkit-box",
                                 WebkitBoxOrient: "vertical",
@@ -1298,7 +1303,7 @@ const DashboardProjectsEditor = () => {
                                 {project.commentsCount} comentários
                               </span>
                               <span
-                                className={`inline-flex min-w-0 max-w-full truncate text-xs ${dashboardPageLayoutTokens.cardMetaText} lg:ml-auto lg:max-w-44 lg:text-right`}
+                                className={`inline-flex min-w-0 max-w-full break-all text-xs ${dashboardPageLayoutTokens.cardMetaText} lg:ml-auto lg:max-w-44 lg:text-right`}
                               >
                                 ID {project.id}
                               </span>

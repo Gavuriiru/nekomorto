@@ -9,11 +9,12 @@ export const dashboardStackedSurfaceClassName = "stacked-surface stacked-surface
 export const dashboardInteractiveStackedSurfaceClassName = `${dashboardStackedSurfaceClassName} stacked-surface--interactive`;
 
 export const dashboardPageLayoutTokens = {
-  main: "pt-24",
-  sectionBase: "mx-auto w-full px-6 pb-20 md:px-10",
+  main: "w-full max-w-full overflow-x-hidden pt-24",
+  sectionBase: "mx-auto w-full min-w-0 px-4 pb-20 sm:px-6 md:px-10",
   sectionSpacing: "space-y-8 md:space-y-10",
   header: "flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between",
-  headerActions: "flex flex-wrap items-center gap-3 animate-slide-up opacity-0",
+  headerActions:
+    "grid w-full min-w-0 grid-cols-1 gap-3 animate-slide-up opacity-0 sm:flex sm:flex-wrap sm:items-center lg:w-auto lg:justify-end",
   headerBadge:
     "inline-flex items-center gap-3 rounded-full border border-border/70 bg-background px-4 py-2 text-xs font-medium uppercase tracking-[0.3em] text-foreground/70",
   headerDescription: "mt-2 text-sm leading-6 text-foreground/70 animate-slide-up opacity-0",

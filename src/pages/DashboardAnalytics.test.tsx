@@ -340,8 +340,12 @@ describe("DashboardAnalytics", () => {
 
     renderPage();
 
-    const projectLink = await screen.findByRole("link", { name: /Abrir Projeto Projeto 1/i });
-    const postLink = screen.getByRole("link", { name: /Abrir Post Post 1/i });
+    const projectLinks = await screen.findAllByRole("link", { name: /Abrir Projeto Projeto 1/i });
+    const postLinks = screen.getAllByRole("link", { name: /Abrir Post Post 1/i });
+    const projectLink = (projectLinks.find((link) => classTokens(link).includes("group")) ||
+      projectLinks[0]) as HTMLElement;
+    const postLink = (postLinks.find((link) => classTokens(link).includes("group")) ||
+      postLinks[0]) as HTMLElement;
 
     expect(projectLink).toHaveAttribute("href", "/projeto/project-1");
     expect(postLink).toHaveAttribute("href", "/postagem/post-slug");
@@ -372,6 +376,11 @@ describe("DashboardAnalytics", () => {
     expect(classTokens(titleWrapper as HTMLElement)).toContain("sm:px-4");
     expect(classTokens(viewsWrapper as HTMLElement)).toContain("sm:px-4");
     expect(classTokens(uniqueWrapper as HTMLElement)).toContain("sm:px-4");
+
+    const mobileRanking = screen.getByTestId("analytics-ranking-mobile");
+    expect(classTokens(mobileRanking)).toContain("sm:hidden");
+    expect(within(mobileRanking).getByText("Projeto 1")).toBeInTheDocument();
+    expect(within(mobileRanking).getByText("60 únicas")).toBeInTheDocument();
   });
 
   it("usa tabela fixa para alinhar o ranking com o cabecalho", async () => {
@@ -384,7 +393,9 @@ describe("DashboardAnalytics", () => {
     expect(rankingCard).not.toBeNull();
 
     const table = within(rankingCard as HTMLElement).getByRole("table");
+    expect(classTokens(table)).toContain("hidden");
     expect(classTokens(table)).toContain("table-fixed");
+    expect(classTokens(table)).toContain("sm:table");
 
     const cols = table.querySelectorAll("colgroup col");
     expect(cols).toHaveLength(4);
@@ -615,7 +626,9 @@ describe("DashboardAnalytics", () => {
 
     renderPage("range=30d&type=all&metric=views", { withRoutes: true });
 
-    const postLink = await screen.findByRole("link", { name: /Abrir Post Post 1/i });
+    const postLinks = await screen.findAllByRole("link", { name: /Abrir Post Post 1/i });
+    const postLink = (postLinks.find((link) => classTokens(link).includes("group")) ||
+      postLinks[0]) as HTMLElement;
     fireEvent.click(postLink);
 
     await screen.findByTestId("post-page");

@@ -141,9 +141,9 @@ export const ProjectEditorDialogShell = ({
           {children}
         </div>
 
-        <div className="project-editor-footer flex items-center justify-between gap-3 border-t border-border/60 bg-background/95 px-4 py-1.5 backdrop-blur-sm supports-backdrop-filter:bg-background/80 md:px-6 md:py-2 lg:px-8">
-          <div className="flex items-center gap-2 md:gap-3">{footerLinks}</div>
-          <div className="flex items-center gap-3">
+        <div className="project-editor-footer grid gap-3 border-t border-border/60 bg-background/95 px-4 py-2 backdrop-blur-sm supports-backdrop-filter:bg-background/80 sm:flex sm:items-center sm:justify-between md:px-6 lg:px-8">
+          <div className="flex min-w-0 flex-wrap items-center gap-2 md:gap-3">{footerLinks}</div>
+          <div className="grid min-w-0 grid-cols-2 gap-2 sm:flex sm:items-center sm:gap-3">
             <DashboardActionButton size="sm" onClick={onCancel}>
               Cancelar
             </DashboardActionButton>

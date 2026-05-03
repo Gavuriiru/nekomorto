@@ -54,7 +54,7 @@ const ImageLibraryBrowserCardGrid = ({
   }
 
   return (
-    <div className="mt-3 grid grid-cols-2 gap-4 sm:grid-cols-3 lg:grid-cols-4">
+    <div className="mt-3 grid min-w-0 grid-cols-2 gap-3 sm:grid-cols-3 sm:gap-4 lg:grid-cols-4">
       {items.map((item) => {
         const isSelected = selectedResolvedUrlSet.has(item.url);
         const itemRenderUrl = toLibraryItemRenderUrl(item);
@@ -74,7 +74,7 @@ const ImageLibraryBrowserCardGrid = ({
                 ref={(node) => setCardRef(item.url, node)}
                 type="button"
                 data-library-section={section}
-                className={`group overflow-hidden rounded-xl border border-border/60 bg-card/60 text-left transition hover:border-primary/40 ${
+                className={`group min-w-0 overflow-hidden rounded-xl border border-border/60 bg-card/60 text-left transition hover:border-primary/40 ${
                   isSelected ? "border-primary/60 ring-2 ring-inset ring-primary/60" : ""
                 }`}
                 onClick={() =>
@@ -86,9 +86,9 @@ const ImageLibraryBrowserCardGrid = ({
                 <img
                   src={itemRenderUrl}
                   alt={toEffectiveName(item)}
-                  className="h-28 w-full object-cover"
+                  className="h-24 w-full object-cover sm:h-28"
                 />
-                <div className="line-clamp-2 p-2 text-xs text-muted-foreground">
+                <div className="line-clamp-2 break-words p-2 text-xs text-muted-foreground">
                   {item.label || toEffectiveName(item)}
                 </div>
               </button>

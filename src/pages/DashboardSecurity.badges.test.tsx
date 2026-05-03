@@ -110,15 +110,14 @@ describe("DashboardSecurity semantic badges", () => {
     await screen.findByText("Admin");
 
     const headerBadge = screen.getByTestId("dashboard-security-header-badge");
-    const headerBadgeReveal = headerBadge.parentElement;
+    const pageSection = headerBadge.closest("section");
     const sessionsCard = screen.getByTestId("dashboard-security-sessions-card");
     const firstSessionCard = screen.getByText("Admin").closest("article");
 
     expect(headerBadge).toHaveTextContent("Seguran\u00E7a");
-    expect(headerBadgeReveal).not.toBeNull();
-    expect(classTokens(headerBadgeReveal as HTMLElement)).toContain("reveal");
-    expect(classTokens(headerBadgeReveal as HTMLElement)).toContain("reveal-delay-1");
-    expect(headerBadgeReveal).toHaveAttribute("data-reveal");
+    expect(pageSection).not.toBeNull();
+    expect(classTokens(pageSection as HTMLElement)).toContain("reveal");
+    expect(pageSection).toHaveAttribute("data-reveal");
     expect(classTokens(sessionsCard)).toContain("animate-slide-up");
     expect(classTokens(sessionsCard)).toContain("opacity-0");
     expect(classTokens(sessionsCard)).toContain("bg-card");
@@ -161,33 +160,28 @@ describe("DashboardSecurity semantic badges", () => {
     expect(badgesRow).not.toBeNull();
     expect(revokeIcon).not.toBeNull();
 
-    expect(classTokens(headerRow as HTMLElement)).toContain("flex");
-    expect(classTokens(headerRow as HTMLElement)).toContain("flex-wrap");
-    expect(classTokens(headerRow as HTMLElement)).toContain("items-start");
+    expect(classTokens(headerRow as HTMLElement)).toContain("grid");
+    expect(classTokens(headerRow as HTMLElement)).toContain("min-w-0");
     expect(classTokens(headerRow as HTMLElement)).toContain("gap-3");
-    expect(classTokens(headerRow as HTMLElement)).toContain("md:flex-nowrap");
+    expect(classTokens(headerRow as HTMLElement)).toContain("md:flex");
 
     expect(classTokens(identityRow as HTMLElement)).toContain("flex");
     expect(classTokens(identityRow as HTMLElement)).toContain("min-w-0");
-    expect(classTokens(identityRow as HTMLElement)).toContain("flex-1");
     expect(classTokens(identityText as HTMLElement)).toContain("min-w-0");
     expect(classTokens(userId as HTMLElement)).toContain("break-all");
 
-    expect(classTokens(revokeButton)).toContain("order-2");
     expect(classTokens(revokeButton)).toContain("h-9");
-    expect(classTokens(revokeButton)).toContain("w-9");
-    expect(classTokens(revokeButton)).toContain("px-0");
+    expect(classTokens(revokeButton)).toContain("w-full");
+    expect(classTokens(revokeButton)).toContain("justify-center");
+    expect(classTokens(revokeButton)).toContain("px-3");
     expect(classTokens(revokeButton)).toContain("md:order-3");
     expect(classTokens(revokeButton)).toContain("md:w-auto");
-    expect(classTokens(revokeButton)).toContain("md:px-3");
     expect(classTokens(revokeIcon)).not.toContain("md:hidden");
 
-    expect(classTokens(badgesRow)).toContain("order-3");
-    expect(classTokens(badgesRow)).toContain("basis-full");
+    expect(classTokens(badgesRow)).toContain("min-w-0");
     expect(classTokens(badgesRow)).toContain("md:order-2");
 
-    expect(classTokens(desktopLabel as HTMLElement)).toContain("hidden");
-    expect(classTokens(desktopLabel as HTMLElement)).toContain("md:inline");
+    expect(classTokens(desktopLabel as HTMLElement)).not.toContain("hidden");
   });
 
   it("mantem a lista visivel durante a paginacao enquanto a proxima pagina carrega", async () => {

@@ -252,12 +252,14 @@ describe("DashboardProjectsEditor card layout", () => {
       ]),
     );
     expect(top).not.toBeNull();
-    expect(classTokens(top)).toEqual(expect.arrayContaining(["items-start", "justify-between"]));
+    expect(classTokens(top)).toEqual(
+      expect.arrayContaining(["grid", "min-w-0", "sm:flex", "sm:items-start"]),
+    );
     expect(headline).not.toBeNull();
     expect(within(top as HTMLElement).queryByText("Oshi no Ko")).toBeNull();
     expect(within(headline as HTMLElement).getByText("Oshi no Ko")).toBeInTheDocument();
     expect(actions).not.toBeNull();
-    expect(classTokens(actions)).toEqual(expect.arrayContaining(["shrink-0", "flex-wrap"]));
+    expect(classTokens(actions)).toEqual(expect.arrayContaining(["min-w-0", "flex-wrap"]));
     expect(
       within(actions as HTMLElement).getByRole("link", {
         name: "Abrir editor dedicado de Oshi no Ko",

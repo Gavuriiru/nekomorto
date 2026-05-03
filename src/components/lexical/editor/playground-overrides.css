@@ -21,6 +21,7 @@
   --lexical-table-selection: hsl(var(--primary) / 0.22);
   color: hsl(var(--foreground));
   font-family: "Inter", sans-serif;
+  min-width: 0;
 }
 
 :root[data-theme-mode="light"] .lexical-playground {
@@ -34,13 +35,14 @@
   box-shadow: 0 18px 45px -30px rgba(0, 0, 0, 0.65);
   color: hsl(var(--foreground));
   margin: 0;
-  max-width: 100%;
+  min-width: 0;
 }
 
 .lexical-playground .editor-shell .editor-container {
   background: hsl(var(--background));
   border-bottom-left-radius: 1rem;
   border-bottom-right-radius: 1rem;
+  min-width: 0;
 }
 
 .lexical-playground .editor-shell--read-only .editor-container {
@@ -68,6 +70,7 @@
   cursor: text;
   resize: none;
   align-items: stretch;
+  min-width: 0;
 }
 
 .lexical-playground .editor {
@@ -75,6 +78,7 @@
   resize: none;
   min-height: 150px;
   display: block;
+  min-width: 0;
 }
 
 .lexical-playground.lexical-playground--stretch {
@@ -229,11 +233,13 @@
 .post-editor-lexical-wrapper {
   position: relative;
   isolation: isolate;
+  min-width: 0;
 }
 
 .chapter-editor-lexical-wrapper {
   position: relative;
   isolation: isolate;
+  min-width: 0;
 }
 
 .chapter-editor-content-shell {
@@ -748,6 +754,7 @@
 .lexical-playground .editor-shell .editor-image img {
   display: block;
   max-width: 100%;
+  height: auto;
 }
 
 .lexical-playground .editor-shell .editor-image .image-resizer {

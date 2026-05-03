@@ -1291,8 +1291,16 @@ describe("DashboardWebhooks layout", () => {
     expect(screen.getByText("discord.com/api/webhooks/123/...")).toBeInTheDocument();
     expect(screen.getByText(/rate_limited/i)).toBeInTheDocument();
 
+    const deliveryCard = screen.getByTestId("dashboard-webhooks-delivery-delivery-1");
+    expect(classTokens(deliveryCard)).toContain("min-w-0");
+    expect(classTokens(screen.getByText("discord.com/api/webhooks/123/..."))).toContain(
+      "break-all",
+    );
+
     const retryButton = screen.getByRole("button", { name: /Reenfileirar/i });
     expectStableDashboardActionButton(retryButton, "h-9");
+    expect(classTokens(retryButton)).toContain("w-full");
+    expect(classTokens(retryButton)).toContain("sm:w-auto");
     fireEvent.click(retryButton);
 
     await waitFor(() => {

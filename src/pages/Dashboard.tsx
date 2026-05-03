@@ -867,12 +867,13 @@ const Dashboard = () => {
             </p>
           </div>
           <div
-            className="flex items-center gap-3 overflow-x-auto whitespace-nowrap pb-1 animate-slide-up"
+            className="grid w-full min-w-0 grid-cols-1 gap-3 animate-slide-up sm:flex sm:flex-wrap sm:items-center lg:w-auto lg:justify-end"
             style={dashboardAnimationDelay(dashboardMotionDelays.headerActionsMs)}
           >
             <DashboardActionButton
               type="button"
               size="toolbar"
+              className="w-full justify-center sm:w-auto"
               onClick={() => setIsCustomizeOpen(true)}
             >
               <SlidersHorizontal className="h-4 w-4" />
@@ -887,13 +888,18 @@ const Dashboard = () => {
               <DashboardActionButton
                 type="button"
                 size="toolbar"
+                className="w-full justify-center sm:w-auto"
                 onClick={() => void handleExportReport()}
                 disabled={isExportingReport}
               >
                 {isExportingReport ? "Exportando..." : "Exportar relatório"}
               </DashboardActionButton>
             ) : currentUser ? null : (
-              <DashboardActionButton asChild size="toolbar">
+              <DashboardActionButton
+                asChild
+                size="toolbar"
+                className="w-full justify-center sm:w-auto"
+              >
                 <Link to="/login">Fazer login</Link>
               </DashboardActionButton>
             )}
@@ -1051,14 +1057,14 @@ const Dashboard = () => {
                     className={`${dashboardOverviewCardShellClassName} animate-slide-up`}
                     style={dashboardAnimationDelay(dashboardMotionDelays.sectionLeadMs)}
                   >
-                    <div className="flex items-center justify-between">
-                      <div>
+                    <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
+                      <div className="min-w-0">
                         <h2 className="text-lg font-semibold">Projetos mais acessados</h2>
                         <p className={`text-sm ${dashboardOverviewMetaTextClassName}`}>
                           Ranking por projetos individuais
                         </p>
                       </div>
-                      <DashboardActionButton asChild>
+                      <DashboardActionButton asChild className="w-full justify-center sm:w-auto">
                         <Link to={analyticsProjectHref}>Ver analytics de projetos</Link>
                       </DashboardActionButton>
                     </div>
@@ -1068,15 +1074,17 @@ const Dashboard = () => {
                           <Link
                             key={project.id}
                             to={`/projeto/${project.id}`}
-                            className={`block ${dashboardOverviewInsetClassName} p-4 transition ${dashboardOverviewInteractiveSurfaceClassName}`}
+                            className={`block min-w-0 ${dashboardOverviewInsetClassName} p-4 transition ${dashboardOverviewInteractiveSurfaceClassName}`}
                           >
-                            <div className="flex items-center justify-between">
-                              <span className="text-sm font-medium">{project.title}</span>
+                            <div className="grid min-w-0 gap-3 sm:flex sm:items-center sm:justify-between">
+                              <span className="min-w-0 break-words text-sm font-medium">
+                                {project.title}
+                              </span>
                               <div
-                                className={`flex items-center gap-3 text-sm ${dashboardOverviewMetaTextClassName}`}
+                                className={`flex min-w-0 flex-wrap items-center gap-2 text-sm ${dashboardOverviewMetaTextClassName}`}
                               >
                                 <span>{project.views} acessos</span>
-                                <Badge className={dashboardOverviewBadgeClassName}>
+                                <Badge className={`${dashboardOverviewBadgeClassName} shrink-0`}>
                                   {project.status}
                                 </Badge>
                               </div>
@@ -1101,14 +1109,14 @@ const Dashboard = () => {
                       dashboardMotionDelays.sectionLeadMs + dashboardMotionDelays.sectionStepMs,
                     )}
                   >
-                    <div className="flex items-center justify-between">
-                      <div>
+                    <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
+                      <div className="min-w-0">
                         <h2 className="text-lg font-semibold">Posts mais recentes</h2>
                         <p className={`text-sm ${dashboardOverviewMetaTextClassName}`}>
                           Publicações e visualizações
                         </p>
                       </div>
-                      <DashboardActionButton asChild>
+                      <DashboardActionButton asChild className="w-full justify-center sm:w-auto">
                         <Link to={analyticsPostHref}>Ver analytics de posts</Link>
                       </DashboardActionButton>
                     </div>
@@ -1124,19 +1132,19 @@ const Dashboard = () => {
                           <Link
                             key={post.id}
                             to={`/postagem/${post.slug}`}
-                            className={`flex flex-col gap-3 ${dashboardOverviewInsetClassName} p-4 transition ${dashboardOverviewInteractiveSurfaceClassName} md:flex-row md:items-center md:justify-between`}
+                            className={`grid min-w-0 gap-3 ${dashboardOverviewInsetClassName} p-4 transition ${dashboardOverviewInteractiveSurfaceClassName} md:flex md:items-center md:justify-between`}
                           >
-                            <div>
-                              <p className="font-medium">{post.title}</p>
+                            <div className="min-w-0">
+                              <p className="break-words font-medium">{post.title}</p>
                               <p className={`text-xs ${dashboardOverviewMetaTextClassName}`}>
                                 Status: {post.status}
                               </p>
                             </div>
-                            <div className="flex items-center gap-3 text-sm">
+                            <div className="flex min-w-0 flex-wrap items-center gap-2 text-sm">
                               <span className={dashboardOverviewMetaTextClassName}>
                                 {post.views} visualizações
                               </span>
-                              <Badge className={dashboardOverviewBadgeClassName}>
+                              <Badge className={`${dashboardOverviewBadgeClassName} shrink-0`}>
                                 {formatDateTime(post.updatedAt || post.publishedAt)}
                               </Badge>
                             </div>

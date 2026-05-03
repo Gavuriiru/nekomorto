@@ -254,7 +254,7 @@ describe("DashboardProjectsEditor render isolation", () => {
     renderEditor();
 
     await screen.findByRole("heading", { name: "Gerenciar projetos" });
-    expect(screen.getByTestId("dashboard-projects-toolbar")).toHaveClass("relative", "z-[30]");
+    expect(screen.getByTestId("dashboard-projects-toolbar")).toHaveClass("relative", "z-30");
     expect(screen.getByPlaceholderText("Buscar por título, tags, estúdio...")).toBeInTheDocument();
     expect(screen.getByRole("combobox", { name: "Ordenar projetos" })).toHaveTextContent(
       "Ordem alfabética",

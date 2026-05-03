@@ -2110,8 +2110,8 @@ const DashboardPosts = () => {
                           <ProjectEmbedCard projectId={formState.projectId} />
                         ) : null}
                       </div>
-                      <div className="project-editor-footer sticky bottom-0 z-20 flex flex-col gap-3 border-t border-border/60 bg-background/95 px-4 py-2 backdrop-blur-sm supports-backdrop-filter:bg-background/80 md:flex-row md:items-center md:justify-between md:px-6 md:py-2.5 lg:px-8">
-                        <div className="flex flex-wrap items-center gap-2">
+                      <div className="project-editor-footer sticky bottom-0 z-20 grid gap-3 border-t border-border/60 bg-background/95 px-4 py-2 backdrop-blur-sm supports-backdrop-filter:bg-background/80 md:flex md:items-center md:justify-between md:px-6 md:py-2.5 lg:px-8">
+                        <div className="flex min-w-0 flex-wrap items-center gap-2">
                           {editingPostHasRestorableHistory ? (
                             <DashboardActionButton
                               size="sm"
@@ -2130,12 +2130,12 @@ const DashboardPosts = () => {
                             </DashboardActionButton>
                           ) : null}
                         </div>
-                        <div className="flex flex-wrap items-center justify-end gap-2">
+                        <div className="grid min-w-0 grid-cols-2 gap-2 sm:flex sm:flex-wrap sm:items-center sm:justify-end">
                           {editorPublicHref ? (
                             <DashboardActionButton
                               type="button"
                               size="sm"
-                              className="w-10 gap-0 px-0 md:w-auto md:gap-2 md:px-4"
+                              className="w-full gap-2 px-3 sm:w-10 sm:gap-0 sm:px-0 md:w-auto md:gap-2 md:px-4"
                               asChild
                             >
                               <Link target="_blank" rel="noreferrer" to={editorPublicHref}>

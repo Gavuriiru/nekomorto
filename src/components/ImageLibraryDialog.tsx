@@ -39,7 +39,7 @@ const ImageLibraryDialog = ({
           overlayClassName="z-190 data-[state=open]:animate-none data-[state=closed]:animate-none"
           onEscapeKeyDown={(event) => event.preventDefault()}
         >
-          <DialogHeader className="space-y-1">
+          <DialogHeader className="min-w-0 space-y-1 text-left">
             <DialogTitle>{title}</DialogTitle>
             <DialogDescription className="text-xs leading-snug sm:text-sm">
               {description}
@@ -49,7 +49,7 @@ const ImageLibraryDialog = ({
           <ImageLibraryUploadPanel {...uploadPanelProps} />
           <ImageLibraryBrowserPane {...browserProps} />
 
-          <div className="mt-4 flex flex-col gap-3 border-t border-border/60 pt-4 sm:flex-row sm:items-center sm:justify-between">
+          <div className="sticky bottom-0 z-10 -mx-3 mt-3 flex flex-col gap-3 border-t border-border/60 bg-background/95 px-3 pb-1 pt-3 backdrop-blur sm:static sm:mx-0 sm:mt-4 sm:flex-row sm:items-center sm:justify-between sm:bg-transparent sm:p-0 sm:pt-4 sm:backdrop-blur-none">
             <div className="flex flex-col gap-2 sm:flex-row">
               {footerProps.allowDeselect ? (
                 <DashboardActionButton

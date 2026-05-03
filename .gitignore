@@ -74,3 +74,6 @@ public/uploads/
 /reports/perf/*
 !/reports/perf/public-surface-baseline.json
 mcp-github.json
+.codex/agents/attack-surface-auditor.toml
+.codex/agents/backend-perf-optimizer.toml
+.codex/agents/ui-redesign-performance.toml
