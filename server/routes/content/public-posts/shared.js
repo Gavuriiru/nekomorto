@@ -24,14 +24,22 @@ export const buildPublicPostDetail = ({ post, resolvePostCover } = {}) => ({
   seoDescription: post.seoDescription,
 });
 
-export const listPublishedPublicPosts = ({ loadPosts, normalizePosts, now = Date.now() } = {}) =>
-  normalizePosts(loadPosts())
+export const listPublishedPublicPosts = ({ loadPosts, normalizePosts, now = Date.now() } = {}) => {
+  const posts = normalizePosts(loadPosts())
     .filter((post) => !post.deletedAt)
     .filter((post) => {
       const publishTime = new Date(post.publishedAt).getTime();
       return publishTime <= now && (post.status === "published" || post.status === "scheduled");
-    })
-    .sort((a, b) => new Date(b.publishedAt).getTime() - new Date(a.publishedAt).getTime());
+    });
+
+  return posts
+    .map((post) => ({
+      post,
+      publishTime: new Date(post.publishedAt).getTime(),
+    }))
+    .sort((a, b) => b.publishTime - a.publishTime)
+    .map(({ post }) => post);
+};
 
 export const findPublishedPublicPostBySlug = ({
   loadPosts,
