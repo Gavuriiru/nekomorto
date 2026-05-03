@@ -25,9 +25,12 @@ export default defineConfig(({ mode }) => {
     build: {
       // Large lazy editor/tooling bundles are validated by custom build guards,
       // so we raise Vite's generic warning threshold to reduce false-positive noise.
-      chunkSizeWarningLimit: 1200,
+      chunkSizeWarningLimit: 1250,
       sourcemap: env.VITE_BUILD_SOURCEMAP === "true",
-      rollupOptions: {
+      rolldownOptions: {
+        checks: {
+          pluginTimings: false,
+        },
         output: {
           manualChunks: classifyManualChunk,
         },

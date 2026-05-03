@@ -120,7 +120,13 @@ describe("ReleasesSection cover fit", () => {
 
     const coverContainer = coverImage.parentElement?.parentElement;
     expect(coverContainer).not.toBeNull();
-    expect(coverContainer).toHaveClass("relative", "w-full", "aspect-3/2", "overflow-hidden");
+    expect(coverContainer).toHaveClass(
+      "home-post-media-frame",
+      "relative",
+      "w-full",
+      "aspect-3/2",
+      "overflow-hidden",
+    );
     expect(postRevealWrapper).not.toBeNull();
     expect(postRevealWrapper).toHaveClass("reveal", "h-full");
     expect(postRevealWrapper).toHaveAttribute("data-reveal");

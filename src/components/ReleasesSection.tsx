@@ -101,7 +101,7 @@ const ReleasesSection = () => {
                           isOrphan && "sm:w-[calc(50%-1rem)]",
                         )}
                       >
-                        <div className="relative aspect-3/2 w-full overflow-hidden bg-secondary">
+                        <div className="home-post-media-frame relative aspect-3/2 w-full overflow-hidden bg-secondary">
                           <UploadPicture
                             src={release.coverImageUrl}
                             alt={release.title}

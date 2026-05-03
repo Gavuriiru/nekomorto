@@ -12,6 +12,12 @@
     border-color: hsl(var(--primary) / 0.4);
   }
 
+  .home-post-media-frame {
+    margin: -1px -1px 0;
+    min-width: calc(100% + 2px);
+    width: calc(100% + 2px);
+  }
+
   .home-post-media-transition {
     transform: scale(1);
     transform-origin: center center;
