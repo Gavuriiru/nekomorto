@@ -19,12 +19,18 @@ vi.mock("@/components/UploadPicture", () => ({
     draggable,
     className,
     imgClassName,
+    mediaVariants,
+    preset,
+    sizes,
   }: {
     src: string;
     alt: string;
     draggable?: boolean;
     className?: string;
     imgClassName?: string;
+    mediaVariants?: Record<string, unknown> | null;
+    preset?: string;
+    sizes?: string;
   }) => (
     <picture className={className}>
       <img
@@ -33,6 +39,9 @@ vi.mock("@/components/UploadPicture", () => ({
         alt={alt}
         draggable={draggable}
         className={imgClassName}
+        data-has-media-variants={mediaVariants ? "true" : "false"}
+        data-preset={preset}
+        sizes={sizes}
       />
     </picture>
   ),
@@ -156,6 +165,18 @@ const mockPageSurfaceRects = (count: number) => {
 const renderEditor = (options?: { chapter?: ProjectEpisode }) => {
   const onChangeSpy = vi.fn();
   const initialChapter = options?.chapter ?? createChapterFixture();
+  const mediaVariants = {
+    "/page-1.jpg": {
+      variantsVersion: 1,
+      variants: {
+        posterThumb: {
+          formats: {
+            fallback: { url: "/uploads/_variants/page-1/posterThumb-v1.jpeg" },
+          },
+        },
+      },
+    },
+  };
 
   const Harness = () => {
     const [chapter, setChapter] = useState(initialChapter);
@@ -165,6 +186,7 @@ const renderEditor = (options?: { chapter?: ProjectEpisode }) => {
           apiBase="http://api.local"
           projectSnapshot={createProjectFixture()}
           chapter={chapter}
+          mediaVariants={mediaVariants}
           uploadFolder="projects/project-1/capitulos/volume-1/capitulo-3"
           onChange={(nextChapter) => {
             onChangeSpy(nextChapter);
@@ -255,6 +277,18 @@ describe("MangaChapterPagesEditor", () => {
     expect(screen.getByTestId("manga-page-surface-0")).not.toHaveAttribute("title");
     expect(screen.getByTestId("manga-page-filename-0")).not.toHaveAttribute("title");
     expect(screen.getAllByTestId("upload-picture")[0]).toHaveAttribute("draggable", "false");
+    expect(screen.getAllByTestId("upload-picture")[0]).toHaveAttribute(
+      "data-preset",
+      "posterThumb",
+    );
+    expect(screen.getAllByTestId("upload-picture")[0]).toHaveAttribute(
+      "data-has-media-variants",
+      "true",
+    );
+    expect(screen.getAllByTestId("upload-picture")[0]).toHaveAttribute(
+      "sizes",
+      "(min-width: 1280px) 200px, (min-width: 1024px) 30vw, (min-width: 640px) 50vw, 100vw",
+    );
     expect(screen.getAllByTestId("upload-picture")[0]).toHaveClass(
       "h-full",
       "w-full",

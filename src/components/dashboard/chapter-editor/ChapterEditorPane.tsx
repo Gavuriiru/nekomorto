@@ -62,6 +62,7 @@ import {
 import { overlayDraftOnProject } from "@/lib/project-epub";
 import { getProjectProgressState, syncProjectProgress } from "@/lib/project-progress";
 import { isLightNovelType, isMangaType } from "@/lib/project-utils";
+import type { UploadMediaVariantsMap } from "@/lib/upload-variants";
 import { cn } from "@/lib/utils";
 import {
   ArrowLeft,
@@ -101,6 +102,7 @@ type ChapterEditorPaneProps = {
   activeDraft: ProjectEpisode | null;
   onDraftChange: (nextChapter: ProjectEpisode) => void;
   filteredChapters: ProjectEpisode[];
+  mediaVariants?: UploadMediaVariantsMap;
   stagedChapters: StageChapter[];
   selectedStageChapterId: string | null;
   setStagedChapters: Dispatch<SetStateAction<StageChapter[]>>;
@@ -198,6 +200,7 @@ const ChapterEditorPane = forwardRef<ChapterEditorPaneHandle, ChapterEditorPaneP
       activeDraft,
       onDraftChange,
       filteredChapters,
+      mediaVariants = {},
       stagedChapters,
       selectedStageChapterId,
       setStagedChapters,
@@ -1069,6 +1072,7 @@ const ChapterEditorPane = forwardRef<ChapterEditorPaneHandle, ChapterEditorPaneP
                   apiBase={apiBase}
                   projectSnapshot={projectSnapshotForImageExport}
                   chapter={draft}
+                  mediaVariants={mediaVariants}
                   uploadFolder={chapterFolder}
                   onChange={(nextChapter) => onDraftChange(normalizeEditorChapter(nextChapter))}
                 />
@@ -1176,6 +1180,7 @@ const ChapterEditorPane = forwardRef<ChapterEditorPaneHandle, ChapterEditorPaneP
                   apiBase={apiBase}
                   projectSnapshot={projectSnapshotForImageExport}
                   chapter={draft}
+                  mediaVariants={mediaVariants}
                   uploadFolder={chapterFolder}
                   onChange={(nextChapter) => onDraftChange(normalizeEditorChapter(nextChapter))}
                 />{" "}

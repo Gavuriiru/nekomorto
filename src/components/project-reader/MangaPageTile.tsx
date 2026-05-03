@@ -14,6 +14,7 @@ import {
 import UploadPicture from "@/components/UploadPicture";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
+import type { UploadMediaVariantsMap } from "@/lib/upload-variants";
 import { cn } from "@/lib/utils";
 
 type InputModality = "keyboard" | "pointer";
@@ -32,6 +33,7 @@ type MangaPageTileProps = {
   isPreviewTarget: boolean;
   isPressed?: boolean;
   disabled: boolean;
+  mediaVariants?: UploadMediaVariantsMap | null;
   canJoinWithNext?: boolean;
   reorderMotion: "spring" | "reduced";
   reorderTransition: Transition;
@@ -120,6 +122,7 @@ const MangaPageTile = ({
   isPreviewTarget,
   isPressed = false,
   disabled,
+  mediaVariants,
   canJoinWithNext = false,
   reorderMotion,
   reorderTransition,
@@ -298,7 +301,9 @@ const MangaPageTile = ({
         <UploadPicture
           src={src}
           alt={alt}
-          preset="poster"
+          preset="posterThumb"
+          mediaVariants={mediaVariants}
+          sizes="(min-width: 1280px) 200px, (min-width: 1024px) 30vw, (min-width: 640px) 50vw, 100vw"
           draggable={false}
           className="h-full w-full select-none"
           imgClassName="h-full w-full select-none object-cover object-top"
@@ -452,6 +457,7 @@ const areMangaPageTilePropsEqual = (previous: MangaPageTileProps, next: MangaPag
   previous.isPreviewTarget === next.isPreviewTarget &&
   previous.isPressed === next.isPressed &&
   previous.disabled === next.disabled &&
+  previous.mediaVariants === next.mediaVariants &&
   previous.canJoinWithNext === next.canJoinWithNext &&
   previous.reorderMotion === next.reorderMotion &&
   previous.reorderTransition === next.reorderTransition;

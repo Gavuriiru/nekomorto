@@ -19,6 +19,7 @@ import type { Project, ProjectEpisode, ProjectEpisodePage } from "@/data/project
 import { useAccessibilityAnnouncer } from "@/hooks/accessibility-announcer";
 import { apiFetch } from "@/lib/api-client";
 import { fileToDataUrl } from "@/lib/file-data-url";
+import type { UploadMediaVariantsMap } from "@/lib/upload-variants";
 import { unzipSync } from "fflate";
 import { LayoutGroup, useReducedMotion } from "framer-motion";
 import { FileArchive, FolderOpen, ImagePlus, Loader2, Plus } from "lucide-react";
@@ -29,6 +30,7 @@ type MangaChapterPagesEditorProps = {
   apiBase: string;
   projectSnapshot: Project;
   chapter: ProjectEpisode;
+  mediaVariants?: UploadMediaVariantsMap;
   uploadFolder: string;
   onChange: (nextChapter: ProjectEpisode) => void;
 };
@@ -122,6 +124,7 @@ type MangaChapterPagesGridProps = {
   pages: MangaEditorPage[];
   coverImageUrl: string;
   isUploading: boolean;
+  mediaVariants: UploadMediaVariantsMap;
   shouldReduceMotion: boolean;
   reorderTransition: ReturnType<typeof getReorderLayoutTransition>;
   onMovePage: (fromIndex: number, toIndex: number) => void;
@@ -142,6 +145,7 @@ const MangaChapterPagesGrid = memo(
     pages,
     coverImageUrl,
     isUploading,
+    mediaVariants,
     shouldReduceMotion,
     reorderTransition,
     onMovePage,
@@ -182,7 +186,7 @@ const MangaChapterPagesGrid = memo(
 
       return (
         <MangaPageTile
-          key={`${page.imageUrl}-${page.position}`}
+          key={page.imageUrl}
           testIdPrefix="manga-page"
           src={page.imageUrl}
           alt={`Página ${index + 1}`}
@@ -195,6 +199,7 @@ const MangaChapterPagesGrid = memo(
           isPreviewTarget={isPreviewTarget}
           isPressed={pressedPage === page}
           disabled={isUploading}
+          mediaVariants={mediaVariants}
           canJoinWithNext={canJoinWithNext}
           reorderMotion={shouldReduceMotion ? "reduced" : "spring"}
           reorderTransition={reorderTransition}
@@ -229,6 +234,7 @@ const MangaChapterPagesEditor = ({
   apiBase,
   projectSnapshot,
   chapter,
+  mediaVariants = {},
   uploadFolder,
   onChange,
 }: MangaChapterPagesEditorProps) => {
@@ -627,6 +633,7 @@ const MangaChapterPagesEditor = ({
           pages={pages}
           coverImageUrl={chapter.coverImageUrl || ""}
           isUploading={isUploading}
+          mediaVariants={mediaVariants}
           shouldReduceMotion={!!shouldReduceMotion}
           reorderTransition={reorderTransition}
           onMovePage={movePage}

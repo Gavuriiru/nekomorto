@@ -1,5 +1,6 @@
 export const registerProjectCatalogRoutes = ({
   app,
+  buildPublicMediaVariants = () => ({}),
   canManageProjects,
   createRevisionToken,
   getActiveProjectTypes,
@@ -36,6 +37,7 @@ export const registerProjectCatalogRoutes = ({
         ...project,
         revision: createRevisionToken(project),
       },
+      mediaVariants: buildPublicMediaVariants(project),
     });
   });
 

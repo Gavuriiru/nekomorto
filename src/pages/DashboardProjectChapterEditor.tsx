@@ -138,6 +138,7 @@ const DashboardProjectChapterEditor = () => {
     handleProjectChange,
     hasLoadError,
     isLoading,
+    mediaVariants,
     persistProjectSnapshot,
     persistedStructureGroupKeys,
     project,
@@ -1214,6 +1215,7 @@ const DashboardProjectChapterEditor = () => {
           activeDraft={activeDraft}
           onDraftChange={setActiveDraft}
           filteredChapters={filteredChapters}
+          mediaVariants={mediaVariants}
           stagedChapters={stagedMangaChapters}
           selectedStageChapterId={selectedStageChapterId}
           setStagedChapters={setStagedMangaChapters}

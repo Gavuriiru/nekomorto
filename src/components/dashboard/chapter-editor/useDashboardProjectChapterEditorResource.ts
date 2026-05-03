@@ -29,6 +29,7 @@ import {
   READER_CONTENT_OR_DOWNLOAD_REQUIRED_FOR_PUBLICATION_MESSAGE,
 } from "@/lib/project-publication";
 import { normalizeProjectVolumeEntries } from "@/lib/project-volume-entries";
+import type { UploadMediaVariantsMap } from "@/lib/upload-variants";
 import type { ApiContractBuildMetadata, ApiContractCapabilities } from "@/types/api-contract";
 
 import type { ProjectRecord } from "./chapter-editor-types";
@@ -53,6 +54,7 @@ export type DashboardProjectChapterEditorResourceState = {
   handleProjectChange: (nextProject: ProjectRecord) => void;
   hasLoadError: boolean;
   isLoading: boolean;
+  mediaVariants: UploadMediaVariantsMap;
   pendingEpubImportIdsRef: MutableRefObject<Set<string>>;
   persistProjectSnapshot: (
     snapshot: ProjectRecord,
@@ -182,6 +184,7 @@ export const useDashboardProjectChapterEditorResource = ({
   const [backendCapabilitiesError, setBackendCapabilitiesError] = useState<string | null>(null);
   const [epubRouteStatus, setEpubRouteStatus] = useState<EpubRouteStatus>("unknown");
   const [project, setProject] = useState<ProjectRecord | null>(null);
+  const [mediaVariants, setMediaVariants] = useState<UploadMediaVariantsMap>({});
   const [isLoading, setIsLoading] = useState(true);
   const [hasLoadError, setHasLoadError] = useState(false);
   const [projectLoadVersion, setProjectLoadVersion] = useState(0);
@@ -219,10 +222,11 @@ export const useDashboardProjectChapterEditorResource = ({
   }, [apiBase]);
 
   const applyLoadedProject = useCallback(
-    (nextProject: ProjectRecord | null) => {
+    (nextProject: ProjectRecord | null, nextMediaVariants: UploadMediaVariantsMap = {}) => {
       projectRef.current = nextProject;
       projectSnapshotRef.current = nextProject;
       setProject(nextProject);
+      setMediaVariants(nextMediaVariants);
       setVolumeEntriesDraft(normalizeProjectVolumeEntries(nextProject?.volumeEntries));
       setSelectedVolume(null);
       setPersistedStructureGroupKeys([]);
@@ -341,11 +345,14 @@ export const useDashboardProjectChapterEditorResource = ({
           setHasLoadError(response.status !== 404);
           return;
         }
-        const data = (await response.json()) as { project?: ProjectRecord };
+        const data = (await response.json()) as {
+          mediaVariants?: UploadMediaVariantsMap;
+          project?: ProjectRecord;
+        };
         if (!isActive) {
           return;
         }
-        applyLoadedProject(data?.project || null);
+        applyLoadedProject(data?.project || null, data?.mediaVariants || {});
         setHasLoadError(false);
       } catch {
         if (!isActive) {
@@ -375,6 +382,7 @@ export const useDashboardProjectChapterEditorResource = ({
     handleProjectChange,
     hasLoadError,
     isLoading,
+    mediaVariants,
     pendingEpubImportIdsRef,
     persistProjectSnapshot,
     persistedStructureGroupKeys,
