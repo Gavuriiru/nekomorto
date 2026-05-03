@@ -73,8 +73,7 @@ const buildUsersPayload = (user = currentUserValue) => ({
       socials: [],
       favoriteWorks: { manga: [], anime: [] },
       status: "active",
-      permissions:
-        user.accessRole === "admin" ? ["usuarios", "usuarios"] : [],
+      permissions: user.accessRole === "admin" ? ["usuarios", "usuarios"] : [],
       roles: [],
       accessRole: user.accessRole,
       order: 0,
@@ -249,7 +248,9 @@ describe("DashboardUsers connected accounts", () => {
     await screen.findAllByText(/métodos de acesso/i);
 
     const googleBadge = screen.getByText(/^Google$/);
-    const accessSection = googleBadge.closest("div.flex.flex-wrap.items-center.justify-between") as HTMLElement | null;
+    const accessSection = googleBadge.closest(
+      "div.flex.flex-wrap.items-center.justify-between",
+    ) as HTMLElement | null;
     expect(accessSection).not.toBeNull();
     fireEvent.click(within(accessSection as HTMLElement).getByRole("button", { name: "Conectar" }));
 
@@ -335,9 +336,13 @@ describe("DashboardUsers connected accounts", () => {
     renderDashboardUsers("/dashboard/usuarios");
     await openNewUserDialog();
 
-    expect(screen.getByText(/você pode deixar em branco para gerar o id interno automaticamente/i)).toBeInTheDocument();
+    expect(
+      screen.getByText(/você pode deixar em branco para gerar o id interno automaticamente/i),
+    ).toBeInTheDocument();
     expect(screen.getByText(/será definido ao salvar/i)).toBeInTheDocument();
-    expect(screen.getByText(/o id interno será gerado automaticamente ao salvar/i)).toBeInTheDocument();
+    expect(
+      screen.getByText(/o id interno será gerado automaticamente ao salvar/i),
+    ).toBeInTheDocument();
   });
 
   it("mostra os campos de id interno e e-mail de acesso na criação", async () => {

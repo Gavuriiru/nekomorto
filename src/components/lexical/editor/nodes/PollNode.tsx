@@ -47,11 +47,7 @@ export function createPollOption(text = ""): Option {
   };
 }
 
-function cloneOption(
-  option: Option,
-  text: string,
-  votes?: Array<string>,
-): Option {
+function cloneOption(option: Option, text: string, votes?: Array<string>): Option {
   return {
     text,
     uid: option.uid,
@@ -67,9 +63,7 @@ export type SerializedPollNode = Spread<
   SerializedLexicalNode
 >;
 
-function $convertPollElement(
-  domNode: HTMLSpanElement,
-): DOMConversionOutput | null {
+function $convertPollElement(domNode: HTMLSpanElement): DOMConversionOutput | null {
   const question = domNode.getAttribute("data-lexical-poll-question");
   const options = domNode.getAttribute("data-lexical-poll-options");
   if (question !== null && options !== null) {
@@ -101,8 +95,7 @@ const questionState = createState("question", {
   parse: (v) => (typeof v === "string" ? v : ""),
 });
 const optionsState = createState("options", {
-  isEqual: (a, b) =>
-    a.length === b.length && JSON.stringify(a) === JSON.stringify(b),
+  isEqual: (a, b) => a.length === b.length && JSON.stringify(a) === JSON.stringify(b),
   parse: parseOptions,
 });
 
@@ -189,10 +182,7 @@ export class PollNode extends DecoratorNode<JSX.Element> {
   exportDOM(): DOMExportOutput {
     const element = document.createElement("span");
     element.setAttribute("data-lexical-poll-question", this.getQuestion());
-    element.setAttribute(
-      "data-lexical-poll-options",
-      JSON.stringify(this.getOptions()),
-    );
+    element.setAttribute("data-lexical-poll-options", JSON.stringify(this.getOptions()));
     return { element };
   }
 
@@ -221,8 +211,6 @@ export function $createPollNode(question: string, options: Options): PollNode {
   return new PollNode().setQuestion(question).setOptions(options);
 }
 
-export function $isPollNode(
-  node: LexicalNode | null | undefined,
-): node is PollNode {
+export function $isPollNode(node: LexicalNode | null | undefined): node is PollNode {
   return node instanceof PollNode;
 }

@@ -1,4 +1,5 @@
 import { act, fireEvent, render, screen, waitFor, within } from "@testing-library/react";
+import userEvent from "@testing-library/user-event";
 import { MemoryRouter, useLocation } from "react-router-dom";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
@@ -242,17 +243,19 @@ describe("Projects query sync", () => {
       </MemoryRouter>,
     );
 
+    const user = userEvent.setup();
+
     await screen.findByText("Projeto 1");
     const letterTrigger = await screen.findByRole("combobox", { name: "Filtrar por letra" });
     expect(container.querySelector("select")).toBeNull();
 
-    fireEvent.click(letterTrigger);
+    await user.click(letterTrigger);
 
     const letterListbox = await screen.findByRole("listbox", { name: "A-Z" });
     expect(screen.queryByLabelText(/Buscar em a-z/i)).not.toBeInTheDocument();
     expect(within(letterListbox).getByRole("option", { name: "P" })).toBeInTheDocument();
 
-    fireEvent.click(within(letterListbox).getByRole("option", { name: "P" }));
+    await user.click(within(letterListbox).getByRole("option", { name: "P" }));
 
     await waitFor(() => {
       expect(getSearchParams().get("letter")).toBe("P");
@@ -261,14 +264,14 @@ describe("Projects query sync", () => {
     });
 
     const formatTrigger = screen.getByRole("combobox", { name: "Filtrar por formato" });
-    fireEvent.click(formatTrigger);
+    await user.click(formatTrigger);
 
     const formatListbox = await screen.findByRole("listbox", { name: "Formato" });
     expect(formatListbox).toHaveAttribute("aria-label", "Formato");
     expect(screen.queryByLabelText(/Buscar em formato/i)).not.toBeInTheDocument();
     const animeOption = within(formatListbox).getByRole("option", { name: /Anime/i });
 
-    fireEvent.click(animeOption);
+    await user.click(animeOption);
 
     await waitFor(() => {
       expect(getSearchParams().get("type")).toBe("Anime");

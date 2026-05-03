@@ -5,13 +5,11 @@ import { describe, expect, it, vi } from "vitest";
 
 import DashboardProjectsEditor from "@/pages/DashboardProjectsEditor";
 
-const { apiFetchMock, imageLibraryPropsSpy, lexicalPropsSpy } = vi.hoisted(
-  () => ({
-    apiFetchMock: vi.fn(),
-    imageLibraryPropsSpy: vi.fn(),
-    lexicalPropsSpy: vi.fn(),
-  }),
-);
+const { apiFetchMock, imageLibraryPropsSpy, lexicalPropsSpy } = vi.hoisted(() => ({
+  apiFetchMock: vi.fn(),
+  imageLibraryPropsSpy: vi.fn(),
+  lexicalPropsSpy: vi.fn(),
+}));
 
 vi.mock("@/components/DashboardShell", () => ({
   default: ({ children }: { children: ReactNode }) => <div>{children}</div>,
@@ -82,11 +80,7 @@ vi.mock("@/lib/api-client", () => ({
   apiFetch: (...args: unknown[]) => apiFetchMock(...args),
 }));
 
-const mockJsonResponse = (
-  ok: boolean,
-  payload: unknown,
-  status = ok ? 200 : 500,
-) =>
+const mockJsonResponse = (ok: boolean, payload: unknown, status = ok ? 200 : 500) =>
   ({
     ok,
     status,
@@ -153,37 +147,33 @@ const buildProjectFixture = (
     : [...projectFixtureBase.episodeDownloads],
 });
 
-const setupApiMock = (
-  projectOverrides: Partial<typeof projectFixtureBase> = {},
-) => {
+const setupApiMock = (projectOverrides: Partial<typeof projectFixtureBase> = {}) => {
   apiFetchMock.mockReset();
   imageLibraryPropsSpy.mockReset();
   lexicalPropsSpy.mockReset();
   const projectFixture = buildProjectFixture(projectOverrides);
-  apiFetchMock.mockImplementation(
-    async (_base: string, path: string, options?: RequestInit) => {
-      const method = String(options?.method || "GET").toUpperCase();
-      if (path === "/api/me" && method === "GET") {
-        return mockJsonResponse(true, {
-          id: "1",
-          name: "Admin",
-          username: "admin",
-          permissions: ["projetos"],
-          grants: { projetos: true },
-        });
-      }
-      if (path === "/api/projects" && method === "GET") {
-        return mockJsonResponse(true, { projects: [projectFixture] });
-      }
-      if (path === "/api/users" && method === "GET") {
-        return mockJsonResponse(true, { users: [] });
-      }
-      if (path === "/api/public/tag-translations" && method === "GET") {
-        return mockJsonResponse(true, { tags: {}, genres: {}, staffRoles: {} });
-      }
-      return mockJsonResponse(false, { error: "not_found" }, 404);
-    },
-  );
+  apiFetchMock.mockImplementation(async (_base: string, path: string, options?: RequestInit) => {
+    const method = String(options?.method || "GET").toUpperCase();
+    if (path === "/api/me" && method === "GET") {
+      return mockJsonResponse(true, {
+        id: "1",
+        name: "Admin",
+        username: "admin",
+        permissions: ["projetos"],
+        grants: { projetos: true },
+      });
+    }
+    if (path === "/api/projects" && method === "GET") {
+      return mockJsonResponse(true, { projects: [projectFixture] });
+    }
+    if (path === "/api/users" && method === "GET") {
+      return mockJsonResponse(true, { users: [] });
+    }
+    if (path === "/api/public/tag-translations" && method === "GET") {
+      return mockJsonResponse(true, { tags: {}, genres: {}, staffRoles: {} });
+    }
+    return mockJsonResponse(false, { error: "not_found" }, 404);
+  });
 };
 
 describe("DashboardProjectsEditor image library context", () => {
@@ -232,9 +222,7 @@ describe("DashboardProjectsEditor image library context", () => {
     fireEvent.click(mediaLibraryButtons[1] ?? mediaLibraryButtons[0]);
 
     await waitFor(() => {
-      const latestImageLibraryProps = imageLibraryPropsSpy.mock.calls.at(
-        -1,
-      )?.[0] as {
+      const latestImageLibraryProps = imageLibraryPropsSpy.mock.calls.at(-1)?.[0] as {
         uploadFolder?: string;
       };
       expect(latestImageLibraryProps?.uploadFolder).toBe("projects/project-1");

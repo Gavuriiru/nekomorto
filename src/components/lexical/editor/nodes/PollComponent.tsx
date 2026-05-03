@@ -52,10 +52,7 @@ function PollOptionComponent({
   option: Option;
   options: Options;
   totalVotes: number;
-  withPollNode: (
-    cb: (pollNode: PollNode) => void,
-    onSelect?: () => void,
-  ) => void;
+  withPollNode: (cb: (pollNode: PollNode) => void, onSelect?: () => void) => void;
   isEditable: boolean;
   onVote?: (option: Option, checked: boolean) => void;
 }): JSX.Element {
@@ -159,8 +156,7 @@ export default function PollComponent({
   const [editor] = useLexicalComposerContext();
   const pollContext = usePollContext();
   const totalVotes = useMemo(() => getTotalVotes(options), [options]);
-  const [isSelected, setSelected, clearSelection] =
-    useLexicalNodeSelection(nodeKey);
+  const [isSelected, setSelected, clearSelection] = useLexicalNodeSelection(nodeKey);
   const [selection, setSelection] = useState<BaseSelection | null>(null);
   const ref = useRef(null);
   const isEditable = useLexicalEditable();
@@ -190,10 +186,7 @@ export default function PollComponent({
     );
   }, [clearSelection, editor, isSelected, nodeKey, setSelected]);
 
-  const withPollNode = (
-    cb: (node: PollNode) => void,
-    onUpdate?: () => void,
-  ): void => {
+  const withPollNode = (cb: (node: PollNode) => void, onUpdate?: () => void): void => {
     editor.update(
       () => {
         const node = $getNodeByKey(nodeKey);

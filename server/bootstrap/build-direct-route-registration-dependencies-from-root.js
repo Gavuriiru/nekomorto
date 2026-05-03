@@ -25,10 +25,8 @@ export const buildDirectRouteRegistrationDependenciesFromRoot = (dependencies = 
     canVerifyMfa: dependencies.canVerifyMfa,
     clearEnrollmentFromSession: dependencies.clearEnrollmentFromSession,
     clearPendingMfaEnrollmentFromSession: dependencies.clearPendingMfaEnrollmentFromSession,
-    clearPendingMfaEnrollmentRedirectTarget:
-      dependencies.clearPendingMfaEnrollmentRedirectTarget,
-    completeRequiredMfaEnrollmentForSession:
-      dependencies.completeRequiredMfaEnrollmentForSession,
+    clearPendingMfaEnrollmentRedirectTarget: dependencies.clearPendingMfaEnrollmentRedirectTarget,
+    completeRequiredMfaEnrollmentForSession: dependencies.completeRequiredMfaEnrollmentForSession,
     createDiscordAvatarUrl: dependencies.createDiscordAvatarUrl,
     dataEncryptionKeyring: dependencies.dataEncryptionKeyring,
     deleteUserMfaTotpRecord: dependencies.deleteUserMfaTotpRecord,
@@ -56,8 +54,7 @@ export const buildDirectRouteRegistrationDependenciesFromRoot = (dependencies = 
     isAllowedOrigin: dependencies.isAllowedOrigin,
     isMetricsEnabled: dependencies.isMetricsEnabled,
     isPlainObject: dependencies.isPlainObject,
-    isPendingMfaEnrollmentRequiredForUser:
-      dependencies.isPendingMfaEnrollmentRequiredForUser,
+    isPendingMfaEnrollmentRequiredForUser: dependencies.isPendingMfaEnrollmentRequiredForUser,
     isTotpEnabledForUser: dependencies.isTotpEnabledForUser,
     listActiveSessionsForUser: dependencies.listActiveSessionsForUser,
     loadAllowedUsers: dependencies.loadAllowedUsers,
@@ -72,7 +69,8 @@ export const buildDirectRouteRegistrationDependenciesFromRoot = (dependencies = 
     metricsTokenNormalized:
       dependencies.metricsTokenNormalized ?? dependencies.METRICS_TOKEN_NORMALIZED,
     operationalHealthTokenNormalized:
-      dependencies.operationalHealthTokenNormalized ?? dependencies.OPERATIONAL_HEALTH_TOKEN_NORMALIZED,
+      dependencies.operationalHealthTokenNormalized ??
+      dependencies.OPERATIONAL_HEALTH_TOKEN_NORMALIZED,
     mfaRecoveryCodePepper:
       dependencies.mfaRecoveryCodePepper ?? dependencies.MFA_RECOVERY_CODE_PEPPER,
     maybeEmitExcessiveSessionsEvent: dependencies.maybeEmitExcessiveSessionsEvent,

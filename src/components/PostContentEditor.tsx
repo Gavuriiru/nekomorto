@@ -144,7 +144,8 @@ const PostContentEditor = ({
                 variant="ghost"
                 size="icon"
                 onClick={() => onApplyWrap("**")}
-                title="Negrito" aria-label="Negrito"
+                title="Negrito"
+                aria-label="Negrito"
               >
                 <Bold className="h-4 w-4" />
               </Button>
@@ -153,7 +154,8 @@ const PostContentEditor = ({
                 variant="ghost"
                 size="icon"
                 onClick={() => onApplyWrap("*")}
-                title="Itálico" aria-label="Itálico"
+                title="Itálico"
+                aria-label="Itálico"
               >
                 <Italic className="h-4 w-4" />
               </Button>
@@ -162,7 +164,8 @@ const PostContentEditor = ({
                 variant="ghost"
                 size="icon"
                 onClick={() => onApplyWrap("<u>", "</u>")}
-                title="Sublinhado" aria-label="Sublinhado"
+                title="Sublinhado"
+                aria-label="Sublinhado"
               >
                 <Underline className="h-4 w-4" />
               </Button>
@@ -171,7 +174,8 @@ const PostContentEditor = ({
                 variant="ghost"
                 size="icon"
                 onClick={() => onApplyWrap("~~")}
-                title="Tachado" aria-label="Tachado"
+                title="Tachado"
+                aria-label="Tachado"
               >
                 <Strikethrough className="h-4 w-4" />
               </Button>
@@ -180,7 +184,8 @@ const PostContentEditor = ({
                 variant="ghost"
                 size="icon"
                 onClick={onApplyHeading}
-                title="Título" aria-label="Título"
+                title="Título"
+                aria-label="Título"
               >
                 <Heading1 className="h-4 w-4" />
               </Button>
@@ -189,7 +194,8 @@ const PostContentEditor = ({
                 variant="ghost"
                 size="icon"
                 onClick={onApplyUnorderedList}
-                title="Lista" aria-label="Lista"
+                title="Lista"
+                aria-label="Lista"
               >
                 <List className="h-4 w-4" />
               </Button>
@@ -198,7 +204,8 @@ const PostContentEditor = ({
                 variant="ghost"
                 size="icon"
                 onClick={onApplyOrderedList}
-                title="Lista numerada" aria-label="Lista numerada"
+                title="Lista numerada"
+                aria-label="Lista numerada"
               >
                 <ListOrdered className="h-4 w-4" />
               </Button>
@@ -207,7 +214,8 @@ const PostContentEditor = ({
                 variant="ghost"
                 size="icon"
                 onClick={() => onAlign("left")}
-                title="Alinhar à esquerda" aria-label="Alinhar à esquerda"
+                title="Alinhar à esquerda"
+                aria-label="Alinhar à esquerda"
               >
                 <AlignLeft className="h-4 w-4" />
               </Button>
@@ -216,7 +224,8 @@ const PostContentEditor = ({
                 variant="ghost"
                 size="icon"
                 onClick={() => onAlign("center")}
-                title="Centralizar" aria-label="Centralizar"
+                title="Centralizar"
+                aria-label="Centralizar"
               >
                 <AlignCenter className="h-4 w-4" />
               </Button>
@@ -225,7 +234,8 @@ const PostContentEditor = ({
                 variant="ghost"
                 size="icon"
                 onClick={() => onAlign("right")}
-                title="Alinhar à direita" aria-label="Alinhar à direita"
+                title="Alinhar à direita"
+                aria-label="Alinhar à direita"
               >
                 <AlignRight className="h-4 w-4" />
               </Button>
@@ -325,7 +335,8 @@ const PostContentEditor = ({
                 variant="ghost"
                 size="icon"
                 onClick={onOpenImageDialog}
-                title="Imagem" aria-label="Imagem"
+                title="Imagem"
+                aria-label="Imagem"
               >
                 <FileImage className="h-4 w-4" />
               </Button>
@@ -334,7 +345,8 @@ const PostContentEditor = ({
                 variant="ghost"
                 size="icon"
                 onClick={onOpenLinkDialog}
-                title="Inserir link" aria-label="Inserir link"
+                title="Inserir link"
+                aria-label="Inserir link"
               >
                 <LinkIcon className="h-4 w-4" />
               </Button>
@@ -343,14 +355,29 @@ const PostContentEditor = ({
                 variant="ghost"
                 size="icon"
                 onClick={onEmbedVideo}
-                title="Incorporar vídeo" aria-label="Incorporar vídeo"
+                title="Incorporar vídeo"
+                aria-label="Incorporar vídeo"
               >
                 <Video className="h-4 w-4" />
               </Button>
-              <Button type="button" variant="ghost" size="icon" onClick={onUndo} title="Desfazer" aria-label="Desfazer">
+              <Button
+                type="button"
+                variant="ghost"
+                size="icon"
+                onClick={onUndo}
+                title="Desfazer"
+                aria-label="Desfazer"
+              >
                 <Undo2 className="h-4 w-4" />
               </Button>
-              <Button type="button" variant="ghost" size="icon" onClick={onRedo} title="Refazer" aria-label="Refazer">
+              <Button
+                type="button"
+                variant="ghost"
+                size="icon"
+                onClick={onRedo}
+                title="Refazer"
+                aria-label="Refazer"
+              >
                 <Redo2 className="h-4 w-4" />
               </Button>
               {toolbarExtra}

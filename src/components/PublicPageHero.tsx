@@ -2,7 +2,8 @@ import { publicPageLayoutTokens } from "@/components/public-page-tokens";
 import { Badge } from "@/components/ui/badge";
 import type { CSSProperties, ReactNode } from "react";
 
-const heroRootClassName = "relative overflow-hidden bg-background [background-image:var(--gradient-public-hero)] bg-no-repeat";
+const heroRootClassName =
+  "relative overflow-hidden bg-background [background-image:var(--gradient-public-hero)] bg-no-repeat";
 const heroInnerClassName = "relative";
 const heroCopyClassName = "max-w-3xl";
 
@@ -52,10 +53,7 @@ const PublicPageHero = ({ badge, title, subtitle, badges = [], children }: Publi
             </p>
           ) : null}
           {badgeItems.length > 0 ? (
-            <div
-              className="flex flex-wrap gap-3 animate-slide-up"
-              style={badgesAnimationDelay}
-            >
+            <div className="flex flex-wrap gap-3 animate-slide-up" style={badgesAnimationDelay}>
               {badgeItems.map((item) => (
                 <Badge key={item} variant="secondary" className="text-xs uppercase tracking-widest">
                   {item}

@@ -50,13 +50,10 @@ export class AutocompleteNode extends TextNode {
     return null;
   }
 
-  static importJSON(
-    serializedNode: SerializedAutocompleteNode,
-  ): AutocompleteNode {
-    return $createAutocompleteNode(
-      serializedNode.text,
-      serializedNode.uuid,
-    ).updateFromJSON(serializedNode);
+  static importJSON(serializedNode: SerializedAutocompleteNode): AutocompleteNode {
+    return $createAutocompleteNode(serializedNode.text, serializedNode.uuid).updateFromJSON(
+      serializedNode,
+    );
   }
 
   exportJSON(): SerializedAutocompleteNode {
@@ -71,11 +68,7 @@ export class AutocompleteNode extends TextNode {
     this.__uuid = uuid;
   }
 
-  updateDOM(
-    _prevNode: this,
-    _dom: HTMLElement,
-    _config: EditorConfig,
-  ): boolean {
+  updateDOM(_prevNode: this, _dom: HTMLElement, _config: EditorConfig): boolean {
     return false;
   }
 
@@ -97,9 +90,6 @@ export class AutocompleteNode extends TextNode {
   }
 }
 
-export function $createAutocompleteNode(
-  text: string,
-  uuid: string,
-): AutocompleteNode {
+export function $createAutocompleteNode(text: string, uuid: string): AutocompleteNode {
   return new AutocompleteNode(text, uuid).setMode("token");
 }

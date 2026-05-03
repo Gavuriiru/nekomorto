@@ -104,10 +104,7 @@ type TableCellActionMenuProps = Readonly<{
   contextRef: { current: null | HTMLElement };
   onClose: () => void;
   setIsMenuOpen: (isOpen: boolean) => void;
-  showColorPickerModal: (
-    title: string,
-    showModal: (onClose: () => void) => JSX.Element,
-  ) => void;
+  showColorPickerModal: (title: string, showModal: (onClose: () => void) => JSX.Element) => void;
   tableCellNode: TableCellNode;
   cellMerge: boolean;
 }>;
@@ -137,8 +134,7 @@ function TableActionMenu({
     return editor.registerMutationListener(
       TableCellNode,
       (nodeMutations) => {
-        const nodeUpdated =
-          nodeMutations.get(tableCellNode.getKey()) === "updated";
+        const nodeUpdated = nodeMutations.get(tableCellNode.getKey()) === "updated";
 
         if (nodeUpdated) {
           editor.getEditorState().read(() => {
@@ -158,9 +154,7 @@ function TableActionMenu({
       if ($isTableSelection(selection)) {
         const currentSelectionCounts = computeSelectionCount(selection);
         updateSelectionCounts(computeSelectionCount(selection));
-        setCanMergeCells(
-          currentSelectionCounts.columns > 1 || currentSelectionCounts.rows > 1,
-        );
+        setCanMergeCells(currentSelectionCounts.columns > 1 || currentSelectionCounts.rows > 1);
       }
       // Unmerge cell
       setCanUnmergeCell($canUnmerge());
@@ -172,11 +166,7 @@ function TableActionMenu({
     const dropDownElement = dropDownRef.current;
     const rootElement = editor.getRootElement();
 
-    if (
-      menuButtonElement != null &&
-      dropDownElement != null &&
-      rootElement != null
-    ) {
+    if (menuButtonElement != null && dropDownElement != null && rootElement != null) {
       const rootEleRect = rootElement.getBoundingClientRect();
       const menuButtonRect = menuButtonElement.getBoundingClientRect();
       dropDownElement.style.opacity = "1";
@@ -187,8 +177,7 @@ function TableActionMenu({
         leftPosition + dropDownElementRect.width > window.innerWidth ||
         leftPosition + dropDownElementRect.width > rootEleRect.right
       ) {
-        const position =
-          menuButtonRect.left - dropDownElementRect.width - margin;
+        const position = menuButtonRect.left - dropDownElementRect.width - margin;
         leftPosition = (position < 0 ? margin : position) + window.pageXOffset;
       }
       dropDownElement.style.left = `${leftPosition + window.pageXOffset}px`;
@@ -224,15 +213,10 @@ function TableActionMenu({
     editor.update(() => {
       if (tableCellNode.isAttached()) {
         const tableNode = $getTableNodeFromLexicalNodeOrThrow(tableCellNode);
-        const tableElement = getTableElement(
-          tableNode,
-          editor.getElementByKey(tableNode.getKey()),
-        );
+        const tableElement = getTableElement(tableNode, editor.getElementByKey(tableNode.getKey()));
 
         if (tableElement === null) {
-          throw new Error(
-            "TableActionMenu: Expected to find tableElement in DOM",
-          );
+          throw new Error("TableActionMenu: Expected to find tableElement in DOM");
         }
 
         const tableObserver = getTableObserverFromTableElement(tableElement);
@@ -329,8 +313,7 @@ function TableActionMenu({
 
       const rowCells = new Set<TableCellNode>();
 
-      const newStyle =
-        tableCellNode.getHeaderStyles() ^ TableCellHeaderStates.ROW;
+      const newStyle = tableCellNode.getHeaderStyles() ^ TableCellHeaderStates.ROW;
 
       for (let col = 0; col < gridMap[tableRowIndex].length; col++) {
         const mapCell = gridMap[tableRowIndex][col];
@@ -353,14 +336,12 @@ function TableActionMenu({
     editor.update(() => {
       const tableNode = $getTableNodeFromLexicalNodeOrThrow(tableCellNode);
 
-      const tableColumnIndex =
-        $getTableColumnIndexFromTableCellNode(tableCellNode);
+      const tableColumnIndex = $getTableColumnIndexFromTableCellNode(tableCellNode);
 
       const [gridMap] = $computeTableMapSkipCellCheck(tableNode, null, null);
 
       const columnCells = new Set<TableCellNode>();
-      const newStyle =
-        tableCellNode.getHeaderStyles() ^ TableCellHeaderStates.COLUMN;
+      const newStyle = tableCellNode.getHeaderStyles() ^ TableCellHeaderStates.COLUMN;
 
       for (let row = 0; row < gridMap.length; row++) {
         const mapCell = gridMap[row][tableColumnIndex];
@@ -410,9 +391,7 @@ function TableActionMenu({
       if (tableCellNode.isAttached()) {
         const tableNode = $getTableNodeFromLexicalNodeOrThrow(tableCellNode);
         if (tableNode) {
-          tableNode.setFrozenColumns(
-            tableNode.getFrozenColumns() === 0 ? 1 : 0,
-          );
+          tableNode.setFrozenColumns(tableNode.getFrozenColumns() === 0 ? 1 : 0);
         }
       }
       clearTableSelection();
@@ -511,10 +490,7 @@ function TableActionMenu({
         className="item"
         onClick={() =>
           showColorPickerModal("Cor de fundo da célula", () => (
-            <ColorPicker
-              color={backgroundColor}
-              onChange={handleCellBackgroundColor}
-            />
+            <ColorPicker color={backgroundColor} onChange={handleCellBackgroundColor} />
           ))
         }
         data-test-id="table-background-color"
@@ -592,11 +568,7 @@ function TableActionMenu({
         data-test-id="table-insert-row-above"
       >
         <span className="text">
-          Inserir{" "}
-          {selectionCounts.rows === 1
-            ? "linha"
-            : `${selectionCounts.rows} linhas`}{" "}
-          acima
+          Inserir {selectionCounts.rows === 1 ? "linha" : `${selectionCounts.rows} linhas`} acima
         </span>
       </button>
       <button
@@ -606,11 +578,7 @@ function TableActionMenu({
         data-test-id="table-insert-row-below"
       >
         <span className="text">
-          Inserir{" "}
-          {selectionCounts.rows === 1
-            ? "linha"
-            : `${selectionCounts.rows} linhas`}{" "}
-          abaixo
+          Inserir {selectionCounts.rows === 1 ? "linha" : `${selectionCounts.rows} linhas`} abaixo
         </span>
       </button>
       <hr />
@@ -621,10 +589,7 @@ function TableActionMenu({
         data-test-id="table-insert-column-before"
       >
         <span className="text">
-          Inserir{" "}
-          {selectionCounts.columns === 1
-            ? "coluna"
-            : `${selectionCounts.columns} colunas`}{" "}
+          Inserir {selectionCounts.columns === 1 ? "coluna" : `${selectionCounts.columns} colunas`}{" "}
           à esquerda
         </span>
       </button>
@@ -635,10 +600,7 @@ function TableActionMenu({
         data-test-id="table-insert-column-after"
       >
         <span className="text">
-          Inserir{" "}
-          {selectionCounts.columns === 1
-            ? "coluna"
-            : `${selectionCounts.columns} colunas`}{" "}
+          Inserir {selectionCounts.columns === 1 ? "coluna" : `${selectionCounts.columns} colunas`}{" "}
           à direita
         </span>
       </button>
@@ -675,8 +637,7 @@ function TableActionMenu({
         data-test-id="table-row-header"
       >
         <span className="text">
-          {(tableCellNode.__headerState & TableCellHeaderStates.ROW) ===
-          TableCellHeaderStates.ROW
+          {(tableCellNode.__headerState & TableCellHeaderStates.ROW) === TableCellHeaderStates.ROW
             ? "Remover"
             : "Adicionar"}{" "}
           cabeçalho de linha
@@ -714,40 +675,30 @@ function TableCellActionMenuContainer({
   const menuRootRef = useRef<HTMLButtonElement | null>(null);
   const [isMenuOpen, setIsMenuOpen] = useState(false);
 
-  const [tableCellNode, setTableMenuCellNode] = useState<TableCellNode | null>(
-    null,
-  );
+  const [tableCellNode, setTableMenuCellNode] = useState<TableCellNode | null>(null);
 
   const [colorPickerModal, showColorPickerModal] = useModal();
 
-  const checkTableCellOverflow = useCallback(
-    (tableCellParentNodeDOM: HTMLElement): boolean => {
-      const scrollableContainer = tableCellParentNodeDOM.closest(
-        ".PlaygroundEditorTheme__tableScrollableWrapper",
-      );
-      if (scrollableContainer) {
-        const containerRect = (
-          scrollableContainer as HTMLElement
-        ).getBoundingClientRect();
-        const cellRect = tableCellParentNodeDOM.getBoundingClientRect();
+  const checkTableCellOverflow = useCallback((tableCellParentNodeDOM: HTMLElement): boolean => {
+    const scrollableContainer = tableCellParentNodeDOM.closest(
+      ".PlaygroundEditorTheme__tableScrollableWrapper",
+    );
+    if (scrollableContainer) {
+      const containerRect = (scrollableContainer as HTMLElement).getBoundingClientRect();
+      const cellRect = tableCellParentNodeDOM.getBoundingClientRect();
 
-        // Calculate where the action button would be positioned (5px from right edge of cell)
-        // Also account for the button width and table cell padding (8px)
-        const actionButtonRight = cellRect.right - 5;
-        const actionButtonLeft = actionButtonRight - 28; // 20px width + 8px padding
+      // Calculate where the action button would be positioned (5px from right edge of cell)
+      // Also account for the button width and table cell padding (8px)
+      const actionButtonRight = cellRect.right - 5;
+      const actionButtonLeft = actionButtonRight - 28; // 20px width + 8px padding
 
-        // Only hide if the action button would overflow the container
-        if (
-          actionButtonRight > containerRect.right ||
-          actionButtonLeft < containerRect.left
-        ) {
-          return true;
-        }
+      // Only hide if the action button would overflow the container
+      if (actionButtonRight > containerRect.right || actionButtonLeft < containerRect.left) {
+        return true;
       }
-      return false;
-    },
-    [],
-  );
+    }
+    return false;
+  }, []);
 
   const $moveMenu = useCallback(() => {
     const menu = menuButtonRef.current;
@@ -784,14 +735,9 @@ function TableCellActionMenuContainer({
         return disable();
       }
 
-      tableCellParentNodeDOM = editor.getElementByKey(
-        tableCellNodeFromSelection.getKey(),
-      );
+      tableCellParentNodeDOM = editor.getElementByKey(tableCellNodeFromSelection.getKey());
 
-      if (
-        tableCellParentNodeDOM == null ||
-        !tableCellNodeFromSelection.isAttached()
-      ) {
+      if (tableCellParentNodeDOM == null || !tableCellNodeFromSelection.isAttached()) {
         return disable();
       }
 
@@ -799,38 +745,24 @@ function TableCellActionMenuContainer({
         return disable();
       }
 
-      const tableNode = $getTableNodeFromLexicalNodeOrThrow(
-        tableCellNodeFromSelection,
-      );
-      const tableElement = getTableElement(
-        tableNode,
-        editor.getElementByKey(tableNode.getKey()),
-      );
+      const tableNode = $getTableNodeFromLexicalNodeOrThrow(tableCellNodeFromSelection);
+      const tableElement = getTableElement(tableNode, editor.getElementByKey(tableNode.getKey()));
 
       if (tableElement === null) {
-        throw new Error(
-          "TableActionMenu: Expected to find tableElement in DOM",
-        );
+        throw new Error("TableActionMenu: Expected to find tableElement in DOM");
       }
 
       tableObserver = getTableObserverFromTableElement(tableElement);
       setTableMenuCellNode(tableCellNodeFromSelection);
     } else if ($isTableSelection(selection)) {
-      const anchorNode = $getTableCellNodeFromLexicalNode(
-        selection.anchor.getNode(),
-      );
+      const anchorNode = $getTableCellNodeFromLexicalNode(selection.anchor.getNode());
       if (!$isTableCellNode(anchorNode)) {
         throw new Error("TableSelection anchorNode must be a TableCellNode");
       }
       const tableNode = $getTableNodeFromLexicalNodeOrThrow(anchorNode);
-      const tableElement = getTableElement(
-        tableNode,
-        editor.getElementByKey(tableNode.getKey()),
-      );
+      const tableElement = getTableElement(tableNode, editor.getElementByKey(tableNode.getKey()));
       if (tableElement === null) {
-        throw new Error(
-          "TableActionMenu: Expected to find tableElement in DOM",
-        );
+        throw new Error("TableActionMenu: Expected to find tableElement in DOM");
       }
       tableObserver = getTableObserverFromTableElement(tableElement);
       tableCellParentNodeDOM = editor.getElementByKey(anchorNode.getKey());
@@ -849,14 +781,8 @@ function TableCellActionMenuContainer({
       return disable();
     }
     const enabled = !tableObserver || !tableObserver.isSelecting;
-    menu.classList.toggle(
-      "table-cell-action-button-container--active",
-      enabled,
-    );
-    menu.classList.toggle(
-      "table-cell-action-button-container--inactive",
-      !enabled,
-    );
+    menu.classList.toggle("table-cell-action-button-container--active", enabled);
+    menu.classList.toggle("table-cell-action-button-container--inactive", !enabled);
     if (enabled) {
       const tableCellRect = tableCellParentNodeDOM.getBoundingClientRect();
       const anchorRect = anchorElem.getBoundingClientRect();
@@ -882,11 +808,7 @@ function TableCellActionMenuContainer({
     };
     return mergeRegister(
       editor.registerUpdateListener(delayedCallback),
-      editor.registerCommand(
-        SELECTION_CHANGE_COMMAND,
-        delayedCallback,
-        COMMAND_PRIORITY_CRITICAL,
-      ),
+      editor.registerCommand(SELECTION_CHANGE_COMMAND, delayedCallback, COMMAND_PRIORITY_CRITICAL),
       editor.registerRootListener((rootElement, prevRootElement) => {
         if (prevRootElement) {
           prevRootElement.removeEventListener("pointerup", delayedCallback);
@@ -952,10 +874,7 @@ export default function TableActionMenuPlugin({
   const isEditable = useLexicalEditable();
   return createPortal(
     isEditable ? (
-      <TableCellActionMenuContainer
-        anchorElem={anchorElem}
-        cellMerge={cellMerge}
-      />
+      <TableCellActionMenuContainer anchorElem={anchorElem} cellMerge={cellMerge} />
     ) : null,
     anchorElem,
   );

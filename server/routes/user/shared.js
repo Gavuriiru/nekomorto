@@ -220,12 +220,7 @@ export const getManagedUserUpdateAuthorizationError = ({
 }) => {
   const updateKeys = Object.keys(update || {});
   const touchesAccessFields = updateKeys.some((field) => !isBasicProfileField(field));
-  const {
-    actorCanUsersBasic,
-    actorIsAdmin,
-    actorIsPrimary,
-    actorIsSecondary,
-  } = actorCapabilities;
+  const { actorCanUsersBasic, actorIsAdmin, actorIsPrimary, actorIsSecondary } = actorCapabilities;
 
   if (!actorCanUsersBasic) {
     return "users_permission_required";
@@ -234,7 +229,9 @@ export const getManagedUserUpdateAuthorizationError = ({
     return "owner_update_forbidden";
   }
   const touchesPermissionFields = updateKeys.includes("permissions");
-  const touchesRoleFields = updateKeys.some((field) => ["roles", "accessRole", "status"].includes(field));
+  const touchesRoleFields = updateKeys.some((field) =>
+    ["roles", "accessRole", "status"].includes(field),
+  );
   const actorCanManageRoles = actorIsPrimary || actorIsSecondary || actorIsAdmin;
   if (touchesPermissionFields && !actorIsPrimary) {
     return "owner_permission_required";
@@ -242,7 +239,12 @@ export const getManagedUserUpdateAuthorizationError = ({
   if (touchesRoleFields && !actorCanManageRoles) {
     return "admin_role_required";
   }
-  if (touchesAccessFields && !touchesPermissionFields && !touchesRoleFields && !actorCanManageRoles) {
+  if (
+    touchesAccessFields &&
+    !touchesPermissionFields &&
+    !touchesRoleFields &&
+    !actorCanManageRoles
+  ) {
     return "basic_fields_only";
   }
 
@@ -326,9 +328,10 @@ export const buildLegacyManagedUser = ({
   name,
   phrase: phrase || "",
   bio: bio || "",
-  email: String(email || "")
-    .trim()
-    .toLowerCase() || null,
+  email:
+    String(email || "")
+      .trim()
+      .toLowerCase() || null,
   avatarUrl: avatarUrl || null,
   avatarDisplay: normalizeAvatarDisplay(avatarDisplay),
   socials: sanitizeSocials(socials),
@@ -378,9 +381,10 @@ export const buildRbacManagedUser = ({
     name: String(name || "Sem nome"),
     phrase: phrase || "",
     bio: bio || "",
-    email: String(email || "")
-      .trim()
-      .toLowerCase() || null,
+    email:
+      String(email || "")
+        .trim()
+        .toLowerCase() || null,
     avatarUrl: avatarUrl || null,
     avatarDisplay: normalizeAvatarDisplay(avatarDisplay),
     socials: sanitizeSocials(socials),
@@ -404,12 +408,11 @@ export const buildLegacyManagedUserUpdate = ({
   name: update.name ?? existing.name,
   phrase: update.phrase ?? existing.phrase,
   bio: update.bio ?? existing.bio,
-  email:
-    Object.prototype.hasOwnProperty.call(update, "email")
-      ? String(update.email || "")
-          .trim()
-          .toLowerCase() || null
-      : existing.email ?? null,
+  email: Object.prototype.hasOwnProperty.call(update, "email")
+    ? String(update.email || "")
+        .trim()
+        .toLowerCase() || null
+    : (existing.email ?? null),
   avatarUrl: update.avatarUrl ?? existing.avatarUrl,
   avatarDisplay:
     update.avatarDisplay !== undefined
@@ -444,12 +447,11 @@ export const buildRbacManagedUserUpdate = ({
   const updated = {
     ...existing,
     ...basicPatch,
-    email:
-      Object.prototype.hasOwnProperty.call(basicPatch, "email")
-        ? String(basicPatch.email || "")
-            .trim()
-            .toLowerCase() || null
-        : existing.email ?? null,
+    email: Object.prototype.hasOwnProperty.call(basicPatch, "email")
+      ? String(basicPatch.email || "")
+          .trim()
+          .toLowerCase() || null
+      : (existing.email ?? null),
     avatarDisplay:
       basicPatch.avatarDisplay !== undefined
         ? normalizeAvatarDisplay(basicPatch.avatarDisplay)

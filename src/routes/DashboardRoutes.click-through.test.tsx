@@ -39,7 +39,9 @@ vi.mock("@/components/ui/sidebar", () => ({
   SidebarInset: ({ children }: { children: ReactNode }) => <main>{children}</main>,
   SidebarMenu: ({ children }: { children: ReactNode }) => <div>{children}</div>,
   SidebarMenuItem: ({ children }: { children: ReactNode }) => <div>{children}</div>,
-  SidebarMenuButton: ({ children }: { children: ReactNode; asChild?: boolean }) => <div>{children}</div>,
+  SidebarMenuButton: ({ children }: { children: ReactNode; asChild?: boolean }) => (
+    <div>{children}</div>
+  ),
   SidebarSeparator: () => <hr />,
   useSidebarState: () => ({ open: true }),
 }));

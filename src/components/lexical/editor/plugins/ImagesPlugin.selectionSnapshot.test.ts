@@ -1,19 +1,17 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
-const { getNodeByKeySpy, getRootSpy, getSelectionSpy, setSelectionSpy } =
-  vi.hoisted(() => ({
-    getNodeByKeySpy: vi.fn(),
-    getRootSpy: vi.fn(),
-    getSelectionSpy: vi.fn(),
-    setSelectionSpy: vi.fn(),
-  }));
+const { getNodeByKeySpy, getRootSpy, getSelectionSpy, setSelectionSpy } = vi.hoisted(() => ({
+  getNodeByKeySpy: vi.fn(),
+  getRootSpy: vi.fn(),
+  getSelectionSpy: vi.fn(),
+  setSelectionSpy: vi.fn(),
+}));
 
 vi.mock("lexical", () => ({
   $getNodeByKey: getNodeByKeySpy,
   $getRoot: getRootSpy,
   $getSelection: getSelectionSpy,
-  $isRangeSelection: (selection: { kind?: string } | null) =>
-    selection?.kind === "range",
+  $isRangeSelection: (selection: { kind?: string } | null) => selection?.kind === "range",
   $setSelection: setSelectionSpy,
 }));
 

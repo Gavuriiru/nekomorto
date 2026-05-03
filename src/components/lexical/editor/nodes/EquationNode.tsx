@@ -31,9 +31,7 @@ export type SerializedEquationNode = Spread<
   SerializedLexicalNode
 >;
 
-function $convertEquationElement(
-  domNode: HTMLElement,
-): null | DOMConversionOutput {
+function $convertEquationElement(domNode: HTMLElement): null | DOMConversionOutput {
   let equation = domNode.getAttribute("data-lexical-equation");
   const inline = domNode.getAttribute("data-lexical-inline") === "true";
   // Decode the equation from base64
@@ -65,10 +63,9 @@ export class EquationNode extends DecoratorNode<JSX.Element> {
   }
 
   static importJSON(serializedNode: SerializedEquationNode): EquationNode {
-    return $createEquationNode(
-      serializedNode.equation,
-      serializedNode.inline,
-    ).updateFromJSON(serializedNode);
+    return $createEquationNode(serializedNode.equation, serializedNode.inline).updateFromJSON(
+      serializedNode,
+    );
   }
 
   exportJSON(): SerializedEquationNode {
@@ -146,25 +143,16 @@ export class EquationNode extends DecoratorNode<JSX.Element> {
 
   decorate(): JSX.Element {
     return (
-      <EquationComponent
-        equation={this.__equation}
-        inline={this.__inline}
-        nodeKey={this.__key}
-      />
+      <EquationComponent equation={this.__equation} inline={this.__inline} nodeKey={this.__key} />
     );
   }
 }
 
-export function $createEquationNode(
-  equation = "",
-  inline = false,
-): EquationNode {
+export function $createEquationNode(equation = "", inline = false): EquationNode {
   const equationNode = new EquationNode(equation, inline);
   return $applyNodeReplacement(equationNode);
 }
 
-export function $isEquationNode(
-  node: LexicalNode | null | undefined,
-): node is EquationNode {
+export function $isEquationNode(node: LexicalNode | null | undefined): node is EquationNode {
   return node instanceof EquationNode;
 }

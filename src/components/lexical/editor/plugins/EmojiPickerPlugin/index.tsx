@@ -12,12 +12,7 @@ import {
   MenuOption,
   useBasicTypeaheadTriggerMatch,
 } from "@lexical/react/LexicalTypeaheadMenuPlugin";
-import {
-  $createTextNode,
-  $getSelection,
-  $isRangeSelection,
-  TextNode,
-} from "lexical";
+import { $createTextNode, $getSelection, $isRangeSelection, TextNode } from "lexical";
 import * as React from "react";
 import { useCallback, useMemo } from "react";
 import * as ReactDOM from "react-dom";
@@ -90,10 +85,7 @@ type Emoji = {
 
 const MAX_EMOJI_SUGGESTION_COUNT = 10;
 
-const emojiMatchesQuery = (
-  option: EmojiOption,
-  queryString: string | null | undefined,
-) => {
+const emojiMatchesQuery = (option: EmojiOption, queryString: string | null | undefined) => {
   const normalizedQuery = String(queryString || "")
     .trim()
     .toLowerCase();
@@ -135,11 +127,7 @@ export default function EmojiPickerPlugin() {
   }, [emojiOptions, queryString]);
 
   const onSelectOption = useCallback(
-    (
-      selectedOption: EmojiOption,
-      nodeToRemove: TextNode | null,
-      closeMenu: () => void,
-    ) => {
+    (selectedOption: EmojiOption, nodeToRemove: TextNode | null, closeMenu: () => void) => {
       editor.update(() => {
         const selection = $getSelection();
 

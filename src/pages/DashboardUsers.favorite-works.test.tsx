@@ -1,10 +1,4 @@
-import {
-  fireEvent,
-  render,
-  screen,
-  waitFor,
-  within,
-} from "@testing-library/react";
+import { fireEvent, render, screen, waitFor, within } from "@testing-library/react";
 import type { ReactNode } from "react";
 import { MemoryRouter } from "react-router-dom";
 import { beforeEach, describe, expect, it, vi } from "vitest";
@@ -41,11 +35,7 @@ vi.mock("@/lib/api-client", () => ({
   apiFetch: (...args: unknown[]) => apiFetchMock(...args),
 }));
 
-const mockJsonResponse = (
-  ok: boolean,
-  payload: unknown,
-  status = ok ? 200 : 500,
-) =>
+const mockJsonResponse = (ok: boolean, payload: unknown, status = ok ? 200 : 500) =>
   ({
     ok,
     status,
@@ -86,46 +76,42 @@ const targetUser = {
 describe("DashboardUsers favorite works", () => {
   beforeEach(() => {
     apiFetchMock.mockReset();
-    apiFetchMock.mockImplementation(
-      async (_base: string, path: string, options?: RequestInit) => {
-        const method = String(options?.method || "GET").toUpperCase();
-        if (path === "/api/users" && method === "GET") {
-          return mockJsonResponse(true, {
-            users: [adminUser, targetUser],
-            ownerIds: [],
-            primaryOwnerId: null,
-          });
-        }
-        if (path === "/api/me" && method === "GET") {
-          return mockJsonResponse(true, {
-            id: "admin-1",
-            name: "Admin",
-            username: "admin",
-            accessRole: "admin",
-            grants: {
-              usuarios: true,
-            },
-            ownerIds: [],
-            primaryOwnerId: null,
-          });
-        }
-        if (path === "/api/link-types" && method === "GET") {
-          return mockJsonResponse(true, { items: [] });
-        }
-        if (path === "/api/users/user-2" && method === "PUT") {
-          const payload =
-            (options as { json?: Record<string, unknown> } | undefined)?.json ||
-            {};
-          return mockJsonResponse(true, {
-            user: {
-              ...targetUser,
-              ...payload,
-            },
-          });
-        }
-        return mockJsonResponse(false, { error: "not_found" }, 404);
-      },
-    );
+    apiFetchMock.mockImplementation(async (_base: string, path: string, options?: RequestInit) => {
+      const method = String(options?.method || "GET").toUpperCase();
+      if (path === "/api/users" && method === "GET") {
+        return mockJsonResponse(true, {
+          users: [adminUser, targetUser],
+          ownerIds: [],
+          primaryOwnerId: null,
+        });
+      }
+      if (path === "/api/me" && method === "GET") {
+        return mockJsonResponse(true, {
+          id: "admin-1",
+          name: "Admin",
+          username: "admin",
+          accessRole: "admin",
+          grants: {
+            usuarios: true,
+          },
+          ownerIds: [],
+          primaryOwnerId: null,
+        });
+      }
+      if (path === "/api/link-types" && method === "GET") {
+        return mockJsonResponse(true, { items: [] });
+      }
+      if (path === "/api/users/user-2" && method === "PUT") {
+        const payload = (options as { json?: Record<string, unknown> } | undefined)?.json || {};
+        return mockJsonResponse(true, {
+          user: {
+            ...targetUser,
+            ...payload,
+          },
+        });
+      }
+      return mockJsonResponse(false, { error: "not_found" }, 404);
+    });
   });
 
   it("renderiza grade 2x3 e envia payload categorizado saneado", async () => {
@@ -150,9 +136,7 @@ describe("DashboardUsers favorite works", () => {
     expect(within(dialog).getByPlaceholderText("Anime 3")).toBeInTheDocument();
 
     const longTitle = "A".repeat(120);
-    const manga1 = within(dialog).getByPlaceholderText(
-      "Mangá 1",
-    ) as HTMLInputElement;
+    const manga1 = within(dialog).getByPlaceholderText("Mangá 1") as HTMLInputElement;
     fireEvent.change(manga1, { target: { value: "  Naruto  " } });
     expect(manga1.value).toBe("  Naruto  ");
     fireEvent.change(within(dialog).getByPlaceholderText("Mangá 2"), {
@@ -176,14 +160,11 @@ describe("DashboardUsers favorite works", () => {
     await waitFor(() => {
       const putCall = apiFetchMock.mock.calls.find((call) => {
         const path = call[1];
-        const method = String(
-          (call[2] as RequestInit | undefined)?.method || "GET",
-        ).toUpperCase();
+        const method = String((call[2] as RequestInit | undefined)?.method || "GET").toUpperCase();
         return path === "/api/users/user-2" && method === "PUT";
       });
       expect(putCall).toBeTruthy();
-      const payload =
-        (putCall?.[2] as { json?: Record<string, unknown> }).json || {};
+      const payload = (putCall?.[2] as { json?: Record<string, unknown> }).json || {};
       expect(payload).toMatchObject({
         favoriteWorks: {
           manga: ["Naruto", "A".repeat(80)],

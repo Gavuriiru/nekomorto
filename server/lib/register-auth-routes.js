@@ -64,7 +64,9 @@ export const registerAuthRoutes = ({
 
   const resolveStoredUsers = () => (Array.isArray(loadUsers?.()) ? loadUsers() : []);
   const resolveAllowedUsersList = () =>
-    Array.isArray(loadAllowedUsers?.()) ? loadAllowedUsers().map((entry) => String(entry || "").trim()) : [];
+    Array.isArray(loadAllowedUsers?.())
+      ? loadAllowedUsers().map((entry) => String(entry || "").trim())
+      : [];
   const buildIdentityRecord = ({
     existingRecord = null,
     userId,
@@ -82,17 +84,17 @@ export const registerAuthRoutes = ({
     providerSubject,
     emailNormalized: emailNormalized || existingRecord?.emailNormalized || null,
     emailVerified:
-      typeof emailVerified === "boolean" ? emailVerified : existingRecord?.emailVerified ?? null,
+      typeof emailVerified === "boolean" ? emailVerified : (existingRecord?.emailVerified ?? null),
     displayName: displayName || existingRecord?.displayName || null,
     avatarUrl: avatarUrl || existingRecord?.avatarUrl || null,
     linkedAt: existingRecord?.linkedAt || new Date().toISOString(),
     lastUsedAt: new Date().toISOString(),
     disabledAt: existingRecord?.disabledAt || null,
     data: {
-      ...((existingRecord?.data && typeof existingRecord.data === "object")
+      ...(existingRecord?.data && typeof existingRecord.data === "object"
         ? existingRecord.data
         : {}),
-      ...((data && typeof data === "object") ? data : {}),
+      ...(data && typeof data === "object" ? data : {}),
     },
     createdAt: existingRecord?.createdAt || new Date().toISOString(),
     updatedAt: new Date().toISOString(),
@@ -109,7 +111,9 @@ export const registerAuthRoutes = ({
       return { blockedReason: "preprovision_required", userId: null, candidateCount: 0 };
     }
     const users = resolveStoredUsers();
-    const matches = users.filter((entry) => normalizeComparableEmail(entry?.email) === normalizedEmail);
+    const matches = users.filter(
+      (entry) => normalizeComparableEmail(entry?.email) === normalizedEmail,
+    );
     if (!matches.length) {
       return { blockedReason: "preprovision_required", userId: null, candidateCount: 0 };
     }
@@ -118,17 +122,27 @@ export const registerAuthRoutes = ({
     }
     const userId = String(matches[0]?.id || "").trim();
     if (!userId) {
-      return { blockedReason: "preprovision_required", userId: null, candidateCount: matches.length };
+      return {
+        blockedReason: "preprovision_required",
+        userId: null,
+        candidateCount: matches.length,
+      };
     }
     const allowedUsers = resolveAllowedUsersList();
     if (allowedUsers.length && !allowedUsers.includes(userId)) {
-      return { blockedReason: "preprovision_required", userId: null, candidateCount: matches.length };
+      return {
+        blockedReason: "preprovision_required",
+        userId: null,
+        candidateCount: matches.length,
+      };
     }
     return { blockedReason: null, userId, candidateCount: matches.length };
   };
 
   const resolveCanonicalUserForVerifiedEmail = ({ emailNormalized, provider }) => {
-    const normalizedEmail = String(emailNormalized || "").trim().toLowerCase();
+    const normalizedEmail = String(emailNormalized || "")
+      .trim()
+      .toLowerCase();
     const normalizedProvider = String(provider || "").trim();
     if (!normalizedEmail || !normalizedProvider) {
       return { blockedReason: "preprovision_required", canonicalUserId: null, candidateCount: 0 };
@@ -141,7 +155,9 @@ export const registerAuthRoutes = ({
         candidateCount: preprovisioned.candidateCount || 0,
       };
     }
-    const identityMatches = Array.isArray(findUserIdentityRecordsByEmail?.(normalizedEmail, { includeDisabled: false }))
+    const identityMatches = Array.isArray(
+      findUserIdentityRecordsByEmail?.(normalizedEmail, { includeDisabled: false }),
+    )
       ? findUserIdentityRecordsByEmail(normalizedEmail, { includeDisabled: false })
       : [];
     const conflictingSameProvider = identityMatches.some(
@@ -240,16 +256,21 @@ export const registerAuthRoutes = ({
     candidateCount,
     existingIdentityUserId,
   } = {}) => {
-    appendAuditLog(req, intent === "link" ? "auth.identity.link_blocked" : "auth.identity.blocked", "auth", {
-      provider: String(provider || "").trim() || null,
-      intent: String(intent || "login").trim() || "login",
-      reason: String(reason || "unauthorized").trim() || "unauthorized",
-      emailNormalized: normalizeComparableEmail(emailNormalized) || null,
-      emailVerified: emailVerified === true,
-      currentSessionUserId: String(req?.session?.user?.id || "").trim() || null,
-      candidateCount: Number.isFinite(candidateCount) ? candidateCount : null,
-      existingIdentityUserId: String(existingIdentityUserId || "").trim() || null,
-    });
+    appendAuditLog(
+      req,
+      intent === "link" ? "auth.identity.link_blocked" : "auth.identity.blocked",
+      "auth",
+      {
+        provider: String(provider || "").trim() || null,
+        intent: String(intent || "login").trim() || "login",
+        reason: String(reason || "unauthorized").trim() || "unauthorized",
+        emailNormalized: normalizeComparableEmail(emailNormalized) || null,
+        emailVerified: emailVerified === true,
+        currentSessionUserId: String(req?.session?.user?.id || "").trim() || null,
+        candidateCount: Number.isFinite(candidateCount) ? candidateCount : null,
+        existingIdentityUserId: String(existingIdentityUserId || "").trim() || null,
+      },
+    );
   };
 
   const markLinkSuccessInSession = (req, provider) => {
@@ -268,7 +289,9 @@ export const registerAuthRoutes = ({
   };
 
   const consumeLinkIntent = (req) =>
-    String(req.session?.oauthIntent || "").trim().toLowerCase() || "login";
+    String(req.session?.oauthIntent || "")
+      .trim()
+      .toLowerCase() || "login";
 
   const buildLinkedDashboardRedirect = ({ req, loginAppOrigin }) =>
     buildAuthRedirectUrl({
@@ -364,7 +387,12 @@ export const registerAuthRoutes = ({
           data,
         }),
       );
-      return { error: null, userId: currentSessionUserId, absorbedUserIds: [], matchedBy: "manual_link" };
+      return {
+        error: null,
+        userId: currentSessionUserId,
+        absorbedUserIds: [],
+        matchedBy: "manual_link",
+      };
     }
     if (existingIdentity?.userId) {
       upsertUserIdentityRecord?.(
@@ -385,7 +413,10 @@ export const registerAuthRoutes = ({
     if (emailVerified !== true || !emailNormalized) {
       return block("email_not_verified", { candidateCount: 0 });
     }
-    const resolved = resolveCanonicalUserForVerifiedEmail({ emailNormalized, provider: normalizedProvider });
+    const resolved = resolveCanonicalUserForVerifiedEmail({
+      emailNormalized,
+      provider: normalizedProvider,
+    });
     if (!resolved.canonicalUserId) {
       return block(resolved.blockedReason || "preprovision_required", {
         candidateCount: resolved.candidateCount || 0,
@@ -579,7 +610,6 @@ export const registerAuthRoutes = ({
       return true;
     }
 
-
     if (req.session) {
       req.session.loginNext = null;
       req.session.loginAppOrigin = null;
@@ -622,7 +652,9 @@ export const registerAuthRoutes = ({
     const loginNext =
       typeof req.query.next === "string" && req.query.next.trim() ? req.query.next : null;
     const oauthIntent =
-      typeof req.query.intent === "string" && req.query.intent.trim() ? req.query.intent.trim() : "login";
+      typeof req.query.intent === "string" && req.query.intent.trim()
+        ? req.query.intent.trim()
+        : "login";
     const redirectUri = resolveDiscordRedirectUri(req);
     if (req.session) {
       req.session.oauthState = state;
@@ -669,7 +701,9 @@ export const registerAuthRoutes = ({
     const loginNext =
       typeof req.query.next === "string" && req.query.next.trim() ? req.query.next : null;
     const oauthIntent =
-      typeof req.query.intent === "string" && req.query.intent.trim() ? req.query.intent.trim() : "login";
+      typeof req.query.intent === "string" && req.query.intent.trim()
+        ? req.query.intent.trim()
+        : "login";
     const redirectUri = resolveGoogleRedirectUri(req);
     if (req.session) {
       req.session.googleOauthState = state;
@@ -820,7 +854,9 @@ export const registerAuthRoutes = ({
 
       const discordUser = await userResponse.json();
       const discordSubject = String(discordUser?.id || "").trim();
-      const discordEmail = String(discordUser?.email || "").trim().toLowerCase();
+      const discordEmail = String(discordUser?.email || "")
+        .trim()
+        .toLowerCase();
       const discordEmailVerified = discordUser?.verified === true;
       const discordAvatarUrl = createDiscordAvatarUrl(discordUser);
       const resolvedIdentity = await finalizeProviderLinkOrMerge({
@@ -849,7 +885,9 @@ export const registerAuthRoutes = ({
         }
         metricsRegistry.inc("auth_login_total", { status: "failed" });
         handleAuthFailureSecuritySignals({ req, error: resolvedIdentity.error || "unauthorized" });
-        appendAuditLog(req, "auth.login.failed", "auth", { error: resolvedIdentity.error || "unauthorized" });
+        appendAuditLog(req, "auth.login.failed", "auth", {
+          error: resolvedIdentity.error || "unauthorized",
+        });
         if (isLinkIntent) {
           clearOAuthSessionState(req);
           try {
@@ -1007,19 +1045,22 @@ export const registerAuthRoutes = ({
     }
 
     try {
-      const tokenResponse = await fetch(String(googleTokenApi || "https://oauth2.googleapis.com/token"), {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/x-www-form-urlencoded",
+      const tokenResponse = await fetch(
+        String(googleTokenApi || "https://oauth2.googleapis.com/token"),
+        {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/x-www-form-urlencoded",
+          },
+          body: new URLSearchParams({
+            client_id: googleClientId || "",
+            client_secret: googleClientSecret || "",
+            grant_type: "authorization_code",
+            code,
+            redirect_uri: redirectUri,
+          }),
         },
-        body: new URLSearchParams({
-          client_id: googleClientId || "",
-          client_secret: googleClientSecret || "",
-          grant_type: "authorization_code",
-          code,
-          redirect_uri: redirectUri,
-        }),
-      });
+      );
 
       if (!tokenResponse.ok) {
         metricsRegistry.inc("auth_login_total", { status: "failed" });
@@ -1059,7 +1100,9 @@ export const registerAuthRoutes = ({
 
       const googleUser = await userResponse.json();
       const googleSubject = String(googleUser?.sub || "").trim();
-      const googleEmail = String(googleUser?.email || "").trim().toLowerCase();
+      const googleEmail = String(googleUser?.email || "")
+        .trim()
+        .toLowerCase();
       const googleEmailVerified = googleUser?.email_verified === true;
       const googleAvatarUrl = googleUser?.picture ? String(googleUser.picture) : null;
 
@@ -1084,7 +1127,9 @@ export const registerAuthRoutes = ({
         }
         metricsRegistry.inc("auth_login_total", { status: "failed" });
         handleAuthFailureSecuritySignals({ req, error: resolvedIdentity.error || "unauthorized" });
-        appendAuditLog(req, "auth.google.failed", "auth", { error: resolvedIdentity.error || "unauthorized" });
+        appendAuditLog(req, "auth.google.failed", "auth", {
+          error: resolvedIdentity.error || "unauthorized",
+        });
         if (isLinkIntent) {
           clearOAuthSessionState(req);
           try {

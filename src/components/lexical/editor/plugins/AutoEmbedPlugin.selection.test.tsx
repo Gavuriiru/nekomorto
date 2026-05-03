@@ -74,12 +74,9 @@ describe("AutoEmbedDialog", () => {
       />,
     );
 
-    fireEvent.change(
-      container.querySelector('[data-test-id="tweet-embed-modal-url"]')!,
-      {
-        target: { value: "https://x.com/jack/status/20" },
-      },
-    );
+    fireEvent.change(container.querySelector('[data-test-id="tweet-embed-modal-url"]')!, {
+      target: { value: "https://x.com/jack/status/20" },
+    });
 
     await act(async () => {
       vi.advanceTimersByTime(200);
@@ -92,16 +89,14 @@ describe("AutoEmbedDialog", () => {
     fireEvent.click(submitButton);
 
     expect(currentEditor?.update).toHaveBeenCalledTimes(1);
-    expect(restoreSelectionForInsertionSpy).toHaveBeenCalledWith(
-      selectionSnapshot,
-    );
+    expect(restoreSelectionForInsertionSpy).toHaveBeenCalledWith(selectionSnapshot);
     expect(insertNodeSpy).toHaveBeenCalledWith(currentEditor, {
       id: "123",
       url: "https://x.com/jack/status/20",
     });
-    expect(
-      restoreSelectionForInsertionSpy.mock.invocationCallOrder[0],
-    ).toBeLessThan(insertNodeSpy.mock.invocationCallOrder[0]);
+    expect(restoreSelectionForInsertionSpy.mock.invocationCallOrder[0]).toBeLessThan(
+      insertNodeSpy.mock.invocationCallOrder[0],
+    );
     expect(onClose).toHaveBeenCalledTimes(1);
   });
 });

@@ -15,7 +15,9 @@ const THEME_ACCENT_VARIABLES = [
 const clamp = (value: number, min: number, max: number) => Math.min(max, Math.max(min, value));
 
 export const normalizeAccentHex = (hex: string) => {
-  const cleaned = String(hex || "").trim().replace("#", "");
+  const cleaned = String(hex || "")
+    .trim()
+    .replace("#", "");
   if (!HEX_COLOR_PATTERN.test(cleaned)) {
     return null;
   }

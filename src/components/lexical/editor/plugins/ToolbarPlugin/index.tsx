@@ -62,20 +62,10 @@ import {
   TextFormatType,
   UNDO_COMMAND,
 } from "lexical";
-import {
-  Dispatch,
-  useCallback,
-  useEffect,
-  useLayoutEffect,
-  useRef,
-  useState,
-} from "react";
+import { Dispatch, useCallback, useEffect, useLayoutEffect, useRef, useState } from "react";
 
 import { useSettings } from "../../context/SettingsContext";
-import {
-  blockTypeToBlockName,
-  useToolbarState,
-} from "../../context/ToolbarContext";
+import { blockTypeToBlockName, useToolbarState } from "../../context/ToolbarContext";
 import useModal from "../../hooks/useModal";
 import Button from "../../ui/Button";
 import DropDown, { DropDownItem } from "../../ui/DropDown";
@@ -83,10 +73,7 @@ import DropdownColorPicker from "../../ui/DropdownColorPicker";
 import { isKeyboardInput } from "../../utils/focusUtils";
 import { getSelectedNode } from "../../utils/getSelectedNode";
 import { sanitizeUrl } from "../../utils/url";
-import {
-  EmbedConfigs,
-  OPEN_EMBED_MODAL_WITH_SELECTION_COMMAND,
-} from "../AutoEmbedPlugin";
+import { EmbedConfigs, OPEN_EMBED_MODAL_WITH_SELECTION_COMMAND } from "../AutoEmbedPlugin";
 import { INSERT_COLLAPSIBLE_COMMAND } from "../CollapsiblePlugin";
 import { InsertImageDialog } from "../ImagesPlugin";
 import {
@@ -116,8 +103,8 @@ import {
   formatQuote,
 } from "./utils";
 
-const CODE_LANGUAGE_OPTIONS_PRISM: [string, string][] =
-  getCodeLanguageOptionsPrism().filter((option) =>
+const CODE_LANGUAGE_OPTIONS_PRISM: [string, string][] = getCodeLanguageOptionsPrism().filter(
+  (option) =>
     [
       "c",
       "clike",
@@ -140,7 +127,7 @@ const CODE_LANGUAGE_OPTIONS_PRISM: [string, string][] =
       "typescript",
       "xml",
     ].includes(option[0]),
-  );
+);
 
 const ELEMENT_FORMAT_OPTIONS: {
   [key in Exclude<ElementFormatType, "">]: {
@@ -208,9 +195,7 @@ function BlockFormatDropDown({
       dropDownClassName="block-format-dropdown"
     >
       <DropDownItem
-        className={
-          "item wide " + dropDownActiveClass(blockType === "paragraph")
-        }
+        className={"item wide " + dropDownActiveClass(blockType === "paragraph")}
         onClick={() => formatParagraph(editor)}
       >
         <div className="icon-text-container">
@@ -357,9 +342,7 @@ function ElementFormatDropdown({
     <DropDown
       disabled={disabled}
       buttonLabel="Alinhar"
-      buttonIconClassName={`icon ${
-        isRTL ? formatOption.iconRTL : formatOption.icon
-      }`}
+      buttonIconClassName={`icon ${isRTL ? formatOption.iconRTL : formatOption.icon}`}
       buttonClassName="toolbar-item spaced alignment"
       buttonAriaLabel="Opções de alinhamento"
       dropDownClassName="alignment-dropdown"
@@ -420,9 +403,7 @@ function ElementFormatDropdown({
       >
         <i
           className={`icon ${
-            isRTL
-              ? ELEMENT_FORMAT_OPTIONS.start.iconRTL
-              : ELEMENT_FORMAT_OPTIONS.start.icon
+            isRTL ? ELEMENT_FORMAT_OPTIONS.start.iconRTL : ELEMENT_FORMAT_OPTIONS.start.icon
           }`}
         />
         <span className="text">Alinhar ao início</span>
@@ -435,9 +416,7 @@ function ElementFormatDropdown({
       >
         <i
           className={`icon ${
-            isRTL
-              ? ELEMENT_FORMAT_OPTIONS.end.iconRTL
-              : ELEMENT_FORMAT_OPTIONS.end.icon
+            isRTL ? ELEMENT_FORMAT_OPTIONS.end.iconRTL : ELEMENT_FORMAT_OPTIONS.end.icon
           }`}
         />
         <span className="text">Alinhar ao fim</span>
@@ -499,9 +478,7 @@ export default function ToolbarPlugin({
   setIsLinkEditMode: Dispatch<boolean>;
   imageLibraryOptions?: ImageLibraryOptions;
 }): JSX.Element {
-  const [selectedElementKey, setSelectedElementKey] = useState<NodeKey | null>(
-    null,
-  );
+  const [selectedElementKey, setSelectedElementKey] = useState<NodeKey | null>(null);
   const [modal, showModal] = useModal();
   const [isEditable, setIsEditable] = useState(() => editor.isEditable());
   const [isEditorEmpty, setIsEditorEmpty] = useState(true);
@@ -509,9 +486,7 @@ export default function ToolbarPlugin({
   const toolbarRef = useRef<HTMLDivElement | null>(null);
   const scrollRootRef = useRef<HTMLElement | Window | null>(null);
   const imageSelectionSnapshotRef = useRef<RangeSelectionSnapshot | null>(null);
-  const insertSelectionSnapshotRef = useRef<RangeSelectionSnapshot | null>(
-    null,
-  );
+  const insertSelectionSnapshotRef = useRef<RangeSelectionSnapshot | null>(null);
   const [isToolbarCompact, setIsToolbarCompact] = useState(true);
   const [isToolbarStuck, setIsToolbarStuck] = useState(false);
   const [isImageLibraryOpen, setIsImageLibraryOpen] = useState(false);
@@ -584,10 +559,8 @@ export default function ToolbarPlugin({
     });
   };
 
-  const dispatchFormatTextCommand = (
-    payload: TextFormatType,
-    skipRefocus: boolean = false,
-  ) => dispatchToolbarCommand(FORMAT_TEXT_COMMAND, payload, skipRefocus);
+  const dispatchFormatTextCommand = (payload: TextFormatType, skipRefocus: boolean = false) =>
+    dispatchToolbarCommand(FORMAT_TEXT_COMMAND, payload, skipRefocus);
 
   const $handleHeadingNode = useCallback(
     (selectedElement: LexicalNode) => {
@@ -596,10 +569,7 @@ export default function ToolbarPlugin({
         : selectedElement.getType();
 
       if (type in blockTypeToBlockName) {
-        updateToolbarState(
-          "blockType",
-          type as keyof typeof blockTypeToBlockName,
-        );
+        updateToolbarState("blockType", type as keyof typeof blockTypeToBlockName);
       }
     },
     [updateToolbarState],
@@ -615,11 +585,7 @@ export default function ToolbarPlugin({
         const language = element.getLanguage();
         updateToolbarState(
           "codeLanguage",
-          language
-            ? isCodeHighlighted
-              ? normalizeCodeLanguagePrism(language)
-              : language
-            : "",
+          language ? (isCodeHighlighted ? normalizeCodeLanguagePrism(language) : language) : "",
         );
         const theme = element.getTheme();
         updateToolbarState("codeTheme", theme || "");
@@ -636,9 +602,7 @@ export default function ToolbarPlugin({
         const rootElement = activeEditor.getRootElement();
         updateToolbarState(
           "isImageCaption",
-          !!rootElement?.parentElement?.classList.contains(
-            "image-caption-container",
-          ),
+          !!rootElement?.parentElement?.classList.contains("image-caption-container"),
         );
       } else {
         updateToolbarState("isImageCaption", false);
@@ -660,13 +624,8 @@ export default function ToolbarPlugin({
       if (elementDOM !== null) {
         setSelectedElementKey(elementKey);
         if ($isListNode(element)) {
-          const parentList = $getNearestNodeOfType<ListNode>(
-            anchorNode,
-            ListNode,
-          );
-          const type = parentList
-            ? parentList.getListType()
-            : element.getListType();
+          const parentList = $getNearestNodeOfType<ListNode>(anchorNode, ListNode);
+          const type = parentList ? parentList.getListType() : element.getListType();
 
           updateToolbarState("blockType", type);
         } else {
@@ -682,11 +641,7 @@ export default function ToolbarPlugin({
       );
       updateToolbarState(
         "bgColor",
-        $getSelectionStyleValueForProperty(
-          selection,
-          "background-color",
-          "#fff",
-        ),
+        $getSelectionStyleValueForProperty(selection, "background-color", "#fff"),
       );
       updateToolbarState(
         "fontFamily",
@@ -716,10 +671,7 @@ export default function ToolbarPlugin({
       updateToolbarState("isBold", selection.hasFormat("bold"));
       updateToolbarState("isItalic", selection.hasFormat("italic"));
       updateToolbarState("isUnderline", selection.hasFormat("underline"));
-      updateToolbarState(
-        "isStrikethrough",
-        selection.hasFormat("strikethrough"),
-      );
+      updateToolbarState("isStrikethrough", selection.hasFormat("strikethrough"));
       updateToolbarState("isSubscript", selection.hasFormat("subscript"));
       updateToolbarState("isSuperscript", selection.hasFormat("superscript"));
       updateToolbarState("isHighlight", selection.hasFormat("highlight"));
@@ -735,10 +687,7 @@ export default function ToolbarPlugin({
     if ($isNodeSelection(selection)) {
       const nodes = selection.getNodes();
       for (const selectedNode of nodes) {
-        const parentList = $getNearestNodeOfType<ListNode>(
-          selectedNode,
-          ListNode,
-        );
+        const parentList = $getNearestNodeOfType<ListNode>(selectedNode, ListNode);
         if (parentList) {
           const type = parentList.getListType();
           updateToolbarState("blockType", type);
@@ -748,21 +697,12 @@ export default function ToolbarPlugin({
           $handleCodeNode(selectedElement);
           // Update elementFormat for node selection (e.g., images)
           if ($isElementNode(selectedElement)) {
-            updateToolbarState(
-              "elementFormat",
-              selectedElement.getFormatType(),
-            );
+            updateToolbarState("elementFormat", selectedElement.getFormatType());
           }
         }
       }
     }
-  }, [
-    activeEditor,
-    editor,
-    updateToolbarState,
-    $handleHeadingNode,
-    $handleCodeNode,
-  ]);
+  }, [activeEditor, editor, updateToolbarState, $handleHeadingNode, $handleCodeNode]);
 
   useEffect(() => {
     return editor.registerCommand(
@@ -831,13 +771,7 @@ export default function ToolbarPlugin({
   useLayoutEffect(() => {
     updateToolbarCompact();
     updateToolbarStuck();
-  }, [
-    updateToolbarCompact,
-    updateToolbarStuck,
-    toolbarState,
-    isEditable,
-    isEditorEmpty,
-  ]);
+  }, [updateToolbarCompact, updateToolbarStuck, toolbarState, isEditable, isEditorEmpty]);
 
   useEffect(() => {
     const toolbar = toolbarRef.current;
@@ -847,8 +781,7 @@ export default function ToolbarPlugin({
 
     const scrollRoot = findToolbarScrollRoot(toolbar);
     scrollRootRef.current = scrollRoot;
-    const scrollTarget: Window | HTMLElement =
-      scrollRoot === window ? window : scrollRoot;
+    const scrollTarget: Window | HTMLElement = scrollRoot === window ? window : scrollRoot;
 
     let frame: number | null = null;
     const scheduleStuckUpdate = () => {
@@ -929,11 +862,7 @@ export default function ToolbarPlugin({
   }, [updateToolbarCompact]);
 
   const applyStyleText = useCallback(
-    (
-      styles: Record<string, string>,
-      skipHistoryStack?: boolean,
-      skipRefocus: boolean = false,
-    ) => {
+    (styles: Record<string, string>, skipHistoryStack?: boolean, skipRefocus: boolean = false) => {
       activeEditor.update(
         () => {
           if (skipRefocus) {
@@ -959,11 +888,7 @@ export default function ToolbarPlugin({
 
   const onBgColorSelect = useCallback(
     (value: string, skipHistoryStack: boolean, skipRefocus: boolean) => {
-      applyStyleText(
-        { "background-color": value },
-        skipHistoryStack,
-        skipRefocus,
-      );
+      applyStyleText({ "background-color": value }, skipHistoryStack, skipRefocus);
     },
     [applyStyleText],
   );
@@ -971,10 +896,7 @@ export default function ToolbarPlugin({
   const insertLink = useCallback(() => {
     if (!toolbarState.isLink) {
       setIsLinkEditMode(true);
-      activeEditor.dispatchCommand(
-        TOGGLE_LINK_COMMAND,
-        sanitizeUrl("https://"),
-      );
+      activeEditor.dispatchCommand(TOGGLE_LINK_COMMAND, sanitizeUrl("https://"));
     } else {
       setIsLinkEditMode(false);
       activeEditor.dispatchCommand(TOGGLE_LINK_COMMAND, null);
@@ -984,16 +906,14 @@ export default function ToolbarPlugin({
   const captureImageLibrarySelection = useCallback(
     (event?: React.MouseEvent<HTMLButtonElement>) => {
       event?.preventDefault();
-      imageSelectionSnapshotRef.current =
-        captureCurrentRangeSelection(activeEditor);
+      imageSelectionSnapshotRef.current = captureCurrentRangeSelection(activeEditor);
     },
     [activeEditor],
   );
 
   const openImageLibrary = useCallback(() => {
     if (imageSelectionSnapshotRef.current === null) {
-      imageSelectionSnapshotRef.current =
-        captureCurrentRangeSelection(activeEditor);
+      imageSelectionSnapshotRef.current = captureCurrentRangeSelection(activeEditor);
     }
     setIsImageLibraryOpen(true);
   }, [activeEditor]);
@@ -1001,16 +921,14 @@ export default function ToolbarPlugin({
   const captureInsertSelection = useCallback(
     (event?: React.MouseEvent<HTMLButtonElement>) => {
       event?.preventDefault();
-      insertSelectionSnapshotRef.current =
-        captureCurrentRangeSelection(activeEditor);
+      insertSelectionSnapshotRef.current = captureCurrentRangeSelection(activeEditor);
     },
     [activeEditor],
   );
 
   const takeInsertSelectionSnapshot = useCallback(() => {
     if (insertSelectionSnapshotRef.current === null) {
-      insertSelectionSnapshotRef.current =
-        captureCurrentRangeSelection(activeEditor);
+      insertSelectionSnapshotRef.current = captureCurrentRangeSelection(activeEditor);
     }
 
     const selectionSnapshot = insertSelectionSnapshotRef.current;
@@ -1060,9 +978,7 @@ export default function ToolbarPlugin({
     });
   };
 
-  const openToolbarEmbedModal = (
-    type: (typeof EmbedConfigs)[number]["type"],
-  ) => {
+  const openToolbarEmbedModal = (type: (typeof EmbedConfigs)[number]["type"]) => {
     const selectionSnapshot = takeInsertSelectionSnapshot();
     dispatchToolbarCommand(OPEN_EMBED_MODAL_WITH_SELECTION_COMMAND, {
       selectionSnapshot,
@@ -1096,9 +1012,7 @@ export default function ToolbarPlugin({
     >
       <button
         disabled={!toolbarState.canUndo || !isEditable}
-        onClick={(e) =>
-          dispatchToolbarCommand(UNDO_COMMAND, undefined, isKeyboardInput(e))
-        }
+        onClick={(e) => dispatchToolbarCommand(UNDO_COMMAND, undefined, isKeyboardInput(e))}
         title="Desfazer"
         type="button"
         className="toolbar-item spaced"
@@ -1108,9 +1022,7 @@ export default function ToolbarPlugin({
       </button>
       <button
         disabled={!toolbarState.canRedo || !isEditable}
-        onClick={(e) =>
-          dispatchToolbarCommand(REDO_COMMAND, undefined, isKeyboardInput(e))
-        }
+        onClick={(e) => dispatchToolbarCommand(REDO_COMMAND, undefined, isKeyboardInput(e))}
         title="Refazer"
         type="button"
         className="toolbar-item"
@@ -1119,17 +1031,16 @@ export default function ToolbarPlugin({
         <i className="format redo" />
       </button>
       <Divider />
-      {toolbarState.blockType in blockTypeToBlockName &&
-        activeEditor === editor && (
-          <>
-            <BlockFormatDropDown
-              disabled={!isEditable}
-              blockType={toolbarState.blockType}
-              editor={activeEditor}
-            />
-            <Divider />
-          </>
-        )}
+      {toolbarState.blockType in blockTypeToBlockName && activeEditor === editor && (
+        <>
+          <BlockFormatDropDown
+            disabled={!isEditable}
+            blockType={toolbarState.blockType}
+            editor={activeEditor}
+          />
+          <Divider />
+        </>
+      )}
       {toolbarState.blockType === "code" && isCodeHighlighted ? (
         <DropDown
           disabled={!isEditable}
@@ -1137,9 +1048,7 @@ export default function ToolbarPlugin({
           dropDownClassName="code-language-dropdown"
           buttonLabel={
             (CODE_LANGUAGE_OPTIONS_PRISM.find(
-              (opt) =>
-                opt[0] ===
-                normalizeCodeLanguagePrism(toolbarState.codeLanguage),
+              (opt) => opt[0] === normalizeCodeLanguagePrism(toolbarState.codeLanguage),
             ) || ["", ""])[1]
           }
           buttonAriaLabel="Selecionar linguagem"
@@ -1147,9 +1056,7 @@ export default function ToolbarPlugin({
           {CODE_LANGUAGE_OPTIONS_PRISM.map(([value, name]) => {
             return (
               <DropDownItem
-                className={`item ${dropDownActiveClass(
-                  value === toolbarState.codeLanguage,
-                )}`}
+                className={`item ${dropDownActiveClass(value === toolbarState.codeLanguage)}`}
                 onClick={() => onCodeLanguageSelect(value)}
                 key={value}
               >
@@ -1162,12 +1069,8 @@ export default function ToolbarPlugin({
         <>
           <button
             disabled={!isEditable}
-            onClick={(e) =>
-              dispatchFormatTextCommand("bold", isKeyboardInput(e))
-            }
-            className={
-              "toolbar-item spaced " + (toolbarState.isBold ? "active" : "")
-            }
+            onClick={(e) => dispatchFormatTextCommand("bold", isKeyboardInput(e))}
+            className={"toolbar-item spaced " + (toolbarState.isBold ? "active" : "")}
             title="Negrito"
             type="button"
             aria-label="Formatar texto em negrito"
@@ -1176,12 +1079,8 @@ export default function ToolbarPlugin({
           </button>
           <button
             disabled={!isEditable}
-            onClick={(e) =>
-              dispatchFormatTextCommand("italic", isKeyboardInput(e))
-            }
-            className={
-              "toolbar-item spaced " + (toolbarState.isItalic ? "active" : "")
-            }
+            onClick={(e) => dispatchFormatTextCommand("italic", isKeyboardInput(e))}
+            className={"toolbar-item spaced " + (toolbarState.isItalic ? "active" : "")}
             title="Itálico"
             type="button"
             aria-label="Formatar texto em itálico"
@@ -1190,13 +1089,8 @@ export default function ToolbarPlugin({
           </button>
           <button
             disabled={!isEditable}
-            onClick={(e) =>
-              dispatchFormatTextCommand("underline", isKeyboardInput(e))
-            }
-            className={
-              "toolbar-item spaced " +
-              (toolbarState.isUnderline ? "active" : "")
-            }
+            onClick={(e) => dispatchFormatTextCommand("underline", isKeyboardInput(e))}
+            className={"toolbar-item spaced " + (toolbarState.isUnderline ? "active" : "")}
             title="Sublinhado"
             type="button"
             aria-label="Formatar texto em sublinhado"
@@ -1206,12 +1100,8 @@ export default function ToolbarPlugin({
           {canViewerSeeInsertCodeButton && (
             <button
               disabled={!isEditable}
-              onClick={(e) =>
-                dispatchFormatTextCommand("code", isKeyboardInput(e))
-              }
-              className={
-                "toolbar-item spaced " + (toolbarState.isCode ? "active" : "")
-              }
+              onClick={(e) => dispatchFormatTextCommand("code", isKeyboardInput(e))}
+              className={"toolbar-item spaced " + (toolbarState.isCode ? "active" : "")}
               title="Inserir bloco de código"
               type="button"
               aria-label="Inserir bloco de código"
@@ -1222,9 +1112,7 @@ export default function ToolbarPlugin({
           <button
             disabled={!isEditable}
             onClick={insertLink}
-            className={
-              "toolbar-item spaced " + (toolbarState.isLink ? "active" : "")
-            }
+            className={"toolbar-item spaced " + (toolbarState.isLink ? "active" : "")}
             aria-label="Inserir link"
             title="Inserir link"
             type="button"
@@ -1258,12 +1146,8 @@ export default function ToolbarPlugin({
             dropDownClassName="text-style-dropdown"
           >
             <DropDownItem
-              onClick={(e) =>
-                dispatchFormatTextCommand("lowercase", isKeyboardInput(e))
-              }
-              className={
-                "item wide " + dropDownActiveClass(toolbarState.isLowercase)
-              }
+              onClick={(e) => dispatchFormatTextCommand("lowercase", isKeyboardInput(e))}
+              className={"item wide " + dropDownActiveClass(toolbarState.isLowercase)}
               title="Minúsculas"
               aria-label="Formatar texto em minúsculas"
             >
@@ -1274,12 +1158,8 @@ export default function ToolbarPlugin({
               <span className="shortcut" aria-hidden="true" />
             </DropDownItem>
             <DropDownItem
-              onClick={(e) =>
-                dispatchFormatTextCommand("uppercase", isKeyboardInput(e))
-              }
-              className={
-                "item wide " + dropDownActiveClass(toolbarState.isUppercase)
-              }
+              onClick={(e) => dispatchFormatTextCommand("uppercase", isKeyboardInput(e))}
+              className={"item wide " + dropDownActiveClass(toolbarState.isUppercase)}
               title="Maiúsculas"
               aria-label="Formatar texto em maiúsculas"
             >
@@ -1290,12 +1170,8 @@ export default function ToolbarPlugin({
               <span className="shortcut" aria-hidden="true" />
             </DropDownItem>
             <DropDownItem
-              onClick={(e) =>
-                dispatchFormatTextCommand("capitalize", isKeyboardInput(e))
-              }
-              className={
-                "item wide " + dropDownActiveClass(toolbarState.isCapitalize)
-              }
+              onClick={(e) => dispatchFormatTextCommand("capitalize", isKeyboardInput(e))}
+              className={"item wide " + dropDownActiveClass(toolbarState.isCapitalize)}
               title="Capitalizar"
               aria-label="Capitalizar texto"
             >
@@ -1306,12 +1182,8 @@ export default function ToolbarPlugin({
               <span className="shortcut" aria-hidden="true" />
             </DropDownItem>
             <DropDownItem
-              onClick={(e) =>
-                dispatchFormatTextCommand("strikethrough", isKeyboardInput(e))
-              }
-              className={
-                "item wide " + dropDownActiveClass(toolbarState.isStrikethrough)
-              }
+              onClick={(e) => dispatchFormatTextCommand("strikethrough", isKeyboardInput(e))}
+              className={"item wide " + dropDownActiveClass(toolbarState.isStrikethrough)}
               title="Tachado"
               aria-label="Formatar texto com tachado"
             >
@@ -1322,12 +1194,8 @@ export default function ToolbarPlugin({
               <span className="shortcut" aria-hidden="true" />
             </DropDownItem>
             <DropDownItem
-              onClick={(e) =>
-                dispatchFormatTextCommand("subscript", isKeyboardInput(e))
-              }
-              className={
-                "item wide " + dropDownActiveClass(toolbarState.isSubscript)
-              }
+              onClick={(e) => dispatchFormatTextCommand("subscript", isKeyboardInput(e))}
+              className={"item wide " + dropDownActiveClass(toolbarState.isSubscript)}
               title="Subscrito"
               aria-label="Formatar texto em subscrito"
             >
@@ -1338,12 +1206,8 @@ export default function ToolbarPlugin({
               <span className="shortcut" aria-hidden="true" />
             </DropDownItem>
             <DropDownItem
-              onClick={(e) =>
-                dispatchFormatTextCommand("superscript", isKeyboardInput(e))
-              }
-              className={
-                "item wide " + dropDownActiveClass(toolbarState.isSuperscript)
-              }
+              onClick={(e) => dispatchFormatTextCommand("superscript", isKeyboardInput(e))}
+              className={"item wide " + dropDownActiveClass(toolbarState.isSuperscript)}
               title="Sobrescrito"
               aria-label="Formatar texto em sobrescrito"
             >
@@ -1354,12 +1218,8 @@ export default function ToolbarPlugin({
               <span className="shortcut" aria-hidden="true" />
             </DropDownItem>
             <DropDownItem
-              onClick={(e) =>
-                dispatchFormatTextCommand("highlight", isKeyboardInput(e))
-              }
-              className={
-                "item wide " + dropDownActiveClass(toolbarState.isHighlight)
-              }
+              onClick={(e) => dispatchFormatTextCommand("highlight", isKeyboardInput(e))}
+              className={"item wide " + dropDownActiveClass(toolbarState.isHighlight)}
               title="Destacar"
               aria-label="Formatar texto com destaque"
             >
@@ -1393,9 +1253,7 @@ export default function ToolbarPlugin({
                 dropDownClassName="insert-dropdown"
               >
                 <DropDownItem
-                  onClick={() =>
-                    dispatchToolbarCommand(INSERT_HORIZONTAL_RULE_COMMAND)
-                  }
+                  onClick={() => dispatchToolbarCommand(INSERT_HORIZONTAL_RULE_COMMAND)}
                   className="item"
                 >
                   <i className="icon horizontal-rule" />

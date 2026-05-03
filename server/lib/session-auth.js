@@ -84,11 +84,7 @@ export const establishAuthenticatedSession = async ({ req, user, preserved = {} 
   return req.session;
 };
 
-export const establishPendingMfaEnrollmentSession = async ({
-  req,
-  user,
-  preserved = {},
-} = {}) => {
+export const establishPendingMfaEnrollmentSession = async ({ req, user, preserved = {} } = {}) => {
   if (!req || !req.session) {
     throw new Error("session_unavailable");
   }

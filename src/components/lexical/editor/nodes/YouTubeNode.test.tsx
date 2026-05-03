@@ -40,9 +40,7 @@ describe("YouTubeNode", () => {
     });
 
     const { container } = render(decoratedElement);
-    const wrapper = container.querySelector(
-      ".lexical-youtube",
-    ) as HTMLElement | null;
+    const wrapper = container.querySelector(".lexical-youtube") as HTMLElement | null;
     const iframe = container.querySelector(
       'iframe[data-lexical-youtube-iframe="true"]',
     ) as HTMLIFrameElement | null;

@@ -319,7 +319,6 @@ describe("public-site-runtime", () => {
     expect(withoutShell).toContain("preloads:2");
   });
 
-
   it("keeps the bootstrap pwa flag disabled even when legacy pwa deps are present", () => {
     const runtime = createPublicSiteRuntime(
       createDeps({

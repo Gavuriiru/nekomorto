@@ -1,10 +1,4 @@
-import {
-  fireEvent,
-  render,
-  screen,
-  waitFor,
-  within,
-} from "@testing-library/react";
+import { fireEvent, render, screen, waitFor, within } from "@testing-library/react";
 import type { ReactNode } from "react";
 import { MemoryRouter, Route, Routes } from "react-router-dom";
 import { describe, expect, it, vi } from "vitest";
@@ -27,10 +21,7 @@ vi.mock("@/components/dashboard/DashboardPageContainer", () => ({
 vi.mock("@/components/ImageLibraryDialog", () => ({
   default: (props: {
     open?: boolean;
-    onSave?: (payload: {
-      urls: string[];
-      items: Array<{ altText?: string }>;
-    }) => void;
+    onSave?: (payload: { urls: string[]; items: Array<{ altText?: string }> }) => void;
   }) => {
     imageLibraryPropsSpy(props);
     if (!props.open) {
@@ -104,11 +95,7 @@ vi.mock("@/pages/NotFound", () => ({
   default: () => <div data-testid="not-found" />,
 }));
 
-const mockJsonResponse = (
-  ok: boolean,
-  payload: unknown,
-  status = ok ? 200 : 500,
-) =>
+const mockJsonResponse = (ok: boolean, payload: unknown, status = ok ? 200 : 500) =>
   ({
     ok,
     status,
@@ -175,9 +162,7 @@ const projectFixture = {
 
 const renderEditor = () =>
   render(
-    <MemoryRouter
-      initialEntries={["/dashboard/projetos/project-ln-1/capitulos"]}
-    >
+    <MemoryRouter initialEntries={["/dashboard/projetos/project-ln-1/capitulos"]}>
       <Routes>
         <Route
           path="/dashboard/projetos/:projectId/capitulos"
@@ -194,38 +179,36 @@ const renderEditor = () =>
 const setupApiMock = () => {
   apiFetchMock.mockReset();
   imageLibraryPropsSpy.mockReset();
-  apiFetchMock.mockImplementation(
-    async (_base: string, path: string, options?: RequestInit) => {
-      const method = String(options?.method || "GET").toUpperCase();
-      if (path === "/api/me" && method === "GET") {
-        return mockJsonResponse(true, {
-          id: "1",
-          name: "Admin",
-          username: "admin",
-          permissions: ["projetos"],
-          grants: { projetos: true },
-        });
-      }
-      if (path === "/api/contracts/v1.json" && method === "GET") {
-        return mockJsonResponse(true, {
-          version: "v1",
-          generatedAt: "2026-03-08T00:00:00Z",
-          capabilities: {
-            project_epub_import: true,
-            project_epub_export: true,
-          },
-          build: {
-            commitSha: "backendsha",
-            builtAt: "2026-03-08T00:00:00Z",
-          },
-        });
-      }
-      if (path === "/api/projects/project-ln-1" && method === "GET") {
-        return mockJsonResponse(true, { project: projectFixture });
-      }
-      return mockJsonResponse(false, { error: "not_found" }, 404);
-    },
-  );
+  apiFetchMock.mockImplementation(async (_base: string, path: string, options?: RequestInit) => {
+    const method = String(options?.method || "GET").toUpperCase();
+    if (path === "/api/me" && method === "GET") {
+      return mockJsonResponse(true, {
+        id: "1",
+        name: "Admin",
+        username: "admin",
+        permissions: ["projetos"],
+        grants: { projetos: true },
+      });
+    }
+    if (path === "/api/contracts/v1.json" && method === "GET") {
+      return mockJsonResponse(true, {
+        version: "v1",
+        generatedAt: "2026-03-08T00:00:00Z",
+        capabilities: {
+          project_epub_import: true,
+          project_epub_export: true,
+        },
+        build: {
+          commitSha: "backendsha",
+          builtAt: "2026-03-08T00:00:00Z",
+        },
+      });
+    }
+    if (path === "/api/projects/project-ln-1" && method === "GET") {
+      return mockJsonResponse(true, { project: projectFixture });
+    }
+    return mockJsonResponse(false, { error: "not_found" }, 404);
+  });
 };
 
 describe("DashboardProjectChapterEditor image library context", () => {
@@ -236,24 +219,16 @@ describe("DashboardProjectChapterEditor image library context", () => {
     await screen.findByTestId("chapter-structure-section");
     fireEvent.click(screen.getByTestId("chapter-structure-select-2"));
     const volumeEditor = screen.getByTestId("chapter-volume-editor");
-    fireEvent.click(
-      within(volumeEditor).getByRole("button", { name: "Biblioteca" }),
-    );
+    fireEvent.click(within(volumeEditor).getByRole("button", { name: "Biblioteca" }));
 
     await waitFor(() => {
-      const latestImageLibraryProps = imageLibraryPropsSpy.mock.calls.at(
-        -1,
-      )?.[0] as {
+      const latestImageLibraryProps = imageLibraryPropsSpy.mock.calls.at(-1)?.[0] as {
         uploadFolder?: string;
       };
-      expect(latestImageLibraryProps?.uploadFolder).toBe(
-        "projects/project-ln-1/volumes",
-      );
+      expect(latestImageLibraryProps?.uploadFolder).toBe("projects/project-ln-1/volumes");
     });
 
-    const latestImageLibraryProps = imageLibraryPropsSpy.mock.calls.at(
-      -1,
-    )?.[0] as {
+    const latestImageLibraryProps = imageLibraryPropsSpy.mock.calls.at(-1)?.[0] as {
       listFolders?: string[];
     };
     expect(latestImageLibraryProps.listFolders).toEqual([
@@ -262,12 +237,8 @@ describe("DashboardProjectChapterEditor image library context", () => {
       "projects/project-ln-1/episodes",
     ]);
 
-    fireEvent.click(
-      await screen.findByRole("button", { name: "Salvar imagem mock" }),
-    );
+    fireEvent.click(await screen.findByRole("button", { name: "Salvar imagem mock" }));
 
-    expect(screen.getByLabelText("Texto alternativo")).toHaveValue(
-      "Capa do volume 2",
-    );
+    expect(screen.getByLabelText("Texto alternativo")).toHaveValue("Capa do volume 2");
   });
 });

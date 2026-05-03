@@ -6,10 +6,7 @@
  *
  */
 
-import type {
-  EmbedConfig,
-  EmbedMatchResult,
-} from "@lexical/react/LexicalAutoEmbedPlugin";
+import type { EmbedConfig, EmbedMatchResult } from "@lexical/react/LexicalAutoEmbedPlugin";
 import type { LexicalEditor } from "lexical";
 import type { JSX } from "react";
 
@@ -32,11 +29,9 @@ type AutoEmbedConfigRegistry = {
   youtubeEmbedConfig: PlaygroundEmbedConfig;
 };
 
-const AUTO_EMBED_CONFIG_REGISTRY_KEY =
-  "__lexicalPlaygroundAutoEmbedConfigRegistry__";
+const AUTO_EMBED_CONFIG_REGISTRY_KEY = "__lexicalPlaygroundAutoEmbedConfigRegistry__";
 
-const createEmbedIcon = (className: string): JSX.Element =>
-  React.createElement("i", { className });
+const createEmbedIcon = (className: string): JSX.Element => React.createElement("i", { className });
 
 const upsertYoutubeEmbedConfig = (config: PlaygroundEmbedConfig) => {
   Object.assign(config, {
@@ -48,10 +43,7 @@ const upsertYoutubeEmbedConfig = (config: PlaygroundEmbedConfig) => {
     },
     keywords: ["youtube", "video"],
     parseUrl: async (url: string) => {
-      const match =
-        /^.*(youtu\.be\/|v\/|u\/\w\/|embed\/|watch\?v=|&v=)([^#&?]*).*/.exec(
-          url,
-        );
+      const match = /^.*(youtu\.be\/|v\/|u\/\w\/|embed\/|watch\?v=|&v=)([^#&?]*).*/.exec(url);
 
       const id = match ? (match?.[2].length === 11 ? match[2] : null) : null;
 
@@ -78,10 +70,7 @@ const upsertTwitterEmbedConfig = (config: PlaygroundEmbedConfig) => {
     },
     keywords: ["tweet", "twitter", "x"],
     parseUrl: (text: string) => {
-      const match =
-        /^https:\/\/(twitter|x)\.com\/(#!\/)?(\w+)\/status(es)*\/(\d+)/.exec(
-          text,
-        );
+      const match = /^https:\/\/(twitter|x)\.com\/(#!\/)?(\w+)\/status(es)*\/(\d+)/.exec(text);
 
       if (match != null) {
         return {

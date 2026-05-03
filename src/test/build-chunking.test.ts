@@ -30,9 +30,9 @@ describe("build chunking classifier", () => {
   });
 
   it("classifica PlaygroundNodes do editor como lexical-editor", () => {
-    expect(classifyManualChunk("/repo/src/components/lexical/editor/nodes/PlaygroundNodes.ts")).toBe(
-      "lexical-editor",
-    );
+    expect(
+      classifyManualChunk("/repo/src/components/lexical/editor/nodes/PlaygroundNodes.ts"),
+    ).toBe("lexical-editor");
   });
 
   it("classifica shell e perfil first-party do editor como lexical-editor", () => {

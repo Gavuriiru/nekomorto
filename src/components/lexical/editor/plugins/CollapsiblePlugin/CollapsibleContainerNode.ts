@@ -34,9 +34,7 @@ type SerializedCollapsibleContainerNode = Spread<
   SerializedElementNode
 >;
 
-export function $convertDetailsElement(
-  domNode: HTMLDetailsElement,
-): DOMConversionOutput | null {
+export function $convertDetailsElement(domNode: HTMLDetailsElement): DOMConversionOutput | null {
   const isOpen = domNode.open !== undefined ? domNode.open : true;
   const node = $createCollapsibleContainerNode(isOpen);
   return {
@@ -143,12 +141,8 @@ export class CollapsibleContainerNode extends ElementNode {
     };
   }
 
-  static importJSON(
-    serializedNode: SerializedCollapsibleContainerNode,
-  ): CollapsibleContainerNode {
-    return $createCollapsibleContainerNode(serializedNode.open).updateFromJSON(
-      serializedNode,
-    );
+  static importJSON(serializedNode: SerializedCollapsibleContainerNode): CollapsibleContainerNode {
+    return $createCollapsibleContainerNode(serializedNode.open).updateFromJSON(serializedNode);
   }
 
   exportDOM(): DOMExportOutput {
@@ -181,9 +175,7 @@ export class CollapsibleContainerNode extends ElementNode {
   }
 }
 
-export function $createCollapsibleContainerNode(
-  isOpen: boolean,
-): CollapsibleContainerNode {
+export function $createCollapsibleContainerNode(isOpen: boolean): CollapsibleContainerNode {
   return new CollapsibleContainerNode(isOpen);
 }
 

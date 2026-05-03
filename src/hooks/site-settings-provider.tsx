@@ -1,5 +1,8 @@
 import { defaultSettings, mergeSettings, SiteSettingsContext } from "@/hooks/site-settings-context";
-import { refetchPublicBootstrapCache, refreshPublicBootstrapCacheIfStale } from "@/hooks/use-public-bootstrap";
+import {
+  refetchPublicBootstrapCache,
+  refreshPublicBootstrapCacheIfStale,
+} from "@/hooks/use-public-bootstrap";
 import { getApiBase } from "@/lib/api-base";
 import { apiFetch } from "@/lib/api-client";
 import { normalizeAssetUrl } from "@/lib/asset-url";
@@ -88,7 +91,9 @@ export const SiteSettingsProvider = ({
   const [settings, setSettings] = useState<SiteSettings>(
     mergeSettings(defaultSettings, resolvedInitialSettings || {}),
   );
-  const [isLoading, setIsLoading] = useState(!(initiallyLoaded || Boolean(resolvedInitialSettings)));
+  const [isLoading, setIsLoading] = useState(
+    !(initiallyLoaded || Boolean(resolvedInitialSettings)),
+  );
 
   const refresh = useCallback(
     async (showLoading = true, options?: { force?: boolean }) => {

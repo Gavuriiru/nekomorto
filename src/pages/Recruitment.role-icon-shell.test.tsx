@@ -65,7 +65,9 @@ describe("Recruitment role icon shell", () => {
   it("mantem badge do icone com contraste sem borda e hover semanticos", async () => {
     render(<Recruitment />);
 
-    const heroSection = document.querySelector("section.relative.overflow-hidden") as HTMLElement | null;
+    const heroSection = document.querySelector(
+      "section.relative.overflow-hidden",
+    ) as HTMLElement | null;
     expect(heroSection).not.toBeNull();
     expect(heroSection?.className).toContain("[background-image:var(--gradient-public-hero)]");
     expect(screen.getByText("Recrutamento")).toBeInTheDocument();

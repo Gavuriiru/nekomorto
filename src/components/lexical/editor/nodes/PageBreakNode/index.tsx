@@ -30,8 +30,7 @@ export type SerializedPageBreakNode = SerializedLexicalNode;
 
 function PageBreakComponent({ nodeKey }: { nodeKey: NodeKey }) {
   const [editor] = useLexicalComposerContext();
-  const [isSelected, setSelected, clearSelection] =
-    useLexicalNodeSelection(nodeKey);
+  const [isSelected, setSelected, clearSelection] = useLexicalNodeSelection(nodeKey);
 
   useEffect(() => {
     return mergeRegister(
@@ -126,8 +125,6 @@ export function $createPageBreakNode(): PageBreakNode {
   return new PageBreakNode();
 }
 
-export function $isPageBreakNode(
-  node: LexicalNode | null | undefined,
-): node is PageBreakNode {
+export function $isPageBreakNode(node: LexicalNode | null | undefined): node is PageBreakNode {
   return node instanceof PageBreakNode;
 }

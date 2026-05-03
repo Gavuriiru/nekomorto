@@ -9,12 +9,7 @@
 import type { JSX } from "react";
 
 import { useLexicalComposerContext } from "@lexical/react/LexicalComposerContext";
-import {
-  INSERT_TABLE_COMMAND,
-  TableCellNode,
-  TableNode,
-  TableRowNode,
-} from "@lexical/table";
+import { INSERT_TABLE_COMMAND, TableCellNode, TableNode, TableRowNode } from "@lexical/table";
 import { EditorThemeClasses, Klass, LexicalEditor, LexicalNode } from "lexical";
 import { createContext, useContext, useEffect, useMemo, useState } from "react";
 

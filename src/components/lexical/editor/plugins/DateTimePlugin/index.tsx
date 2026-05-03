@@ -20,10 +20,7 @@ import {
 } from "lexical";
 import { useEffect } from "react";
 
-import {
-  $createDateTimeNode,
-  DateTimeNode,
-} from "../../nodes/DateTimeNode/DateTimeNode";
+import { $createDateTimeNode, DateTimeNode } from "../../nodes/DateTimeNode/DateTimeNode";
 
 type CommandPayload = {
   dateTime: Date;

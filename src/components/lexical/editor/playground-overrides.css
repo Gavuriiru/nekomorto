@@ -338,7 +338,6 @@
   margin-left: auto;
 }
 
-
 .lexical-playground button.toolbar-item {
   color: var(--lexical-control-text);
   align-items: center;
@@ -661,18 +660,7 @@
   color: hsl(var(--muted-foreground));
 }
 
-.lexical-playground .ContentEditable__root :where(
-  p,
-  li,
-  h1,
-  h2,
-  h3,
-  h4,
-  h5,
-  h6,
-  blockquote,
-  a
-) {
+.lexical-playground .ContentEditable__root :where(p, li, h1, h2, h3, h4, h5, h6, blockquote, a) {
   overflow-wrap: anywhere;
   word-break: break-word;
 }
@@ -969,7 +957,8 @@
 }
 
 .lexical-playground .PlaygroundEditorTheme__tableRowStriping tr:nth-child(even),
-.lexical-playground .PlaygroundEditorTheme__tableFrozenColumn
+.lexical-playground
+  .PlaygroundEditorTheme__tableFrozenColumn
   .PlaygroundEditorTheme__table.PlaygroundEditorTheme__tableRowStriping
   tr:nth-child(even)
   > td:first-child {
@@ -1154,7 +1143,9 @@
   border-radius: calc(var(--radius) - 2px);
   color: hsl(var(--foreground));
   font-weight: 600;
-  transition: background-color 0.2s ease, border-color 0.2s ease,
+  transition:
+    background-color 0.2s ease,
+    border-color 0.2s ease,
     transform 0.2s ease;
 }
 

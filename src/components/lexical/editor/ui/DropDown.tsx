@@ -11,14 +11,7 @@ import type { JSX } from "react";
 import { calculateZoomLevel } from "@lexical/utils";
 import { isDOMNode } from "lexical";
 import * as React from "react";
-import {
-  ReactNode,
-  useCallback,
-  useEffect,
-  useMemo,
-  useRef,
-  useState,
-} from "react";
+import { ReactNode, useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 
 import { focusNearestDescendant, isKeyboardInput } from "../utils/focusUtils";
@@ -87,8 +80,7 @@ function DropDownItems({
   autofocus: boolean;
   className?: string;
 }) {
-  const [items, setItems] =
-    useState<React.RefObject<null | HTMLButtonElement>[]>();
+  const [items, setItems] = useState<React.RefObject<null | HTMLButtonElement>[]>();
   const [highlightedItem, setHighlightedItem] =
     useState<React.RefObject<null | HTMLButtonElement>>();
 
@@ -232,8 +224,7 @@ export default function DropDown({
           return;
         }
 
-        const targetIsDropDownItem =
-          dropDownRef.current && dropDownRef.current.contains(target);
+        const targetIsDropDownItem = dropDownRef.current && dropDownRef.current.contains(target);
         if (stopCloseOnClickSelf && targetIsDropDownItem) {
           return;
         }
@@ -292,9 +283,7 @@ export default function DropDown({
         ref={buttonRef}
       >
         {buttonIconClassName && <span className={buttonIconClassName} />}
-        {buttonLabel && (
-          <span className="text dropdown-button-text">{buttonLabel}</span>
-        )}
+        {buttonLabel && <span className="text dropdown-button-text">{buttonLabel}</span>}
         {!hideChevron && <i className="chevron-down" />}
       </button>
 

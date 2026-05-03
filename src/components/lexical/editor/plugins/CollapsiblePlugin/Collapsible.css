@@ -36,7 +36,7 @@
   border-width: 4px 6px 4px 6px;
   border-left-color: hsl(var(--foreground));
   display: block;
-  content: '';
+  content: "";
   position: absolute;
   left: 7px;
   top: 50%;

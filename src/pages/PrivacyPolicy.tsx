@@ -20,8 +20,8 @@ const PrivacyPolicy = () => {
               Política de Privacidade
             </h1>
             <p className="text-sm leading-relaxed text-muted-foreground md:text-base">
-              Esta Política de Privacidade explica, de forma objetiva, como tratamos dados ligados ao
-              uso do site, aos comentários públicos, à autenticação e à operação da plataforma.
+              Esta Política de Privacidade explica, de forma objetiva, como tratamos dados ligados
+              ao uso do site, aos comentários públicos, à autenticação e à operação da plataforma.
             </p>
           </header>
 
@@ -37,8 +37,8 @@ const PrivacyPolicy = () => {
           <section className="space-y-3">
             <h2 className="text-lg font-semibold">2. Comentários e avatar</h2>
             <p className="text-sm leading-relaxed text-muted-foreground md:text-base">
-              Comentários aprovados podem exibir publicamente o nome informado, o conteúdo enviado, a
-              data da publicação e o avatar associado ao comentário. Quando o e-mail opcional é
+              Comentários aprovados podem exibir publicamente o nome informado, o conteúdo enviado,
+              a data da publicação e o avatar associado ao comentário. Quando o e-mail opcional é
               informado, ele pode ser usado para obter avatar por meio do Gravatar.
             </p>
           </section>
@@ -52,8 +52,8 @@ const PrivacyPolicy = () => {
             </p>
             <p className="text-sm leading-relaxed text-muted-foreground md:text-base">
               O Login com Google é usado para autenticar usuários autorizados da equipe no dashboard
-              e em outras áreas internas. Esse login não é necessário para visitantes navegarem pelas
-              páginas públicas do site.
+              e em outras áreas internas. Esse login não é necessário para visitantes navegarem
+              pelas páginas públicas do site.
             </p>
           </section>
 
@@ -72,8 +72,8 @@ const PrivacyPolicy = () => {
             <p className="text-sm leading-relaxed text-muted-foreground md:text-base">
               Os dados podem ser mantidos pelo tempo necessário para operação do site, moderação,
               segurança e cumprimento de obrigações aplicáveis. Quando houver uso de serviços de
-              terceiros, como autenticação externa ou avatar, o tratamento correspondente também pode
-              seguir as políticas próprias desses serviços.
+              terceiros, como autenticação externa ou avatar, o tratamento correspondente também
+              pode seguir as políticas próprias desses serviços.
             </p>
           </section>
 

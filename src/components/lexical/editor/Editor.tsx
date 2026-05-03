@@ -94,12 +94,9 @@ export default function Editor({
   } = useSettings();
   const isEditable = useLexicalEditable();
   const placeholder =
-    placeholderOverride ??
-    (isRichText ? "Enter some rich text..." : "Enter some plain text...");
-  const [floatingAnchorElem, setFloatingAnchorElem] =
-    useState<HTMLDivElement | null>(null);
-  const [isSmallWidthViewport, setIsSmallWidthViewport] =
-    useState<boolean>(false);
+    placeholderOverride ?? (isRichText ? "Enter some rich text..." : "Enter some plain text...");
+  const [floatingAnchorElem, setFloatingAnchorElem] = useState<HTMLDivElement | null>(null);
+  const [isSmallWidthViewport, setIsSmallWidthViewport] = useState<boolean>(false);
   const [editor] = useLexicalComposerContext();
   const [activeEditor, setActiveEditor] = useState(editor);
   const [isLinkEditMode, setIsLinkEditMode] = useState<boolean>(false);
@@ -129,9 +126,7 @@ export default function Editor({
 
   const showToolbar = isRichText && !hideToolbar;
   const showEditingPlugins = isRichText && isEditable;
-  const handleEditorScrollerMouseDown = (
-    event: React.MouseEvent<HTMLDivElement>,
-  ) => {
+  const handleEditorScrollerMouseDown = (event: React.MouseEvent<HTMLDivElement>) => {
     if (event.button !== 0) {
       return;
     }
@@ -175,9 +170,7 @@ export default function Editor({
         {showEditingPlugins && followCaretScroll && <CaretFollowScrollPlugin />}
         {selectionAlwaysOnDisplay && <SelectionAlwaysOnDisplay />}
         {showEditingPlugins && <ClearEditorPlugin />}
-        {showEditingPlugins && (
-          <ComponentPickerPlugin imageLibraryOptions={imageLibraryOptions} />
-        )}
+        {showEditingPlugins && <ComponentPickerPlugin imageLibraryOptions={imageLibraryOptions} />}
         {showEditingPlugins && <EmojiPickerPlugin />}
         {showEditingPlugins && <AutoEmbedPlugin />}
         {showEditingPlugins && <MentionsPlugin />}
@@ -189,15 +182,8 @@ export default function Editor({
             <HistoryPlugin externalHistoryState={historyState} />
             <RichTextPlugin
               contentEditable={
-                <div
-                  className="editor-scroller"
-                  onMouseDown={handleEditorScrollerMouseDown}
-                >
-                  <div
-                    className="editor"
-                    ref={onRef}
-                    onMouseDown={handleEditorScrollerMouseDown}
-                  >
+                <div className="editor-scroller" onMouseDown={handleEditorScrollerMouseDown}>
+                  <div className="editor" ref={onRef} onMouseDown={handleEditorScrollerMouseDown}>
                     <ContentEditable placeholder={placeholder} />
                   </div>
                 </div>
@@ -217,9 +203,7 @@ export default function Editor({
             <TableThemeSyncPlugin />
             {showEditingPlugins && <TableCellResizer />}
             <TableScrollShadowPlugin />
-            {showEditingPlugins && (
-              <ImagesPlugin imageLibraryOptions={imageLibraryOptions} />
-            )}
+            {showEditingPlugins && <ImagesPlugin imageLibraryOptions={imageLibraryOptions} />}
             <LinkPlugin hasLinkAttributes={hasLinkAttributes} />
             {showEditingPlugins && <PollPlugin />}
             <TwitterPlugin />
@@ -237,25 +221,20 @@ export default function Editor({
                   isLinkEditMode={isLinkEditMode}
                   setIsLinkEditMode={setIsLinkEditMode}
                 />
-                <TableCellActionMenuPlugin
+                <TableCellActionMenuPlugin anchorElem={floatingAnchorElem} cellMerge={true} />
+              </>
+            )}
+            {showEditingPlugins && floatingAnchorElem && !isSmallWidthViewport && (
+              <>
+                <DraggableBlockPlugin anchorElem={floatingAnchorElem} />
+                <CodeActionMenuPlugin anchorElem={floatingAnchorElem} />
+                <TableHoverActionsV2Plugin anchorElem={floatingAnchorElem} />
+                <FloatingTextFormatToolbarPlugin
                   anchorElem={floatingAnchorElem}
-                  cellMerge={true}
+                  setIsLinkEditMode={setIsLinkEditMode}
                 />
               </>
             )}
-            {showEditingPlugins &&
-              floatingAnchorElem &&
-              !isSmallWidthViewport && (
-                <>
-                  <DraggableBlockPlugin anchorElem={floatingAnchorElem} />
-                  <CodeActionMenuPlugin anchorElem={floatingAnchorElem} />
-                  <TableHoverActionsV2Plugin anchorElem={floatingAnchorElem} />
-                  <FloatingTextFormatToolbarPlugin
-                    anchorElem={floatingAnchorElem}
-                    setIsLinkEditMode={setIsLinkEditMode}
-                  />
-                </>
-              )}
           </>
         ) : (
           <>

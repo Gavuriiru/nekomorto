@@ -16,7 +16,10 @@ const Button = DashboardActionButton;
 
 type StaffFieldKey = "staff" | "animeStaff";
 
-const normalizeMemberKey = (value: string) => String(value || "").trim().toLowerCase();
+const normalizeMemberKey = (value: string) =>
+  String(value || "")
+    .trim()
+    .toLowerCase();
 
 type ProjectEditorStaffSectionProps = {
   cardClassName: string;

@@ -224,7 +224,11 @@ describe("Project public readable chapters", () => {
     const sourceLink = await screen.findByRole("link", { name: "Proton Drive" });
     expect(sourceLink).toHaveAttribute("href", "https://example.com/proton");
     expect(classTokens(sourceLink)).toEqual(
-      expect.arrayContaining(["rounded-full", "bg-card/70", "hover:bg-primary/10"]),
+      expect.arrayContaining([
+        "rounded-full",
+        "bg-card/70",
+        "hover:bg-[var(--download-source-hover-bg)]",
+      ]),
     );
     expect(classTokens(sourceLink)).not.toContain("bg-primary/10");
     const readLink = await screen.findByRole("link", { name: /Ler cap.tulo/i });

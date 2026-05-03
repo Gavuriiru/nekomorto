@@ -14,9 +14,7 @@ export function getThemeSelector(
 ): string {
   const className = getTheme()?.[name];
   if (typeof className !== "string") {
-    throw new Error(
-      `getThemeClass: required theme property ${name} not defined`,
-    );
+    throw new Error(`getThemeClass: required theme property ${name} not defined`);
   }
   return className
     .split(/\s+/g)

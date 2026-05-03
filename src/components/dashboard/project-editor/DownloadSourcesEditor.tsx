@@ -44,7 +44,10 @@ const DownloadSourcesEditor = ({
   const [draggedSourceIndex, setDraggedSourceIndex] = useState<number | null>(null);
   const [dropTargetIndex, setDropTargetIndex] = useState<number | null>(null);
 
-  const updateSource = (sourceIndex: number, updater: (source: DownloadSource) => DownloadSource) => {
+  const updateSource = (
+    sourceIndex: number,
+    updater: (source: DownloadSource) => DownloadSource,
+  ) => {
     onChange(
       normalizedSources.map((source, index) => (index === sourceIndex ? updater(source) : source)),
     );

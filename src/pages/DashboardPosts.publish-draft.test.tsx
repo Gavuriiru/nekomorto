@@ -120,7 +120,7 @@ const setupApiMock = (initialStatus: PostStatus) => {
         name: "Admin",
         username: "admin",
         permissions: ["posts"],
-    grants: { posts: true },
+        grants: { posts: true },
       });
     }
     if (path === "/api/projects" && method === "GET") {

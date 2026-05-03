@@ -13,7 +13,9 @@ describe("PublicPageHero", () => {
     expect(screen.getByRole("heading", { name: "Conheca a equipe" })).toBeInTheDocument();
     expect(screen.getByText("Texto de apoio")).toBeInTheDocument();
     expect(container.querySelector("section")).toHaveClass("relative", "overflow-hidden");
-    expect(container.querySelector("section")?.className).toContain("[background-image:var(--gradient-public-hero)]");
+    expect(container.querySelector("section")?.className).toContain(
+      "[background-image:var(--gradient-public-hero)]",
+    );
   });
 
   it("nao renderiza badge vazio", () => {

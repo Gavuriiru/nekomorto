@@ -86,9 +86,7 @@ describe("imageInsertion", () => {
     );
 
     expect(editor.update).toHaveBeenCalledTimes(1);
-    expect(restoreRangeSelectionSnapshotSpy).toHaveBeenCalledWith(
-      selectionSnapshot,
-    );
+    expect(restoreRangeSelectionSnapshotSpy).toHaveBeenCalledWith(selectionSnapshot);
     expect(rootSelectEndSpy).not.toHaveBeenCalled();
     expect(createImageNodeSpy).toHaveBeenNthCalledWith(1, {
       altText: "Imagem A",
@@ -124,9 +122,7 @@ describe("imageInsertion", () => {
     }));
     isRootOrShadowRootSpy.mockReturnValue(false);
 
-    insertImagesIntoEditor(editor as never, [
-      { altText: "Imagem A", src: "/uploads/a.png" },
-    ]);
+    insertImagesIntoEditor(editor as never, [{ altText: "Imagem A", src: "/uploads/a.png" }]);
 
     expect(rootSelectEndSpy).toHaveBeenCalledTimes(1);
     expect(rootSelectEndSpy.mock.invocationCallOrder[0]).toBeLessThan(
@@ -148,9 +144,7 @@ describe("imageInsertion", () => {
     }));
     isRootOrShadowRootSpy.mockReturnValue(false);
 
-    insertImagesIntoEditor(editor as never, [
-      { altText: "Imagem A", src: "/uploads/a.png" },
-    ]);
+    insertImagesIntoEditor(editor as never, [{ altText: "Imagem A", src: "/uploads/a.png" }]);
 
     expect(rootSelectEndSpy).not.toHaveBeenCalled();
     expect(insertNodesSpy).toHaveBeenCalledTimes(1);
@@ -172,10 +166,7 @@ describe("imageInsertion", () => {
     });
 
     expect(insertNodesSpy).toHaveBeenCalledWith([imageNode]);
-    expect(wrapNodeInElementSpy).toHaveBeenCalledWith(
-      imageNode,
-      createParagraphNodeSpy,
-    );
+    expect(wrapNodeInElementSpy).toHaveBeenCalledWith(imageNode, createParagraphNodeSpy);
     expect(selectEndSpy).toHaveBeenCalledTimes(1);
   });
 });

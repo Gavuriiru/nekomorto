@@ -8,10 +8,7 @@
 
 import type { JSX } from "react";
 
-import {
-  AutoEmbedOption,
-  LexicalAutoEmbedPlugin,
-} from "@lexical/react/LexicalAutoEmbedPlugin";
+import { AutoEmbedOption, LexicalAutoEmbedPlugin } from "@lexical/react/LexicalAutoEmbedPlugin";
 import { useLexicalComposerContext } from "@lexical/react/LexicalComposerContext";
 import { COMMAND_PRIORITY_EDITOR } from "lexical";
 import { useCallback, useEffect } from "react";
@@ -94,10 +91,7 @@ export default function AutoEmbedPlugin(): JSX.Element {
   const [modal, showModal] = useModal();
 
   const openEmbedModal = useCallback(
-    (
-      embedConfig: PlaygroundEmbedConfig,
-      selectionSnapshot?: RangeSelectionSnapshot | null,
-    ) => {
+    (embedConfig: PlaygroundEmbedConfig, selectionSnapshot?: RangeSelectionSnapshot | null) => {
       showModal(`Embed ${embedConfig.contentName}`, (onClose) => (
         <AutoEmbedDialog
           embedConfig={embedConfig}
@@ -113,9 +107,7 @@ export default function AutoEmbedPlugin(): JSX.Element {
     return editor.registerCommand<OpenEmbedModalCommandPayload>(
       OPEN_EMBED_MODAL_WITH_SELECTION_COMMAND,
       (payload) => {
-        const embedConfig = EmbedConfigs.find(
-          (config) => config.type === payload.type,
-        );
+        const embedConfig = EmbedConfigs.find((config) => config.type === payload.type);
 
         if (!embedConfig) {
           return false;
@@ -152,12 +144,7 @@ export default function AutoEmbedPlugin(): JSX.Element {
         getMenuOptions={getMenuOptions}
         menuRenderFn={(
           anchorElementRef,
-          {
-            selectedIndex,
-            options,
-            selectOptionAndCleanUp,
-            setHighlightedIndex,
-          },
+          { selectedIndex, options, selectOptionAndCleanUp, setHighlightedIndex },
         ) =>
           anchorElementRef.current
             ? ReactDOM.createPortal(

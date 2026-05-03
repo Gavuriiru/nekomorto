@@ -293,18 +293,25 @@ export const registerSelfServiceRoutes = ({
   const handleIdentityUnlink = async (req, res) => {
     setNoStore(res);
     const userId = String(req.session?.user?.id || "").trim();
-    const provider = String(req.params?.provider || "").trim().toLowerCase();
+    const provider = String(req.params?.provider || "")
+      .trim()
+      .toLowerCase();
     if (!userId) {
       return res.status(401).json({ error: "unauthorized" });
     }
     if (!provider) {
       return res.status(400).json({ error: "invalid_provider" });
     }
-    const identityRecords = Array.isArray(loadUserIdentityRecords?.({ userId, includeDisabled: true }))
+    const identityRecords = Array.isArray(
+      loadUserIdentityRecords?.({ userId, includeDisabled: true }),
+    )
       ? loadUserIdentityRecords({ userId, includeDisabled: true })
       : [];
     const targetIdentity = identityRecords.find(
-      (entry) => String(entry?.provider || "").trim().toLowerCase() === provider,
+      (entry) =>
+        String(entry?.provider || "")
+          .trim()
+          .toLowerCase() === provider,
     );
     if (!targetIdentity?.id || targetIdentity.disabledAt) {
       return res.status(404).json({ error: "identity_not_found" });
@@ -333,7 +340,9 @@ export const registerSelfServiceRoutes = ({
 
   const handleIdentityLinkStart = (req, res) => {
     setNoStore(res);
-    const provider = String(req.params?.provider || "").trim().toLowerCase();
+    const provider = String(req.params?.provider || "")
+      .trim()
+      .toLowerCase();
     const next =
       typeof req.query?.next === "string" && req.query.next.trim()
         ? req.query.next.trim()

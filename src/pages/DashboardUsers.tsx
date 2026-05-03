@@ -157,23 +157,23 @@ const hasLegacyAdminSignal = (
 const buildSelfUserRecord = (
   currentUser:
     | {
-      id: string;
-      name: string;
-      username: string;
-      avatarUrl?: string | null;
-      revision?: string | null;
-      accessRole?: AccessRole;
-      grants?: Partial<Record<string, boolean>>;
-      permissions?: string[];
-      ownerIds?: string[];
-      primaryOwnerId?: string | null;
-      isAdmin?: boolean;
-      email?: string | null;
-      phrase?: string;
-      bio?: string;
-      socials?: Array<{ label: string; href: string }>;
-      favoriteWorks?: FavoriteWorksByCategory;
-    }
+        id: string;
+        name: string;
+        username: string;
+        avatarUrl?: string | null;
+        revision?: string | null;
+        accessRole?: AccessRole;
+        grants?: Partial<Record<string, boolean>>;
+        permissions?: string[];
+        ownerIds?: string[];
+        primaryOwnerId?: string | null;
+        isAdmin?: boolean;
+        email?: string | null;
+        phrase?: string;
+        bio?: string;
+        socials?: Array<{ label: string; href: string }>;
+        favoriteWorks?: FavoriteWorksByCategory;
+      }
     | null
     | undefined,
 ) => {
@@ -604,7 +604,9 @@ const DashboardUsers = () => {
   const [securityEnrollCode, setSecurityEnrollCode] = useState("");
   const [securityDisableCode, setSecurityDisableCode] = useState("");
   const [securityRecoveryCodes, setSecurityRecoveryCodes] = useState<string[]>([]);
-  const [isDisconnectingIdentityProvider, setIsDisconnectingIdentityProvider] = useState<string | null>(null);
+  const [isDisconnectingIdentityProvider, setIsDisconnectingIdentityProvider] = useState<
+    string | null
+  >(null);
   const fallbackLinkTypes = useMemo(
     () => [
       { id: "instagram", label: "Instagram", icon: "instagram" },
@@ -651,7 +653,8 @@ const DashboardUsers = () => {
   const isAdminActor = actorAccessRole === "admin";
   const actorCanUsers = currentUser?.grants?.usuarios === true;
   const actorCanUploadManagement = currentUser?.grants?.uploads === true;
-  const canManageUsers = actorCanUsers && (isPrimaryOwnerActor || isSecondaryOwnerActor || isAdminActor);
+  const canManageUsers =
+    actorCanUsers && (isPrimaryOwnerActor || isSecondaryOwnerActor || isAdminActor);
   const allowSelfEditOnly = !actorCanUsers && isSelfEditQuery(searchParams);
   const canManageOwners = isPrimaryOwnerActor;
   const isOwnerUser = useCallback(
@@ -825,17 +828,19 @@ const DashboardUsers = () => {
   const canEditBasicFields = !editingUser
     ? canCreateUsers
     : isEditingSelf ||
-    (actorCanUsers &&
-      (isPrimaryOwnerActor ||
-        (isSecondaryOwnerActor && !isOwnerRecord) ||
-        (isAdminActor && !isOwnerRecord)));
+      (actorCanUsers &&
+        (isPrimaryOwnerActor ||
+          (isSecondaryOwnerActor && !isOwnerRecord) ||
+          (isAdminActor && !isOwnerRecord)));
   const canEditRoles = !editingUser
     ? canCreateUsers
     : actorCanUsers &&
-    (isPrimaryOwnerActor ||
-      (isSecondaryOwnerActor && !isOwnerRecord) ||
-      (isAdminActor && !isOwnerRecord));
-  const canEditAccessControls = !editingUser ? canCreateUsers && isPrimaryOwnerActor : isPrimaryOwnerActor;
+      (isPrimaryOwnerActor ||
+        (isSecondaryOwnerActor && !isOwnerRecord) ||
+        (isAdminActor && !isOwnerRecord));
+  const canEditAccessControls = !editingUser
+    ? canCreateUsers && isPrimaryOwnerActor
+    : isPrimaryOwnerActor;
   const canEditStatus = canEditRoles && !isEditingSelf && !isPrimaryOwnerRecord;
   const basicProfileOnlyEdit = Boolean(editingUser && canEditBasicFields && !canEditAccessControls);
   const canResetManagedUserTotp = Boolean(
@@ -845,7 +850,9 @@ const DashboardUsers = () => {
   useEffect(() => {
     let isActive = true;
     const hasWarmState =
-      usersRef.current.length > 0 || ownerIdsRef.current.length > 0 || linkTypesRef.current.length > 0;
+      usersRef.current.length > 0 ||
+      ownerIdsRef.current.length > 0 ||
+      linkTypesRef.current.length > 0;
     const load = async () => {
       try {
         if (isActive) {
@@ -1174,13 +1181,15 @@ const DashboardUsers = () => {
         toast({ title: "Código da V2F inválido", variant: "destructive" });
         return;
       }
-      toast({ title: "Não foi possível confirmar a V2F", variant: "destructive" });      return;
+      toast({ title: "Não foi possível confirmar a V2F", variant: "destructive" });
+      return;
     }
     const body = await response.json();
     setSecurityRecoveryCodes(Array.isArray(body.recoveryCodes) ? body.recoveryCodes : []);
     setSecurityEnrollment(null);
     setSecurityEnrollCode("");
-    toast({ title: "V2F ativada" });    await refreshSelfSecurity();
+    toast({ title: "V2F ativada" });
+    await refreshSelfSecurity();
   };
 
   const disableSelfTotp = async () => {
@@ -1198,7 +1207,8 @@ const DashboardUsers = () => {
     }
     setSecurityDisableCode("");
     setSecurityEnrollment(null);
-    toast({ title: "V2F desativada" });    await refreshSelfSecurity();
+    toast({ title: "V2F desativada" });
+    await refreshSelfSecurity();
   };
 
   const revokeSelfSession = async (sid: string) => {
@@ -1268,10 +1278,14 @@ const DashboardUsers = () => {
 
   const identityRows = useMemo(() => {
     const byProvider = new Map(
-      (Array.isArray(securitySummary?.identities) ? securitySummary.identities : []).map((entry) => [
-        String(entry.provider || "").trim().toLowerCase(),
-        entry,
-      ]),
+      (Array.isArray(securitySummary?.identities) ? securitySummary.identities : []).map(
+        (entry) => [
+          String(entry.provider || "")
+            .trim()
+            .toLowerCase(),
+          entry,
+        ],
+      ),
     );
     return ["discord", "google"].map((provider) => ({
       provider,
@@ -1280,11 +1294,17 @@ const DashboardUsers = () => {
   }, [securitySummary?.identities]);
 
   const linkedProvider = useMemo(
-    () => String(searchParams.get("linked") || "").trim().toLowerCase(),
+    () =>
+      String(searchParams.get("linked") || "")
+        .trim()
+        .toLowerCase(),
     [searchParams],
   );
   const linkedProviderError = useMemo(
-    () => String(searchParams.get("error") || "").trim().toLowerCase(),
+    () =>
+      String(searchParams.get("error") || "")
+        .trim()
+        .toLowerCase(),
     [searchParams],
   );
 
@@ -1326,9 +1346,11 @@ const DashboardUsers = () => {
   const formatIdentityStatusLabel = (identity?: { linked?: boolean } | null) =>
     identity?.linked ? "Conectada" : "Não conectada";
 
-  const formatIdentityLastUsed = (value: string | null | undefined) => formatSecurityDateTime(value);
+  const formatIdentityLastUsed = (value: string | null | undefined) =>
+    formatSecurityDateTime(value);
 
-  const formatIdentityLinkedAt = (value: string | null | undefined) => formatSecurityDateTime(value);
+  const formatIdentityLinkedAt = (value: string | null | undefined) =>
+    formatSecurityDateTime(value);
 
   const renderConnectedAccountsCard = () => (
     <div className={`space-y-3 rounded-2xl p-3 ${subtleInsetSurfaceClassName}`}>
@@ -1567,7 +1589,9 @@ const DashboardUsers = () => {
       }
       const nextUserRecord = data.user
         ? {
-            ...(editingUser || currentUserRecordRef.current || buildSelfUserRecord(currentUserRef.current)),
+            ...(editingUser ||
+              currentUserRecordRef.current ||
+              buildSelfUserRecord(currentUserRef.current)),
             ...data.user,
           }
         : null;
@@ -1688,14 +1712,16 @@ const DashboardUsers = () => {
     );
     if (!response.ok) {
       setIsResettingMfa(false);
-      toast({ title: "Não foi possível redefinir a V2F", variant: "destructive" });      return;
+      toast({ title: "Não foi possível redefinir a V2F", variant: "destructive" });
+      return;
     }
     setResetMfaTarget(null);
     setIsResettingMfa(false);
     toast({
       title: "V2F redefinida",
       description: `${targetName} pode entrar novamente sem o dispositivo anterior.`,
-    });  };
+    });
+  };
 
   const toggleRole = (role: string) => {
     if (!canEditRoles) {
@@ -2206,8 +2232,9 @@ const DashboardUsers = () => {
       <Dialog open={isDialogOpen} onOpenChange={handleEditorOpenChange} modal={false}>
         {isDialogOpen ? <DashboardEditorBackdrop /> : null}
         <DialogContent
-          className={`project-editor-dialog ${dashboardEditorDialogWidthClassName} gap-0 p-0 ${isEditorDialogScrolled ? "editor-modal-scrolled" : ""
-            }`}
+          className={`project-editor-dialog ${dashboardEditorDialogWidthClassName} gap-0 p-0 ${
+            isEditorDialogScrolled ? "editor-modal-scrolled" : ""
+          }`}
           onPointerDownOutside={(event) => {
             if (isLibraryOpen) {
               event.preventDefault();
@@ -2318,7 +2345,9 @@ const DashboardUsers = () => {
                             onChange={(event) =>
                               setFormState((prev) => ({ ...prev, id: event.target.value }))
                             }
-                            placeholder={editingUser ? "ID interno" : "Gerado automaticamente ao salvar"}
+                            placeholder={
+                              editingUser ? "ID interno" : "Gerado automaticamente ao salvar"
+                            }
                             disabled={Boolean(editingUser) || !canManageUsers}
                           />
                           {!editingUser ? (
@@ -2491,10 +2520,11 @@ const DashboardUsers = () => {
                               <div
                                 key={`${social.label}-${index}`}
                                 data-testid={`user-social-row-${index}`}
-                                className={`overflow-x-auto rounded-xl p-2 ${socialDragOverIndex === index
+                                className={`overflow-x-auto rounded-xl p-2 ${
+                                  socialDragOverIndex === index
                                     ? `${subtleSurfaceClassName} border-primary/40 bg-primary/5`
                                     : subtleSurfaceClassName
-                                  }`}
+                                }`}
                                 onDragOver={(event) => handleSocialDragOver(event, index)}
                                 onDrop={(event) => handleSocialDrop(event, index)}
                               >
@@ -2783,7 +2813,9 @@ const DashboardUsers = () => {
 
                         {securityRecoveryCodes.length > 0 ? (
                           <div className="space-y-2 rounded-2xl border border-amber-500/30 bg-amber-500/10 p-3">
-                            <p className="text-xs font-medium">Salve estes códigos de recuperação agora:</p>
+                            <p className="text-xs font-medium">
+                              Salve estes códigos de recuperação agora:
+                            </p>
                             <div className="grid gap-1 md:grid-cols-2">
                               {securityRecoveryCodes.map((code) => (
                                 <code key={code} className="rounded bg-card px-2 py-1 text-xs">
@@ -2889,8 +2921,9 @@ const DashboardUsers = () => {
                     <AccordionTrigger className={editorSectionTriggerClassName}>
                       <ProjectEditorAccordionHeader
                         title="Acesso e permissões"
-                        subtitle={`${editorAccessRoleLabel} • ${stripOwnerRole(formState.roles).length
-                          } funções`}
+                        subtitle={`${editorAccessRoleLabel} • ${
+                          stripOwnerRole(formState.roles).length
+                        } funções`}
                       />
                     </AccordionTrigger>
                     <AccordionContent className={editorSectionContentClassName}>
@@ -2944,12 +2977,15 @@ const DashboardUsers = () => {
                                           new Set([
                                             ...prev.permissions,
                                             ...permissionOptions
-                                              .filter((option) => DEFAULT_ADMIN_PERMISSION_SET.has(option.id))
+                                              .filter((option) =>
+                                                DEFAULT_ADMIN_PERMISSION_SET.has(option.id),
+                                              )
                                               .map((option) => option.id),
                                           ]),
                                         )
                                       : prev.permissions.filter(
-                                          (permission) => !DEFAULT_ADMIN_PERMISSION_SET.has(permission),
+                                          (permission) =>
+                                            !DEFAULT_ADMIN_PERMISSION_SET.has(permission),
                                         ),
                                 }))
                               }
@@ -2997,7 +3033,8 @@ const DashboardUsers = () => {
                           </div>
                           {!canEditAccessControls && (
                             <p className="text-xs text-muted-foreground">
-                              Apenas donos com permissão de acesso podem alterar permissões de acesso.
+                              Apenas donos com permissão de acesso podem alterar permissões de
+                              acesso.
                             </p>
                           )}
                         </div>

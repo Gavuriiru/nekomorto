@@ -22,9 +22,7 @@ export default function TableThemeSyncPlugin(): null {
 
   useEffect(() => {
     if (!editor.hasNodes([TableCellNode])) {
-      throw new Error(
-        "TableThemeSyncPlugin: TableCellNode is not registered on editor",
-      );
+      throw new Error("TableThemeSyncPlugin: TableCellNode is not registered on editor");
     }
 
     return editor.registerMutationListener(

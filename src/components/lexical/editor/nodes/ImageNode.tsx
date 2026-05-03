@@ -88,9 +88,7 @@ function $convertImageElement(domNode: Node): null | DOMConversionOutput {
 export function $isCaptionEditorEmpty(): boolean {
   // Search the document for any non-element node
   // to determine if it's empty or not
-  for (const { origin } of $extendCaretToRange(
-    $getChildCaret($getRoot(), "next"),
-  )) {
+  for (const { origin } of $extendCaretToRange($getChildCaret($getRoot(), "next"))) {
     if (!$isElementNode(origin)) {
       return false;
     }
@@ -141,8 +139,7 @@ export class ImageNode extends DecoratorNode<JSX.Element> {
   }
 
   static importJSON(serializedNode: SerializedImageNode): ImageNode {
-    const { altText, height, width, maxWidth, src, showCaption } =
-      serializedNode;
+    const { altText, height, width, maxWidth, src, showCaption } = serializedNode;
     return $createImageNode({
       altText,
       height,
@@ -183,17 +180,10 @@ export class ImageNode extends DecoratorNode<JSX.Element> {
         // Don't serialize the wrapping paragraph if there is only one
         let selection: null | RangeSelection = null;
         const firstChild = $getRoot().getFirstChild();
-        if (
-          $isParagraphNode(firstChild) &&
-          firstChild.getNextSibling() === null
-        ) {
+        if ($isParagraphNode(firstChild) && firstChild.getNextSibling() === null) {
           selection = $createRangeSelection();
           selection.anchor.set(firstChild.getKey(), 0, "element");
-          selection.focus.set(
-            firstChild.getKey(),
-            firstChild.getChildrenSize(),
-            "element",
-          );
+          selection.focus.set(firstChild.getKey(), firstChild.getChildrenSize(), "element");
         }
         return $generateHtmlFromNodes(captionEditor, selection);
       });
@@ -306,10 +296,7 @@ export class ImageNode extends DecoratorNode<JSX.Element> {
     };
   }
 
-  setWidthAndHeight(
-    width: "inherit" | number,
-    height: "inherit" | number,
-  ): void {
+  setWidthAndHeight(width: "inherit" | number, height: "inherit" | number): void {
     const writable = this.getWritable();
     writable.__width = width;
     writable.__height = height;
@@ -388,8 +375,6 @@ export function $createImageNode({
   );
 }
 
-export function $isImageNode(
-  node: LexicalNode | null | undefined,
-): node is ImageNode {
+export function $isImageNode(node: LexicalNode | null | undefined): node is ImageNode {
   return node instanceof ImageNode;
 }

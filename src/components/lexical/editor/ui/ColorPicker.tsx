@@ -12,28 +12,18 @@ import { ColorPicker as AriaColorPicker } from "@/components/ui/color-picker";
 
 interface ColorPickerProps {
   color: string;
-  onChange?: (
-    value: string,
-    skipHistoryStack: boolean,
-    skipRefocus: boolean,
-  ) => void;
+  onChange?: (value: string, skipHistoryStack: boolean, skipRefocus: boolean) => void;
 }
 
-export default function ColorPicker({
-  color,
-  onChange,
-}: Readonly<ColorPickerProps>): JSX.Element {
+export default function ColorPicker({ color, onChange }: Readonly<ColorPickerProps>): JSX.Element {
   const handleChange = (nextColor: unknown) => {
     if (!onChange) {
       return;
     }
 
     const next =
-      typeof (nextColor as { toString?: (format?: string) => string })
-        ?.toString === "function"
-        ? (nextColor as { toString: (format?: string) => string }).toString(
-            "hex",
-          )
+      typeof (nextColor as { toString?: (format?: string) => string })?.toString === "function"
+        ? (nextColor as { toString: (format?: string) => string }).toString("hex")
         : String(nextColor);
 
     onChange(next, false, true);

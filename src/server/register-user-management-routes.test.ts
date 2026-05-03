@@ -85,9 +85,16 @@ const createDependencies = ({ app, overrides = {} }) => ({
   })),
   isAdminUser: vi.fn(() => false),
   isBasicProfileField: vi.fn((field) =>
-    ["name", "phrase", "bio", "email", "avatarUrl", "avatarDisplay", "socials", "favoriteWorks"].includes(
-      field,
-    ),
+    [
+      "name",
+      "phrase",
+      "bio",
+      "email",
+      "avatarUrl",
+      "avatarDisplay",
+      "socials",
+      "favoriteWorks",
+    ].includes(field),
   ),
   isOwner: vi.fn((id) => String(id) === "owner-1"),
   isPrimaryOwner: vi.fn((id) => String(id) === "owner-1"),
@@ -663,5 +670,4 @@ describe("registerUserManagementRoutes", () => {
       }),
     );
   });
-
 });

@@ -8,12 +8,7 @@
 
 import type { JSX } from "react";
 
-import {
-  $isAutoLinkNode,
-  $isLinkNode,
-  LinkNode,
-  TOGGLE_LINK_COMMAND,
-} from "@lexical/link";
+import { $isAutoLinkNode, $isLinkNode, LinkNode, TOGGLE_LINK_COMMAND } from "@lexical/link";
 import { useLexicalComposerContext } from "@lexical/react/LexicalComposerContext";
 import { $findMatchingParent, mergeRegister } from "@lexical/utils";
 import {
@@ -110,16 +105,11 @@ export function InsertImageDialog({
       projectImageProjectIds={imageLibraryOptions?.projectImageProjectIds}
       projectImagesView={imageLibraryOptions?.projectImagesView}
       currentSelectionUrls={imageLibraryOptions?.currentSelectionUrls}
-      onRequestNavigateToUploads={
-        imageLibraryOptions?.onRequestNavigateToUploads
-      }
+      onRequestNavigateToUploads={imageLibraryOptions?.onRequestNavigateToUploads}
       mode="multiple"
       allowDeselect
       onSave={({ items }) => {
-        const payloads = getNewImageInsertPayloads(
-          items,
-          initialSelectionComparableSet,
-        );
+        const payloads = getNewImageInsertPayloads(items, initialSelectionComparableSet);
 
         if (payloads.length === 0) {
           return;
@@ -274,8 +264,7 @@ function $onDrop(event: DragEvent, editor: LexicalEditor): boolean {
   }
   const existingLink = $findMatchingParent(
     node,
-    (parent): parent is LinkNode =>
-      !$isAutoLinkNode(parent) && $isLinkNode(parent),
+    (parent): parent is LinkNode => !$isAutoLinkNode(parent) && $isLinkNode(parent),
   );
   event.preventDefault();
   if (canDropImage(event)) {

@@ -989,7 +989,11 @@ const DashboardPosts = () => {
   }, [activePosts, projectFilterId, projectMap, searchQuery, sortMode]);
 
   const sortedPosts = useMemo(() => {
-    if (sortMode === "projects" || sortMode === "recent" || !["alpha", "tags", "status", "views", "comments"].includes(sortMode)) {
+    if (
+      sortMode === "projects" ||
+      sortMode === "recent" ||
+      !["alpha", "tags", "status", "views", "comments"].includes(sortMode)
+    ) {
       // Precompute timestamps to avoid O(N log N) date parsing
       const mapped = filteredPosts.map((post) => ({
         post,

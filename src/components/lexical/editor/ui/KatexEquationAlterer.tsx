@@ -68,17 +68,11 @@ export default function KatexEquationAlterer({
       <div className="KatexEquationAlterer_centerRow">
         <ErrorBoundary
           onError={(error) =>
-            editor._onError(
-              error instanceof Error ? error : new Error(String(error)),
-            )
+            editor._onError(error instanceof Error ? error : new Error(String(error)))
           }
           fallback={null}
         >
-          <KatexRenderer
-            equation={equation}
-            inline={false}
-            onDoubleClick={() => null}
-          />
+          <KatexRenderer equation={equation} inline={false} onDoubleClick={() => null} />
         </ErrorBoundary>
       </div>
       <div className="KatexEquationAlterer_dialogActions">

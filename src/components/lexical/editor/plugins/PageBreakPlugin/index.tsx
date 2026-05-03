@@ -28,9 +28,7 @@ export default function PageBreakPlugin(): JSX.Element | null {
 
   useEffect(() => {
     if (!editor.hasNodes([PageBreakNode])) {
-      throw new Error(
-        "PageBreakPlugin: PageBreakNode is not registered on editor",
-      );
+      throw new Error("PageBreakPlugin: PageBreakNode is not registered on editor");
     }
 
     return mergeRegister(

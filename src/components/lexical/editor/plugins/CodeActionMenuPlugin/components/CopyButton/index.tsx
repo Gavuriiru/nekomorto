@@ -6,12 +6,7 @@
  *
  */
 import { $isCodeNode } from "@lexical/code";
-import {
-  $getNearestNodeFromDOMNode,
-  $getSelection,
-  $setSelection,
-  LexicalEditor,
-} from "lexical";
+import { $getNearestNodeFromDOMNode, $getSelection, $setSelection, LexicalEditor } from "lexical";
 import { useState } from "react";
 
 import { useDebounce } from "../../utils";
@@ -59,11 +54,7 @@ export function CopyButton({ editor, getCodeDOMNode }: Props) {
 
   return (
     <button className="menu-item" onClick={handleClick} aria-label="Copiar">
-      {isCopyCompleted ? (
-        <i className="format success" />
-      ) : (
-        <i className="format copy" />
-      )}
+      {isCopyCompleted ? <i className="format success" /> : <i className="format copy" />}
     </button>
   );
 }

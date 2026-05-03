@@ -127,9 +127,7 @@ export default function EquationComponent({
       ) : (
         <ErrorBoundary
           onError={(error) =>
-            editor._onError(
-              error instanceof Error ? error : new Error(String(error)),
-            )
+            editor._onError(error instanceof Error ? error : new Error(String(error)))
           }
           fallback={null}
         >

@@ -127,10 +127,7 @@ export const updateFontSizeInSelection = (
       prevFontSize = `${DEFAULT_FONT_SIZE}px`;
     }
     prevFontSize = prevFontSize.slice(0, -2);
-    const nextFontSize = calculateNextFontSize(
-      Number(prevFontSize),
-      updateType,
-    );
+    const nextFontSize = calculateNextFontSize(Number(prevFontSize), updateType);
     return `${nextFontSize}px`;
   };
 
@@ -157,12 +154,7 @@ export const updateFontSize = (
 ) => {
   if (inputValue !== "") {
     const nextFontSize = calculateNextFontSize(Number(inputValue), updateType);
-    updateFontSizeInSelection(
-      editor,
-      String(nextFontSize) + "px",
-      null,
-      skipRefocus,
-    );
+    updateFontSizeInSelection(editor, String(nextFontSize) + "px", null, skipRefocus);
   } else {
     updateFontSizeInSelection(editor, null, updateType, skipRefocus);
   }
@@ -212,10 +204,7 @@ export const formatCheckList = (editor: LexicalEditor, blockType: string) => {
   }
 };
 
-export const formatNumberedList = (
-  editor: LexicalEditor,
-  blockType: string,
-) => {
+export const formatNumberedList = (editor: LexicalEditor, blockType: string) => {
   if (blockType !== "number") {
     editor.update(() => {
       $addUpdateTag(SKIP_SELECTION_FOCUS_TAG);
@@ -259,10 +248,7 @@ export const formatCode = (editor: LexicalEditor, blockType: string) => {
   }
 };
 
-export const clearFormatting = (
-  editor: LexicalEditor,
-  skipRefocus: boolean = false,
-) => {
+export const clearFormatting = (editor: LexicalEditor, skipRefocus: boolean = false) => {
   editor.update(() => {
     if (skipRefocus) {
       $addUpdateTag(SKIP_DOM_SELECTION_TAG);
@@ -309,8 +295,7 @@ export const clearFormatting = (
           if (textNode.__format !== 0) {
             textNode.setFormat(0);
           }
-          const nearestBlockElement =
-            $getNearestBlockElementAncestorOrThrow(textNode);
+          const nearestBlockElement = $getNearestBlockElementAncestorOrThrow(textNode);
           if (nearestBlockElement.__format !== 0) {
             nearestBlockElement.setFormat("");
           }

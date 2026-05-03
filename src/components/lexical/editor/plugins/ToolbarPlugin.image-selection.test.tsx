@@ -1,10 +1,5 @@
 import { fireEvent, render, screen } from "@testing-library/react";
-import type {
-  ButtonHTMLAttributes,
-  MouseEvent,
-  ReactElement,
-  ReactNode,
-} from "react";
+import type { ButtonHTMLAttributes, MouseEvent, ReactElement, ReactNode } from "react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 const {
@@ -119,6 +114,7 @@ vi.mock("@/components/lexical/editor/plugins/ToolbarPlugin/sticky-state", () => 
   findToolbarScrollRoot: () => window,
   getScrollRootTop: () => 0,
   getStickyTopPx: () => 0,
+  getToolbarAvailableContentWidth: () => 0,
   isToolbarStickyStuck: () => false,
 }));
 
@@ -134,9 +130,7 @@ vi.mock("@/components/lexical/editor/plugins/ToolbarPlugin/utils", () => ({
 }));
 
 vi.mock("@/components/lexical/editor/ui/Button", () => ({
-  default: (props: ButtonHTMLAttributes<HTMLButtonElement>) => (
-    <button type="button" {...props} />
-  ),
+  default: (props: ButtonHTMLAttributes<HTMLButtonElement>) => <button type="button" {...props} />,
 }));
 
 vi.mock("@/components/lexical/editor/ui/DropdownColorPicker", () => ({
@@ -252,34 +246,35 @@ describe("ToolbarPlugin insert dropdown selection capture", () => {
     expect(captureCurrentRangeSelectionSpy).not.toHaveBeenCalled();
   });
 
-  it.each([["Tabela"], ["Enquete"], ["Layout de colunas"]])(
-    "passa o snapshot salvo para o dialogo de %s",
-    (buttonLabel: string) => {
-      const editor = createEditor();
-      const selectionSnapshot = { anchor: { key: "a" }, focus: { key: "b" } };
+  it.each([
+    ["Tabela"],
+    ["Enquete"],
+    ["Layout de colunas"],
+  ])("passa o snapshot salvo para o dialogo de %s", (buttonLabel: string) => {
+    const editor = createEditor();
+    const selectionSnapshot = { anchor: { key: "a" }, focus: { key: "b" } };
 
-      captureCurrentRangeSelectionSpy.mockReturnValue(selectionSnapshot);
+    captureCurrentRangeSelectionSpy.mockReturnValue(selectionSnapshot);
 
-      render(
-        <ToolbarPlugin
-          activeEditor={editor as never}
-          editor={editor as never}
-          imageLibraryOptions={undefined}
-          setActiveEditor={vi.fn()}
-          setIsLinkEditMode={vi.fn()}
-        />,
-      );
+    render(
+      <ToolbarPlugin
+        activeEditor={editor as never}
+        editor={editor as never}
+        imageLibraryOptions={undefined}
+        setActiveEditor={vi.fn()}
+        setIsLinkEditMode={vi.fn()}
+      />,
+    );
 
-      const button = screen.getByRole("button", {
-        name: new RegExp(buttonLabel, "i"),
-      });
-      fireEvent.mouseDown(button);
-      fireEvent.click(button);
+    const button = screen.getByRole("button", {
+      name: new RegExp(buttonLabel, "i"),
+    });
+    fireEvent.mouseDown(button);
+    fireEvent.click(button);
 
-      expect(captureCurrentRangeSelectionSpy).toHaveBeenLastCalledWith(editor);
-      expect(getLastModalProps().selectionSnapshot).toBe(selectionSnapshot);
-    },
-  );
+    expect(captureCurrentRangeSelectionSpy).toHaveBeenLastCalledWith(editor);
+    expect(getLastModalProps().selectionSnapshot).toBe(selectionSnapshot);
+  });
 
   it("restaura a selecao antes de inserir uma secao recolhivel", () => {
     const editor = createEditor();
@@ -302,50 +297,39 @@ describe("ToolbarPlugin insert dropdown selection capture", () => {
     fireEvent.click(collapsibleButton);
 
     expect(editor.update).toHaveBeenCalledTimes(1);
-    expect(restoreSelectionForInsertionSpy).toHaveBeenCalledWith(
-      selectionSnapshot,
+    expect(restoreSelectionForInsertionSpy).toHaveBeenCalledWith(selectionSnapshot);
+    expect(editor.dispatchCommand).toHaveBeenCalledWith(INSERT_COLLAPSIBLE_COMMAND, undefined);
+    expect(restoreSelectionForInsertionSpy.mock.invocationCallOrder[0]).toBeLessThan(
+      editor.dispatchCommand.mock.invocationCallOrder[0],
     );
-    expect(editor.dispatchCommand).toHaveBeenCalledWith(
-      INSERT_COLLAPSIBLE_COMMAND,
-      undefined,
-    );
-    expect(
-      restoreSelectionForInsertionSpy.mock.invocationCallOrder[0],
-    ).toBeLessThan(editor.dispatchCommand.mock.invocationCallOrder[0]);
   });
 
   it.each([
     ["X (Tweet)", "tweet"],
     ["Vídeo do YouTube", "youtube-video"],
-  ])(
-    "abre o fluxo de embed do toolbar com snapshot para %s",
-    (buttonLabel: string, type: string) => {
-      const editor = createEditor();
-      const selectionSnapshot = { anchor: { key: "a" }, focus: { key: "b" } };
+  ])("abre o fluxo de embed do toolbar com snapshot para %s", (buttonLabel: string, type: string) => {
+    const editor = createEditor();
+    const selectionSnapshot = { anchor: { key: "a" }, focus: { key: "b" } };
 
-      captureCurrentRangeSelectionSpy.mockReturnValue(selectionSnapshot);
+    captureCurrentRangeSelectionSpy.mockReturnValue(selectionSnapshot);
 
-      render(
-        <ToolbarPlugin
-          activeEditor={editor as never}
-          editor={editor as never}
-          imageLibraryOptions={undefined}
-          setActiveEditor={vi.fn()}
-          setIsLinkEditMode={vi.fn()}
-        />,
-      );
+    render(
+      <ToolbarPlugin
+        activeEditor={editor as never}
+        editor={editor as never}
+        imageLibraryOptions={undefined}
+        setActiveEditor={vi.fn()}
+        setIsLinkEditMode={vi.fn()}
+      />,
+    );
 
-      const embedButton = screen.getByRole("button", { name: buttonLabel });
-      fireEvent.mouseDown(embedButton);
-      fireEvent.click(embedButton);
+    const embedButton = screen.getByRole("button", { name: buttonLabel });
+    fireEvent.mouseDown(embedButton);
+    fireEvent.click(embedButton);
 
-      expect(editor.dispatchCommand).toHaveBeenCalledWith(
-        openEmbedModalWithSelectionCommand,
-        {
-          selectionSnapshot,
-          type,
-        },
-      );
-    },
-  );
+    expect(editor.dispatchCommand).toHaveBeenCalledWith(openEmbedModalWithSelectionCommand, {
+      selectionSnapshot,
+      type,
+    });
+  });
 });

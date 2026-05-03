@@ -96,7 +96,7 @@ const setupApiMock = (config?: { posts?: Array<Record<string, unknown>> }) => {
         name: "Admin",
         username: "admin",
         permissions: ["posts"],
-    grants: { posts: true },
+        grants: { posts: true },
       });
     }
     if (path === "/api/projects" && method === "GET") {
@@ -248,7 +248,10 @@ describe("DashboardPosts image library context", () => {
   });
 
   it("usa altura-base compactada no modo post-editor do lexical", () => {
-    const cssPath = resolve(process.cwd(), "src/components/lexical/editor/playground-overrides.css");
+    const cssPath = resolve(
+      process.cwd(),
+      "src/components/lexical/editor/playground-overrides.css",
+    );
     const cssSource = readFileSync(cssPath, "utf8");
 
     expect(cssSource).toContain("min-height: 540px;");

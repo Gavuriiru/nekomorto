@@ -57,7 +57,7 @@ const usersPayload = {
       socials: [],
       status: "active",
       permissions: ["usuarios"],
-    grants: { usuarios: true },
+      grants: { usuarios: true },
       roles: [],
       accessRole: "admin",
       order: 0,
@@ -71,7 +71,7 @@ const usersPayload = {
       socials: [],
       status: "retired",
       permissions: ["usuarios"],
-    grants: { usuarios: true },
+      grants: { usuarios: true },
       roles: [],
       accessRole: "admin",
       order: 1,
@@ -93,7 +93,7 @@ const mockLoadedRequests = () => {
         name: "Admin",
         username: "admin",
         accessRole: "admin",
-    grants: {
+        grants: {
           usuarios: true,
         },
         ownerIds: [],
@@ -132,7 +132,7 @@ describe("DashboardUsers count badges", () => {
           name: "Admin",
           username: "admin",
           accessRole: "admin",
-      grants: {
+          grants: {
             usuarios: true,
           },
           ownerIds: [],

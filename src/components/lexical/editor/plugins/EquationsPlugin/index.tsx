@@ -60,9 +60,7 @@ export default function EquationsPlugin(): JSX.Element | null {
 
   useEffect(() => {
     if (!editor.hasNodes([EquationNode])) {
-      throw new Error(
-        "EquationsPlugins: EquationsNode not registered on editor",
-      );
+      throw new Error("EquationsPlugins: EquationsNode not registered on editor");
     }
 
     return editor.registerCommand<CommandPayload>(

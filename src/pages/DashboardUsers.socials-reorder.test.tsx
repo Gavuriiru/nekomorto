@@ -254,7 +254,7 @@ describe("DashboardUsers socials reorder", () => {
           id: "user-alpha",
           name: "Alpha",
           username: "alpha",
-      grants: { usuarios: true },
+          grants: { usuarios: true },
         });
       }
       if (path === "/api/link-types" && method === "GET") {
@@ -320,7 +320,7 @@ describe("DashboardUsers socials reorder", () => {
           id: "user-alpha",
           name: "Alpha",
           username: "alpha",
-      grants: { usuarios: true },
+          grants: { usuarios: true },
         });
       }
       if (path === "/api/link-types" && method === "GET") {

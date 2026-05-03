@@ -23,11 +23,7 @@ import {
 } from "lexical";
 import { useEffect, useState } from "react";
 
-import {
-  $createPollNode,
-  createPollOption,
-  PollNode,
-} from "../../nodes/PollNode";
+import { $createPollNode, createPollOption, PollNode } from "../../nodes/PollNode";
 import Button from "../../ui/Button";
 import { DialogActions } from "../../ui/Dialog";
 import TextInput from "../../ui/TextInput";
@@ -36,9 +32,7 @@ import {
   type RangeSelectionSnapshot,
 } from "../ImagesPlugin/selectionSnapshot";
 
-export const INSERT_POLL_COMMAND: LexicalCommand<string> = createCommand(
-  "INSERT_POLL_COMMAND",
-);
+export const INSERT_POLL_COMMAND: LexicalCommand<string> = createCommand("INSERT_POLL_COMMAND");
 
 export function InsertPollDialog({
   activeEditor,
@@ -91,10 +85,7 @@ export default function PollPlugin(): JSX.Element | null {
     return editor.registerCommand<string>(
       INSERT_POLL_COMMAND,
       (payload) => {
-        const pollNode = $createPollNode(payload, [
-          createPollOption(),
-          createPollOption(),
-        ]);
+        const pollNode = $createPollNode(payload, [createPollOption(), createPollOption()]);
         const selection = $getSelection();
         if (selection === null) {
           const root = $getRoot();

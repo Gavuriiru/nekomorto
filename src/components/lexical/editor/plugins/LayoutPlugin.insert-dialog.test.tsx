@@ -1,12 +1,10 @@
 import { fireEvent, render, screen } from "@testing-library/react";
 import { describe, expect, it, vi } from "vitest";
 
-const { insertLayoutCommand, restoreSelectionForInsertionSpy } = vi.hoisted(
-  () => ({
-    insertLayoutCommand: { type: "INSERT_LAYOUT_COMMAND" },
-    restoreSelectionForInsertionSpy: vi.fn(),
-  }),
-);
+const { insertLayoutCommand, restoreSelectionForInsertionSpy } = vi.hoisted(() => ({
+  insertLayoutCommand: { type: "INSERT_LAYOUT_COMMAND" },
+  restoreSelectionForInsertionSpy: vi.fn(),
+}));
 
 vi.mock("@/components/lexical/editor/plugins/ImagesPlugin/selectionSnapshot", () => ({
   restoreSelectionForInsertion: restoreSelectionForInsertionSpy,
@@ -38,16 +36,11 @@ describe("InsertLayoutDialog", () => {
     fireEvent.click(screen.getByRole("button", { name: /inserir/i }));
 
     expect(activeEditor.update).toHaveBeenCalledTimes(1);
-    expect(restoreSelectionForInsertionSpy).toHaveBeenCalledWith(
-      selectionSnapshot,
+    expect(restoreSelectionForInsertionSpy).toHaveBeenCalledWith(selectionSnapshot);
+    expect(activeEditor.dispatchCommand).toHaveBeenCalledWith(insertLayoutCommand, "1fr 1fr");
+    expect(restoreSelectionForInsertionSpy.mock.invocationCallOrder[0]).toBeLessThan(
+      activeEditor.dispatchCommand.mock.invocationCallOrder[0],
     );
-    expect(activeEditor.dispatchCommand).toHaveBeenCalledWith(
-      insertLayoutCommand,
-      "1fr 1fr",
-    );
-    expect(
-      restoreSelectionForInsertionSpy.mock.invocationCallOrder[0],
-    ).toBeLessThan(activeEditor.dispatchCommand.mock.invocationCallOrder[0]);
     expect(onClose).toHaveBeenCalledTimes(1);
   });
 });

@@ -284,12 +284,20 @@ describe("DashboardShell avatar render", () => {
     expect(profileCard.className).toContain("border");
     expect(profileCard.className).toContain("rounded-[1.15rem]");
     expect(profileCard.className).toContain("border-sidebar-border/70");
-    expect(profileCard.className).toContain("bg-[linear-gradient(180deg,hsl(var(--sidebar-accent)/0.34),hsl(var(--sidebar-accent)/0.18))]");
+    expect(profileCard.className).toContain(
+      "bg-[linear-gradient(180deg,hsl(var(--sidebar-accent)/0.34),hsl(var(--sidebar-accent)/0.18))]",
+    );
     expect(profileCard.className).not.toContain("hover:border-sidebar-ring/45");
-    expect(profileCard.className).not.toContain("hover:bg-[linear-gradient(180deg,hsl(var(--sidebar-accent)/0.5),hsl(var(--sidebar-accent)/0.28))]");
+    expect(profileCard.className).not.toContain(
+      "hover:bg-[linear-gradient(180deg,hsl(var(--sidebar-accent)/0.5),hsl(var(--sidebar-accent)/0.28))]",
+    );
     expect(profileCard.className).toContain("overflow-hidden");
-    expect(profileCard.className).toContain("transition-[width,height,padding,gap,background-color,border-color,box-shadow,transform]");
-    expect(profileCard.className).toContain("shadow-[0_18px_40px_-28px_hsl(var(--sidebar-background)/0.95)]");
+    expect(profileCard.className).toContain(
+      "transition-[width,height,padding,gap,background-color,border-color,box-shadow,transform]",
+    );
+    expect(profileCard.className).toContain(
+      "shadow-[0_18px_40px_-28px_hsl(var(--sidebar-background)/0.95)]",
+    );
     expect(textWrap.className).toContain("max-w-[10rem]");
     expect(textWrap.className).toContain("transition-[max-width,opacity,transform]");
     expect(avatar.className).toContain("border");

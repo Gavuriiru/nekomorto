@@ -18,19 +18,16 @@ vi.mock("@/lib/api-base", () => ({
   getApiBase: () => "http://api.local",
 }));
 
-vi.mock(
-  "@/components/lexical/editor/plugins/ImagesPlugin/imageInsertion",
-  async () => {
-    const actual = await vi.importActual<
-      typeof import("@/components/lexical/editor/plugins/ImagesPlugin/imageInsertion")
-    >("@/components/lexical/editor/plugins/ImagesPlugin/imageInsertion");
+vi.mock("@/components/lexical/editor/plugins/ImagesPlugin/imageInsertion", async () => {
+  const actual = await vi.importActual<
+    typeof import("@/components/lexical/editor/plugins/ImagesPlugin/imageInsertion")
+  >("@/components/lexical/editor/plugins/ImagesPlugin/imageInsertion");
 
-    return {
-      ...actual,
-      insertImagesIntoEditor: insertImagesIntoEditorSpy,
-    };
-  },
-);
+  return {
+    ...actual,
+    insertImagesIntoEditor: insertImagesIntoEditorSpy,
+  };
+});
 
 import {
   InsertImageDialog,
@@ -169,9 +166,7 @@ describe("InsertImageDialog", () => {
     };
 
     props.onSave({
-      items: [
-        { source: "upload", url: "/uploads/posts/a.png", name: "Imagem A" },
-      ],
+      items: [{ source: "upload", url: "/uploads/posts/a.png", name: "Imagem A" }],
     });
 
     expect(insertImagesIntoEditorSpy).not.toHaveBeenCalled();

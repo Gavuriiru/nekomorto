@@ -616,7 +616,11 @@ const Dashboard = () => {
     [homePreferences, homeRole, rolePresetWidgets],
   );
   const allowedWidgetIds = useMemo(
-    () => resolveVisibleDashboardWidgets(DASHBOARD_WIDGET_IDS, currentUser as Record<string, unknown> | null),
+    () =>
+      resolveVisibleDashboardWidgets(
+        DASHBOARD_WIDGET_IDS,
+        currentUser as Record<string, unknown> | null,
+      ),
     [currentUser],
   );
   const visibleWidgets = useMemo(

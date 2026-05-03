@@ -25,11 +25,7 @@ describe("DownloadSourcesEditor", () => {
   it("reordena fontes por drag and drop", () => {
     const onChange = vi.fn();
     render(
-      <DownloadSourcesEditor
-        sources={sources}
-        sourceAriaLabelPrefix="Fonte"
-        onChange={onChange}
-      />,
+      <DownloadSourcesEditor sources={sources} sourceAriaLabelPrefix="Fonte" onChange={onChange} />,
     );
 
     const firstHandle = screen.getByLabelText("Reordenar fonte 1");
@@ -50,9 +46,7 @@ describe("DownloadSourcesEditor", () => {
   });
 
   it("exibe estado vazio quando nao ha fontes", () => {
-    render(
-      <DownloadSourcesEditor sources={[]} sourceAriaLabelPrefix="Fonte" onChange={vi.fn()} />,
-    );
+    render(<DownloadSourcesEditor sources={[]} sourceAriaLabelPrefix="Fonte" onChange={vi.fn()} />);
 
     expect(screen.getByText("Nenhuma fonte cadastrada.")).toBeInTheDocument();
   });

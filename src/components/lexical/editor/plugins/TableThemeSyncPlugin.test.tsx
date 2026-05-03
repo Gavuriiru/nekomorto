@@ -1,44 +1,38 @@
 import { render } from "@testing-library/react";
 import { describe, expect, it, vi } from "vitest";
 
-const { editor, nodeMap, elementMap, getMutationListener, tableCellNodeClass } =
-  vi.hoisted(() => {
-    const nodeMap = new Map<
-      string,
-      { getBackgroundColor: () => string | null }
-    >();
-    const elementMap = new Map<string, HTMLElement>();
-    let mutationListener:
-      | ((mutations: Map<string, "created" | "updated" | "destroyed">) => void)
-      | null = null;
-    const tableCellNodeClass = class {};
-    const editor = {
-      hasNodes: vi.fn(() => true),
-      registerMutationListener: vi.fn(
-        (
-          _nodeClass: unknown,
-          listener: (
-            mutations: Map<string, "created" | "updated" | "destroyed">,
-          ) => void,
-        ) => {
-          mutationListener = listener;
-          return vi.fn();
-        },
-      ),
-      getEditorState: vi.fn(() => ({
-        read: (callback: () => void) => callback(),
-      })),
-      getElementByKey: vi.fn((key: string) => elementMap.get(key) ?? null),
-    };
+const { editor, nodeMap, elementMap, getMutationListener, tableCellNodeClass } = vi.hoisted(() => {
+  const nodeMap = new Map<string, { getBackgroundColor: () => string | null }>();
+  const elementMap = new Map<string, HTMLElement>();
+  let mutationListener:
+    | ((mutations: Map<string, "created" | "updated" | "destroyed">) => void)
+    | null = null;
+  const tableCellNodeClass = class {};
+  const editor = {
+    hasNodes: vi.fn(() => true),
+    registerMutationListener: vi.fn(
+      (
+        _nodeClass: unknown,
+        listener: (mutations: Map<string, "created" | "updated" | "destroyed">) => void,
+      ) => {
+        mutationListener = listener;
+        return vi.fn();
+      },
+    ),
+    getEditorState: vi.fn(() => ({
+      read: (callback: () => void) => callback(),
+    })),
+    getElementByKey: vi.fn((key: string) => elementMap.get(key) ?? null),
+  };
 
-    return {
-      editor,
-      nodeMap,
-      elementMap,
-      getMutationListener: () => mutationListener,
-      tableCellNodeClass,
-    };
-  });
+  return {
+    editor,
+    nodeMap,
+    elementMap,
+    getMutationListener: () => mutationListener,
+    tableCellNodeClass,
+  };
+});
 
 vi.mock("@lexical/react/LexicalComposerContext", () => ({
   useLexicalComposerContext: () => [editor],
@@ -46,8 +40,7 @@ vi.mock("@lexical/react/LexicalComposerContext", () => ({
 
 vi.mock("@lexical/table", () => ({
   $isTableCellNode: (node: unknown) =>
-    typeof (node as { getBackgroundColor?: unknown } | null)
-      ?.getBackgroundColor === "function",
+    typeof (node as { getBackgroundColor?: unknown } | null)?.getBackgroundColor === "function",
   TableCellNode: tableCellNodeClass,
 }));
 

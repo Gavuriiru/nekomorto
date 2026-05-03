@@ -27,11 +27,7 @@ export default function YouTubeComponent({
   videoID,
 }: YouTubeComponentProps) {
   return (
-    <BlockWithAlignableContents
-      className={className}
-      format={format}
-      nodeKey={nodeKey}
-    >
+    <BlockWithAlignableContents className={className} format={format} nodeKey={nodeKey}>
       <div
         className="lexical-youtube"
         data-lexical-youtube-embed="true"

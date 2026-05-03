@@ -163,16 +163,10 @@ const Footer = ({ shellClassName = "" }: FooterProps) => {
         <div className="mx-auto flex max-w-7xl flex-col gap-2 px-6 py-6 text-xs text-muted-foreground md:flex-row md:justify-between md:px-12">
           <p>{footer.copyright || ""}</p>
           <div className="flex flex-wrap gap-x-4 gap-y-2">
-            <Link
-              to="/termos-de-uso"
-              className="transition-colors hover:text-foreground"
-            >
+            <Link to="/termos-de-uso" className="transition-colors hover:text-foreground">
               Termos de Uso
             </Link>
-            <Link
-              to="/politica-de-privacidade"
-              className="transition-colors hover:text-foreground"
-            >
+            <Link to="/politica-de-privacidade" className="transition-colors hover:text-foreground">
               Política de Privacidade
             </Link>
           </div>

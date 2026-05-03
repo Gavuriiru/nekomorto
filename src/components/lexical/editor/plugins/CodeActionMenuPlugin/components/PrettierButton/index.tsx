@@ -21,24 +21,16 @@ interface Props {
 const PRETTIER_PARSER_MODULES = {
   css: [() => import("prettier/parser-postcss")],
   html: [() => import("prettier/parser-html")],
-  js: [
-    () => import("prettier/parser-babel"),
-    () => import("prettier/plugins/estree"),
-  ],
+  js: [() => import("prettier/parser-babel"), () => import("prettier/plugins/estree")],
   markdown: [() => import("prettier/parser-markdown")],
-  typescript: [
-    () => import("prettier/parser-typescript"),
-    () => import("prettier/plugins/estree"),
-  ],
+  typescript: [() => import("prettier/parser-typescript"), () => import("prettier/plugins/estree")],
 } as const;
 
 type LanguagesType = keyof typeof PRETTIER_PARSER_MODULES;
 
 async function loadPrettierParserByLang(lang: string) {
   const dynamicImports = PRETTIER_PARSER_MODULES[lang as LanguagesType];
-  const modules = await Promise.all(
-    dynamicImports.map((dynamicImport) => dynamicImport()),
-  );
+  const modules = await Promise.all(dynamicImports.map((dynamicImport) => dynamicImport()));
   return modules;
 }
 
@@ -64,9 +56,7 @@ export function canBePrettier(lang: string): boolean {
 function getPrettierOptions(lang: string): Options {
   const options = PRETTIER_OPTIONS_BY_LANG[lang];
   if (!options) {
-    throw new Error(
-      `CodeActionMenuPlugin: Prettier does not support this language: ${lang}`,
-    );
+    throw new Error(`CodeActionMenuPlugin: Prettier does not support this language: ${lang}`);
   }
 
   return options;
@@ -97,9 +87,7 @@ export function PrettierButton({ lang, editor, getCodeDOMNode }: Props) {
       const format = await loadPrettierFormat();
       const options = getPrettierOptions(lang);
       const prettierParsers = await loadPrettierParserByLang(lang);
-      options.plugins = prettierParsers.map(
-        (parser) => parser.default || parser,
-      );
+      options.plugins = prettierParsers.map((parser) => parser.default || parser);
       const formattedCode = await format(content, options);
 
       editor.update(() => {
@@ -146,15 +134,9 @@ export function PrettierButton({ lang, editor, getCodeDOMNode }: Props) {
         onMouseLeave={handleMouseLeave}
         aria-label="Formatar com Prettier"
       >
-        {syntaxError ? (
-          <i className="format prettier-error" />
-        ) : (
-          <i className="format prettier" />
-        )}
+        {syntaxError ? <i className="format prettier-error" /> : <i className="format prettier" />}
       </button>
-      {tipsVisible ? (
-        <pre className="code-error-tips">{syntaxError}</pre>
-      ) : null}
+      {tipsVisible ? <pre className="code-error-tips">{syntaxError}</pre> : null}
     </div>
   );
 }

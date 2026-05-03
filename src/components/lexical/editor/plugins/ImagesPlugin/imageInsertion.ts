@@ -9,16 +9,11 @@ import {
 } from "lexical";
 
 import { $createImageNode, type ImagePayload } from "../../nodes/ImageNode";
-import {
-  restoreRangeSelectionSnapshot,
-  type RangeSelectionSnapshot,
-} from "./selectionSnapshot";
+import { restoreRangeSelectionSnapshot, type RangeSelectionSnapshot } from "./selectionSnapshot";
 
 export type InsertImagePayload = Readonly<ImagePayload>;
 
-export const insertImagePayloadAtCurrentSelection = (
-  payload: InsertImagePayload,
-) => {
+export const insertImagePayloadAtCurrentSelection = (payload: InsertImagePayload) => {
   const imageNode = $createImageNode(payload);
   $insertNodes([imageNode]);
 

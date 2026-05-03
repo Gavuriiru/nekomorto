@@ -9,9 +9,7 @@
 import { SerializedDocument } from "@lexical/file";
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
-async function* generateReader<T = any>(
-  reader: ReadableStreamDefaultReader<T>,
-) {
+async function* generateReader<T = any>(reader: ReadableStreamDefaultReader<T>) {
   let done = false;
   while (!done) {
     const res = await reader.read();
@@ -23,9 +21,7 @@ async function* generateReader<T = any>(
   }
 }
 
-async function readBytestoString(
-  reader: ReadableStreamDefaultReader,
-): Promise<string> {
+async function readBytestoString(reader: ReadableStreamDefaultReader): Promise<string> {
   const output: string[] = [];
   const chunkSize = 0x8000;
   for await (const value of generateReader(reader)) {
@@ -40,20 +36,13 @@ export async function docToHash(doc: SerializedDocument): Promise<string> {
   const cs = new CompressionStream("gzip");
   const writer = cs.writable.getWriter();
   const [, output] = await Promise.all([
-    writer
-      .write(new TextEncoder().encode(JSON.stringify(doc)))
-      .then(() => writer.close()),
+    writer.write(new TextEncoder().encode(JSON.stringify(doc))).then(() => writer.close()),
     readBytestoString(cs.readable.getReader()),
   ]);
-  return `#doc=${btoa(output)
-    .replace(/\//g, "_")
-    .replace(/\+/g, "-")
-    .replace(/=+$/, "")}`;
+  return `#doc=${btoa(output).replace(/\//g, "_").replace(/\+/g, "-").replace(/=+$/, "")}`;
 }
 
-export async function docFromHash(
-  hash: string,
-): Promise<SerializedDocument | null> {
+export async function docFromHash(hash: string): Promise<SerializedDocument | null> {
   const m = /^#doc=(.*)$/.exec(hash);
   if (!m) {
     return null;

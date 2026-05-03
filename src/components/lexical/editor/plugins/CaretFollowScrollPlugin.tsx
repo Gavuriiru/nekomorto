@@ -9,12 +9,12 @@ const CARET_VISIBILITY_PADDING_PX = 12;
 const hasMeasuredRect = (rect: DOMRect | null): rect is DOMRect =>
   Boolean(
     rect &&
-    (rect.width !== 0 ||
-      rect.height !== 0 ||
-      rect.top !== 0 ||
-      rect.bottom !== 0 ||
-      rect.left !== 0 ||
-      rect.right !== 0),
+      (rect.width !== 0 ||
+        rect.height !== 0 ||
+        rect.top !== 0 ||
+        rect.bottom !== 0 ||
+        rect.left !== 0 ||
+        rect.right !== 0),
   );
 
 const isElementScrollRoot = (value: ScrollRoot): value is HTMLElement =>
@@ -28,9 +28,7 @@ export const findCaretScrollRoot = (rootElement: HTMLElement): ScrollRoot => {
   return rootElement.ownerDocument.defaultView ?? window;
 };
 
-export const getCaretClientRect = (
-  rootElement: HTMLElement,
-): DOMRect | null => {
+export const getCaretClientRect = (rootElement: HTMLElement): DOMRect | null => {
   const selection = rootElement.ownerDocument.defaultView?.getSelection();
   if (!selection || selection.rangeCount === 0 || !selection.isCollapsed) {
     return null;
@@ -81,10 +79,7 @@ export const getCaretTopOffset = (
 
   const viewportRect = getScrollViewportRect(scrollRoot);
   const toolbarRect = toolbar.getBoundingClientRect();
-  if (
-    toolbarRect.bottom <= viewportRect.top ||
-    toolbarRect.top >= viewportRect.bottom
-  ) {
+  if (toolbarRect.bottom <= viewportRect.top || toolbarRect.top >= viewportRect.bottom) {
     return paddingPx;
   }
 
@@ -103,8 +98,7 @@ export const scrollCaretRectIntoView = ({
   paddingPx?: number;
 }): boolean => {
   const viewportRect = getScrollViewportRect(scrollRoot);
-  const visibleTop =
-    viewportRect.top + getCaretTopOffset(rootElement, scrollRoot, paddingPx);
+  const visibleTop = viewportRect.top + getCaretTopOffset(rootElement, scrollRoot, paddingPx);
   const visibleBottom = viewportRect.bottom - paddingPx;
 
   let delta = 0;

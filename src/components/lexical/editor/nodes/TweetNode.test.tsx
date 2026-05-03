@@ -77,11 +77,7 @@ const decorateTweetNode = (tweetID = "1234567890") => {
 
 const createTweetMock = () =>
   vi.fn(
-    async (
-      _tweetId: string,
-      container: HTMLElement,
-      options?: { theme?: "light" | "dark" },
-    ) => {
+    async (_tweetId: string, container: HTMLElement, options?: { theme?: "light" | "dark" }) => {
       const tweet = document.createElement("blockquote");
       tweet.className = "twitter-tweet-rendered";
       tweet.setAttribute("data-theme", String(options?.theme || ""));
@@ -137,11 +133,9 @@ describe("TweetNode", () => {
     render(decorateTweetNode());
 
     await waitFor(() => {
-      expect(widgetMock).toHaveBeenCalledWith(
-        "1234567890",
-        expect.any(HTMLElement),
-        { theme: "dark" },
-      );
+      expect(widgetMock).toHaveBeenCalledWith("1234567890", expect.any(HTMLElement), {
+        theme: "dark",
+      });
     });
   });
 
@@ -153,11 +147,9 @@ describe("TweetNode", () => {
     render(decorateTweetNode());
 
     await waitFor(() => {
-      expect(widgetMock).toHaveBeenCalledWith(
-        "1234567890",
-        expect.any(HTMLElement),
-        { theme: "light" },
-      );
+      expect(widgetMock).toHaveBeenCalledWith("1234567890", expect.any(HTMLElement), {
+        theme: "light",
+      });
     });
   });
 
@@ -168,22 +160,16 @@ describe("TweetNode", () => {
     setTwitterWidgets(widgetMock);
 
     const renderTree = () => (
-      <div data-theme-marker={themeState.effectiveMode}>
-        {decorateTweetNode()}
-      </div>
+      <div data-theme-marker={themeState.effectiveMode}>{decorateTweetNode()}</div>
     );
     const view = render(renderTree());
 
     await waitFor(() => {
       expect(widgetMock).toHaveBeenCalledTimes(1);
     });
+    expect(view.container.querySelectorAll(".twitter-tweet-rendered")).toHaveLength(1);
     expect(
-      view.container.querySelectorAll(".twitter-tweet-rendered"),
-    ).toHaveLength(1);
-    expect(
-      view.container
-        .querySelector(".twitter-tweet-rendered")
-        ?.getAttribute("data-theme"),
+      view.container.querySelector(".twitter-tweet-rendered")?.getAttribute("data-theme"),
     ).toBe("dark");
 
     themeState = createThemeState("light");
@@ -192,38 +178,24 @@ describe("TweetNode", () => {
     await waitFor(() => {
       expect(widgetMock).toHaveBeenCalledTimes(2);
     });
-    expect(widgetMock).toHaveBeenNthCalledWith(
-      1,
-      "1234567890",
-      expect.any(HTMLElement),
-      { theme: "dark" },
-    );
-    expect(widgetMock).toHaveBeenNthCalledWith(
-      2,
-      "1234567890",
-      expect.any(HTMLElement),
-      { theme: "light" },
-    );
+    expect(widgetMock).toHaveBeenNthCalledWith(1, "1234567890", expect.any(HTMLElement), {
+      theme: "dark",
+    });
+    expect(widgetMock).toHaveBeenNthCalledWith(2, "1234567890", expect.any(HTMLElement), {
+      theme: "light",
+    });
     await waitFor(() => {
-      expect(
-        view.container.querySelectorAll(".twitter-tweet-rendered"),
-      ).toHaveLength(1);
+      expect(view.container.querySelectorAll(".twitter-tweet-rendered")).toHaveLength(1);
     });
     expect(
-      view.container
-        .querySelector(".twitter-tweet-rendered")
-        ?.getAttribute("data-theme"),
+      view.container.querySelector(".twitter-tweet-rendered")?.getAttribute("data-theme"),
     ).toBe("light");
   });
 
   it("mantem o tweet atual visivel enquanto prepara o proximo para o crossfade", async () => {
     let resolveLightTheme: (() => void) | null = null;
     const widgetMock = vi.fn(
-      async (
-        _tweetId: string,
-        container: HTMLElement,
-        options?: { theme?: "light" | "dark" },
-      ) => {
+      async (_tweetId: string, container: HTMLElement, options?: { theme?: "light" | "dark" }) => {
         const tweet = document.createElement("blockquote");
         tweet.className = "twitter-tweet-rendered";
         tweet.setAttribute("data-theme", String(options?.theme || ""));
@@ -243,18 +215,14 @@ describe("TweetNode", () => {
     setTwitterWidgets(widgetMock);
 
     const renderTree = () => (
-      <div data-theme-marker={themeState.effectiveMode}>
-        {decorateTweetNode()}
-      </div>
+      <div data-theme-marker={themeState.effectiveMode}>{decorateTweetNode()}</div>
     );
     const view = render(renderTree());
 
     await waitFor(() => {
       expect(widgetMock).toHaveBeenCalledTimes(1);
     });
-    expect(
-      view.container.querySelectorAll(".lexical-tweet__stage--active"),
-    ).toHaveLength(1);
+    expect(view.container.querySelectorAll(".lexical-tweet__stage--active")).toHaveLength(1);
     expect(view.container.querySelector(".tweet-skeleton")).toBeNull();
 
     themeState = createThemeState("light");
@@ -263,15 +231,9 @@ describe("TweetNode", () => {
     await waitFor(() => {
       expect(widgetMock).toHaveBeenCalledTimes(2);
     });
-    expect(
-      view.container.querySelectorAll(".lexical-tweet__stage"),
-    ).toHaveLength(2);
-    expect(
-      view.container.querySelectorAll(".lexical-tweet__stage--active"),
-    ).toHaveLength(1);
-    expect(
-      view.container.querySelectorAll(".lexical-tweet__stage--entering"),
-    ).toHaveLength(1);
+    expect(view.container.querySelectorAll(".lexical-tweet__stage")).toHaveLength(2);
+    expect(view.container.querySelectorAll(".lexical-tweet__stage--active")).toHaveLength(1);
+    expect(view.container.querySelectorAll(".lexical-tweet__stage--entering")).toHaveLength(1);
     expect(view.container.querySelector(".tweet-skeleton")).toBeNull();
 
     const resolveNextLightTheme: (() => void) | null = resolveLightTheme;
@@ -281,14 +243,10 @@ describe("TweetNode", () => {
     (resolveNextLightTheme as () => void)();
 
     await waitFor(() => {
-      expect(
-        view.container.querySelectorAll(".lexical-tweet__stage--active"),
-      ).toHaveLength(1);
+      expect(view.container.querySelectorAll(".lexical-tweet__stage--active")).toHaveLength(1);
     });
     await waitFor(() => {
-      expect(
-        view.container.querySelector(".lexical-tweet__stage--entering"),
-      ).toBeNull();
+      expect(view.container.querySelector(".lexical-tweet__stage--entering")).toBeNull();
     });
   });
 
@@ -301,9 +259,7 @@ describe("TweetNode", () => {
       </>,
     );
 
-    const scripts = document.querySelectorAll(
-      `script[src="${WIDGET_SCRIPT_URL}"]`,
-    );
+    const scripts = document.querySelectorAll(`script[src="${WIDGET_SCRIPT_URL}"]`);
     expect(scripts).toHaveLength(1);
     expect(widgetMock).not.toHaveBeenCalled();
 
@@ -313,9 +269,7 @@ describe("TweetNode", () => {
     await waitFor(() => {
       expect(widgetMock).toHaveBeenCalledTimes(2);
     });
-    expect(
-      view.container.querySelectorAll(".twitter-tweet-rendered"),
-    ).toHaveLength(2);
+    expect(view.container.querySelectorAll(".twitter-tweet-rendered")).toHaveLength(2);
   });
 
   it("reaproveita o script ja presente no DOM quando os widgets ja estao prontos", async () => {
@@ -330,14 +284,10 @@ describe("TweetNode", () => {
     await waitFor(() => {
       expect(widgetMock).toHaveBeenCalledTimes(1);
     });
-    expect(widgetMock).toHaveBeenCalledWith(
-      "tweet-existing-script",
-      expect.any(HTMLElement),
-      { theme: "dark" },
-    );
-    expect(
-      document.querySelectorAll(`script[src="${WIDGET_SCRIPT_URL}"]`),
-    ).toHaveLength(1);
+    expect(widgetMock).toHaveBeenCalledWith("tweet-existing-script", expect.any(HTMLElement), {
+      theme: "dark",
+    });
+    expect(document.querySelectorAll(`script[src="${WIDGET_SCRIPT_URL}"]`)).toHaveLength(1);
     expect(consoleWarnSpy).not.toHaveBeenCalled();
   });
 });

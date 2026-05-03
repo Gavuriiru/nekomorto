@@ -158,7 +158,7 @@ describe("DashboardUsers owner governance", () => {
         name: "Dono Primário",
         username: "owner1",
         primaryOwnerId: "owner-1",
-    grants: {
+        grants: {
           usuarios: true,
         },
       },
@@ -240,7 +240,7 @@ describe("DashboardUsers owner governance", () => {
         name: "Dono Primário",
         username: "owner1",
         primaryOwnerId: "owner-1",
-    grants: {
+        grants: {
           usuarios: true,
         },
       },
@@ -312,7 +312,7 @@ describe("DashboardUsers owner governance", () => {
         name: "Dono Primário",
         username: "owner1",
         primaryOwnerId: "owner-1",
-    grants: {
+        grants: {
           usuarios: true,
         },
       },
@@ -384,7 +384,7 @@ describe("DashboardUsers owner governance", () => {
         name: "Dono Primário",
         username: "owner1",
         primaryOwnerId: "owner-1",
-    grants: {
+        grants: {
           usuarios: true,
         },
       },

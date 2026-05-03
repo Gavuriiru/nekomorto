@@ -22,9 +22,7 @@ import {
 import { $isCollapsibleContainerNode } from "./CollapsibleContainerNode";
 import { $isCollapsibleContentNode } from "./CollapsibleContentNode";
 
-export function $convertSummaryElement(
-  _domNode: HTMLElement,
-): DOMConversionOutput | null {
+export function $convertSummaryElement(_domNode: HTMLElement): DOMConversionOutput | null {
   const node = $createCollapsibleTitleNode();
   return {
     node,
@@ -59,9 +57,7 @@ export class CollapsibleTitleNode extends ElementNode {
         editor.update(() => {
           const collapsibleContainer = this.getLatest().getParentOrThrow();
           if (!$isCollapsibleContainerNode(collapsibleContainer)) {
-            throw new Error(
-              "Expected parent node to be a CollapsibleContainerNode",
-            );
+            throw new Error("Expected parent node to be a CollapsibleContainerNode");
           }
           collapsibleContainer.toggleOpen();
         });
@@ -78,17 +74,13 @@ export class CollapsibleTitleNode extends ElementNode {
     const containerNode = this.getParentOrThrow();
 
     if (!$isCollapsibleContainerNode(containerNode)) {
-      throw new Error(
-        "CollapsibleTitleNode expects to be child of CollapsibleContainerNode",
-      );
+      throw new Error("CollapsibleTitleNode expects to be child of CollapsibleContainerNode");
     }
 
     if (containerNode.getOpen()) {
       const contentNode = this.getNextSibling();
       if (!$isCollapsibleContentNode(contentNode)) {
-        throw new Error(
-          "CollapsibleTitleNode expects to have CollapsibleContentNode sibling",
-        );
+        throw new Error("CollapsibleTitleNode expects to have CollapsibleContentNode sibling");
       }
 
       const firstChild = contentNode.getFirstChild();

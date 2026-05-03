@@ -49,11 +49,7 @@ export default function KeywordsPlugin(): JSX.Element | null {
 
   const getKeywordMatch = useCallback(getKeywordMatchForText, []);
 
-  useLexicalTextEntity<KeywordNode>(
-    getKeywordMatch,
-    KeywordNode,
-    $createKeywordNode_,
-  );
+  useLexicalTextEntity<KeywordNode>(getKeywordMatch, KeywordNode, $createKeywordNode_);
 
   return null;
 }

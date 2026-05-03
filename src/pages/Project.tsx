@@ -497,10 +497,10 @@ const ProjectPage = () => {
     const rawSize = Number(episode.sizeBytes);
     const sizeLabel = Number.isFinite(rawSize) && rawSize > 0 ? formatBytesCompact(rawSize) : "";
     const hashTitle = String(episode.hash || "").trim();
-    
+
     let hashType = "MD5";
     let hashValue = hashTitle;
-    
+
     const match = hashTitle.match(/^([A-Za-z0-9-]+):\s*(.+)$/);
     if (match) {
       hashType = match[1];
@@ -801,7 +801,9 @@ const ProjectPage = () => {
                 ) : null}
               </div>
               {showSynopsis && episode.synopsis ? (
-                <p className="whitespace-pre-wrap text-sm text-muted-foreground">{episode.synopsis}</p>
+                <p className="whitespace-pre-wrap text-sm text-muted-foreground">
+                  {episode.synopsis}
+                </p>
               ) : null}
             </div>
 

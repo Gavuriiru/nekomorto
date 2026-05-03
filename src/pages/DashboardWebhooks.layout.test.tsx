@@ -1,10 +1,4 @@
-import {
-  fireEvent,
-  render,
-  screen,
-  waitFor,
-  within,
-} from "@testing-library/react";
+import { fireEvent, render, screen, waitFor, within } from "@testing-library/react";
 import type { ReactNode } from "react";
 import { MemoryRouter } from "react-router-dom";
 import { beforeEach, describe, expect, it, vi } from "vitest";
@@ -40,11 +34,7 @@ vi.mock("@/components/ui/use-toast", () => ({
   dismissToast: (...args: unknown[]) => dismissToastMock(...args),
 }));
 
-const mockJsonResponse = (
-  ok: boolean,
-  payload: unknown,
-  status = ok ? 200 : 500,
-) =>
+const mockJsonResponse = (ok: boolean, payload: unknown, status = ok ? 200 : 500) =>
   ({
     ok,
     status,
@@ -61,9 +51,7 @@ const integrationUser = {
 };
 
 type TestDashboardUser = Omit<typeof integrationUser, "grants"> & {
-  grants: Partial<
-    Record<"integracoes" | "configuracoes" | "projetos", boolean>
-  >;
+  grants: Partial<Record<"integracoes" | "configuracoes" | "projetos", boolean>>;
 };
 
 const renderWithDashboardSession = (
@@ -101,10 +89,7 @@ const createDeferredResponse = () => {
 const classTokens = (element: HTMLElement) =>
   String(element.className).split(/\s+/).filter(Boolean);
 
-const expectStableDashboardActionButton = (
-  element: HTMLElement,
-  sizeToken: "h-9" | "h-10",
-) => {
+const expectStableDashboardActionButton = (element: HTMLElement, sizeToken: "h-9" | "h-10") => {
   const tokens = classTokens(element);
 
   expect(tokens).toEqual(
@@ -124,9 +109,7 @@ const expectStableDashboardActionButton = (
 const getRoundedBadgesByText = (label: string) =>
   screen
     .getAllByText(label)
-    .filter((element) =>
-      String((element as HTMLElement).className || "").includes("rounded-full"),
-    );
+    .filter((element) => String((element as HTMLElement).className || "").includes("rounded-full"));
 
 const baseEditorialSettings = {
   version: 1,
@@ -302,112 +285,93 @@ const setupApiMock = ({
   retryResponse?: Response;
 } = {}) => {
   apiFetchMock.mockReset();
-  apiFetchMock.mockImplementation(
-    async (_base: string, path: string, options?: RequestInit) => {
-      const method = String(options?.method || "GET").toUpperCase();
-      if (path === "/api/me" && method === "GET") {
-        return (
-          meResponse ||
-          mockJsonResponse(true, {
-            id: "user-1",
-            name: "Admin",
-            username: "admin",
-            permissions: ["integracoes"],
-            grants: { integracoes: true },
-          })
-        );
-      }
-      if (path === "/api/integrations/webhooks" && method === "GET") {
-        return mockJsonResponse(true, {
-          settings: baseSettings,
-          projectTypes: ["Anime", "Manga"],
-          revision: "rev-1",
-          sources: baseSources,
-        });
-      }
-      if (
-        path.startsWith("/api/integrations/webhooks/deliveries?") &&
-        method === "GET"
-      ) {
-        return (
-          deliveriesResponse || mockJsonResponse(true, defaultDeliveriesPayload)
-        );
-      }
-      if (
-        path === "/api/integrations/webhooks/editorial/test" &&
-        method === "POST"
-      ) {
-        return (
-          testResponse ||
-          mockJsonResponse(true, {
-            ok: true,
-            eventKey: "post_create",
-            channel: "posts",
-            status: "sent",
-            code: null,
-          })
-        );
-      }
-      if (
-        path === "/api/integrations/webhooks/operational/test" &&
-        method === "POST"
-      ) {
-        return mockJsonResponse(true, {
+  apiFetchMock.mockImplementation(async (_base: string, path: string, options?: RequestInit) => {
+    const method = String(options?.method || "GET").toUpperCase();
+    if (path === "/api/me" && method === "GET") {
+      return (
+        meResponse ||
+        mockJsonResponse(true, {
+          id: "user-1",
+          name: "Admin",
+          username: "admin",
+          permissions: ["integracoes"],
+          grants: { integracoes: true },
+        })
+      );
+    }
+    if (path === "/api/integrations/webhooks" && method === "GET") {
+      return mockJsonResponse(true, {
+        settings: baseSettings,
+        projectTypes: ["Anime", "Manga"],
+        revision: "rev-1",
+        sources: baseSources,
+      });
+    }
+    if (path.startsWith("/api/integrations/webhooks/deliveries?") && method === "GET") {
+      return deliveriesResponse || mockJsonResponse(true, defaultDeliveriesPayload);
+    }
+    if (path === "/api/integrations/webhooks/editorial/test" && method === "POST") {
+      return (
+        testResponse ||
+        mockJsonResponse(true, {
           ok: true,
-          scope: "operational",
+          eventKey: "post_create",
+          channel: "posts",
           status: "sent",
           code: null,
-        });
+        })
+      );
+    }
+    if (path === "/api/integrations/webhooks/operational/test" && method === "POST") {
+      return mockJsonResponse(true, {
+        ok: true,
+        scope: "operational",
+        status: "sent",
+        code: null,
+      });
+    }
+    if (path === "/api/integrations/webhooks/security/test" && method === "POST") {
+      return mockJsonResponse(true, {
+        ok: true,
+        scope: "security",
+        status: "sent",
+        code: null,
+      });
+    }
+    if (path === "/api/integrations/webhooks" && method === "PUT") {
+      if (putResponse) {
+        return putResponse;
       }
-      if (
-        path === "/api/integrations/webhooks/security/test" &&
-        method === "POST"
-      ) {
-        return mockJsonResponse(true, {
+      const parsedBody =
+        typeof options?.body === "string"
+          ? (JSON.parse(options.body) as { settings?: unknown })
+          : {};
+      return mockJsonResponse(true, {
+        settings: parsedBody.settings || baseSettings,
+        projectTypes: ["Anime", "Manga"],
+        revision: "rev-2",
+        sources: {
+          editorial: "stored",
+          operational: "stored",
+          security: "stored",
+        },
+      });
+    }
+    if (path === "/api/integrations/webhooks/deliveries/delivery-1/retry" && method === "POST") {
+      return (
+        retryResponse ||
+        mockJsonResponse(true, {
           ok: true,
-          scope: "security",
-          status: "sent",
-          code: null,
-        });
-      }
-      if (path === "/api/integrations/webhooks" && method === "PUT") {
-        if (putResponse) {
-          return putResponse;
-        }
-        const parsedBody =
-          typeof options?.body === "string"
-            ? (JSON.parse(options.body) as { settings?: unknown })
-            : {};
-        return mockJsonResponse(true, {
-          settings: parsedBody.settings || baseSettings,
-          projectTypes: ["Anime", "Manga"],
-          revision: "rev-2",
-          sources: {
-            editorial: "stored",
-            operational: "stored",
-            security: "stored",
+          delivery: {
+            ...defaultDeliveriesPayload.items[0],
+            id: "delivery-2",
+            status: "queued",
           },
-        });
-      }
-      if (
-        path === "/api/integrations/webhooks/deliveries/delivery-1/retry" &&
-        method === "POST"
-      ) {
-        return (
-          retryResponse ||
-          mockJsonResponse(true, {
-            ok: true,
-            delivery: {
-              ...defaultDeliveriesPayload.items[0],
-              id: "delivery-2",
-              status: "queued",
-            },
-          })
-        );
-      }
-      return mockJsonResponse(false, { error: "not_found" }, 404);
-    },
-  );
+        })
+      );
+    }
+    return mockJsonResponse(false, { error: "not_found" }, 404);
+  });
 };
 
 const expectBefore = (a: string | RegExp, b: string | RegExp) => {
@@ -433,16 +397,12 @@ describe("DashboardWebhooks layout", () => {
         readText: clipboardReadTextMock,
       },
     });
-    (
-      window as Window & { __BOOTSTRAP_PUBLIC_ME__?: unknown }
-    ).__BOOTSTRAP_PUBLIC_ME__ = undefined;
+    (window as Window & { __BOOTSTRAP_PUBLIC_ME__?: unknown }).__BOOTSTRAP_PUBLIC_ME__ = undefined;
   });
 
   it("mantem shell e placeholders de secao enquanto settings carregam sem refazer /api/me com bootstrap", async () => {
     const settingsDeferred = createDeferredResponse();
-    (
-      window as Window & { __BOOTSTRAP_PUBLIC_ME__?: unknown }
-    ).__BOOTSTRAP_PUBLIC_ME__ = {
+    (window as Window & { __BOOTSTRAP_PUBLIC_ME__?: unknown }).__BOOTSTRAP_PUBLIC_ME__ = {
       id: "user-1",
       name: "Admin",
       username: "admin",
@@ -452,21 +412,16 @@ describe("DashboardWebhooks layout", () => {
     };
 
     apiFetchMock.mockReset();
-    apiFetchMock.mockImplementation(
-      async (_base: string, path: string, options?: RequestInit) => {
-        const method = String(options?.method || "GET").toUpperCase();
-        if (path === "/api/integrations/webhooks" && method === "GET") {
-          return settingsDeferred.promise;
-        }
-        if (
-          path.startsWith("/api/integrations/webhooks/deliveries?") &&
-          method === "GET"
-        ) {
-          return mockJsonResponse(true, defaultDeliveriesPayload);
-        }
-        return mockJsonResponse(false, { error: "not_found" }, 404);
-      },
-    );
+    apiFetchMock.mockImplementation(async (_base: string, path: string, options?: RequestInit) => {
+      const method = String(options?.method || "GET").toUpperCase();
+      if (path === "/api/integrations/webhooks" && method === "GET") {
+        return settingsDeferred.promise;
+      }
+      if (path.startsWith("/api/integrations/webhooks/deliveries?") && method === "GET") {
+        return mockJsonResponse(true, defaultDeliveriesPayload);
+      }
+      return mockJsonResponse(false, { error: "not_found" }, 404);
+    });
 
     renderWithDashboardSession(
       <MemoryRouter initialEntries={["/dashboard/webhooks"]}>
@@ -474,54 +429,32 @@ describe("DashboardWebhooks layout", () => {
       </MemoryRouter>,
     );
 
+    expect(screen.getByRole("heading", { name: /Webhooks/i })).toBeInTheDocument();
+    expect(screen.getByTestId("dashboard-webhooks-section-types")).toBeInTheDocument();
+    expect(screen.getByTestId("dashboard-webhooks-section-posts")).toBeInTheDocument();
+    expect(screen.getByTestId("dashboard-webhooks-section-projects")).toBeInTheDocument();
+    expect(screen.getByTestId("dashboard-webhooks-placeholder-types")).toBeInTheDocument();
+    expect(classTokens(screen.getByTestId("dashboard-webhooks-section-types"))).toContain(
+      "bg-card",
+    );
     expect(
-      screen.getByRole("heading", { name: /Webhooks/i }),
-    ).toBeInTheDocument();
-    expect(
-      screen.getByTestId("dashboard-webhooks-section-types"),
-    ).toBeInTheDocument();
-    expect(
-      screen.getByTestId("dashboard-webhooks-section-posts"),
-    ).toBeInTheDocument();
-    expect(
-      screen.getByTestId("dashboard-webhooks-section-projects"),
-    ).toBeInTheDocument();
-    expect(
-      screen.getByTestId("dashboard-webhooks-placeholder-types"),
-    ).toBeInTheDocument();
-    expect(
-      classTokens(screen.getByTestId("dashboard-webhooks-section-types")),
-    ).toContain("bg-card");
-    expect(
-      classTokens(
-        screen.getByTestId("dashboard-webhooks-general-role-placeholder-field"),
-      ),
+      classTokens(screen.getByTestId("dashboard-webhooks-general-role-placeholder-field")),
     ).toContain("gap-2");
-    expect(
-      screen.getByTestId("dashboard-webhooks-placeholder-posts"),
-    ).toBeInTheDocument();
-    expect(
-      screen.getByTestId("dashboard-webhooks-placeholder-projects"),
-    ).toBeInTheDocument();
+    expect(screen.getByTestId("dashboard-webhooks-placeholder-posts")).toBeInTheDocument();
+    expect(screen.getByTestId("dashboard-webhooks-placeholder-projects")).toBeInTheDocument();
     const placeholderTypeCard = screen
       .getByTestId("dashboard-webhooks-placeholder-types")
       .querySelector(".rounded-xl");
     expect(placeholderTypeCard).not.toBeNull();
-    expect(classTokens(placeholderTypeCard as HTMLElement)).toContain(
-      "bg-background",
-    );
-    expect(
-      screen.queryByTestId("dashboard-webhooks-refresh-status"),
-    ).not.toBeInTheDocument();
+    expect(classTokens(placeholderTypeCard as HTMLElement)).toContain("bg-background");
+    expect(screen.queryByTestId("dashboard-webhooks-refresh-status")).not.toBeInTheDocument();
     expect(screen.queryByText(/Carregando webhooks/i)).not.toBeInTheDocument();
     expect(toastMock).not.toHaveBeenCalled();
     expect(
       apiFetchMock.mock.calls.some(
         (call) =>
           String(call[1] || "") === "/api/me" &&
-          String(
-            (call[2] as RequestInit | undefined)?.method || "GET",
-          ).toUpperCase() === "GET",
+          String((call[2] as RequestInit | undefined)?.method || "GET").toUpperCase() === "GET",
       ),
     ).toBe(false);
 
@@ -535,23 +468,17 @@ describe("DashboardWebhooks layout", () => {
     );
 
     await waitFor(() => {
-      expect(
-        screen.queryByTestId("dashboard-webhooks-placeholder-types"),
-      ).not.toBeInTheDocument();
+      expect(screen.queryByTestId("dashboard-webhooks-placeholder-types")).not.toBeInTheDocument();
     });
-    expect(
-      screen.getByTestId("dashboard-webhooks-section-content-types"),
-    ).toBeInTheDocument();
-    expect(
-      classTokens(screen.getByTestId("dashboard-webhooks-general-role-field")),
-    ).toContain("gap-2");
+    expect(screen.getByTestId("dashboard-webhooks-section-content-types")).toBeInTheDocument();
+    expect(classTokens(screen.getByTestId("dashboard-webhooks-general-role-field"))).toContain(
+      "gap-2",
+    );
   });
 
   it("reabre com cache quente e preserva o editor quando o refresh falha", async () => {
     setupApiMock();
-    (
-      window as Window & { __BOOTSTRAP_PUBLIC_ME__?: unknown }
-    ).__BOOTSTRAP_PUBLIC_ME__ = {
+    (window as Window & { __BOOTSTRAP_PUBLIC_ME__?: unknown }).__BOOTSTRAP_PUBLIC_ME__ = {
       id: "user-1",
       name: "Admin",
       username: "admin",
@@ -571,21 +498,16 @@ describe("DashboardWebhooks layout", () => {
 
     const refreshDeferred = createDeferredResponse();
     apiFetchMock.mockReset();
-    apiFetchMock.mockImplementation(
-      async (_base: string, path: string, options?: RequestInit) => {
-        const method = String(options?.method || "GET").toUpperCase();
-        if (path === "/api/integrations/webhooks" && method === "GET") {
-          return refreshDeferred.promise;
-        }
-        if (
-          path.startsWith("/api/integrations/webhooks/deliveries?") &&
-          method === "GET"
-        ) {
-          return mockJsonResponse(true, defaultDeliveriesPayload);
-        }
-        return mockJsonResponse(false, { error: "not_found" }, 404);
-      },
-    );
+    apiFetchMock.mockImplementation(async (_base: string, path: string, options?: RequestInit) => {
+      const method = String(options?.method || "GET").toUpperCase();
+      if (path === "/api/integrations/webhooks" && method === "GET") {
+        return refreshDeferred.promise;
+      }
+      if (path.startsWith("/api/integrations/webhooks/deliveries?") && method === "GET") {
+        return mockJsonResponse(true, defaultDeliveriesPayload);
+      }
+      return mockJsonResponse(false, { error: "not_found" }, 404);
+    });
 
     renderWithDashboardSession(
       <MemoryRouter initialEntries={["/dashboard/webhooks"]}>
@@ -594,12 +516,8 @@ describe("DashboardWebhooks layout", () => {
     );
 
     expect(screen.getByText(/Role geral de lan/i)).toBeInTheDocument();
-    expect(
-      screen.queryByTestId("dashboard-webhooks-placeholder-types"),
-    ).not.toBeInTheDocument();
-    expect(
-      screen.queryByTestId("dashboard-webhooks-refresh-status"),
-    ).not.toBeInTheDocument();
+    expect(screen.queryByTestId("dashboard-webhooks-placeholder-types")).not.toBeInTheDocument();
+    expect(screen.queryByTestId("dashboard-webhooks-refresh-status")).not.toBeInTheDocument();
     await waitFor(() => {
       expect(toastMock).toHaveBeenCalledWith(
         expect.objectContaining({
@@ -609,18 +527,12 @@ describe("DashboardWebhooks layout", () => {
       );
     });
 
-    refreshDeferred.resolve(
-      mockJsonResponse(false, { error: "load_failed" }, 500),
-    );
+    refreshDeferred.resolve(mockJsonResponse(false, { error: "load_failed" }, 500));
 
     await waitFor(() => {
-      expect(
-        screen.getByText(/Mantendo os últimos dados carregados/i),
-      ).toBeInTheDocument();
+      expect(screen.getByText(/Mantendo os últimos dados carregados/i)).toBeInTheDocument();
     });
-    expect(dismissToastMock).toHaveBeenCalledWith(
-      "dashboard-webhooks-refresh-toast",
-    );
+    expect(dismissToastMock).toHaveBeenCalledWith("dashboard-webhooks-refresh-toast");
     expect(screen.getByText(/Role geral de lan/i)).toBeInTheDocument();
     expect(screen.queryByText(/Falha ao carregar/i)).not.toBeInTheDocument();
   });
@@ -662,9 +574,7 @@ describe("DashboardWebhooks layout", () => {
     expectStableDashboardActionButton(saveSecurityButton, "h-9");
 
     expect(screen.queryByText(/^Ativa$/i)).not.toBeInTheDocument();
-    expect(
-      screen.getAllByPlaceholderText("ID do cargo do Discord").length,
-    ).toBeGreaterThan(0);
+    expect(screen.getAllByPlaceholderText("ID do cargo do Discord").length).toBeGreaterThan(0);
 
     expect(screen.queryByText(/Conte.*da mensagem/i)).not.toBeInTheDocument();
     fireEvent.click(screen.getByRole("button", { name: /Novo post/i }));
@@ -673,9 +583,7 @@ describe("DashboardWebhooks layout", () => {
       expect(screen.getByText(/Conte.*da mensagem/i)).toBeInTheDocument();
     });
 
-    const postCreateSection = screen.getByTestId(
-      "dashboard-webhooks-event-posts-post_create",
-    );
+    const postCreateSection = screen.getByTestId("dashboard-webhooks-event-posts-post_create");
     expectStableDashboardActionButton(
       within(postCreateSection).getByRole("button", { name: /Enviar teste/i }),
       "h-9",
@@ -688,9 +596,7 @@ describe("DashboardWebhooks layout", () => {
     );
 
     expect(screen.getByDisplayValue("{{postagem.imagemUrl}}")).toBeInTheDocument();
-    expect(
-      screen.getByDisplayValue("{{projeto.fundoImagemUrl}}"),
-    ).toBeInTheDocument();
+    expect(screen.getByDisplayValue("{{projeto.fundoImagemUrl}}")).toBeInTheDocument();
 
     expect(screen.getByText(/^#[0-9A-F]{6}$/i)).toBeInTheDocument();
     expect(screen.getByText("{{mencao.tipo}}")).toBeInTheDocument();
@@ -704,9 +610,7 @@ describe("DashboardWebhooks layout", () => {
       "Mostra a melhor imagem disponível para a postagem. Ex.: capa, OG ou imagem padrão.",
     );
     expect(screen.getByText("{{postagem.ogImagemUrl}}")).toBeInTheDocument();
-    expect(
-      screen.getByText("{{projeto.fundoImagemUrl}}"),
-    ).toBeInTheDocument();
+    expect(screen.getByText("{{projeto.fundoImagemUrl}}")).toBeInTheDocument();
     expect(screen.queryByText("{{mention.category}}")).not.toBeInTheDocument();
     expect(screen.queryByText("{{mention.general}}")).not.toBeInTheDocument();
 
@@ -721,25 +625,13 @@ describe("DashboardWebhooks layout", () => {
     fireEvent.click(screen.getByRole("button", { name: /Novo lan/i }));
 
     await waitFor(() => {
-      expect(
-        screen.getByDisplayValue("{{projeto.imagemUrl}}"),
-      ).toBeInTheDocument();
+      expect(screen.getByDisplayValue("{{projeto.imagemUrl}}")).toBeInTheDocument();
     });
-    expect(
-      screen.getByDisplayValue("{{conteudo.imagemUrl}}"),
-    ).toBeInTheDocument();
-    expect(screen.getAllByText("{{projeto.imagemUrl}}").length).toBeGreaterThan(
-      0,
-    );
-    expect(
-      screen.getAllByText("{{projeto.ogImagemUrl}}").length,
-    ).toBeGreaterThan(0);
-    expect(screen.getAllByText("{{conteudo.imagemUrl}}").length).toBeGreaterThan(
-      0,
-    );
-    expect(
-      screen.getAllByText("{{conteudo.ogImagemUrl}}").length,
-    ).toBeGreaterThan(0);
+    expect(screen.getByDisplayValue("{{conteudo.imagemUrl}}")).toBeInTheDocument();
+    expect(screen.getAllByText("{{projeto.imagemUrl}}").length).toBeGreaterThan(0);
+    expect(screen.getAllByText("{{projeto.ogImagemUrl}}").length).toBeGreaterThan(0);
+    expect(screen.getAllByText("{{conteudo.imagemUrl}}").length).toBeGreaterThan(0);
+    expect(screen.getAllByText("{{conteudo.ogImagemUrl}}").length).toBeGreaterThan(0);
     expect(screen.getByText("{{conteudo.tipo}}")).toHaveAttribute(
       "title",
       "Mostra Capítulo, Episódio, Extra ou Especial conforme o conteúdo. Ex.: Capítulo.",
@@ -826,9 +718,7 @@ describe("DashboardWebhooks layout", () => {
 
     expect(headerBadgeReveal).not.toBeNull();
     expect(classTokens(headerBadgeReveal as HTMLElement)).toContain("reveal");
-    expect(classTokens(headerBadgeReveal as HTMLElement)).toContain(
-      "reveal-delay-1",
-    );
+    expect(classTokens(headerBadgeReveal as HTMLElement)).toContain("reveal-delay-1");
     expect(headerBadgeReveal).toHaveAttribute("data-reveal");
 
     expect(classTokens(typesSection)).toContain("animate-slide-up");
@@ -851,15 +741,9 @@ describe("DashboardWebhooks layout", () => {
 
     const typesSection = screen.getByTestId("dashboard-webhooks-section-types");
     const postsSection = screen.getByTestId("dashboard-webhooks-section-posts");
-    const typesContent = screen.getByTestId(
-      "dashboard-webhooks-section-content-types",
-    );
-    const postsContent = screen.getByTestId(
-      "dashboard-webhooks-section-content-posts",
-    );
-    const eventItem = screen.getByTestId(
-      "dashboard-webhooks-event-posts-post_create",
-    );
+    const typesContent = screen.getByTestId("dashboard-webhooks-section-content-types");
+    const postsContent = screen.getByTestId("dashboard-webhooks-section-content-posts");
+    const eventItem = screen.getByTestId("dashboard-webhooks-event-posts-post_create");
 
     expect(classTokens(typesSection)).toContain("animate-slide-up");
     expect(classTokens(typesSection)).toContain("opacity-0");
@@ -876,18 +760,12 @@ describe("DashboardWebhooks layout", () => {
 
     await waitFor(() => {
       expect(
-        screen.getByTestId(
-          "dashboard-webhooks-event-content-posts-post_create",
-        ),
+        screen.getByTestId("dashboard-webhooks-event-content-posts-post_create"),
       ).toBeInTheDocument();
     });
 
     expect(
-      classTokens(
-        screen.getByTestId(
-          "dashboard-webhooks-event-content-posts-post_create",
-        ),
-      ),
+      classTokens(screen.getByTestId("dashboard-webhooks-event-content-posts-post_create")),
     ).not.toContain("animate-slide-up");
   });
 
@@ -905,9 +783,7 @@ describe("DashboardWebhooks layout", () => {
     const roleInputs = screen.getAllByPlaceholderText("ID do cargo do Discord");
     fireEvent.change(roleInputs[0], { target: { value: "123456" } });
 
-    const webhookInputs = screen.getAllByPlaceholderText(
-      "https://discord.com/api/webhooks/...",
-    );
+    const webhookInputs = screen.getAllByPlaceholderText("https://discord.com/api/webhooks/...");
     fireEvent.change(webhookInputs[0], {
       target: { value: "https://discord.com/api/webhooks/posts/teste" },
     });
@@ -917,9 +793,7 @@ describe("DashboardWebhooks layout", () => {
     await waitFor(() => {
       const putCalls = apiFetchMock.mock.calls.filter((call) => {
         const path = String(call[1] || "");
-        const method = String(
-          (call[2] as RequestInit | undefined)?.method || "GET",
-        ).toUpperCase();
+        const method = String((call[2] as RequestInit | undefined)?.method || "GET").toUpperCase();
         return path === "/api/integrations/webhooks" && method === "PUT";
       });
       expect(putCalls).toHaveLength(1);
@@ -927,9 +801,7 @@ describe("DashboardWebhooks layout", () => {
 
     const putCall = apiFetchMock.mock.calls.find((call) => {
       const path = String(call[1] || "");
-      const method = String(
-        (call[2] as RequestInit | undefined)?.method || "GET",
-      ).toUpperCase();
+      const method = String((call[2] as RequestInit | undefined)?.method || "GET").toUpperCase();
       return path === "/api/integrations/webhooks" && method === "PUT";
     });
 
@@ -950,11 +822,7 @@ describe("DashboardWebhooks layout", () => {
     expect(requestPayload.ifRevision).toBe("rev-1");
 
     expect(
-      (
-        screen.getAllByPlaceholderText(
-          "ID do cargo do Discord",
-        )[0] as HTMLInputElement
-      ).value,
+      (screen.getAllByPlaceholderText("ID do cargo do Discord")[0] as HTMLInputElement).value,
     ).toBe("123456");
   });
 
@@ -980,9 +848,10 @@ describe("DashboardWebhooks layout", () => {
     await screen.findByRole("heading", { name: /Webhooks/i });
     fireEvent.click(screen.getByRole("button", { name: /Novo lan/i }));
     fireEvent.click(
-      within(
-        screen.getByTestId("dashboard-webhooks-event-projects-project_release"),
-      ).getByRole("button", { name: /Enviar teste/i }),
+      within(screen.getByTestId("dashboard-webhooks-event-projects-project_release")).getByRole(
+        "button",
+        { name: /Enviar teste/i },
+      ),
     );
 
     await waitFor(() => {
@@ -1006,9 +875,7 @@ describe("DashboardWebhooks layout", () => {
 
     await screen.findByRole("heading", { name: /Webhooks/i });
 
-    const webhookInputs = screen.getAllByPlaceholderText(
-      "https://discord.com/api/webhooks/...",
-    );
+    const webhookInputs = screen.getAllByPlaceholderText("https://discord.com/api/webhooks/...");
     fireEvent.change(webhookInputs[0], {
       target: { value: "https://discord.com/api/webhooks/posts/draft-token" },
     });
@@ -1018,9 +885,7 @@ describe("DashboardWebhooks layout", () => {
       target: { value: "rascunho local" },
     });
     fireEvent.click(
-      within(
-        screen.getByTestId("dashboard-webhooks-event-posts-post_create"),
-      ).getByRole("button", {
+      within(screen.getByTestId("dashboard-webhooks-event-posts-post_create")).getByRole("button", {
         name: /Enviar teste/i,
       }),
     );
@@ -1028,41 +893,26 @@ describe("DashboardWebhooks layout", () => {
     await waitFor(() => {
       const testCalls = apiFetchMock.mock.calls.filter((call) => {
         const path = String(call[1] || "");
-        const method = String(
-          (call[2] as RequestInit | undefined)?.method || "GET",
-        ).toUpperCase();
-        return (
-          path === "/api/integrations/webhooks/editorial/test" &&
-          method === "POST"
-        );
+        const method = String((call[2] as RequestInit | undefined)?.method || "GET").toUpperCase();
+        return path === "/api/integrations/webhooks/editorial/test" && method === "POST";
       });
       expect(testCalls).toHaveLength(1);
     });
 
     const testCall = apiFetchMock.mock.calls.find((call) => {
       const path = String(call[1] || "");
-      const method = String(
-        (call[2] as RequestInit | undefined)?.method || "GET",
-      ).toUpperCase();
-      return (
-        path === "/api/integrations/webhooks/editorial/test" &&
-        method === "POST"
-      );
+      const method = String((call[2] as RequestInit | undefined)?.method || "GET").toUpperCase();
+      return path === "/api/integrations/webhooks/editorial/test" && method === "POST";
     });
     const requestPayload =
-      (
-        testCall?.[2] as
-          | { json?: { settings?: typeof baseSettings } }
-          | undefined
-      )?.json || {};
+      (testCall?.[2] as { json?: { settings?: typeof baseSettings } } | undefined)?.json || {};
 
     expect(requestPayload.settings?.editorial.channels.posts.webhookUrl).toBe(
       "https://discord.com/api/webhooks/posts/draft-token",
     );
-    expect(
-      requestPayload.settings?.editorial.channels.posts.templates.post_create
-        .content,
-    ).toBe("rascunho local");
+    expect(requestPayload.settings?.editorial.channels.posts.templates.post_create.content).toBe(
+      "rascunho local",
+    );
   });
 
   it("copia o template editorial como JSON versionado", async () => {
@@ -1078,18 +928,16 @@ describe("DashboardWebhooks layout", () => {
     await screen.findByRole("heading", { name: /Webhooks/i });
     fireEvent.click(screen.getByRole("button", { name: /Novo post/i }));
     fireEvent.click(
-      within(
-        screen.getByTestId("dashboard-webhooks-event-posts-post_create"),
-      ).getByRole("button", { name: /Copiar template/i }),
+      within(screen.getByTestId("dashboard-webhooks-event-posts-post_create")).getByRole("button", {
+        name: /Copiar template/i,
+      }),
     );
 
     await waitFor(() => {
       expect(clipboardWriteTextMock).toHaveBeenCalledTimes(1);
     });
 
-    const copied = JSON.parse(
-      String(clipboardWriteTextMock.mock.calls[0]?.[0] || "{}"),
-    );
+    const copied = JSON.parse(String(clipboardWriteTextMock.mock.calls[0]?.[0] || "{}"));
     expect(copied).toEqual(
       expect.objectContaining({
         kind: "nekomorto.editorialWebhookTemplate",
@@ -1105,9 +953,7 @@ describe("DashboardWebhooks layout", () => {
         color: "#3b82f6",
       }),
     );
-    expect(toastMock).toHaveBeenCalledWith(
-      expect.objectContaining({ title: "Template copiado" }),
-    );
+    expect(toastMock).toHaveBeenCalledWith(expect.objectContaining({ title: "Template copiado" }));
   });
 
   it("cola conteudo, embed, cor e campos customizados no evento atual", async () => {
@@ -1147,9 +993,9 @@ describe("DashboardWebhooks layout", () => {
     await screen.findByRole("heading", { name: /Webhooks/i });
     fireEvent.click(screen.getByRole("button", { name: /Novo post/i }));
     fireEvent.click(
-      within(
-        screen.getByTestId("dashboard-webhooks-event-posts-post_create"),
-      ).getByRole("button", { name: /Colar template/i }),
+      within(screen.getByTestId("dashboard-webhooks-event-posts-post_create")).getByRole("button", {
+        name: /Colar template/i,
+      }),
     );
 
     expect(await screen.findByDisplayValue("conteudo colado")).toBeInTheDocument();
@@ -1158,9 +1004,7 @@ describe("DashboardWebhooks layout", () => {
     expect(screen.getByText("#ABC123")).toBeInTheDocument();
     expect(screen.getByDisplayValue("Campo")).toBeInTheDocument();
     expect(screen.getByDisplayValue("Valor")).toBeInTheDocument();
-    expect(toastMock).toHaveBeenCalledWith(
-      expect.objectContaining({ title: "Template colado" }),
-    );
+    expect(toastMock).toHaveBeenCalledWith(expect.objectContaining({ title: "Template colado" }));
   });
 
   it("cola template de outro evento e mostra aviso", async () => {
@@ -1200,17 +1044,16 @@ describe("DashboardWebhooks layout", () => {
     await screen.findByRole("heading", { name: /Webhooks/i });
     fireEvent.click(screen.getByRole("button", { name: /Novo post/i }));
     fireEvent.click(
-      within(
-        screen.getByTestId("dashboard-webhooks-event-posts-post_create"),
-      ).getByRole("button", { name: /Colar template/i }),
+      within(screen.getByTestId("dashboard-webhooks-event-posts-post_create")).getByRole("button", {
+        name: /Colar template/i,
+      }),
     );
 
     expect(await screen.findByDisplayValue("template de projeto")).toBeInTheDocument();
     expect(toastMock).toHaveBeenCalledWith(
       expect.objectContaining({
         title: "Template colado com aviso",
-        description:
-          "Template colado de outro evento; revise os placeholders antes de salvar.",
+        description: "Template colado de outro evento; revise os placeholders antes de salvar.",
       }),
     );
   });
@@ -1227,14 +1070,12 @@ describe("DashboardWebhooks layout", () => {
 
     await screen.findByRole("heading", { name: /Webhooks/i });
     fireEvent.click(screen.getByRole("button", { name: /Novo post/i }));
-    const eventPanel = screen.getByTestId(
-      "dashboard-webhooks-event-content-posts-post_create",
-    );
+    const eventPanel = screen.getByTestId("dashboard-webhooks-event-content-posts-post_create");
     const contentInput = within(eventPanel).getByDisplayValue("{{mencao.todos}}");
     fireEvent.click(
-      within(
-        screen.getByTestId("dashboard-webhooks-event-posts-post_create"),
-      ).getByRole("button", { name: /Colar template/i }),
+      within(screen.getByTestId("dashboard-webhooks-event-posts-post_create")).getByRole("button", {
+        name: /Colar template/i,
+      }),
     );
 
     await waitFor(() => {
@@ -1282,9 +1123,9 @@ describe("DashboardWebhooks layout", () => {
     await screen.findByRole("heading", { name: /Webhooks/i });
     fireEvent.click(screen.getByRole("button", { name: /Novo post/i }));
     fireEvent.click(
-      within(
-        screen.getByTestId("dashboard-webhooks-event-posts-post_create"),
-      ).getByRole("button", { name: /Colar template/i }),
+      within(screen.getByTestId("dashboard-webhooks-event-posts-post_create")).getByRole("button", {
+        name: /Colar template/i,
+      }),
     );
 
     expect(await screen.findByDisplayValue("{{mencao.todos}}")).toBeInTheDocument();
@@ -1305,15 +1146,9 @@ describe("DashboardWebhooks layout", () => {
     fireEvent.click(screen.getByRole("button", { name: /Novo post/i }));
 
     const eventCard = screen.getByTestId("dashboard-webhooks-event-posts-post_create");
-    expect(
-      within(eventCard).getByRole("button", { name: /Copiar template/i }),
-    ).toBeInTheDocument();
-    expect(
-      within(eventCard).getByRole("button", { name: /Colar template/i }),
-    ).toBeInTheDocument();
-    expect(
-      within(eventCard).getByRole("button", { name: /Enviar teste/i }),
-    ).toBeInTheDocument();
+    expect(within(eventCard).getByRole("button", { name: /Copiar template/i })).toBeInTheDocument();
+    expect(within(eventCard).getByRole("button", { name: /Colar template/i })).toBeInTheDocument();
+    expect(within(eventCard).getByRole("button", { name: /Enviar teste/i })).toBeInTheDocument();
   });
 
   it("preserva o rascunho local quando o save encontra conflito de revisao", async () => {
@@ -1345,9 +1180,7 @@ describe("DashboardWebhooks layout", () => {
 
     await screen.findByRole("heading", { name: /Webhooks/i });
 
-    const roleInput = screen.getAllByPlaceholderText(
-      "ID do cargo do Discord",
-    )[0];
+    const roleInput = screen.getAllByPlaceholderText("ID do cargo do Discord")[0];
     fireEvent.change(roleInput, { target: { value: "123456" } });
     fireEvent.click(screen.getByRole("button", { name: /^Salvar$/i }));
 
@@ -1360,11 +1193,7 @@ describe("DashboardWebhooks layout", () => {
     });
 
     expect(
-      (
-        screen.getAllByPlaceholderText(
-          "ID do cargo do Discord",
-        )[0] as HTMLInputElement
-      ).value,
+      (screen.getAllByPlaceholderText("ID do cargo do Discord")[0] as HTMLInputElement).value,
     ).toBe("123456");
   });
 
@@ -1379,15 +1208,11 @@ describe("DashboardWebhooks layout", () => {
 
     await screen.findByRole("heading", { name: /Webhooks/i });
 
-    const operationalSection = screen.getByTestId(
-      "dashboard-webhooks-section-content-operational",
+    const operationalSection = screen.getByTestId("dashboard-webhooks-section-content-operational");
+    const securitySection = screen.getByTestId("dashboard-webhooks-section-content-security");
+    const operationalWebhookInput = within(operationalSection).getByPlaceholderText(
+      "https://discord.com/api/webhooks/...",
     );
-    const securitySection = screen.getByTestId(
-      "dashboard-webhooks-section-content-security",
-    );
-    const operationalWebhookInput = within(
-      operationalSection,
-    ).getByPlaceholderText("https://discord.com/api/webhooks/...");
     const securityWebhookInput = within(securitySection).getByPlaceholderText(
       "https://discord.com/api/webhooks/...",
     );
@@ -1401,39 +1226,26 @@ describe("DashboardWebhooks layout", () => {
       },
     });
 
-    fireEvent.click(
-      within(operationalSection).getByRole("button", { name: /Enviar teste/i }),
-    );
-    fireEvent.click(
-      within(securitySection).getByRole("button", { name: /Enviar teste/i }),
-    );
+    fireEvent.click(within(operationalSection).getByRole("button", { name: /Enviar teste/i }));
+    fireEvent.click(within(securitySection).getByRole("button", { name: /Enviar teste/i }));
 
     await waitFor(() => {
       const operationalCall = apiFetchMock.mock.calls.find(
-        (call) =>
-          String(call[1] || "") ===
-          "/api/integrations/webhooks/operational/test",
+        (call) => String(call[1] || "") === "/api/integrations/webhooks/operational/test",
       );
       const securityCall = apiFetchMock.mock.calls.find(
-        (call) =>
-          String(call[1] || "") === "/api/integrations/webhooks/security/test",
+        (call) => String(call[1] || "") === "/api/integrations/webhooks/security/test",
       );
 
       expect(operationalCall).toBeDefined();
       expect(securityCall).toBeDefined();
       expect(
-        (
-          operationalCall?.[2] as
-            | { json?: { settings?: typeof baseSettings } }
-            | undefined
-        )?.json?.settings?.operational?.webhookUrl || "",
+        (operationalCall?.[2] as { json?: { settings?: typeof baseSettings } } | undefined)?.json
+          ?.settings?.operational?.webhookUrl || "",
       ).toBe("https://discord.com/api/webhooks/ops/draft-token");
       expect(
-        (
-          securityCall?.[2] as
-            | { json?: { settings?: typeof baseSettings } }
-            | undefined
-        )?.json?.settings?.security?.webhookUrl || "",
+        (securityCall?.[2] as { json?: { settings?: typeof baseSettings } } | undefined)?.json
+          ?.settings?.security?.webhookUrl || "",
       ).toBe("https://discord.com/api/webhooks/security/draft-token");
     });
   });
@@ -1449,38 +1261,26 @@ describe("DashboardWebhooks layout", () => {
 
     await screen.findByTestId("dashboard-webhooks-section-deliveries");
     await screen.findByTestId("dashboard-webhooks-deliveries-list");
-    const summaryGrid = screen.getByTestId(
-      "dashboard-webhooks-delivery-summary-grid",
-    );
+    const summaryGrid = screen.getByTestId("dashboard-webhooks-delivery-summary-grid");
 
     expect(classTokens(summaryGrid)).toContain("grid");
     expect(classTokens(summaryGrid)).toContain("md:grid-cols-2");
     expect(classTokens(summaryGrid)).toContain("lg:grid-cols-3");
     expect(classTokens(summaryGrid)).toContain("xl:grid-cols-5");
     expect(
-      within(summaryGrid).getByTestId(
-        "dashboard-webhooks-delivery-summary-card-queued",
-      ),
+      within(summaryGrid).getByTestId("dashboard-webhooks-delivery-summary-card-queued"),
     ).toBeInTheDocument();
     expect(
-      within(summaryGrid).getByTestId(
-        "dashboard-webhooks-delivery-summary-card-processing",
-      ),
+      within(summaryGrid).getByTestId("dashboard-webhooks-delivery-summary-card-processing"),
     ).toBeInTheDocument();
     expect(
-      within(summaryGrid).getByTestId(
-        "dashboard-webhooks-delivery-summary-card-retrying",
-      ),
+      within(summaryGrid).getByTestId("dashboard-webhooks-delivery-summary-card-retrying"),
     ).toBeInTheDocument();
     expect(
-      within(summaryGrid).getByTestId(
-        "dashboard-webhooks-delivery-summary-card-failed",
-      ),
+      within(summaryGrid).getByTestId("dashboard-webhooks-delivery-summary-card-failed"),
     ).toBeInTheDocument();
     expect(
-      within(summaryGrid).getByTestId(
-        "dashboard-webhooks-delivery-summary-card-sent_last_24h",
-      ),
+      within(summaryGrid).getByTestId("dashboard-webhooks-delivery-summary-card-sent_last_24h"),
     ).toBeInTheDocument();
     expect(within(summaryGrid).getByText("Na fila")).toBeInTheDocument();
     expect(within(summaryGrid).getByText("Processando")).toBeInTheDocument();
@@ -1488,9 +1288,7 @@ describe("DashboardWebhooks layout", () => {
     expect(within(summaryGrid).getByText("Falhas")).toBeInTheDocument();
     expect(within(summaryGrid).getByText("Enviados 24h")).toBeInTheDocument();
 
-    expect(
-      screen.getByText("discord.com/api/webhooks/123/..."),
-    ).toBeInTheDocument();
+    expect(screen.getByText("discord.com/api/webhooks/123/...")).toBeInTheDocument();
     expect(screen.getByText(/rate_limited/i)).toBeInTheDocument();
 
     const retryButton = screen.getByRole("button", { name: /Reenfileirar/i });

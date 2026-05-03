@@ -152,7 +152,9 @@ const DashboardSidebarProfileCard = ({
   const { open } = useSidebarState();
   const [forceTextTransition, setForceTextTransition] = useState(false);
   const [textVisible, setTextVisible] = useState(open);
-  const [transitionDirection, setTransitionDirection] = useState<"opening" | "closing" | null>(null);
+  const [transitionDirection, setTransitionDirection] = useState<"opening" | "closing" | null>(
+    null,
+  );
   const previousOpenRef = useRef(open);
 
   useEffect(() => {
@@ -237,27 +239,28 @@ const DashboardSidebarProfileCard = ({
     userCardDataCollapsible === "icon"
       ? "h-10 w-10 self-start justify-center gap-0 border-sidebar-border/60 bg-sidebar-accent/15 p-0"
       : "h-[4.25rem] w-full self-stretch gap-3.5 px-3 py-2.5";
-  const userCardClass =
-    `group/profile relative flex items-center overflow-hidden rounded-[1.15rem] border border-sidebar-border/70 bg-[linear-gradient(180deg,hsl(var(--sidebar-accent)/0.34),hsl(var(--sidebar-accent)/0.18))] text-left shadow-[0_18px_40px_-28px_hsl(var(--sidebar-background)/0.95)] transition-[width,height,padding,gap,background-color,border-color,box-shadow,transform] duration-200 ${cardTransitionTimingClass} ${collapsedCardStateClass}`;
+  const userCardClass = `group/profile relative flex items-center overflow-hidden rounded-[1.15rem] border border-sidebar-border/70 bg-[linear-gradient(180deg,hsl(var(--sidebar-accent)/0.34),hsl(var(--sidebar-accent)/0.18))] text-left shadow-[0_18px_40px_-28px_hsl(var(--sidebar-background)/0.95)] transition-[width,height,padding,gap,background-color,border-color,box-shadow,transform] duration-200 ${cardTransitionTimingClass} ${collapsedCardStateClass}`;
   const interactiveUserCardClass = isUserClickable
     ? "cursor-pointer hover:border-sidebar-ring/45 focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-sidebar-ring focus-visible:ring-offset-2 focus-visible:ring-offset-sidebar"
     : "cursor-default";
   const userCardTextWrapFlexClass = userCardDataCollapsible === "icon" ? "flex-none" : "flex-1";
   const userCardTextWrapClass = `${textVisibleStateClass} flex min-w-0 ${userCardTextWrapFlexClass} overflow-hidden transition-[max-width,opacity,transform] ${textTransitionDurationClass} ${textTransitionTimingClass}`;
   const userCardTextClass = `${textInnerVisibleStateClass} flex min-w-0 flex-col justify-center gap-0.5 transition-[opacity,transform] ${textOpacityDurationClass} ${textTransitionTimingClass}`;
-  const avatarCollapsedStateClass = userCardDataCollapsible === "icon" ? "h-7 w-7 min-h-7 min-w-7 scale-100" : "h-11 w-11 min-h-11 min-w-11";
-  const avatarFallbackCollapsedStateClass = userCardDataCollapsible === "icon" ? "text-[9px]" : "text-xs";
-  const userCardAvatarClass =
-    `${avatarCollapsedStateClass} shrink-0 border border-white/10 bg-sidebar-primary/10 shadow-[0_10px_30px_-24px_hsl(var(--sidebar-background)/1)] transition-[width,height,transform,border-color] ${textTransitionDurationClass} ${cardTransitionTimingClass}`;
-  const userCardCollapsedAvatarClass =
-    `${avatarCollapsedStateClass} relative flex shrink-0 items-center justify-center overflow-hidden rounded-full border border-white/10 bg-sidebar-primary/10 shadow-[0_10px_30px_-24px_hsl(var(--sidebar-background)/1)] transition-[width,height,transform,border-color] ${textTransitionDurationClass} ${cardTransitionTimingClass}`;
-  const userCardAvatarFallbackClass =
-    `bg-sidebar-primary/10 text-sidebar-foreground transition-[font-size] ${textTransitionDurationClass} ${cardTransitionTimingClass} ${avatarFallbackCollapsedStateClass}`;
+  const avatarCollapsedStateClass =
+    userCardDataCollapsible === "icon"
+      ? "h-7 w-7 min-h-7 min-w-7 scale-100"
+      : "h-11 w-11 min-h-11 min-w-11";
+  const avatarFallbackCollapsedStateClass =
+    userCardDataCollapsible === "icon" ? "text-[9px]" : "text-xs";
+  const userCardAvatarClass = `${avatarCollapsedStateClass} shrink-0 border border-white/10 bg-sidebar-primary/10 shadow-[0_10px_30px_-24px_hsl(var(--sidebar-background)/1)] transition-[width,height,transform,border-color] ${textTransitionDurationClass} ${cardTransitionTimingClass}`;
+  const userCardCollapsedAvatarClass = `${avatarCollapsedStateClass} relative flex shrink-0 items-center justify-center overflow-hidden rounded-full border border-white/10 bg-sidebar-primary/10 shadow-[0_10px_30px_-24px_hsl(var(--sidebar-background)/1)] transition-[width,height,transform,border-color] ${textTransitionDurationClass} ${cardTransitionTimingClass}`;
+  const userCardAvatarFallbackClass = `bg-sidebar-primary/10 text-sidebar-foreground transition-[font-size] ${textTransitionDurationClass} ${cardTransitionTimingClass} ${avatarFallbackCollapsedStateClass}`;
   const shouldRenderCollapsedAvatarShell = userCardDataCollapsible === "icon";
   const collapsedAvatarFallbackText = initials;
   const collapsedAvatarImageClass = "block h-full w-full rounded-full object-cover object-center";
   const collapsedAvatarFallbackShellClass = `flex h-full w-full items-center justify-center rounded-full ${userCardAvatarFallbackClass}`;
-  const userCardTextSpanClass = "truncate whitespace-nowrap text-sm font-semibold leading-tight text-sidebar-foreground";
+  const userCardTextSpanClass =
+    "truncate whitespace-nowrap text-sm font-semibold leading-tight text-sidebar-foreground";
   const userCardSubTextSpanClass = "truncate whitespace-nowrap text-xs text-sidebar-foreground/68";
   const userCardMetaClass =
     "ml-auto hidden shrink-0 items-center text-sidebar-foreground/38 transition-[opacity,transform,color] duration-200 group-hover/profile:text-sidebar-foreground/62 group-focus-visible/profile:text-sidebar-foreground/62 group-data-[collapsible=icon]:hidden";

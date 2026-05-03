@@ -6,19 +6,10 @@
  *
  */
 
-import type {
-  ElementNode,
-  LexicalCommand,
-  LexicalNode,
-  NodeKey,
-} from "lexical";
+import type { ElementNode, LexicalCommand, LexicalNode, NodeKey } from "lexical";
 
 import { useLexicalComposerContext } from "@lexical/react/LexicalComposerContext";
-import {
-  $findMatchingParent,
-  $insertNodeToNearestRoot,
-  mergeRegister,
-} from "@lexical/utils";
+import { $findMatchingParent, $insertNodeToNearestRoot, mergeRegister } from "@lexical/utils";
 import {
   $createParagraphNode,
   $getNodeByKey,
@@ -45,8 +36,7 @@ import {
   LayoutItemNode,
 } from "../../nodes/LayoutItemNode";
 
-export const INSERT_LAYOUT_COMMAND: LexicalCommand<string> =
-  createCommand<string>();
+export const INSERT_LAYOUT_COMMAND: LexicalCommand<string> = createCommand<string>();
 
 export const UPDATE_LAYOUT_COMMAND: LexicalCommand<{
   template: string;
@@ -69,27 +59,18 @@ export function LayoutPlugin(): null {
         selection.isCollapsed() &&
         selection.anchor.offset === 0
       ) {
-        const container = $findMatchingParent(
-          selection.anchor.getNode(),
-          $isLayoutContainerNode,
-        );
+        const container = $findMatchingParent(selection.anchor.getNode(), $isLayoutContainerNode);
 
         if ($isLayoutContainerNode(container)) {
           const parent = container.getParent<ElementNode>();
           const child =
             parent &&
-            (before
-              ? parent.getFirstChild<LexicalNode>()
-              : parent?.getLastChild<LexicalNode>());
+            (before ? parent.getFirstChild<LexicalNode>() : parent?.getLastChild<LexicalNode>());
           const descendant = before
             ? container.getFirstDescendant<LexicalNode>()?.getKey()
             : container.getLastDescendant<LexicalNode>()?.getKey();
 
-          if (
-            parent !== null &&
-            child === container &&
-            selection.anchor.key === descendant
-          ) {
+          if (parent !== null && child === container && selection.anchor.key === descendant) {
             if (before) {
               container.insertBefore($createParagraphNode());
             } else {
@@ -126,30 +107,14 @@ export function LayoutPlugin(): null {
       // below it to allow adding more content. It's similar what $insertBlockNode
       // (mainly for decorators), except it'll always be possible to continue adding
       // new content even if trailing paragraph is accidentally deleted
-      editor.registerCommand(
-        KEY_ARROW_DOWN_COMMAND,
-        () => $onEscape(false),
-        COMMAND_PRIORITY_LOW,
-      ),
-      editor.registerCommand(
-        KEY_ARROW_RIGHT_COMMAND,
-        () => $onEscape(false),
-        COMMAND_PRIORITY_LOW,
-      ),
+      editor.registerCommand(KEY_ARROW_DOWN_COMMAND, () => $onEscape(false), COMMAND_PRIORITY_LOW),
+      editor.registerCommand(KEY_ARROW_RIGHT_COMMAND, () => $onEscape(false), COMMAND_PRIORITY_LOW),
       // When layout is the first child pressing up/left arrow will insert paragraph
       // above it to allow adding more content. It's similar what $insertBlockNode
       // (mainly for decorators), except it'll always be possible to continue adding
       // new content even if leading paragraph is accidentally deleted
-      editor.registerCommand(
-        KEY_ARROW_UP_COMMAND,
-        () => $onEscape(true),
-        COMMAND_PRIORITY_LOW,
-      ),
-      editor.registerCommand(
-        KEY_ARROW_LEFT_COMMAND,
-        () => $onEscape(true),
-        COMMAND_PRIORITY_LOW,
-      ),
+      editor.registerCommand(KEY_ARROW_UP_COMMAND, () => $onEscape(true), COMMAND_PRIORITY_LOW),
+      editor.registerCommand(KEY_ARROW_LEFT_COMMAND, () => $onEscape(true), COMMAND_PRIORITY_LOW),
       editor.registerCommand(
         INSERT_LAYOUT_COMMAND,
         (template) => {
@@ -158,9 +123,7 @@ export function LayoutPlugin(): null {
             const itemsCount = getItemsCountFromTemplate(template);
 
             for (let i = 0; i < itemsCount; i++) {
-              container.append(
-                $createLayoutItemNode().append($createParagraphNode()),
-              );
+              container.append($createLayoutItemNode().append($createParagraphNode()));
             }
 
             $insertNodeToNearestRoot(container);
@@ -182,16 +145,12 @@ export function LayoutPlugin(): null {
             }
 
             const itemsCount = getItemsCountFromTemplate(template);
-            const prevItemsCount = getItemsCountFromTemplate(
-              container.getTemplateColumns(),
-            );
+            const prevItemsCount = getItemsCountFromTemplate(container.getTemplateColumns());
 
             // Add or remove extra columns if new template does not match existing one
             if (itemsCount > prevItemsCount) {
               for (let i = prevItemsCount; i < itemsCount; i++) {
-                container.append(
-                  $createLayoutItemNode().append($createParagraphNode()),
-                );
+                container.append($createLayoutItemNode().append($createParagraphNode()));
               }
             } else if (itemsCount < prevItemsCount) {
               for (let i = prevItemsCount - 1; i >= itemsCount; i--) {

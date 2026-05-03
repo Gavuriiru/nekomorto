@@ -158,8 +158,7 @@ const uniqueStrings = (items) => {
 };
 
 const canonicalizeTemplatePlaceholder = (placeholder) =>
-  PLACEHOLDER_ALIAS_MAP[String(placeholder || "").trim()] ||
-  String(placeholder || "").trim();
+  PLACEHOLDER_ALIAS_MAP[String(placeholder || "").trim()] || String(placeholder || "").trim();
 
 const replaceTemplatePlaceholderAliases = (value) => {
   TEMPLATE_PLACEHOLDER_PATTERN.lastIndex = 0;
@@ -711,10 +710,7 @@ const CONTENT_PLACEHOLDERS = [
   "conteudo.rotulo",
 ];
 
-const UPDATE_PLACEHOLDERS = [
-  "atualizacao.tipo",
-  "atualizacao.motivo",
-];
+const UPDATE_PLACEHOLDERS = ["atualizacao.tipo", "atualizacao.motivo"];
 
 const PLACEHOLDER_ALLOWLIST = {
   post_create: new Set([

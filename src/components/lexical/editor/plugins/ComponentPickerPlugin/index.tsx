@@ -138,8 +138,7 @@ export function getDynamicOptions(editor: LexicalEditor, queryString: string) {
           new ComponentPickerOption(`${rows}x${columns} Table`, {
             icon: <i className="icon table" />,
             keywords: ["table"],
-            onSelect: () =>
-              editor.dispatchCommand(INSERT_TABLE_COMMAND, { columns, rows }),
+            onSelect: () => editor.dispatchCommand(INSERT_TABLE_COMMAND, { columns, rows }),
           }),
       ),
     );
@@ -160,9 +159,7 @@ export const optionMatchesQuery = (
   }
   return (
     option.title.toLowerCase().includes(normalizedQuery) ||
-    (option.keywords || []).some((keyword) =>
-      keyword.toLowerCase().includes(normalizedQuery),
-    )
+    (option.keywords || []).some((keyword) => keyword.toLowerCase().includes(normalizedQuery))
   );
 };
 
@@ -210,20 +207,17 @@ export function getBaseOptions(
     new ComponentPickerOption("Numbered List", {
       icon: <i className="icon number" />,
       keywords: ["numbered list", "ordered list", "ol"],
-      onSelect: () =>
-        editor.dispatchCommand(INSERT_ORDERED_LIST_COMMAND, undefined),
+      onSelect: () => editor.dispatchCommand(INSERT_ORDERED_LIST_COMMAND, undefined),
     }),
     new ComponentPickerOption("Bulleted List", {
       icon: <i className="icon bullet" />,
       keywords: ["bulleted list", "unordered list", "ul"],
-      onSelect: () =>
-        editor.dispatchCommand(INSERT_UNORDERED_LIST_COMMAND, undefined),
+      onSelect: () => editor.dispatchCommand(INSERT_UNORDERED_LIST_COMMAND, undefined),
     }),
     new ComponentPickerOption("Check List", {
       icon: <i className="icon check" />,
       keywords: ["check list", "todo list"],
-      onSelect: () =>
-        editor.dispatchCommand(INSERT_CHECK_LIST_COMMAND, undefined),
+      onSelect: () => editor.dispatchCommand(INSERT_CHECK_LIST_COMMAND, undefined),
     }),
     new ComponentPickerOption("Quote", {
       icon: <i className="icon quote" />,
@@ -259,19 +253,14 @@ export function getBaseOptions(
     new ComponentPickerOption("Divider", {
       icon: <i className="icon horizontal-rule" />,
       keywords: ["horizontal rule", "divider", "hr"],
-      onSelect: () =>
-        editor.dispatchCommand(INSERT_HORIZONTAL_RULE_COMMAND, undefined),
+      onSelect: () => editor.dispatchCommand(INSERT_HORIZONTAL_RULE_COMMAND, undefined),
     }),
     new ComponentPickerOption("Enquete", {
       icon: <i className="icon poll" />,
       keywords: ["enquete", "poll", "voto", "vote"],
       onSelect: () =>
         showModal("Inserir enquete", (onClose) => (
-          <InsertPollDialog
-            activeEditor={editor}
-            fallbackEditor={editor}
-            onClose={onClose}
-          />
+          <InsertPollDialog activeEditor={editor} fallbackEditor={editor} onClose={onClose} />
         )),
     }),
     ...EmbedConfigs.map(
@@ -279,8 +268,7 @@ export function getBaseOptions(
         new ComponentPickerOption(`Embed ${embedConfig.contentName}`, {
           icon: embedConfig.icon,
           keywords: [...embedConfig.keywords, "embed"],
-          onSelect: () =>
-            editor.dispatchCommand(INSERT_EMBED_COMMAND, embedConfig.type),
+          onSelect: () => editor.dispatchCommand(INSERT_EMBED_COMMAND, embedConfig.type),
         }),
     ),
     new ComponentPickerOption("Image", {
@@ -292,8 +280,7 @@ export function getBaseOptions(
     new ComponentPickerOption("Collapsible", {
       icon: <i className="icon caret-right" />,
       keywords: ["collapse", "collapsible", "toggle"],
-      onSelect: () =>
-        editor.dispatchCommand(INSERT_COLLAPSIBLE_COMMAND, undefined),
+      onSelect: () => editor.dispatchCommand(INSERT_COLLAPSIBLE_COMMAND, undefined),
     }),
     new ComponentPickerOption("Columns Layout", {
       icon: <i className="icon columns" />,
@@ -308,8 +295,7 @@ export function getBaseOptions(
         new ComponentPickerOption(`Align ${alignment}`, {
           icon: <i className={`icon ${alignment}-align`} />,
           keywords: ["align", "justify", alignment],
-          onSelect: () =>
-            editor.dispatchCommand(FORMAT_ELEMENT_COMMAND, alignment),
+          onSelect: () => editor.dispatchCommand(FORMAT_ELEMENT_COMMAND, alignment),
         }),
     ),
   ];

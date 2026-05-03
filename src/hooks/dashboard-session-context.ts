@@ -38,7 +38,8 @@ export const readDashboardBootstrapUser = (): DashboardBootstrapUser | null => {
     return null;
   }
 
-  const candidate = (window as Window & { __BOOTSTRAP_PUBLIC_ME__?: unknown }).__BOOTSTRAP_PUBLIC_ME__;
+  const candidate = (window as Window & { __BOOTSTRAP_PUBLIC_ME__?: unknown })
+    .__BOOTSTRAP_PUBLIC_ME__;
   if (!candidate || typeof candidate !== "object") {
     return null;
   }

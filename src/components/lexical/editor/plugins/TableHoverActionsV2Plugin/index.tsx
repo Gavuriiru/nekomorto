@@ -9,13 +9,7 @@ import type { JSX } from "react";
 
 import "./index.css";
 
-import {
-  autoUpdate,
-  offset,
-  shift,
-  useFloating,
-  type VirtualElement,
-} from "@floating-ui/react";
+import { autoUpdate, offset, shift, useFloating, type VirtualElement } from "@floating-ui/react";
 import { useLexicalComposerContext } from "@lexical/react/LexicalComposerContext";
 import { useLexicalEditable } from "@lexical/react/useLexicalEditable";
 import {
@@ -66,11 +60,7 @@ function $isSimpleTable(table: TableNode): boolean {
     }
     const cells = row.getChildren();
     for (const cell of cells) {
-      if (
-        !$isTableCellNode(cell) ||
-        cell.getRowSpan() !== 1 ||
-        cell.getColSpan() !== 1
-      ) {
+      if (!$isTableCellNode(cell) || cell.getRowSpan() !== 1 || cell.getColSpan() !== 1) {
         return false;
       }
     }
@@ -128,11 +118,7 @@ function getClosestTopCellPosition(
   return closest;
 }
 
-function TableHoverActionsV2({
-  anchorElem,
-}: {
-  anchorElem: HTMLElement;
-}): JSX.Element | null {
+function TableHoverActionsV2({ anchorElem }: { anchorElem: HTMLElement }): JSX.Element | null {
   const [editor, { getTheme }] = useLexicalComposerContext();
   const isEditable = useLexicalEditable();
   const [isVisible, setIsVisible] = useState(false);
@@ -147,9 +133,7 @@ function TableHoverActionsV2({
   const leftFloatingElemRef = useRef<HTMLElement | null>(null);
   const hoveredLeftCellRef = useRef<HTMLTableCellElement | null>(null);
   const hoveredTopCellRef = useRef<HTMLTableCellElement | null>(null);
-  const handleMouseLeaveRef = useRef<((event: MouseEvent) => void) | null>(
-    null,
-  );
+  const handleMouseLeaveRef = useRef<((event: MouseEvent) => void) | null>(null);
 
   const { refs, floatingStyles, update } = useFloating({
     middleware: [
@@ -196,16 +180,9 @@ function TableHoverActionsV2({
         return;
       }
 
-      const { tableElement, isOutside } = getTableFromMouseEvent(
-        event,
-        getTheme,
-      );
+      const { tableElement, isOutside } = getTableFromMouseEvent(event, getTheme);
 
-      if (
-        isOutside ||
-        tableElement == null ||
-        (anchorElem && !anchorElem.contains(tableElement))
-      ) {
+      if (isOutside || tableElement == null || (anchorElem && !anchorElem.contains(tableElement))) {
         setIsVisible(false);
         setIsLeftVisible(false);
         return;
@@ -230,10 +207,7 @@ function TableHoverActionsV2({
           : -1;
       const colIndex = hoveredCell.cellIndex ?? -1;
 
-      const closestTopCell = getClosestTopCellPosition(
-        tableElement,
-        event.clientX,
-      );
+      const closestTopCell = getClosestTopCellPosition(tableElement, event.clientX);
 
       if (!closestTopCell || rowIndex !== 0) {
         setIsVisible(false);
@@ -296,10 +270,7 @@ function TableHoverActionsV2({
 
     return editor.registerRootListener((rootElement, prevRootElement) => {
       if (prevRootElement && handleMouseLeaveRef.current) {
-        prevRootElement.removeEventListener(
-          "mouseleave",
-          handleMouseLeaveRef.current,
-        );
+        prevRootElement.removeEventListener("mouseleave", handleMouseLeaveRef.current);
       }
       if (rootElement && handleMouseLeaveRef.current) {
         rootElement.addEventListener("mouseleave", handleMouseLeaveRef.current);
@@ -364,11 +335,7 @@ function TableHoverActionsV2({
       const colIndex = cellNode.getIndexWithinParent();
       const rows = tableNode.getChildren().filter($isTableRowNode);
 
-      const [tableMap] = $computeTableMapSkipCellCheck(
-        tableNode,
-        cellNode,
-        cellNode,
-      );
+      const [tableMap] = $computeTableMapSkipCellCheck(tableNode, cellNode, cellNode);
 
       const headerCell = tableMap[0]?.[colIndex]?.cell;
       const shouldSkipTopRow = headerCell?.hasHeader() ?? false;
@@ -421,16 +388,10 @@ function TableHoverActionsV2({
           buttonClassName="floating-filter-indicator"
           hideChevron={true}
         >
-          <DropDownItem
-            className="item"
-            onClick={() => handleSortColumn("desc")}
-          >
+          <DropDownItem className="item" onClick={() => handleSortColumn("desc")}>
             Ordenar crescente
           </DropDownItem>
-          <DropDownItem
-            className="item"
-            onClick={() => handleSortColumn("asc")}
-          >
+          <DropDownItem className="item" onClick={() => handleSortColumn("asc")}>
             Ordenar decrescente
           </DropDownItem>
         </DropDown>

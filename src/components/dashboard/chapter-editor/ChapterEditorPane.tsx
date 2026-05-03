@@ -432,7 +432,9 @@ const ChapterEditorPane = forwardRef<ChapterEditorPaneHandle, ChapterEditorPaneP
       requestLeave,
     ]);
     useLayoutEffect(() => {
-      const dashboardHeader = document.querySelector<HTMLElement>("#dashboard-main-content > header");
+      const dashboardHeader = document.querySelector<HTMLElement>(
+        "#dashboard-main-content > header",
+      );
       if (!dashboardHeader) {
         setChapterEditorToolbarStickyTop(0);
         return;

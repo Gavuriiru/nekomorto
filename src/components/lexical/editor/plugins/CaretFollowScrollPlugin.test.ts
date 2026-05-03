@@ -80,12 +80,8 @@ describe("CaretFollowScrollPlugin helpers", () => {
     document.body.append(playground);
 
     scrollShell.scrollTop = 200;
-    vi.spyOn(scrollShell, "getBoundingClientRect").mockReturnValue(
-      createRect(100, 500),
-    );
-    vi.spyOn(toolbar, "getBoundingClientRect").mockReturnValue(
-      createRect(100, 140),
-    );
+    vi.spyOn(scrollShell, "getBoundingClientRect").mockReturnValue(createRect(100, 500));
+    vi.spyOn(toolbar, "getBoundingClientRect").mockReturnValue(createRect(100, 140));
 
     expect(getCaretTopOffset(rootElement, scrollShell)).toBe(52);
 
@@ -107,9 +103,7 @@ describe("CaretFollowScrollPlugin helpers", () => {
     document.body.append(scrollShell);
 
     scrollShell.scrollTop = 120;
-    vi.spyOn(scrollShell, "getBoundingClientRect").mockReturnValue(
-      createRect(100, 500),
-    );
+    vi.spyOn(scrollShell, "getBoundingClientRect").mockReturnValue(createRect(100, 500));
 
     const didScroll = scrollCaretRectIntoView({
       caretRect: createRect(220, 240),

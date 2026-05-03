@@ -26,9 +26,7 @@ export type SerializedMentionNode = Spread<
   SerializedTextNode
 >;
 
-function $convertMentionElement(
-  domNode: HTMLElement,
-): DOMConversionOutput | null {
+function $convertMentionElement(domNode: HTMLElement): DOMConversionOutput | null {
   const textContent = domNode.textContent;
   const mentionName = domNode.getAttribute("data-lexical-mention-name");
 
@@ -57,9 +55,7 @@ export class MentionNode extends TextNode {
     return new MentionNode(node.__mention, node.__text, node.__key);
   }
   static importJSON(serializedNode: SerializedMentionNode): MentionNode {
-    return $createMentionNode(serializedNode.mentionName).updateFromJSON(
-      serializedNode,
-    );
+    return $createMentionNode(serializedNode.mentionName).updateFromJSON(serializedNode);
   }
 
   constructor(mentionName: string, text?: string, key?: NodeKey) {
@@ -120,17 +116,12 @@ export class MentionNode extends TextNode {
   }
 }
 
-export function $createMentionNode(
-  mentionName: string,
-  textContent?: string,
-): MentionNode {
+export function $createMentionNode(mentionName: string, textContent?: string): MentionNode {
   const mentionNode = new MentionNode(mentionName, textContent ?? mentionName);
   mentionNode.setMode("segmented").toggleDirectionless();
   return $applyNodeReplacement(mentionNode);
 }
 
-export function $isMentionNode(
-  node: LexicalNode | null | undefined,
-): node is MentionNode {
+export function $isMentionNode(node: LexicalNode | null | undefined): node is MentionNode {
   return node instanceof MentionNode;
 }

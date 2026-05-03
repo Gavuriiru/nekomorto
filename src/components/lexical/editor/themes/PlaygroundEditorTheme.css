@@ -77,7 +77,7 @@
 }
 
 .PlaygroundEditorTheme__tabNode.PlaygroundEditorTheme__textUnderline::after {
-  content: '';
+  content: "";
   position: absolute;
   left: 0;
   right: 0;
@@ -86,7 +86,7 @@
 }
 
 .PlaygroundEditorTheme__tabNode.PlaygroundEditorTheme__textStrikethrough::before {
-  content: '';
+  content: "";
   position: absolute;
   left: 0;
   right: 0;
@@ -96,7 +96,7 @@
 
 .PlaygroundEditorTheme__tabNode.PlaygroundEditorTheme__textUnderlineStrikethrough::before,
 .PlaygroundEditorTheme__tabNode.PlaygroundEditorTheme__textUnderlineStrikethrough::after {
-  content: '';
+  content: "";
   position: absolute;
   left: 0;
   right: 0;
@@ -156,7 +156,7 @@
   position: absolute;
 }
 .PlaygroundEditorTheme__blockCursor:after {
-  content: '';
+  content: "";
   display: block;
   position: absolute;
   top: -2px;
@@ -261,7 +261,7 @@
 }
 .PlaygroundEditorTheme__tableFrozenRow tr:nth-of-type(1) > th:after,
 .PlaygroundEditorTheme__tableFrozenRow tr:nth-of-type(1) > td:after {
-  content: '';
+  content: "";
   position: absolute;
   left: 0;
   bottom: 0;
@@ -281,7 +281,7 @@
   left: 0;
 }
 .PlaygroundEditorTheme__tableFrozenColumn tr > :first-child::after {
-  content: '';
+  content: "";
   position: absolute;
   left: 0;
   top: 0;
@@ -343,7 +343,7 @@
   top: 0;
   background-color: highlight;
   mix-blend-mode: multiply;
-  content: '';
+  content: "";
   pointer-events: none;
 }
 .PlaygroundEditorTheme__tableAddColumns {
@@ -360,7 +360,7 @@
   background-position: center;
   background-repeat: no-repeat;
   display: block;
-  content: ' ';
+  content: " ";
   position: absolute;
   top: 0;
   left: 0;
@@ -386,7 +386,7 @@
   background-position: center;
   background-repeat: no-repeat;
   display: block;
-  content: ' ';
+  content: " ";
   position: absolute;
   top: 0;
   left: 0;
@@ -500,7 +500,7 @@
 }
 .PlaygroundEditorTheme__listItemUnchecked:before,
 .PlaygroundEditorTheme__listItemChecked:before {
-  content: '\200B';
+  content: "\200B";
   width: 0.9em;
   height: 0.9em;
   top: 50%;
@@ -530,7 +530,7 @@
   background-repeat: no-repeat;
 }
 .PlaygroundEditorTheme__listItemChecked:after {
-  content: '';
+  content: "";
   cursor: pointer;
   border-color: #fff;
   border-style: solid;
@@ -554,16 +554,13 @@
   color: slategray;
 }
 .PlaygroundEditorTheme__tokenDeleted {
-  border-image: linear-gradient(to right, #ffcecb 50%, #ffebe9 50%) fill 0/0/0
-    100vw;
+  border-image: linear-gradient(to right, #ffcecb 50%, #ffebe9 50%) fill 0 / 0 / 0 100vw;
 }
 .PlaygroundEditorTheme__tokenInserted {
-  border-image: linear-gradient(to right, #aceebb 50%, #dafbe1 50%) fill 0/0/0
-    100vw;
+  border-image: linear-gradient(to right, #aceebb 50%, #dafbe1 50%) fill 0 / 0 / 0 100vw;
 }
 .PlaygroundEditorTheme__tokenUnchanged {
-  border-image: linear-gradient(to right, #ddd 50%, #f0f2f5 50%) fill 0/0/0
-    100vw;
+  border-image: linear-gradient(to right, #ddd 50%, #f0f2f5 50%) fill 0 / 0 / 0 100vw;
 }
 .PlaygroundEditorTheme__tokenPunctuation {
   color: #999;
@@ -634,7 +631,7 @@
   background: transparent;
 }
 .PlaygroundEditorTheme__hr:after {
-  content: '';
+  content: "";
   display: block;
   height: var(--lexical-content-hr-thickness, 2px);
   background-color: var(--lexical-content-hr-color, #ccc);

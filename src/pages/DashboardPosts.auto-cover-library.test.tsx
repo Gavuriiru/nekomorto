@@ -163,7 +163,7 @@ describe("DashboardPosts biblioteca com capa automatica", () => {
           name: "Admin",
           username: "admin",
           permissions: ["posts"],
-    grants: { posts: true },
+          grants: { posts: true },
         });
       }
       if (path === "/api/projects" && method === "GET") {

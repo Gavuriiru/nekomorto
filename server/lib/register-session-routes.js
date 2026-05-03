@@ -5,7 +5,11 @@ const setNoStore = (res) => {
 };
 
 const requireUserSessionOrPendingAuth = (req, res, next) => {
-  if (req.session?.user || req.session?.pendingMfaUser?.id || req.session?.pendingMfaEnrollmentUser?.id) {
+  if (
+    req.session?.user ||
+    req.session?.pendingMfaUser?.id ||
+    req.session?.pendingMfaEnrollmentUser?.id
+  ) {
     return next();
   }
   setNoStore(res);
@@ -15,7 +19,9 @@ const requireUserSessionOrPendingAuth = (req, res, next) => {
 const buildAuthMethods = (summary) => {
   const identities = Array.isArray(summary?.identities) ? summary.identities : [];
   const methods = identities.map((entry) => ({
-    provider: String(entry?.provider || "").trim().toLowerCase(),
+    provider: String(entry?.provider || "")
+      .trim()
+      .toLowerCase(),
     linked: entry?.linked === true,
     emailNormalized: entry?.emailNormalized || null,
     emailVerified: entry?.emailVerified === true,

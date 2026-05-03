@@ -138,7 +138,9 @@ describe("auth-security-runtime", () => {
       }),
     );
 
-    expect(runtime.buildMySecuritySummary({ req: { session: {} }, userId: "user-1" })).toMatchObject({
+    expect(
+      runtime.buildMySecuritySummary({ req: { session: {} }, userId: "user-1" }),
+    ).toMatchObject({
       oauthEmailSuggested: "user@example.com",
     });
   });
@@ -163,7 +165,9 @@ describe("auth-security-runtime", () => {
       }),
     );
 
-    expect(runtime.buildMySecuritySummary({ req: { session: {} }, userId: "user-1" })).toMatchObject({
+    expect(
+      runtime.buildMySecuritySummary({ req: { session: {} }, userId: "user-1" }),
+    ).toMatchObject({
       oauthEmailSuggested: "newer@example.com",
     });
   });
@@ -188,7 +192,9 @@ describe("auth-security-runtime", () => {
       }),
     );
 
-    expect(runtime.buildMySecuritySummary({ req: { session: {} }, userId: "user-1" })).toMatchObject({
+    expect(
+      runtime.buildMySecuritySummary({ req: { session: {} }, userId: "user-1" }),
+    ).toMatchObject({
       oauthEmailSuggested: "newer@example.com",
     });
   });
@@ -207,11 +213,12 @@ describe("auth-security-runtime", () => {
       }),
     );
 
-    expect(runtime.buildMySecuritySummary({ req: { session: {} }, userId: "user-1" })).toMatchObject({
+    expect(
+      runtime.buildMySecuritySummary({ req: { session: {} }, userId: "user-1" }),
+    ).toMatchObject({
       oauthEmailSuggested: null,
     });
   });
-
 
   it("returns no oauth suggestion when identity loader is absent or empty", () => {
     const runtime = createAuthSecurityRuntime(
@@ -220,11 +227,12 @@ describe("auth-security-runtime", () => {
       }),
     );
 
-    expect(runtime.buildMySecuritySummary({ req: { session: {} }, userId: "user-1" })).toMatchObject({
+    expect(
+      runtime.buildMySecuritySummary({ req: { session: {} }, userId: "user-1" }),
+    ).toMatchObject({
       oauthEmailSuggested: null,
     });
   });
-
 
   it("ignores disabled identities when summarizing oauth email", () => {
     const runtime = createAuthSecurityRuntime(
@@ -247,7 +255,9 @@ describe("auth-security-runtime", () => {
       }),
     );
 
-    expect(runtime.buildMySecuritySummary({ req: { session: {} }, userId: "user-1" })).toMatchObject({
+    expect(
+      runtime.buildMySecuritySummary({ req: { session: {} }, userId: "user-1" }),
+    ).toMatchObject({
       oauthEmailSuggested: "fallback@example.com",
     });
   });
@@ -272,7 +282,9 @@ describe("auth-security-runtime", () => {
       }),
     );
 
-    expect(runtime.buildMySecuritySummary({ req: { session: {} }, userId: "user-1" })).toMatchObject({
+    expect(
+      runtime.buildMySecuritySummary({ req: { session: {} }, userId: "user-1" }),
+    ).toMatchObject({
       oauthEmailSuggested: "older-verified@example.com",
     });
   });
@@ -297,7 +309,9 @@ describe("auth-security-runtime", () => {
       }),
     );
 
-    expect(runtime.buildMySecuritySummary({ req: { session: {} }, userId: "user-1" })).toMatchObject({
+    expect(
+      runtime.buildMySecuritySummary({ req: { session: {} }, userId: "user-1" }),
+    ).toMatchObject({
       oauthEmailSuggested: "lastused@example.com",
     });
   });
@@ -316,7 +330,9 @@ describe("auth-security-runtime", () => {
       }),
     );
 
-    expect(runtime.buildMySecuritySummary({ req: { session: {} }, userId: "user-1" })).toMatchObject({
+    expect(
+      runtime.buildMySecuritySummary({ req: { session: {} }, userId: "user-1" }),
+    ).toMatchObject({
       oauthEmailSuggested: "linked@example.com",
     });
   });
@@ -341,7 +357,9 @@ describe("auth-security-runtime", () => {
       }),
     );
 
-    expect(runtime.buildMySecuritySummary({ req: { session: {} }, userId: "user-1" })).toMatchObject({
+    expect(
+      runtime.buildMySecuritySummary({ req: { session: {} }, userId: "user-1" }),
+    ).toMatchObject({
       oauthEmailSuggested: "good-ts@example.com",
     });
   });
@@ -356,7 +374,9 @@ describe("auth-security-runtime", () => {
       }),
     );
 
-    expect(runtime.buildMySecuritySummary({ req: { session: {} }, userId: "user-1" })).toMatchObject({
+    expect(
+      runtime.buildMySecuritySummary({ req: { session: {} }, userId: "user-1" }),
+    ).toMatchObject({
       oauthEmailSuggested: null,
     });
   });
@@ -368,7 +388,9 @@ describe("auth-security-runtime", () => {
       }),
     );
 
-    expect(runtime.buildMySecuritySummary({ req: { session: {} }, userId: "user-1" })).toMatchObject({
+    expect(
+      runtime.buildMySecuritySummary({ req: { session: {} }, userId: "user-1" }),
+    ).toMatchObject({
       activeSessionsCount: 2,
     });
   });
@@ -384,7 +406,9 @@ describe("auth-security-runtime", () => {
       }),
     );
 
-    expect(runtime.buildMySecuritySummary({ req: { session: {} }, userId: "user-1" })).toMatchObject({
+    expect(
+      runtime.buildMySecuritySummary({ req: { session: {} }, userId: "user-1" }),
+    ).toMatchObject({
       recoveryCodesRemaining: 2,
       totpEnabled: true,
     });
@@ -401,14 +425,21 @@ describe("auth-security-runtime", () => {
       }),
     );
 
-    expect(runtime.buildMySecuritySummary({ req: { session: {} }, userId: "user-1" })).toMatchObject({
+    expect(
+      runtime.buildMySecuritySummary({ req: { session: {} }, userId: "user-1" }),
+    ).toMatchObject({
       totpEnabled: false,
     });
   });
 
   it("preserves issuer and account label metadata in summary", () => {
     const runtime = createAuthSecurityRuntime(createDeps());
-    expect(runtime.buildMySecuritySummary({ req: { session: { user: { username: "userone" } } }, userId: "user-1" })).toMatchObject({
+    expect(
+      runtime.buildMySecuritySummary({
+        req: { session: { user: { username: "userone" } } },
+        userId: "user-1",
+      }),
+    ).toMatchObject({
       issuer: "Nekomata",
       accountLabel: "userone",
     });
@@ -416,7 +447,9 @@ describe("auth-security-runtime", () => {
 
   it("exposes icon url metadata in summary", () => {
     const runtime = createAuthSecurityRuntime(createDeps());
-    expect(runtime.buildMySecuritySummary({ req: { session: {} }, userId: "user-1" })).toMatchObject({
+    expect(
+      runtime.buildMySecuritySummary({ req: { session: {} }, userId: "user-1" }),
+    ).toMatchObject({
       iconUrl: "https://example.com/favicon.png",
     });
   });

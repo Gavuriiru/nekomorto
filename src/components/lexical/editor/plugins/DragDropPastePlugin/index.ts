@@ -14,13 +14,7 @@ import { useEffect } from "react";
 
 import { INSERT_IMAGE_COMMAND } from "../ImagesPlugin";
 
-const ACCEPTABLE_IMAGE_TYPES = [
-  "image/",
-  "image/heic",
-  "image/heif",
-  "image/gif",
-  "image/webp",
-];
+const ACCEPTABLE_IMAGE_TYPES = ["image/", "image/heic", "image/heif", "image/gif", "image/webp"];
 
 export default function DragDropPaste(): null {
   const [editor] = useLexicalComposerContext();

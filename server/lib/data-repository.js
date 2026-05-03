@@ -191,7 +191,9 @@ const normalizeUserIdentityRecord = (record) => {
     userId: String(record?.userId || "").trim(),
     provider: String(record?.provider || "").trim(),
     providerSubject: String(record?.providerSubject || "").trim(),
-    emailNormalized: record?.emailNormalized ? String(record.emailNormalized).trim().toLowerCase() : null,
+    emailNormalized: record?.emailNormalized
+      ? String(record.emailNormalized).trim().toLowerCase()
+      : null,
     emailVerified: typeof record?.emailVerified === "boolean" ? record.emailVerified : null,
     displayName: record?.displayName ? String(record.displayName).trim() : null,
     avatarUrl: record?.avatarUrl ? String(record.avatarUrl).trim() : null,
@@ -252,7 +254,6 @@ const cloneUserIdentityRecords = (records, predicate = null) =>
     acc.push(normalized);
     return acc;
   }, []);
-
 
 const findUserIdentityInCollection = (records, predicate) => {
   const match = ensureArray(records).find(predicate);
@@ -1568,7 +1569,9 @@ export class DbDataRepository {
 
   findUserIdentityRecordByEmail(provider, emailNormalized) {
     const normalizedProvider = String(provider || "").trim();
-    const normalizedEmail = String(emailNormalized || "").trim().toLowerCase();
+    const normalizedEmail = String(emailNormalized || "")
+      .trim()
+      .toLowerCase();
     if (!normalizedProvider || !normalizedEmail) {
       return null;
     }
@@ -1582,7 +1585,9 @@ export class DbDataRepository {
   }
 
   findUserIdentityRecordsByEmail(emailNormalized, { includeDisabled = false } = {}) {
-    const normalizedEmail = String(emailNormalized || "").trim().toLowerCase();
+    const normalizedEmail = String(emailNormalized || "")
+      .trim()
+      .toLowerCase();
     if (!normalizedEmail) {
       return [];
     }
@@ -1599,7 +1604,9 @@ export class DbDataRepository {
     if (!normalized) {
       return null;
     }
-    const list = Array.isArray(this.snapshot.userIdentityRecords) ? [...this.snapshot.userIdentityRecords] : [];
+    const list = Array.isArray(this.snapshot.userIdentityRecords)
+      ? [...this.snapshot.userIdentityRecords]
+      : [];
     const index = list.findIndex((entry) => String(entry.id || "") === normalized.id);
     if (index >= 0) {
       list[index] = normalized;

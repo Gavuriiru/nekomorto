@@ -108,7 +108,7 @@ describe("DashboardPosts loading state", () => {
           name: "Admin",
           username: "admin",
           permissions: ["posts"],
-    grants: { posts: true },
+          grants: { posts: true },
         });
       }
       if (path === "/api/posts") {
@@ -152,7 +152,7 @@ describe("DashboardPosts loading state", () => {
           name: "Admin",
           username: "admin",
           permissions: ["posts"],
-    grants: { posts: true },
+          grants: { posts: true },
         });
       }
       if (path === "/api/posts") {
@@ -190,7 +190,7 @@ describe("DashboardPosts loading state", () => {
           name: "Admin",
           username: "admin",
           permissions: ["posts"],
-    grants: { posts: true },
+          grants: { posts: true },
         });
       }
       if (path === "/api/posts") {

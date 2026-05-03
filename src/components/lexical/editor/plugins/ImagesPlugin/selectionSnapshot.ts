@@ -35,10 +35,7 @@ export const restoreRangeSelectionSnapshot = (
     return false;
   }
 
-  if (
-    $getNodeByKey(snapshot.anchor.key) === null ||
-    $getNodeByKey(snapshot.focus.key) === null
-  ) {
+  if ($getNodeByKey(snapshot.anchor.key) === null || $getNodeByKey(snapshot.focus.key) === null) {
     return false;
   }
 

@@ -34,9 +34,7 @@ export type SerializedYouTubeNode = Spread<
   SerializedDecoratorBlockNode
 >;
 
-function $convertYoutubeElement(
-  domNode: HTMLElement,
-): null | DOMConversionOutput {
+function $convertYoutubeElement(domNode: HTMLElement): null | DOMConversionOutput {
   const videoID = domNode.getAttribute("data-lexical-youtube");
   if (videoID) {
     const node = $createYouTubeNode(videoID);
@@ -57,9 +55,7 @@ export class YouTubeNode extends DecoratorBlockNode {
   }
 
   static importJSON(serializedNode: SerializedYouTubeNode): YouTubeNode {
-    return $createYouTubeNode(serializedNode.videoID).updateFromJSON(
-      serializedNode,
-    );
+    return $createYouTubeNode(serializedNode.videoID).updateFromJSON(serializedNode);
   }
 
   exportJSON(): SerializedYouTubeNode {
@@ -79,10 +75,7 @@ export class YouTubeNode extends DecoratorBlockNode {
     element.setAttribute("data-lexical-youtube", this.__id);
     element.setAttribute("width", "560");
     element.setAttribute("height", "315");
-    element.setAttribute(
-      "src",
-      `https://www.youtube-nocookie.com/embed/${this.__id}`,
-    );
+    element.setAttribute("src", `https://www.youtube-nocookie.com/embed/${this.__id}`);
     element.style.border = "0";
     element.setAttribute(
       "allow",

@@ -100,8 +100,7 @@ const theme: EditorThemeClasses = {
   },
   tableCell: "PlaygroundEditorTheme__tableCell",
   tableCellActionButton: "PlaygroundEditorTheme__tableCellActionButton",
-  tableCellActionButtonContainer:
-    "PlaygroundEditorTheme__tableCellActionButtonContainer",
+  tableCellActionButtonContainer: "PlaygroundEditorTheme__tableCellActionButtonContainer",
   tableCellHeader: "PlaygroundEditorTheme__tableCellHeader",
   tableCellResizer: "PlaygroundEditorTheme__tableCellResizer",
   tableCellSelected: "PlaygroundEditorTheme__tableCellSelected",

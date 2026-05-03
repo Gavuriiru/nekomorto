@@ -62,9 +62,7 @@ export default function DateTimeComponent({
     const hours = dateTime?.getHours();
     const minutes = dateTime?.getMinutes();
     if (hours !== 0 || minutes !== 0) {
-      return `${hours?.toString().padStart(2, "0")}:${minutes
-        ?.toString()
-        .padStart(2, "0")}`;
+      return `${hours?.toString().padStart(2, "0")}:${minutes?.toString().padStart(2, "0")}`;
     }
     return "00:00";
   });
@@ -112,10 +110,7 @@ export default function DateTimeComponent({
     };
   }, [refs, editor]);
 
-  const withDateTimeNode = (
-    cb: (node: DateTimeNode) => void,
-    onUpdate?: () => void,
-  ): void => {
+  const withDateTimeNode = (cb: (node: DateTimeNode) => void, onUpdate?: () => void): void => {
     editor.update(
       () => {
         const node = $getNodeByKey(nodeKey);
@@ -149,9 +144,7 @@ export default function DateTimeComponent({
         setTimeValue(time);
         return;
       }
-      const [hours, minutes] = time
-        .split(":")
-        .map((str: string) => parseInt(str, 10));
+      const [hours, minutes] = time.split(":").map((str: string) => parseInt(str, 10));
       const newSelectedDate = setHours(setMinutes(selected, minutes), hours);
       setSelected(newSelectedDate);
       node.setDateTime(newSelectedDate);
@@ -165,16 +158,8 @@ export default function DateTimeComponent({
         setSelected(date);
         return;
       }
-      const [hours, minutes] = timeValue
-        .split(":")
-        .map((str) => parseInt(str, 10));
-      const newDate = new Date(
-        date.getFullYear(),
-        date.getMonth(),
-        date.getDate(),
-        hours,
-        minutes,
-      );
+      const [hours, minutes] = timeValue.split(":").map((str) => parseInt(str, 10));
+      const newDate = new Date(date.getFullYear(), date.getMonth(), date.getDate(), hours, minutes);
       node.setDateTime(newDate);
       setSelected(newDate);
     });
@@ -186,8 +171,7 @@ export default function DateTimeComponent({
       ref={ref}
       style={{ cursor: "pointer", width: "fit-content" }}
     >
-      {dateTime?.toDateString() + (includeTime ? " " + timeValue : "") ||
-        "Invalid Date"}
+      {dateTime?.toDateString() + (includeTime ? " " + timeValue : "") || "Invalid Date"}
       {isOpen && (
         <FloatingPortal>
           <FloatingOverlay lockScroll={true}>

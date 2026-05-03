@@ -45,9 +45,7 @@ describe("InsertPollDialog", () => {
     fireEvent.click(screen.getByRole("button", { name: /confirmar/i }));
 
     expect(activeEditor.update).toHaveBeenCalledTimes(1);
-    expect(restoreSelectionForInsertionSpy).toHaveBeenCalledWith(
-      selectionSnapshot,
-    );
+    expect(restoreSelectionForInsertionSpy).toHaveBeenCalledWith(selectionSnapshot);
     expect(activeEditor.dispatchCommand).toHaveBeenCalledWith(
       INSERT_POLL_COMMAND,
       "Pergunta teste",
@@ -80,10 +78,7 @@ describe("InsertPollDialog", () => {
     });
     fireEvent.click(screen.getByRole("button", { name: /confirmar/i }));
 
-    expect(restoreSelectionForInsertionSpy).toHaveBeenNthCalledWith(
-      1,
-      selectionSnapshot,
-    );
+    expect(restoreSelectionForInsertionSpy).toHaveBeenNthCalledWith(1, selectionSnapshot);
     expect(restoreSelectionForInsertionSpy).toHaveBeenNthCalledWith(2, null);
     expect(fallbackEditor.update).toHaveBeenCalledTimes(1);
     expect(fallbackEditor.dispatchCommand).toHaveBeenCalledWith(

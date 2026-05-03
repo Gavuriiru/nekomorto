@@ -48,9 +48,7 @@ export class CollapsibleContentNode extends ElementNode {
       editor.getEditorState().read(() => {
         const containerNode = this.getParentOrThrow();
         if (!$isCollapsibleContainerNode(containerNode)) {
-          throw new Error(
-            "Expected parent node to be a CollapsibleContainerNode",
-          );
+          throw new Error("Expected parent node to be a CollapsibleContainerNode");
         }
         if (!containerNode.__open) {
           setDomHiddenUntilFound(dom);
@@ -60,9 +58,7 @@ export class CollapsibleContentNode extends ElementNode {
         editor.update(() => {
           const containerNode = this.getParentOrThrow().getLatest();
           if (!$isCollapsibleContainerNode(containerNode)) {
-            throw new Error(
-              "Expected parent node to be a CollapsibleContainerNode",
-            );
+            throw new Error("Expected parent node to be a CollapsibleContainerNode");
           }
           if (!containerNode.__open) {
             containerNode.toggleOpen();
@@ -98,9 +94,7 @@ export class CollapsibleContentNode extends ElementNode {
     return { element };
   }
 
-  static importJSON(
-    serializedNode: SerializedCollapsibleContentNode,
-  ): CollapsibleContentNode {
+  static importJSON(serializedNode: SerializedCollapsibleContentNode): CollapsibleContentNode {
     return $createCollapsibleContentNode().updateFromJSON(serializedNode);
   }
 

@@ -1,17 +1,13 @@
 import { fireEvent, render, screen } from "@testing-library/react";
 import { describe, expect, it, vi } from "vitest";
 
-const {
-  cloneCurrentRangeSelectionSpy,
-  closeMenuSpy,
-  insertImageDialogPropsSpy,
-  nodeToRemoveSpy,
-} = vi.hoisted(() => ({
-  cloneCurrentRangeSelectionSpy: vi.fn(),
-  closeMenuSpy: vi.fn(),
-  insertImageDialogPropsSpy: vi.fn(),
-  nodeToRemoveSpy: vi.fn(),
-}));
+const { cloneCurrentRangeSelectionSpy, closeMenuSpy, insertImageDialogPropsSpy, nodeToRemoveSpy } =
+  vi.hoisted(() => ({
+    cloneCurrentRangeSelectionSpy: vi.fn(),
+    closeMenuSpy: vi.fn(),
+    insertImageDialogPropsSpy: vi.fn(),
+    nodeToRemoveSpy: vi.fn(),
+  }));
 
 let currentEditor: {
   dispatchCommand: ReturnType<typeof vi.fn>;

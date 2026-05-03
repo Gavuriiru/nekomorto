@@ -142,7 +142,7 @@ const setupApiMock = ({
         name: "Admin",
         username: "admin",
         permissions: ["projetos"],
-    grants: { projetos: true },
+        grants: { projetos: true },
       });
     }
     if (path === "/api/contracts/v1.json" && method === "GET") {
@@ -240,11 +240,7 @@ describe("DashboardProjectsEditor card layout", () => {
     const coverImage = within(cover as HTMLElement).getByRole("img", { name: "Oshi no Ko" });
     expect(coverImage).toBeInTheDocument();
     expect(classTokens(coverImage)).toEqual(
-      expect.arrayContaining([
-        "transition-transform",
-        "duration-300",
-        "group-hover:scale-105",
-      ]),
+      expect.arrayContaining(["transition-transform", "duration-300", "group-hover:scale-105"]),
     );
     expect(content).not.toBeNull();
     expect(classTokens(content)).toEqual(

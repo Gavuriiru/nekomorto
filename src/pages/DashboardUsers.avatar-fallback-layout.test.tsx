@@ -102,7 +102,7 @@ describe("DashboardUsers avatar fallback layout", () => {
           name: "Admin",
           username: "admin",
           accessRole: "admin",
-      grants: {
+          grants: {
             usuarios: true,
           },
           ownerIds: [],
@@ -175,7 +175,7 @@ describe("DashboardUsers avatar fallback layout", () => {
           name: "Admin",
           username: "admin",
           accessRole: "admin",
-      grants: {
+          grants: {
             usuarios: true,
           },
           ownerIds: [],

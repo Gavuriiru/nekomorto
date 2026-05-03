@@ -120,7 +120,7 @@ describe("DashboardUsers admin V2F reset", () => {
         name: "Dona Secundaria",
         username: "owner2",
         primaryOwnerId: "owner-1",
-    grants: {
+        grants: {
           usuarios: true,
         },
       },
@@ -179,7 +179,7 @@ describe("DashboardUsers admin V2F reset", () => {
         name: "Admin",
         username: "admin",
         accessRole: "admin",
-    grants: {
+        grants: {
           usuarios: true,
         },
       },
@@ -209,7 +209,7 @@ describe("DashboardUsers admin V2F reset", () => {
         name: "Dona",
         username: "owner1",
         primaryOwnerId: "owner-1",
-    grants: {
+        grants: {
           usuarios: true,
         },
       },
@@ -236,7 +236,7 @@ describe("DashboardUsers admin V2F reset", () => {
         name: "Dona Secundaria",
         username: "owner2",
         primaryOwnerId: "owner-1",
-    grants: {
+        grants: {
           usuarios: true,
         },
       },

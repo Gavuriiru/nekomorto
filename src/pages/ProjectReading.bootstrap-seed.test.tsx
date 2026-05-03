@@ -23,10 +23,7 @@ vi.mock("@/hooks/use-page-meta", () => ({
 }));
 
 vi.mock("react-router-dom", async () => {
-  const actual =
-    await vi.importActual<typeof import("react-router-dom")>(
-      "react-router-dom",
-    );
+  const actual = await vi.importActual<typeof import("react-router-dom")>("react-router-dom");
   return {
     ...actual,
     useParams: () => ({ slug: "projeto-teste", chapter: "1" }),
@@ -51,11 +48,7 @@ vi.mock("@/components/Footer", () => ({
   default: () => <div data-testid="public-footer" />,
 }));
 
-const mockJsonResponse = (
-  ok: boolean,
-  payload: unknown,
-  status = ok ? 200 : 500,
-) =>
+const mockJsonResponse = (ok: boolean, payload: unknown, status = ok ? 200 : 500) =>
   ({
     ok,
     status,
@@ -70,8 +63,7 @@ describe("ProjectReading bootstrap-first", () => {
       async (_apiBase: string, endpoint: string, options?: RequestInit) => {
         const method = String(options?.method || "GET").toUpperCase();
         if (
-          endpoint ===
-            "/api/public/projects/projeto-teste/chapters/1?volume=2" &&
+          endpoint === "/api/public/projects/projeto-teste/chapters/1?volume=2" &&
           method === "GET"
         ) {
           return await new Promise<Response>(() => undefined);
@@ -204,31 +196,21 @@ describe("ProjectReading bootstrap-first", () => {
 
   it("usa bootstrap para hero e navegacao sem requisitar o projeto novamente", () => {
     render(
-      <MemoryRouter
-        initialEntries={["/projeto/projeto-teste/leitura/1?volume=2"]}
-      >
+      <MemoryRouter initialEntries={["/projeto/projeto-teste/leitura/1?volume=2"]}>
         <ProjectReading />
       </MemoryRouter>,
     );
 
-    expect(
-      screen.getByRole("heading", { name: "Capítulo Bootstrap" }),
-    ).toBeInTheDocument();
+    expect(screen.getByRole("heading", { name: "Capítulo Bootstrap" })).toBeInTheDocument();
     expect(screen.getByText("Projeto Bootstrap")).toBeInTheDocument();
     expect(screen.getByText("Sinopse do volume")).toBeInTheDocument();
-    expect(
-      screen.getByRole("link", { name: /Editar capítulo/i }),
-    ).toHaveAttribute(
+    expect(screen.getByRole("link", { name: /Editar capítulo/i })).toHaveAttribute(
       "href",
       "/dashboard/projetos/projeto-teste/capitulos/1?volume=2",
     );
 
-    const calledEndpoints = apiFetchMock.mock.calls.map((call) =>
-      String(call[1] || ""),
-    );
-    expect(calledEndpoints).toContain(
-      "/api/public/projects/projeto-teste/chapters/1?volume=2",
-    );
+    const calledEndpoints = apiFetchMock.mock.calls.map((call) => String(call[1] || ""));
+    expect(calledEndpoints).toContain("/api/public/projects/projeto-teste/chapters/1?volume=2");
     expect(calledEndpoints).not.toContain("/api/public/projects/projeto-teste");
     expect(calledEndpoints).not.toContain("/api/public/me");
     expect(screen.queryByTestId("comments-section")).not.toBeInTheDocument();
@@ -249,22 +231,16 @@ describe("ProjectReading bootstrap-first", () => {
     };
 
     render(
-      <MemoryRouter
-        initialEntries={["/projeto/projeto-teste/leitura/1?volume=2"]}
-      >
+      <MemoryRouter initialEntries={["/projeto/projeto-teste/leitura/1?volume=2"]}>
         <ProjectReading />
       </MemoryRouter>,
     );
 
-    expect(
-      screen.getByRole("link", { name: /Editar capítulo/i }),
-    ).toHaveAttribute(
+    expect(screen.getByRole("link", { name: /Editar capítulo/i })).toHaveAttribute(
       "href",
       "/dashboard/projetos/projeto-teste/capitulos/1?volume=2",
     );
-    const calledEndpoints = apiFetchMock.mock.calls.map((call) =>
-      String(call[1] || ""),
-    );
+    const calledEndpoints = apiFetchMock.mock.calls.map((call) => String(call[1] || ""));
     expect(calledEndpoints).not.toContain("/api/public/me");
   });
 
@@ -273,8 +249,7 @@ describe("ProjectReading bootstrap-first", () => {
       async (_apiBase: string, endpoint: string, options?: RequestInit) => {
         const method = String(options?.method || "GET").toUpperCase();
         if (
-          endpoint ===
-            "/api/public/projects/projeto-teste/chapters/1?volume=2" &&
+          endpoint === "/api/public/projects/projeto-teste/chapters/1?volume=2" &&
           method === "GET"
         ) {
           return await new Promise<Response>(() => undefined);
@@ -305,9 +280,7 @@ describe("ProjectReading bootstrap-first", () => {
     ).__BOOTSTRAP_PUBLIC_ME__ = null;
 
     render(
-      <MemoryRouter
-        initialEntries={["/projeto/projeto-teste/leitura/1?volume=2"]}
-      >
+      <MemoryRouter initialEntries={["/projeto/projeto-teste/leitura/1?volume=2"]}>
         <ProjectReading />
       </MemoryRouter>,
     );
@@ -323,9 +296,7 @@ describe("ProjectReading bootstrap-first", () => {
         expect.objectContaining({ auth: true, cache: "no-store" }),
       );
     });
-    expect(
-      await screen.findByRole("link", { name: /Editar cap.tulo/i }),
-    ).toHaveAttribute(
+    expect(await screen.findByRole("link", { name: /Editar cap.tulo/i })).toHaveAttribute(
       "href",
       "/dashboard/projetos/projeto-teste/capitulos/1?volume=2",
     );
@@ -336,8 +307,7 @@ describe("ProjectReading bootstrap-first", () => {
       async (_apiBase: string, endpoint: string, options?: RequestInit) => {
         const method = String(options?.method || "GET").toUpperCase();
         if (
-          endpoint ===
-            "/api/public/projects/projeto-teste/chapters/1?volume=2" &&
+          endpoint === "/api/public/projects/projeto-teste/chapters/1?volume=2" &&
           method === "GET"
         ) {
           return await new Promise<Response>(() => undefined);
@@ -370,9 +340,7 @@ describe("ProjectReading bootstrap-first", () => {
     ).__BOOTSTRAP_PUBLIC_ME__ = null;
 
     render(
-      <MemoryRouter
-        initialEntries={["/projeto/projeto-teste/leitura/1?volume=2"]}
-      >
+      <MemoryRouter initialEntries={["/projeto/projeto-teste/leitura/1?volume=2"]}>
         <ProjectReading />
       </MemoryRouter>,
     );
@@ -388,9 +356,7 @@ describe("ProjectReading bootstrap-first", () => {
         expect.objectContaining({ auth: true, cache: "no-store" }),
       );
     });
-    expect(
-      await screen.findByRole("link", { name: /Editar cap.tulo/i }),
-    ).toHaveAttribute(
+    expect(await screen.findByRole("link", { name: /Editar cap.tulo/i })).toHaveAttribute(
       "href",
       "/dashboard/projetos/projeto-teste/capitulos/1?volume=2",
     );
@@ -400,10 +366,7 @@ describe("ProjectReading bootstrap-first", () => {
     apiFetchMock.mockImplementation(
       async (_apiBase: string, endpoint: string, options?: RequestInit) => {
         const method = String(options?.method || "GET").toUpperCase();
-        if (
-          endpoint === "/api/public/projects/projeto-teste" &&
-          method === "GET"
-        ) {
+        if (endpoint === "/api/public/projects/projeto-teste" && method === "GET") {
           return mockJsonResponse(true, {
             project: {
               id: "projeto-teste",
@@ -452,10 +415,7 @@ describe("ProjectReading bootstrap-first", () => {
             },
           });
         }
-        if (
-          endpoint === "/api/public/projects/projeto-teste/chapters/1" &&
-          method === "GET"
-        ) {
+        if (endpoint === "/api/public/projects/projeto-teste/chapters/1" && method === "GET") {
           return mockJsonResponse(true, {
             chapter: {
               number: 1,
@@ -544,10 +504,7 @@ describe("ProjectReading bootstrap-first", () => {
 
     await screen.findByRole("heading", { name: /Cap.*tulo 1/i });
     await waitFor(() => {
-      expect(apiFetchMock).toHaveBeenCalledWith(
-        "",
-        "/api/public/projects/projeto-teste",
-      );
+      expect(apiFetchMock).toHaveBeenCalledWith("", "/api/public/projects/projeto-teste");
     });
 
     fireEvent.click(await screen.findByTestId("project-reader-menu-button"));
@@ -557,11 +514,7 @@ describe("ProjectReading bootstrap-first", () => {
     });
     fireEvent.click(chapterTrigger);
 
-    expect(
-      await screen.findByRole("option", { name: /Cap.*tulo 1/i }),
-    ).toBeInTheDocument();
-    expect(
-      await screen.findByRole("option", { name: /Cap.*tulo 2/i }),
-    ).toBeInTheDocument();
+    expect(await screen.findByRole("option", { name: /Cap.*tulo 1/i })).toBeInTheDocument();
+    expect(await screen.findByRole("option", { name: /Cap.*tulo 2/i })).toBeInTheDocument();
   });
 });

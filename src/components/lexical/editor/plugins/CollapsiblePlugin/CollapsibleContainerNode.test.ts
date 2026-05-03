@@ -7,8 +7,9 @@ beforeAll(async () => {
   vi.doMock("@lexical/utils", () => ({
     IS_CHROME: true,
   }));
-  ({ CollapsibleContainerNode } =
-    await import("@/components/lexical/editor/plugins/CollapsiblePlugin/CollapsibleContainerNode"));
+  ({ CollapsibleContainerNode } = await import(
+    "@/components/lexical/editor/plugins/CollapsiblePlugin/CollapsibleContainerNode"
+  ));
 });
 
 afterAll(() => {

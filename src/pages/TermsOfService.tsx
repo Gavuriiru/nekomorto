@@ -26,9 +26,9 @@ const TermsOfService = () => {
           <section className="space-y-3">
             <h2 className="text-lg font-semibold">1. Uso do site</h2>
             <p className="text-sm leading-relaxed text-muted-foreground md:text-base">
-              O site pode ser utilizado para navegação pública e, quando aplicável, para interação com
-              recursos disponibilizados pela plataforma. O uso deve ocorrer de forma legítima, sem
-              abuso técnico, fraude, automação indevida ou tentativa de contornar autenticação,
+              O site pode ser utilizado para navegação pública e, quando aplicável, para interação
+              com recursos disponibilizados pela plataforma. O uso deve ocorrer de forma legítima,
+              sem abuso técnico, fraude, automação indevida ou tentativa de contornar autenticação,
               segurança, moderação ou rate limiting.
             </p>
           </section>
@@ -36,9 +36,9 @@ const TermsOfService = () => {
           <section className="space-y-3">
             <h2 className="text-lg font-semibold">2. Comentários públicos</h2>
             <p className="text-sm leading-relaxed text-muted-foreground md:text-base">
-              Comentários enviados por usuários podem passar por moderação antes de aparecer no site.
-              Conteúdo com spam, ofensa, fraude, violação de direitos ou qualquer uso incompatível com
-              a finalidade da plataforma poderá ser recusado, ocultado ou removido.
+              Comentários enviados por usuários podem passar por moderação antes de aparecer no
+              site. Conteúdo com spam, ofensa, fraude, violação de direitos ou qualquer uso
+              incompatível com a finalidade da plataforma poderá ser recusado, ocultado ou removido.
             </p>
             <p className="text-sm leading-relaxed text-muted-foreground md:text-base">
               Cada pessoa usuária é responsável pelo conteúdo que envia e pelas consequências da sua
@@ -58,17 +58,18 @@ const TermsOfService = () => {
           <section className="space-y-3">
             <h2 className="text-lg font-semibold">4. Serviços de terceiros</h2>
             <p className="text-sm leading-relaxed text-muted-foreground md:text-base">
-              Parte da experiência pode envolver serviços externos, como provedores de autenticação e
-              serviços de avatar. Quando isso ocorrer, o tratamento correspondente também poderá estar
-              sujeito aos termos e políticas desses terceiros.
+              Parte da experiência pode envolver serviços externos, como provedores de autenticação
+              e serviços de avatar. Quando isso ocorrer, o tratamento correspondente também poderá
+              estar sujeito aos termos e políticas desses terceiros.
             </p>
           </section>
 
           <section className="space-y-3">
             <h2 className="text-lg font-semibold">5. Atualizações</h2>
             <p className="text-sm leading-relaxed text-muted-foreground md:text-base">
-              Estes Termos de Uso podem ser atualizados para refletir mudanças técnicas, operacionais
-              ou legais. A versão publicada nesta página será considerada a versão vigente.
+              Estes Termos de Uso podem ser atualizados para refletir mudanças técnicas,
+              operacionais ou legais. A versão publicada nesta página será considerada a versão
+              vigente.
             </p>
           </section>
         </div>

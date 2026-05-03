@@ -62,12 +62,11 @@ describe("Dashboard access redirect", () => {
     grants: emptyGrants,
   };
 
-
   it("redirects forbidden dashboard route to first allowed route with toast", async () => {
     apiFetchMock.mockResolvedValue(
       mockJsonResponse(true, {
         id: "user-1",
-    grants: emptyGrants,
+        grants: emptyGrants,
       }),
     );
     const { default: RequireAuth } = await import("@/components/RequireAuth");
@@ -94,7 +93,7 @@ describe("Dashboard access redirect", () => {
       mockJsonResponse(true, {
         id: "admin-1",
         accessRole: "admin",
-    grants: {
+        grants: {
           ...emptyGrants,
           posts: true,
         },
@@ -119,7 +118,7 @@ describe("Dashboard access redirect", () => {
       mockJsonResponse(true, {
         id: "owner-1",
         accessRole: "owner_primary",
-    grants: emptyGrants,
+        grants: emptyGrants,
       }),
     );
     const { default: RequireAuth } = await import("@/components/RequireAuth");
@@ -138,7 +137,7 @@ describe("Dashboard access redirect", () => {
     apiFetchMock.mockResolvedValue(
       mockJsonResponse(true, {
         id: "user-1",
-    grants: {
+        grants: {
           ...emptyGrants,
           posts: true,
         },

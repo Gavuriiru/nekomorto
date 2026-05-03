@@ -246,7 +246,7 @@ describe("DashboardShell menu permissions", () => {
     expect(screen.queryByText("Maria Persist")).not.toBeInTheDocument();
     expect(screen.getByText("Carregando usuário...")).toBeInTheDocument();
     expect(screen.getByText("Aguarde")).toBeInTheDocument();
-    expect((screen.getByTestId("dashboard-header").textContent || "")).not.toContain("Segurança");
+    expect(screen.getByTestId("dashboard-header").textContent || "").not.toContain("Segurança");
   });
 
   it("adds and removes the dashboard scrollbar gutter class with the shell lifecycle", async () => {

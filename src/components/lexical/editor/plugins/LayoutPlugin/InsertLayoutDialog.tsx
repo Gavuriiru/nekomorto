@@ -49,16 +49,9 @@ export default function InsertLayoutDialog({
 
   return (
     <>
-      <DropDown
-        buttonClassName="toolbar-item dialog-dropdown"
-        buttonLabel={buttonLabel}
-      >
+      <DropDown buttonClassName="toolbar-item dialog-dropdown" buttonLabel={buttonLabel}>
         {LAYOUTS.map(({ label, value }) => (
-          <DropDownItem
-            key={value}
-            className="item"
-            onClick={() => setLayout(value)}
-          >
+          <DropDownItem key={value} className="item" onClick={() => setLayout(value)}>
             <span className="text">{label}</span>
           </DropDownItem>
         ))}

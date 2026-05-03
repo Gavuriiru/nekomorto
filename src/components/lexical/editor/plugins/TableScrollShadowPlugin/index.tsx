@@ -9,8 +9,7 @@
 import { useLexicalComposerContext } from "@lexical/react/LexicalComposerContext";
 import { useEffect } from "react";
 
-const SCROLLABLE_WRAPPER_CLASS =
-  "PlaygroundEditorTheme__tableScrollableWrapper";
+const SCROLLABLE_WRAPPER_CLASS = "PlaygroundEditorTheme__tableScrollableWrapper";
 const HAS_SCROLL_RIGHT_CLASS = "PlaygroundEditorTheme__tableScrollRight";
 const HAS_SCROLL_LEFT_CLASS = "PlaygroundEditorTheme__tableScrollLeft";
 const HAS_SCROLL_MIDDLE_CLASS = "PlaygroundEditorTheme__tableScrollMiddle";
@@ -18,8 +17,7 @@ const HAS_SCROLL_MIDDLE_CLASS = "PlaygroundEditorTheme__tableScrollMiddle";
 function updateTableScrollState(element: HTMLElement): void {
   const hasScroll = element.scrollWidth > element.clientWidth;
   // Adding and removing 1 and -1 for floating point precision
-  const isScrolledToRight =
-    element.scrollLeft + element.clientWidth >= element.scrollWidth - 1;
+  const isScrolledToRight = element.scrollLeft + element.clientWidth >= element.scrollWidth - 1;
   const isScrolledToLeft = element.scrollLeft <= 1;
 
   // Remove all scroll classes first
@@ -53,9 +51,7 @@ export default function TableScrollShadowPlugin(): null {
     }
 
     const updateAllTableScrollStates = () => {
-      const wrappers = editorElement.querySelectorAll<HTMLElement>(
-        `.${SCROLLABLE_WRAPPER_CLASS}`,
-      );
+      const wrappers = editorElement.querySelectorAll<HTMLElement>(`.${SCROLLABLE_WRAPPER_CLASS}`);
       wrappers.forEach(updateTableScrollState);
     };
 
@@ -90,9 +86,7 @@ export default function TableScrollShadowPlugin(): null {
       scrollHandlers.set(wrapper, handler);
     };
 
-    const wrappers = editorElement.querySelectorAll<HTMLElement>(
-      `.${SCROLLABLE_WRAPPER_CLASS}`,
-    );
+    const wrappers = editorElement.querySelectorAll<HTMLElement>(`.${SCROLLABLE_WRAPPER_CLASS}`);
     wrappers.forEach((wrapper) => {
       resizeObserver.observe(wrapper);
       addScrollListener(wrapper);

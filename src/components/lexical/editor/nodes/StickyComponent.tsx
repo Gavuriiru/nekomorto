@@ -34,10 +34,7 @@ type Positioning = {
   y: number;
 };
 
-function positionSticky(
-  stickyElem: HTMLElement,
-  positioning: Positioning,
-): void {
+function positionSticky(stickyElem: HTMLElement, positioning: Positioning): void {
   const style = stickyElem.style;
   const rootElementRect = positioning.rootElementRect;
   const rectLeft = rootElementRect !== null ? rootElementRect.left : 0;
@@ -94,16 +91,14 @@ export default function StickyComponent({
       }
     });
 
-    const removeRootListener = editor.registerRootListener(
-      (nextRootElem, prevRootElem) => {
-        if (prevRootElem !== null) {
-          resizeObserver.unobserve(prevRootElem);
-        }
-        if (nextRootElem !== null) {
-          resizeObserver.observe(nextRootElem);
-        }
-      },
-    );
+    const removeRootListener = editor.registerRootListener((nextRootElem, prevRootElem) => {
+      if (prevRootElem !== null) {
+        resizeObserver.unobserve(prevRootElem);
+      }
+      if (nextRootElem !== null) {
+        resizeObserver.observe(nextRootElem);
+      }
+    });
 
     const handleWindowResize = () => {
       const rootElement = editor.getRootElement();
@@ -128,10 +123,7 @@ export default function StickyComponent({
       // Delay adding transition so we don't trigger the
       // transition on load of the sticky.
       setTimeout(() => {
-        stickyContainer.style.setProperty(
-          "transition",
-          "top 0.3s ease 0s, left 0.3s ease 0s",
-        );
+        stickyContainer.style.setProperty("transition", "top 0.3s ease 0s, left 0.3s ease 0s");
       }, 500);
     }
   }, []);
@@ -141,15 +133,9 @@ export default function StickyComponent({
     const positioning = positioningRef.current;
     const rootElementRect = positioning.rootElementRect;
     const zoom = calculateZoomLevel(stickyContainer);
-    if (
-      stickyContainer !== null &&
-      positioning.isDragging &&
-      rootElementRect !== null
-    ) {
-      positioning.x =
-        event.pageX / zoom - positioning.offsetX - rootElementRect.left;
-      positioning.y =
-        event.pageY / zoom - positioning.offsetY - rootElementRect.top;
+    if (stickyContainer !== null && positioning.isDragging && rootElementRect !== null) {
+      positioning.x = event.pageX / zoom - positioning.offsetX - rootElementRect.left;
+      positioning.y = event.pageY / zoom - positioning.offsetY - rootElementRect.top;
       positionSticky(stickyContainer, positioning);
     }
   };
@@ -234,10 +220,7 @@ export default function StickyComponent({
         >
           <i className="bucket" />
         </button>
-        <LexicalNestedComposer
-          initialEditor={caption}
-          initialTheme={StickyEditorTheme}
-        >
+        <LexicalNestedComposer initialEditor={caption} initialTheme={StickyEditorTheme}>
           <HistoryPlugin externalHistoryState={historyState} />
           <PlainTextPlugin
             contentEditable={

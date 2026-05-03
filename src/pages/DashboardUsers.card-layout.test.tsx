@@ -102,7 +102,7 @@ const setupApiMock = (users: ReturnType<typeof createUser>[]) => {
         name: "Admin",
         username: "admin",
         accessRole: "admin",
-    grants: {
+        grants: {
           usuarios: true,
         },
         ownerIds: [],

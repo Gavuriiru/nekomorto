@@ -132,9 +132,7 @@ export const findPublishedEpisodeWithoutPublicAccess = (
     // without being blocked by pre-existing issues in other episodes.
     if (priorList !== null) {
       const key = buildEpisodeKey(episode?.number, episode?.volume);
-      const priorEpisode = priorList.find(
-        (ep) => buildEpisodeKey(ep?.number, ep?.volume) === key,
-      );
+      const priorEpisode = priorList.find((ep) => buildEpisodeKey(ep?.number, ep?.volume) === key);
       if (priorEpisode) {
         const priorState = resolveProjectEpisodePublicationState(projectType, priorEpisode);
         if (priorState.errorCode) {

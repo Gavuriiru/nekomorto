@@ -698,7 +698,6 @@ describe("registerAuthRoutes", () => {
     expect(res.redirectUrl).toBe("https://example.com/login");
   });
 
-
   it("auto-links Google verified email only to a unique preprovisioned user", async () => {
     const fetchMock = vi
       .fn()

@@ -198,14 +198,12 @@ type EditorialWebhookTemplatePackage = {
   eventKey: EventKey;
   template: Template;
 };
-type TemplateClipboardDialogState =
-  | {
-      mode: "copy" | "paste";
-      channelKey: ChannelKey;
-      eventKey: EventKey;
-      value: string;
-    }
-  | null;
+type TemplateClipboardDialogState = {
+  mode: "copy" | "paste";
+  channelKey: ChannelKey;
+  eventKey: EventKey;
+  value: string;
+} | null;
 
 const CHANNEL_EVENTS: Record<ChannelKey, EventKey[]> = {
   posts: ["post_create", "post_update"],
@@ -318,10 +316,7 @@ const CONTENT_PLACEHOLDERS = [
   "conteudo.rotulo",
 ];
 
-const UPDATE_PLACEHOLDERS = [
-  "atualizacao.tipo",
-  "atualizacao.motivo",
-];
+const UPDATE_PLACEHOLDERS = ["atualizacao.tipo", "atualizacao.motivo"];
 
 const PLACEHOLDERS: Record<EventKey, string[]> = {
   post_create: [...COMMON_PLACEHOLDERS, ...POST_PLACEHOLDERS, ...PROJECT_PLACEHOLDERS],
@@ -343,7 +338,8 @@ const PLACEHOLDERS: Record<EventKey, string[]> = {
 const PLACEHOLDER_DESCRIPTIONS: Record<string, string> = {
   "evento.chave": "Mostra a chave técnica do evento. Ex.: post_create ou project_release.",
   "evento.rotulo": "Mostra o nome legível do evento. Ex.: Novo lançamento.",
-  "evento.ocorridoEm": "Mostra a data e hora em que o evento ocorreu. Ex.: 2026-03-01T12:00:00.000Z.",
+  "evento.ocorridoEm":
+    "Mostra a data e hora em que o evento ocorreu. Ex.: 2026-03-01T12:00:00.000Z.",
   "site.nome": "Mostra o nome público do site. Ex.: Nekomata.",
   "site.url": "Mostra a URL pública principal do site. Ex.: https://nekomata.example.",
   "site.logoUrl": "Mostra a URL do logo do site. Ex.: https://nekomata.example/logo.png.",
@@ -361,49 +357,72 @@ const PLACEHOLDER_DESCRIPTIONS: Record<string, string> = {
   "postagem.url": "Mostra a URL pública da postagem. Ex.: https://nekomata.example/postagem/guia.",
   "postagem.status": "Mostra o status salvo da postagem. Ex.: published ou draft.",
   "postagem.autor": "Mostra o nome do autor da postagem. Ex.: Akira.",
-  "postagem.autorAvatarUrl": "Mostra a URL do avatar do autor da postagem. Ex.: /uploads/avatars/akira.png.",
+  "postagem.autorAvatarUrl":
+    "Mostra a URL do avatar do autor da postagem. Ex.: /uploads/avatars/akira.png.",
   "postagem.publicadoEm": "Mostra a data de publicação da postagem. Ex.: 2026-03-01.",
-  "postagem.atualizadoEm": "Mostra a data da última atualização da postagem. Ex.: 2026-03-02T10:30:00.000Z.",
+  "postagem.atualizadoEm":
+    "Mostra a data da última atualização da postagem. Ex.: 2026-03-02T10:30:00.000Z.",
   "postagem.resumo": "Mostra o resumo ou excerto da postagem. Ex.: Confira os destaques da semana.",
-  "postagem.tags": "Mostra as tags da postagem, separadas por vírgula. Ex.: anime, guia, temporada.",
+  "postagem.tags":
+    "Mostra as tags da postagem, separadas por vírgula. Ex.: anime, guia, temporada.",
   "postagem.capaUrl": "Mostra a URL da capa cadastrada na postagem. Ex.: /uploads/posts/capa.jpg.",
-  "postagem.capaAlt": "Mostra o texto alternativo da capa da postagem. Ex.: Personagem principal em destaque.",
-  "postagem.imagemUrl": "Mostra a melhor imagem disponível para a postagem. Ex.: capa, OG ou imagem padrão.",
-  "postagem.ogImagemUrl": "Mostra a imagem OG gerada ou resolvida para a postagem. Ex.: /api/og/post/guia.",
+  "postagem.capaAlt":
+    "Mostra o texto alternativo da capa da postagem. Ex.: Personagem principal em destaque.",
+  "postagem.imagemUrl":
+    "Mostra a melhor imagem disponível para a postagem. Ex.: capa, OG ou imagem padrão.",
+  "postagem.ogImagemUrl":
+    "Mostra a imagem OG gerada ou resolvida para a postagem. Ex.: /api/og/post/guia.",
   "projeto.id": "Mostra o ID público do projeto. Ex.: minha-obra.",
   "projeto.titulo": "Mostra o título do projeto. Ex.: Minha Obra.",
   "projeto.tipo": "Mostra o tipo do projeto. Ex.: Anime, Manga ou Light Novel.",
   "projeto.categoria": "Mostra a categoria usada para menções do projeto. Ex.: Anime.",
-  "projeto.url": "Mostra a URL pública do projeto. Ex.: https://nekomata.example/projeto/minha-obra.",
+  "projeto.url":
+    "Mostra a URL pública do projeto. Ex.: https://nekomata.example/projeto/minha-obra.",
   "projeto.capaUrl": "Mostra a URL da capa cadastrada no projeto. Ex.: /uploads/projects/capa.jpg.",
-  "projeto.bannerUrl": "Mostra a URL do banner cadastrado no projeto. Ex.: /uploads/projects/banner.jpg.",
-  "projeto.heroImagemUrl": "Mostra a URL da imagem hero do projeto. Ex.: /uploads/projects/hero.jpg.",
-  "projeto.imagemUrl": "Mostra a melhor imagem principal disponível para o projeto. Ex.: capa, hero ou OG.",
-  "projeto.fundoImagemUrl": "Mostra a melhor imagem ampla ou de fundo do projeto. Ex.: banner ou hero.",
-  "projeto.ogImagemUrl": "Mostra a imagem OG gerada ou resolvida para o projeto. Ex.: /api/og/project/minha-obra.",
+  "projeto.bannerUrl":
+    "Mostra a URL do banner cadastrado no projeto. Ex.: /uploads/projects/banner.jpg.",
+  "projeto.heroImagemUrl":
+    "Mostra a URL da imagem hero do projeto. Ex.: /uploads/projects/hero.jpg.",
+  "projeto.imagemUrl":
+    "Mostra a melhor imagem principal disponível para o projeto. Ex.: capa, hero ou OG.",
+  "projeto.fundoImagemUrl":
+    "Mostra a melhor imagem ampla ou de fundo do projeto. Ex.: banner ou hero.",
+  "projeto.ogImagemUrl":
+    "Mostra a imagem OG gerada ou resolvida para o projeto. Ex.: /api/og/project/minha-obra.",
   "projeto.sinopse": "Mostra a sinopse do projeto. Ex.: Uma história sobre recomeços.",
   "projeto.tags": "Mostra as tags do projeto, separadas por vírgula. Ex.: ação, drama, fantasia.",
-  "projeto.generos": "Mostra os gêneros do projeto, separados por vírgula. Ex.: Aventura, Mistério.",
-  "conteudo.tipo": "Mostra Capítulo, Episódio, Extra ou Especial conforme o conteúdo. Ex.: Capítulo.",
+  "projeto.generos":
+    "Mostra os gêneros do projeto, separados por vírgula. Ex.: Aventura, Mistério.",
+  "conteudo.tipo":
+    "Mostra Capítulo, Episódio, Extra ou Especial conforme o conteúdo. Ex.: Capítulo.",
   "conteudo.numero": "Mostra o número do capítulo ou episódio. Ex.: 7.",
   "conteudo.volume": "Mostra o volume do conteúdo quando existir. Ex.: 2.",
   "conteudo.titulo": "Mostra o título do conteúdo, ou um fallback seguro. Ex.: O reencontro.",
-  "conteudo.sinopse": "Mostra a sinopse do capítulo, episódio ou extra. Ex.: O grupo chega à capital.",
-  "conteudo.url": "Mostra a URL pública de leitura do conteúdo. Ex.: /projeto/minha-obra/leitura/7.",
+  "conteudo.sinopse":
+    "Mostra a sinopse do capítulo, episódio ou extra. Ex.: O grupo chega à capital.",
+  "conteudo.url":
+    "Mostra a URL pública de leitura do conteúdo. Ex.: /projeto/minha-obra/leitura/7.",
   "conteudo.dataLancamento": "Mostra a data de lançamento do conteúdo. Ex.: 2026-03-01.",
-  "conteudo.atualizadoEm": "Mostra a data da última atualização do conteúdo. Ex.: 2026-03-02T10:30:00.000Z.",
-  "conteudo.capaUrl": "Mostra a capa do conteúdo ou a imagem hero do projeto. Ex.: /uploads/capitulos/7.jpg.",
-  "conteudo.imagemUrl": "Mostra a melhor imagem disponível para o conteúdo. Ex.: capa, banner, OG ou placeholder.",
-  "conteudo.ogImagemUrl": "Mostra a imagem OG do conteúdo ou do projeto. Ex.: /api/og/project/minha-obra/reading/7.",
-  "conteudo.formato": "Mostra o formato humano do conteúdo. Ex.: Imagem para images, Texto para lexical.",
+  "conteudo.atualizadoEm":
+    "Mostra a data da última atualização do conteúdo. Ex.: 2026-03-02T10:30:00.000Z.",
+  "conteudo.capaUrl":
+    "Mostra a capa do conteúdo ou a imagem hero do projeto. Ex.: /uploads/capitulos/7.jpg.",
+  "conteudo.imagemUrl":
+    "Mostra a melhor imagem disponível para o conteúdo. Ex.: capa, banner, OG ou placeholder.",
+  "conteudo.ogImagemUrl":
+    "Mostra a imagem OG do conteúdo ou do projeto. Ex.: /api/og/project/minha-obra/reading/7.",
+  "conteudo.formato":
+    "Mostra o formato humano do conteúdo. Ex.: Imagem para images, Texto para lexical.",
   "conteudo.status": "Mostra o status humano do conteúdo. Ex.: Publicado ou Rascunho.",
   "conteudo.rotulo": "Mostra o rótulo público do conteúdo. Ex.: Capítulo 7.",
   "atualizacao.tipo": "Mostra o tipo da atualização. Ex.: Lançamento ou Ajuste.",
-  "atualizacao.motivo": "Mostra o texto que resume o motivo da atualização. Ex.: Capítulo 7 disponível.",
+  "atualizacao.motivo":
+    "Mostra o texto que resume o motivo da atualização. Ex.: Capítulo 7 disponível.",
 };
 
 const describePlaceholder = (placeholder: string) =>
-  PLACEHOLDER_DESCRIPTIONS[placeholder] || `Mostra o valor de ${placeholder}. Ex.: valor disponível no evento.`;
+  PLACEHOLDER_DESCRIPTIONS[placeholder] ||
+  `Mostra o valor de ${placeholder}. Ex.: valor disponível no evento.`;
 
 const DEFAULT_PROJECT_TYPES = ["Anime", "Manga", "Light Novel"];
 const DEFAULT_TIMEOUT_MS = 5_000;
@@ -523,38 +542,40 @@ const migrateTemplateAliasesDeep = <T,>(value: T): T => {
 
 const defaultTemplate = (eventKey: EventKey): Template =>
   migrateTemplateAliasesDeep({
-  content: "{{mencao.todos}}",
-  embed: {
-    title: eventKey.startsWith("post") ? "{{postagem.titulo}}" : "{{projeto.titulo}}",
-    description: eventKey.startsWith("post")
-      ? "{{postagem.resumo}}\n{{postagem.url}}"
-      : "{{atualizacao.motivo}}\n{{projeto.url}}",
-    footerText: "{{site.nome}}",
-    footerIconUrl: "{{site.logoUrl}}",
-    url: eventKey.startsWith("post") ? "{{postagem.url}}" : "{{projeto.url}}",
-    color:
-      eventKey === "post_create"
-        ? "#3b82f6"
-        : eventKey === "project_release"
-          ? "#10b981"
-          : "#f59e0b",
-    authorName: eventKey.startsWith("post") ? "{{autor.nome}}" : "{{evento.rotulo}}",
-    authorIconUrl: eventKey.startsWith("post") ? "{{autor.avatarUrl}}" : "{{site.logoUrl}}",
-    authorUrl: "{{site.url}}",
-    thumbnailUrl: eventKey.startsWith("post") ? "{{postagem.imagemUrl}}" : "{{projeto.imagemUrl}}",
-    imageUrl: eventKey.startsWith("post")
-      ? "{{projeto.fundoImagemUrl}}"
-      : "{{conteudo.imagemUrl}}",
-    fields: eventKey.startsWith("post")
-      ? [
-          { name: "Status", value: "{{postagem.status}}", inline: true },
-          { name: "Projeto", value: "{{projeto.titulo}}", inline: true },
-        ]
-      : [
-          { name: "{{conteudo.tipo}}", value: "{{conteudo.numero}}", inline: true },
-          { name: "Título", value: "{{chapter.title}}", inline: true },
-        ],
-  },
+    content: "{{mencao.todos}}",
+    embed: {
+      title: eventKey.startsWith("post") ? "{{postagem.titulo}}" : "{{projeto.titulo}}",
+      description: eventKey.startsWith("post")
+        ? "{{postagem.resumo}}\n{{postagem.url}}"
+        : "{{atualizacao.motivo}}\n{{projeto.url}}",
+      footerText: "{{site.nome}}",
+      footerIconUrl: "{{site.logoUrl}}",
+      url: eventKey.startsWith("post") ? "{{postagem.url}}" : "{{projeto.url}}",
+      color:
+        eventKey === "post_create"
+          ? "#3b82f6"
+          : eventKey === "project_release"
+            ? "#10b981"
+            : "#f59e0b",
+      authorName: eventKey.startsWith("post") ? "{{autor.nome}}" : "{{evento.rotulo}}",
+      authorIconUrl: eventKey.startsWith("post") ? "{{autor.avatarUrl}}" : "{{site.logoUrl}}",
+      authorUrl: "{{site.url}}",
+      thumbnailUrl: eventKey.startsWith("post")
+        ? "{{postagem.imagemUrl}}"
+        : "{{projeto.imagemUrl}}",
+      imageUrl: eventKey.startsWith("post")
+        ? "{{projeto.fundoImagemUrl}}"
+        : "{{conteudo.imagemUrl}}",
+      fields: eventKey.startsWith("post")
+        ? [
+            { name: "Status", value: "{{postagem.status}}", inline: true },
+            { name: "Projeto", value: "{{projeto.titulo}}", inline: true },
+          ]
+        : [
+            { name: "{{conteudo.tipo}}", value: "{{conteudo.numero}}", inline: true },
+            { name: "Título", value: "{{chapter.title}}", inline: true },
+          ],
+    },
   });
 
 const makeDefaultSettings = (
@@ -873,7 +894,11 @@ const parseEditorialTemplatePackage = (value: string, fallbackEventKey: EventKey
   ) {
     throw new Error("invalid_template_package");
   }
-  if (!envelope.template || typeof envelope.template !== "object" || Array.isArray(envelope.template)) {
+  if (
+    !envelope.template ||
+    typeof envelope.template !== "object" ||
+    Array.isArray(envelope.template)
+  ) {
     throw new Error("invalid_template_package");
   }
 
@@ -1761,8 +1786,7 @@ const DashboardWebhooks = () => {
       try {
         const parsed = parseEditorialTemplatePackage(rawValue, eventKey);
         setTemplate(channelKey, eventKey, () => parsed.template);
-        const isDifferentEvent =
-          parsed.channelKey !== channelKey || parsed.eventKey !== eventKey;
+        const isDifferentEvent = parsed.channelKey !== channelKey || parsed.eventKey !== eventKey;
         toast({
           title: isDifferentEvent ? "Template colado com aviso" : "Template colado",
           description: isDifferentEvent
@@ -2310,15 +2334,10 @@ const DashboardWebhooks = () => {
                                           type="button"
                                           size="sm"
                                           disabled={
-                                            templateClipboardBusyKey ===
-                                            `${channelKey}:${eventKey}`
+                                            templateClipboardBusyKey === `${channelKey}:${eventKey}`
                                           }
                                           onClick={() =>
-                                            void handleCopyTemplate(
-                                              channelKey,
-                                              eventKey,
-                                              template,
-                                            )
+                                            void handleCopyTemplate(channelKey, eventKey, template)
                                           }
                                         >
                                           <Copy className="h-3.5 w-3.5" />
@@ -2328,8 +2347,7 @@ const DashboardWebhooks = () => {
                                           type="button"
                                           size="sm"
                                           disabled={
-                                            templateClipboardBusyKey ===
-                                            `${channelKey}:${eventKey}`
+                                            templateClipboardBusyKey === `${channelKey}:${eventKey}`
                                           }
                                           onClick={() =>
                                             void handlePasteTemplate(channelKey, eventKey)
@@ -3189,9 +3207,7 @@ const DashboardWebhooks = () => {
           <DialogContent className="max-w-2xl">
             <DialogHeader>
               <DialogTitle>
-                {templateClipboardDialog?.mode === "copy"
-                  ? "Copiar template"
-                  : "Colar template"}
+                {templateClipboardDialog?.mode === "copy" ? "Copiar template" : "Colar template"}
               </DialogTitle>
               <DialogDescription>
                 {templateClipboardDialog?.mode === "copy"
@@ -3209,16 +3225,11 @@ const DashboardWebhooks = () => {
               }
               className="min-h-64 font-mono text-xs"
               aria-label={
-                templateClipboardDialog?.mode === "copy"
-                  ? "JSON do template"
-                  : "JSON para colar"
+                templateClipboardDialog?.mode === "copy" ? "JSON do template" : "JSON para colar"
               }
             />
             <DialogFooter className="gap-2">
-              <DashboardActionButton
-                type="button"
-                onClick={() => setTemplateClipboardDialog(null)}
-              >
+              <DashboardActionButton type="button" onClick={() => setTemplateClipboardDialog(null)}>
                 Fechar
               </DashboardActionButton>
               {templateClipboardDialog?.mode === "paste" ? (

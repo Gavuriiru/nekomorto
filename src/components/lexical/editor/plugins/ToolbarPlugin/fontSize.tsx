@@ -11,16 +11,9 @@ import "./fontSize.css";
 import { LexicalEditor } from "lexical";
 import * as React from "react";
 
-import {
-  MAX_ALLOWED_FONT_SIZE,
-  MIN_ALLOWED_FONT_SIZE,
-} from "../../context/ToolbarContext";
+import { MAX_ALLOWED_FONT_SIZE, MIN_ALLOWED_FONT_SIZE } from "../../context/ToolbarContext";
 import { isKeyboardInput } from "../../utils/focusUtils";
-import {
-  updateFontSize,
-  updateFontSizeInSelection,
-  UpdateFontSizeType,
-} from "./utils";
+import { updateFontSize, updateFontSizeInSelection, UpdateFontSizeType } from "./utils";
 
 function parseFontSize(input: string): [number, string] | null {
   const match = input.match(/^(\d+(?:\.\d+)?)(px|pt)$/);
@@ -32,9 +25,7 @@ function normalizeToPx(fontSize: number, unit: string): number {
 }
 
 function isValidFontSize(fontSizePx: number): boolean {
-  return (
-    fontSizePx >= MIN_ALLOWED_FONT_SIZE && fontSizePx <= MAX_ALLOWED_FONT_SIZE
-  );
+  return fontSizePx >= MIN_ALLOWED_FONT_SIZE && fontSizePx <= MAX_ALLOWED_FONT_SIZE;
 }
 
 export function parseFontSizeForToolbar(input: string): string {
@@ -104,10 +95,7 @@ export default function FontSize({
     setIsMouseMode(true);
   };
 
-  const updateFontSizeByInputValue = (
-    inputValueNumber: number,
-    skipRefocus: boolean = false,
-  ) => {
+  const updateFontSizeByInputValue = (inputValueNumber: number, skipRefocus: boolean = false) => {
     let updatedFontSize = inputValueNumber;
     if (inputValueNumber > MAX_ALLOWED_FONT_SIZE) {
       updatedFontSize = MAX_ALLOWED_FONT_SIZE;
@@ -116,12 +104,7 @@ export default function FontSize({
     }
 
     setInputValue(String(updatedFontSize));
-    updateFontSizeInSelection(
-      editor,
-      String(updatedFontSize) + "px",
-      null,
-      skipRefocus,
-    );
+    updateFontSizeInSelection(editor, String(updatedFontSize) + "px", null, skipRefocus);
     setInputChangeFlag(false);
   };
 
@@ -134,17 +117,10 @@ export default function FontSize({
       <button
         type="button"
         disabled={
-          disabled ||
-          (selectionFontSize !== "" &&
-            Number(inputValue) <= MIN_ALLOWED_FONT_SIZE)
+          disabled || (selectionFontSize !== "" && Number(inputValue) <= MIN_ALLOWED_FONT_SIZE)
         }
         onClick={(e) => {
-          updateFontSize(
-            editor,
-            UpdateFontSizeType.decrement,
-            inputValue,
-            isKeyboardInput(e),
-          );
+          updateFontSize(editor, UpdateFontSizeType.decrement, inputValue, isKeyboardInput(e));
         }}
         className="toolbar-item font-decrement"
         aria-label="Diminuir tamanho da fonte"
@@ -170,17 +146,10 @@ export default function FontSize({
       <button
         type="button"
         disabled={
-          disabled ||
-          (selectionFontSize !== "" &&
-            Number(inputValue) >= MAX_ALLOWED_FONT_SIZE)
+          disabled || (selectionFontSize !== "" && Number(inputValue) >= MAX_ALLOWED_FONT_SIZE)
         }
         onClick={(e) => {
-          updateFontSize(
-            editor,
-            UpdateFontSizeType.increment,
-            inputValue,
-            isKeyboardInput(e),
-          );
+          updateFontSize(editor, UpdateFontSizeType.increment, inputValue, isKeyboardInput(e));
         }}
         className="toolbar-item font-increment"
         aria-label="Aumentar tamanho da fonte"

@@ -54,9 +54,7 @@ export default function DraggableBlockPlugin({
   const pickerRef = useRef<HTMLDivElement>(null);
   const searchInputRef = useRef<HTMLInputElement>(null);
   const targetLineRef = useRef<HTMLDivElement>(null);
-  const [draggableElement, setDraggableElement] = useState<HTMLElement | null>(
-    null,
-  );
+  const [draggableElement, setDraggableElement] = useState<HTMLElement | null>(null);
   const [pickerState, setPickerState] = useState<PickerState | null>(null);
   const [isPickerOpen, setIsPickerOpen] = useState(false);
   const [queryString, setQueryString] = useState("");
@@ -89,9 +87,7 @@ export default function DraggableBlockPlugin({
     if (!isPickerOpen || !options.length) {
       return;
     }
-    setHighlightedIndex((current) =>
-      Math.min(current, Math.max(options.length - 1, 0)),
-    );
+    setHighlightedIndex((current) => Math.min(current, Math.max(options.length - 1, 0)));
   }, [isPickerOpen, options.length]);
 
   useEffect(() => {
@@ -163,14 +159,10 @@ export default function DraggableBlockPlugin({
       }
       if (event.key === "ArrowDown") {
         event.preventDefault();
-        setHighlightedIndex((index) =>
-          index + 1 >= options.length ? 0 : index + 1,
-        );
+        setHighlightedIndex((index) => (index + 1 >= options.length ? 0 : index + 1));
       } else if (event.key === "ArrowUp") {
         event.preventDefault();
-        setHighlightedIndex((index) =>
-          index - 1 < 0 ? options.length - 1 : index - 1,
-        );
+        setHighlightedIndex((index) => (index - 1 < 0 ? options.length - 1 : index - 1));
       } else if (event.key === "Enter") {
         event.preventDefault();
         const option = options[highlightedIndex];
@@ -277,9 +269,7 @@ export default function DraggableBlockPlugin({
             <div className="icon" />
           </div>
         }
-        targetLineComponent={
-          <div ref={targetLineRef} className="draggable-block-target-line" />
-        }
+        targetLineComponent={<div ref={targetLineRef} className="draggable-block-target-line" />}
         isOnMenu={isOnMenu}
         onElementChanged={setDraggableElement}
       />

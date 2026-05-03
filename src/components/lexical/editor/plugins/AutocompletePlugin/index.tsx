@@ -29,10 +29,7 @@ import { useCallback, useEffect } from "react";
 
 import { createRandomId } from "@/lib/random-id";
 import { useToolbarState } from "../../context/ToolbarContext";
-import {
-  $createAutocompleteNode,
-  AutocompleteNode,
-} from "../../nodes/AutocompleteNode";
+import { $createAutocompleteNode, AutocompleteNode } from "../../nodes/AutocompleteNode";
 import { addSwipeRightListener } from "../../utils/swipe";
 
 const HISTORY_MERGE = { tag: HISTORY_MERGE_TAG };
@@ -52,9 +49,7 @@ type SearchPromise = {
 
 export const uuid = createRandomId("autocomplete");
 
-export type AutocompleteSearchFn = (
-  selection: null | BaseSelection,
-) => [boolean, string];
+export type AutocompleteSearchFn = (selection: null | BaseSelection) => [boolean, string];
 
 // TODO lookup should be custom
 function $search(selection: null | BaseSelection): [boolean, string] {
@@ -115,9 +110,7 @@ export default function AutocompletePlugin({
     let prevNodeFormat: number = 0;
     function $clearSuggestion() {
       const autocompleteNode =
-        autocompleteNodeKey !== null
-          ? $getNodeByKey(autocompleteNodeKey)
-          : null;
+        autocompleteNodeKey !== null ? $getNodeByKey(autocompleteNodeKey) : null;
       if (autocompleteNode !== null && autocompleteNode.isAttached()) {
         autocompleteNode.remove();
         autocompleteNodeKey = null;
@@ -130,19 +123,14 @@ export default function AutocompletePlugin({
       lastSuggestion = null;
       prevNodeFormat = 0;
     }
-    function updateAsyncSuggestion(
-      refSearchPromise: SearchPromise,
-      newSuggestion: null | string,
-    ) {
+    function updateAsyncSuggestion(refSearchPromise: SearchPromise, newSuggestion: null | string) {
       if (searchPromise !== refSearchPromise || newSuggestion === null) {
         // Outdated or no suggestion
         return;
       }
       editor.update(() => {
         const selection = $getSelection();
-        const [hasMatch, match] = onSearch
-          ? onSearch(selection)
-          : $search(selection);
+        const [hasMatch, match] = onSearch ? onSearch(selection) : $search(selection);
         if (!hasMatch || match !== lastMatch || !$isRangeSelection(selection)) {
           // Outdated
           return;
@@ -150,10 +138,7 @@ export default function AutocompletePlugin({
         const selectionCopy = selection.clone();
         const prevNode = selection.getNodes()[0] as TextNode;
         prevNodeFormat = prevNode.getFormat();
-        const node = $createAutocompleteNode(
-          formatSuggestionText(newSuggestion),
-          uuid,
-        )
+        const node = $createAutocompleteNode(formatSuggestionText(newSuggestion), uuid)
           .setFormat(prevNodeFormat)
           .setStyle(`font-size: ${toolbarState.fontSize}`);
         autocompleteNodeKey = node.getKey();
@@ -173,9 +158,7 @@ export default function AutocompletePlugin({
     function handleUpdate() {
       editor.update(() => {
         const selection = $getSelection();
-        const [hasMatch, match] = onSearch
-          ? onSearch(selection)
-          : $search(selection);
+        const [hasMatch, match] = onSearch ? onSearch(selection) : $search(selection);
         if (!hasMatch) {
           $clearSuggestion();
           return;
@@ -240,24 +223,11 @@ export default function AutocompletePlugin({
     const rootElem = editor.getRootElement();
 
     return mergeRegister(
-      editor.registerNodeTransform(
-        AutocompleteNode,
-        $handleAutocompleteNodeTransform,
-      ),
+      editor.registerNodeTransform(AutocompleteNode, $handleAutocompleteNodeTransform),
       editor.registerUpdateListener(handleUpdate),
-      editor.registerCommand(
-        KEY_TAB_COMMAND,
-        $handleKeypressCommand,
-        COMMAND_PRIORITY_LOW,
-      ),
-      editor.registerCommand(
-        KEY_ARROW_RIGHT_COMMAND,
-        $handleKeypressCommand,
-        COMMAND_PRIORITY_LOW,
-      ),
-      ...(rootElem !== null
-        ? [addSwipeRightListener(rootElem, handleSwipeRight)]
-        : []),
+      editor.registerCommand(KEY_TAB_COMMAND, $handleKeypressCommand, COMMAND_PRIORITY_LOW),
+      editor.registerCommand(KEY_ARROW_RIGHT_COMMAND, $handleKeypressCommand, COMMAND_PRIORITY_LOW),
+      ...(rootElem !== null ? [addSwipeRightListener(rootElem, handleSwipeRight)] : []),
       unmountSuggestion,
     );
   }, [editor, onSearch, query, toolbarState.fontSize]);
@@ -295,8 +265,7 @@ class AutocompleteServer {
           ? String.fromCharCode(char0 + 32) + searchText.substring(1)
           : searchText;
         const match = this.DATABASE.find(
-          (dictionaryWord) =>
-            dictionaryWord.startsWith(caseInsensitiveSearchText) ?? null,
+          (dictionaryWord) => dictionaryWord.startsWith(caseInsensitiveSearchText) ?? null,
         );
         if (match === undefined) {
           return resolve(null);

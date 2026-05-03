@@ -66,11 +66,7 @@ describe("measureToolbarRequiredWidth", () => {
     toolbar.style.paddingLeft = "6px";
     toolbar.style.paddingRight = "6px";
 
-    const makeChild = (
-      width: number,
-      marginRight = "0px",
-      marginLeft = "0px",
-    ) => {
+    const makeChild = (width: number, marginRight = "0px", marginLeft = "0px") => {
       const child = document.createElement("button");
       if (marginLeft === "auto") {
         child.classList.add("toolbar-group-right");

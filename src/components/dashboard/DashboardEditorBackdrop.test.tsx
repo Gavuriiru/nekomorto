@@ -29,13 +29,7 @@ describe("DashboardEditorBackdrop", () => {
 
     expect(backdrop.parentElement).toBe(document.body);
     expect(classTokens(backdrop)).toEqual(
-      expect.arrayContaining([
-        "pointer-events-auto",
-        "fixed",
-        "inset-0",
-        "z-[45]",
-        "bg-black/80",
-      ]),
+      expect.arrayContaining(["pointer-events-auto", "fixed", "inset-0", "z-[45]", "bg-black/80"]),
     );
     expect(classTokens(header)).toContain("z-40");
   });

@@ -99,7 +99,11 @@ const createDependencies = (overrides: Record<string, unknown> = {}) => {
     encryptStringWithKeyring: vi.fn(() => "encrypted"),
     generateRecoveryCodes: vi.fn(() => ["code-1"]),
     getPendingMfaEnrollmentRedirectTarget: vi.fn(() => "/dashboard"),
-    getPendingMfaEnrollmentState: vi.fn(() => ({ pending: false, user: null, redirectTarget: "/dashboard" })),
+    getPendingMfaEnrollmentState: vi.fn(() => ({
+      pending: false,
+      user: null,
+      redirectTarget: "/dashboard",
+    })),
     getRequestIp: vi.fn(() => "198.51.100.40"),
     handleMfaFailureSecuritySignals: vi.fn(),
     hashRecoveryCode: vi.fn(({ code }) => `hash:${code}`),
@@ -185,7 +189,11 @@ describe("registerSelfServiceRoutes", () => {
       saveSessionState: vi.fn(async () => undefined),
       startTotpEnrollment,
     });
-    const routeLayer = getRouteLayer(dependencies.router, "post", "/api/me/security/totp/enroll/start");
+    const routeLayer = getRouteLayer(
+      dependencies.router,
+      "post",
+      "/api/me/security/totp/enroll/start",
+    );
 
     const res = await invokeRoute(routeLayer, {
       body: {},
@@ -204,11 +212,19 @@ describe("registerSelfServiceRoutes", () => {
   it("confirma o enrollment de TOTP", async () => {
     const writeUserMfaTotpRecord = vi.fn();
     const dependencies = createDependencies({
-      getPendingMfaEnrollmentState: vi.fn(() => ({ pending: false, user: null, redirectTarget: "/dashboard" })),
+      getPendingMfaEnrollmentState: vi.fn(() => ({
+        pending: false,
+        user: null,
+        redirectTarget: "/dashboard",
+      })),
       saveSessionState: vi.fn(async () => undefined),
       writeUserMfaTotpRecord,
     });
-    const routeLayer = getRouteLayer(dependencies.router, "post", "/api/me/security/totp/enroll/confirm");
+    const routeLayer = getRouteLayer(
+      dependencies.router,
+      "post",
+      "/api/me/security/totp/enroll/confirm",
+    );
 
     const res = await invokeRoute(routeLayer, {
       body: {
@@ -283,5 +299,4 @@ describe("registerSelfServiceRoutes", () => {
     const routeLayer = getRouteLayer(dependencies.router, "post", "/api/me/security/local-auth");
     expect(routeLayer).toBeNull();
   });
-}
-);
+});

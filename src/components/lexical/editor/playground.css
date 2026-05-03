@@ -7,8 +7,8 @@
  */
 
 @font-face {
-  font-family: 'Reenie Beanie', cursive;
-  src: url('/fonts/reenie-beanie/ReenieBeanie-Regular.woff2') format('woff2');
+  font-family: "Reenie Beanie", cursive;
+  src: url("/fonts/reenie-beanie/ReenieBeanie-Regular.woff2") format("woff2");
   font-style: normal;
   font-weight: 400;
   font-display: swap;
@@ -16,12 +16,7 @@
 
 .lexical-playground body {
   margin: 0;
-  font-family:
-    system-ui,
-    -apple-system,
-    BlinkMacSystemFont,
-    '.SFNSText-Regular',
-    sans-serif;
+  font-family: system-ui, -apple-system, BlinkMacSystemFont, ".SFNSText-Regular", sans-serif;
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
   background: #eee;
@@ -154,7 +149,7 @@
 }
 
 .lexical-playground .editor-dev-button::after {
-  content: '';
+  content: "";
   position: absolute;
   top: 10px;
   right: 10px;
@@ -202,7 +197,7 @@
 }
 
 .lexical-playground .test-recorder-button::after {
-  content: '';
+  content: "";
   position: absolute;
   top: 8px;
   right: 8px;
@@ -1012,11 +1007,11 @@
   transition: transform 0.2s;
 }
 
-.lexical-playground .switch button[aria-checked='true'] {
+.lexical-playground .switch button[aria-checked="true"] {
   background-color: rgb(24, 119, 242);
 }
 
-.lexical-playground .switch button[aria-checked='true'] span {
+.lexical-playground .switch button[aria-checked="true"] span {
   transform: translateX(20px);
 }
 
@@ -1293,7 +1288,8 @@
   pointer-events: auto;
   opacity: 1;
 }
-.lexical-playground .table-cell-action-button-container.table-cell-action-button-container--inactive {
+.lexical-playground
+  .table-cell-action-button-container.table-cell-action-button-container--inactive {
   pointer-events: none;
   opacity: 0;
 }
@@ -1573,7 +1569,7 @@
   padding: 20px 10px;
   position: relative;
   border: 1px solid #e8e8e8;
-  font-family: 'Reenie Beanie';
+  font-family: "Reenie Beanie";
   font-size: 24px;
   border-bottom-right-radius: 60px 5px;
   display: block;
@@ -1581,7 +1577,7 @@
 }
 
 .lexical-playground .sticky-note:after {
-  content: '';
+  content: "";
   position: absolute;
   z-index: -1;
   right: -0px;
@@ -1595,24 +1591,12 @@
 
 .lexical-playground .sticky-note.yellow {
   border-top: 1px solid #fdfd86;
-  background: linear-gradient(
-    135deg,
-    #ffff88 81%,
-    #ffff88 82%,
-    #ffff88 82%,
-    #ffffc6 100%
-  );
+  background: linear-gradient(135deg, #ffff88 81%, #ffff88 82%, #ffff88 82%, #ffffc6 100%);
 }
 
 .lexical-playground .sticky-note.pink {
   border-top: 1px solid #e7d1e4;
-  background: linear-gradient(
-    135deg,
-    #f7cbe8 81%,
-    #f7cbe8 82%,
-    #f7cbe8 82%,
-    #e7bfe1 100%
-  );
+  background: linear-gradient(135deg, #f7cbe8 81%, #f7cbe8 82%, #f7cbe8 82%, #e7bfe1 100%);
 }
 
 .lexical-playground .sticky-note-container.dragging {

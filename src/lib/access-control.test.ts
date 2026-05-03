@@ -32,8 +32,12 @@ const expectRouteAccess = ({
   grants: GrantMap;
   role?: AccessRole;
 }) => {
-  allow.forEach((href) => expect(isDashboardHrefAllowed(href, grants, { accessRole: role })).toBe(true));
-  deny.forEach((href) => expect(isDashboardHrefAllowed(href, grants, { accessRole: role })).toBe(false));
+  allow.forEach((href) =>
+    expect(isDashboardHrefAllowed(href, grants, { accessRole: role })).toBe(true),
+  );
+  deny.forEach((href) =>
+    expect(isDashboardHrefAllowed(href, grants, { accessRole: role })).toBe(false),
+  );
 };
 
 describe("access-control dashboard RBAC", () => {
@@ -91,7 +95,9 @@ describe("access-control dashboard RBAC", () => {
       },
     ];
 
-    matrix.forEach(({ allow, deny, grant }) => expectRouteAccess({ allow, deny, grants: grantsWith(grant) }));
+    matrix.forEach(({ allow, deny, grant }) =>
+      expectRouteAccess({ allow, deny, grants: grantsWith(grant) }),
+    );
   });
 
   it("requires owner role for security", () => {

@@ -51,8 +51,7 @@ const getTwitterWidgets = (): TwitterWidgets | null => {
   return twitterWindow.twttr?.widgets ?? null;
 };
 
-const hasTwitterWidgetsReady = () =>
-  typeof getTwitterWidgets()?.createTweet === "function";
+const hasTwitterWidgetsReady = () => typeof getTwitterWidgets()?.createTweet === "function";
 
 const getScriptReadyState = (script: HTMLScriptElement) => {
   const scriptWithReadyState = script as HTMLScriptElement & {
@@ -118,9 +117,7 @@ const loadTwitterScript = (): Promise<void> => {
     if (!existingScript) {
       script.src = WIDGET_SCRIPT_URL;
       script.async = true;
-      (document.body || document.head || document.documentElement).appendChild(
-        script,
-      );
+      (document.body || document.head || document.documentElement).appendChild(script);
       return;
     }
 
@@ -169,8 +166,7 @@ export default function TweetComponent({
   const activeStageRef = useRef<HTMLDivElement | null>(null);
   const [isTweetLoading, setIsTweetLoading] = useState(false);
   const { effectiveMode } = useThemeMode();
-  const tweetTheme: TwitterWidgetTheme =
-    effectiveMode === "light" ? "light" : "dark";
+  const tweetTheme: TwitterWidgetTheme = effectiveMode === "light" ? "light" : "dark";
 
   useEffect(() => {
     const targetHost = targetRef.current;
@@ -194,22 +190,15 @@ export default function TweetComponent({
     setIsTweetLoading(!currentStage);
 
     const requestTarget = document.createElement("div");
-    requestTarget.className =
-      "lexical-tweet__stage lexical-tweet__stage--entering";
+    requestTarget.className = "lexical-tweet__stage lexical-tweet__stage--entering";
     requestTarget.setAttribute("aria-hidden", "true");
-    requestTarget.setAttribute(
-      "data-lexical-tweet-request",
-      String(renderToken),
-    );
+    requestTarget.setAttribute("data-lexical-tweet-request", String(renderToken));
     targetHost.appendChild(requestTarget);
 
     const renderTweet = async () => {
       try {
         await loadTwitterScript();
-        if (
-          renderTokenRef.current !== renderToken ||
-          !requestTarget.isConnected
-        ) {
+        if (renderTokenRef.current !== renderToken || !requestTarget.isConnected) {
           return;
         }
 
@@ -223,10 +212,7 @@ export default function TweetComponent({
         });
 
         const previousStage = activeStageRef.current;
-        if (
-          renderTokenRef.current !== renderToken ||
-          !requestTarget.isConnected
-        ) {
+        if (renderTokenRef.current !== renderToken || !requestTarget.isConnected) {
           requestTarget.remove();
           return;
         }
@@ -250,10 +236,7 @@ export default function TweetComponent({
         activeStageRef.current = requestTarget;
         setIsTweetLoading(false);
       } catch (error) {
-        if (
-          renderTokenRef.current !== renderToken ||
-          !requestTarget.isConnected
-        ) {
+        if (renderTokenRef.current !== renderToken || !requestTarget.isConnected) {
           return;
         }
         console.warn("tweet_embed_render_failed", error);
@@ -276,11 +259,7 @@ export default function TweetComponent({
   }, []);
 
   return (
-    <BlockWithAlignableContents
-      className={className}
-      format={format}
-      nodeKey={nodeKey}
-    >
+    <BlockWithAlignableContents className={className} format={format} nodeKey={nodeKey}>
       <div className="lexical-tweet">
         {isTweetLoading ? <TweetLoadingSkeleton /> : null}
         <div className="lexical-tweet__target" ref={targetRef} />

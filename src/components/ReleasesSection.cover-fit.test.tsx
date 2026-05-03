@@ -138,11 +138,7 @@ describe("ReleasesSection cover fit", () => {
     );
     expect(postLink).not.toHaveClass("bg-gradient-card");
     expect(postLink).not.toHaveClass("shadow-xs", "hover:shadow-lg");
-    expect(coverImage).toHaveClass(
-      "home-post-media-transition",
-      "object-cover",
-      "object-center",
-    );
+    expect(coverImage).toHaveClass("home-post-media-transition", "object-cover", "object-center");
     expect(coverImage).not.toHaveClass(
       "home-card-media-transition",
       "group-hover/home-post-card:scale-[1.025]",

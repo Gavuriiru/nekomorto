@@ -47,13 +47,7 @@ export class StickyNode extends DecoratorNode<JSX.Element> {
   }
 
   static clone(node: StickyNode): StickyNode {
-    return new StickyNode(
-      node.__x,
-      node.__y,
-      node.__color,
-      node.__caption,
-      node.__key,
-    );
+    return new StickyNode(node.__x, node.__y, node.__color, node.__caption, node.__key);
   }
   static importJSON(serializedNode: SerializedStickyNode): StickyNode {
     return new StickyNode(
@@ -63,9 +57,7 @@ export class StickyNode extends DecoratorNode<JSX.Element> {
     ).updateFromJSON(serializedNode);
   }
 
-  updateFromJSON(
-    serializedNode: LexicalUpdateJSON<SerializedStickyNode>,
-  ): this {
+  updateFromJSON(serializedNode: LexicalUpdateJSON<SerializedStickyNode>): this {
     const stickyNode = super.updateFromJSON(serializedNode);
     const caption = serializedNode.caption;
     const nestedEditor = stickyNode.__caption;
@@ -140,15 +132,10 @@ export class StickyNode extends DecoratorNode<JSX.Element> {
   }
 }
 
-export function $isStickyNode(
-  node: LexicalNode | null | undefined,
-): node is StickyNode {
+export function $isStickyNode(node: LexicalNode | null | undefined): node is StickyNode {
   return node instanceof StickyNode;
 }
 
-export function $createStickyNode(
-  xOffset: number,
-  yOffset: number,
-): StickyNode {
+export function $createStickyNode(xOffset: number, yOffset: number): StickyNode {
   return new StickyNode(xOffset, yOffset, "yellow");
 }
