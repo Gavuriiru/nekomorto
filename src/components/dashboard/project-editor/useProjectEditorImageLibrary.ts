@@ -14,7 +14,13 @@ import type { Dispatch, SetStateAction } from "react";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { resolveProjectVolumeEntryIndexByVolume } from "./project-editor-form";
 
-type ProjectImageLibraryTarget = "cover" | "banner" | "hero" | "episode-cover" | "volume-cover";
+type ProjectImageLibraryTarget =
+  | "cover"
+  | "banner"
+  | "hero"
+  | "heroLogo"
+  | "episode-cover"
+  | "volume-cover";
 
 type ProjectEditorLibraryEpisode = Pick<
   ProjectEpisode,
@@ -33,8 +39,10 @@ type ProjectEditorLibraryForm<
   coverAlt: string;
   banner: string;
   bannerAlt: string;
-  heroImageUrl?: string;
+  heroImageUrl: string;
   heroImageAlt: string;
+  heroLogoUrl: string;
+  heroLogoAlt: string;
   episodeDownloads: TEpisode[];
   volumeEntries: TVolumeEntry[];
 };
@@ -59,7 +67,7 @@ type UseProjectEditorImageLibraryResult<
   handleLibrarySave: (payload: ImageLibrarySavePayload) => void;
   isLibraryOpen: boolean;
   openLibraryForEpisodeCover: (index: number) => void;
-  openLibraryForProjectImage: (target: "cover" | "banner" | "hero") => void;
+  openLibraryForProjectImage: (target: "cover" | "banner" | "hero" | "heroLogo") => void;
   openLibraryForVolumeCover: (volume?: number) => void;
   setIsLibraryOpen: Dispatch<SetStateAction<boolean>>;
 };
@@ -164,6 +172,9 @@ export function useProjectEditorImageLibrary<
         } else if (libraryTarget === "hero") {
           next.heroImageUrl = nextUrl;
           next.heroImageAlt = nextUrl ? resolveProjectAssetAltText("hero", altText) : "";
+        } else if (libraryTarget === "heroLogo") {
+          next.heroLogoUrl = nextUrl;
+          next.heroLogoAlt = nextUrl ? resolveProjectAssetAltText("heroLogo", altText) : "";
         } else if (libraryTarget === "episode-cover") {
           if (episodeCoverIndex === null) {
             return prev;
@@ -227,10 +238,13 @@ export function useProjectEditorImageLibrary<
     [episodeCoverIndex, libraryTarget, setFormState, volumeCoverTargetVolume],
   );
 
-  const openLibraryForProjectImage = useCallback((target: "cover" | "banner" | "hero") => {
-    setLibraryTarget(target);
-    setIsLibraryOpen(true);
-  }, []);
+  const openLibraryForProjectImage = useCallback(
+    (target: "cover" | "banner" | "hero" | "heroLogo") => {
+      setLibraryTarget(target);
+      setIsLibraryOpen(true);
+    },
+    [],
+  );
 
   const openLibraryForEpisodeCover = useCallback((index: number) => {
     setEpisodeCoverIndex(index);
@@ -265,6 +279,9 @@ export function useProjectEditorImageLibrary<
     if (libraryTarget === "hero") {
       return formState.heroImageUrl || "";
     }
+    if (libraryTarget === "heroLogo") {
+      return formState.heroLogoUrl || "";
+    }
     if (libraryTarget === "episode-cover" && episodeCoverIndex !== null) {
       return formState.episodeDownloads[episodeCoverIndex]?.coverImageUrl || "";
     }
@@ -282,6 +299,7 @@ export function useProjectEditorImageLibrary<
     formState.cover,
     formState.episodeDownloads,
     formState.heroImageUrl,
+    formState.heroLogoUrl,
     formState.volumeEntries,
     libraryTarget,
     volumeCoverTargetVolume,

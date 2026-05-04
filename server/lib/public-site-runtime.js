@@ -236,6 +236,8 @@ export const createPublicSiteRuntime = (dependencies = {}) => {
         trailerUrl: String(project?.trailerUrl || "").trim(),
         format: String(project?.type || "").trim(),
         status: String(project?.status || "").trim(),
+        heroLogoUrl: String(project?.heroLogoUrl || "").trim(),
+        heroLogoAlt: String(project?.heroLogoAlt || "").trim(),
         updatedAt: updatedAt || epoch,
       };
     };
@@ -316,6 +318,8 @@ export const createPublicSiteRuntime = (dependencies = {}) => {
         trailerUrl: String(slide?.trailerUrl || "").trim(),
         format: String(slide?.format || "").trim(),
         status: String(slide?.status || "").trim(),
+        heroLogoUrl: String(slide?.heroLogoUrl || "").trim(),
+        heroLogoAlt: String(slide?.heroLogoAlt || "").trim(),
       })),
     };
   };
@@ -342,6 +346,8 @@ export const createPublicSiteRuntime = (dependencies = {}) => {
     bannerAlt: String(project?.bannerAlt || ""),
     heroImageUrl: String(project?.heroImageUrl || ""),
     heroImageAlt: String(project?.heroImageAlt || ""),
+    heroLogoUrl: String(project?.heroLogoUrl || ""),
+    heroLogoAlt: String(project?.heroLogoAlt || ""),
     forceHero: project?.forceHero === true,
     trailerUrl: String(project?.trailerUrl || ""),
     volumeEntries: [],

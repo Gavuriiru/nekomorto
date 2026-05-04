@@ -382,6 +382,7 @@ const collectUsage = (posts, projects) => {
     addProjectUsage(usageByUrl, project?.cover, projectId, "main");
     addProjectUsage(usageByUrl, project?.banner, projectId, "main");
     addProjectUsage(usageByUrl, project?.heroImageUrl, projectId, "main");
+    addProjectUsage(usageByUrl, project?.heroLogoUrl, projectId, "main");
     const sourceVolumeEntries = Array.isArray(project?.volumeEntries)
       ? project.volumeEntries
       : Array.isArray(project?.volumeCovers)

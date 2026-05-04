@@ -199,6 +199,8 @@ export const toPublicBootstrapProject = (project) => ({
   bannerAlt: safeString(project?.bannerAlt),
   heroImageUrl: safeString(project?.heroImageUrl),
   heroImageAlt: safeString(project?.heroImageAlt),
+  heroLogoUrl: safeString(project?.heroLogoUrl),
+  heroLogoAlt: safeString(project?.heroLogoAlt),
   forceHero: Boolean(project?.forceHero),
   trailerUrl: safeString(project?.trailerUrl),
   studio: safeString(project?.studio),

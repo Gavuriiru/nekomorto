@@ -132,6 +132,8 @@ export type Project = {
   forceHero?: boolean;
   heroImageUrl?: string;
   heroImageAlt?: string;
+  heroLogoUrl?: string;
+  heroLogoAlt?: string;
   readerConfig?: ProjectReaderConfig;
   volumeEntries?: ProjectVolumeEntry[];
   volumeCovers?: ProjectVolumeCover[];

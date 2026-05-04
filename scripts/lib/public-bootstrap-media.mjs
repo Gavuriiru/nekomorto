@@ -46,6 +46,7 @@ export const collectBootstrapPublicMediaUrls = (payload, options = {}) => {
   const firstEpisodeCovers = [];
   const projectBanners = [];
   const projectHeroes = [];
+  const projectHeroLogos = [];
   const remainingEpisodeCovers = [];
   const postCovers = [];
   const pageShareImages = [];
@@ -73,6 +74,14 @@ export const collectBootstrapPublicMediaUrls = (payload, options = {}) => {
 
   projects.forEach((project, projectIndex) => {
     pushCandidate(projectHeroes, `projects[${projectIndex}].heroImageUrl`, project?.heroImageUrl);
+  });
+
+  projects.forEach((project, projectIndex) => {
+    pushCandidate(
+      projectHeroLogos,
+      `projects[${projectIndex}].heroLogoUrl`,
+      project?.heroLogoUrl,
+    );
   });
 
   projects.forEach((project, projectIndex) => {
@@ -107,6 +116,7 @@ export const collectBootstrapPublicMediaUrls = (payload, options = {}) => {
   appendUniqueCandidates(items, seen, firstEpisodeCovers.slice(primaryQuota), limit);
   appendUniqueCandidates(items, seen, projectBanners, limit);
   appendUniqueCandidates(items, seen, projectHeroes, limit);
+  appendUniqueCandidates(items, seen, projectHeroLogos, limit);
   appendUniqueCandidates(items, seen, remainingEpisodeCovers, limit);
   appendUniqueCandidates(items, seen, postCovers, limit);
   appendUniqueCandidates(items, seen, pageShareImages, limit);

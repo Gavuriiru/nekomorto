@@ -41,6 +41,8 @@ describe("public bootstrap payload", () => {
           bannerAlt: "Banner do projeto",
           heroImageUrl: "/uploads/hero.jpg",
           heroImageAlt: "Hero do projeto",
+          heroLogoUrl: "/uploads/hero-logo.png",
+          heroLogoAlt: "Marca oficial do projeto",
           studio: "Studio Teste",
           animationStudios: ["Studio Teste"],
           episodes: "12 episodios",
@@ -196,6 +198,8 @@ describe("public bootstrap payload", () => {
     expect(project.coverAlt).toBe("Capa do projeto");
     expect(project.bannerAlt).toBe("Banner do projeto");
     expect(project.heroImageAlt).toBe("Hero do projeto");
+    expect(project.heroLogoUrl).toBe("/uploads/hero-logo.png");
+    expect(project.heroLogoAlt).toBe("Marca oficial do projeto");
     expect(project.titleOriginal).toBe("Projecto Original");
     expect(project.titleEnglish).toBe("Project");
     expect(project.genres).toEqual(["drama"]);
@@ -338,6 +342,8 @@ describe("public bootstrap payload", () => {
           bannerAlt: "",
           heroImageUrl: "",
           heroImageAlt: "",
+          heroLogoUrl: "",
+          heroLogoAlt: "",
           studio: "",
           animationStudios: [],
           episodes: "10 capitulos",
@@ -425,6 +431,8 @@ describe("public bootstrap payload", () => {
           bannerAlt: "",
           heroImageUrl: "",
           heroImageAlt: "",
+          heroLogoUrl: "",
+          heroLogoAlt: "",
           studio: "",
           animationStudios: [],
           episodes: "10 capitulos",

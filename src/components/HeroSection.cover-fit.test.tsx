@@ -1,4 +1,4 @@
-import { act, fireEvent, render, screen, within } from "@testing-library/react";
+import { act, fireEvent, render, screen } from "@testing-library/react";
 import type { ReactNode } from "react";
 import * as React from "react";
 import { MemoryRouter } from "react-router-dom";
@@ -18,8 +18,11 @@ const carouselState = vi.hoisted(() => ({
   api: null as null | {
     scrollNext: () => void;
     scrollPrev: () => void;
+    scrollTo: (index: number) => void;
   },
   scrollNext: vi.fn(),
+  scrollPrev: vi.fn(),
+  scrollTo: vi.fn(),
   selectedIndex: 0,
   slideCount: 0,
 }));
@@ -88,8 +91,15 @@ vi.mock("@/components/ui/carousel", () => {
           notify("select");
         },
         scrollPrev: () => {
+          carouselState.scrollPrev();
           const slideCount = Math.max(carouselState.slideCount, 1);
           carouselState.selectedIndex = (carouselState.selectedIndex - 1 + slideCount) % slideCount;
+          notify("select");
+        },
+        scrollTo: (index: number) => {
+          carouselState.scrollTo(index);
+          const slideCount = Math.max(carouselState.slideCount, 1);
+          carouselState.selectedIndex = ((index % slideCount) + slideCount) % slideCount;
           notify("select");
         },
         on: (event: string, callback: () => void) => {
@@ -260,36 +270,7 @@ const classTokens = (element: HTMLElement) =>
 const expectHeroPrimaryButtonTokens = (element: HTMLElement) => {
   const tokens = classTokens(element);
 
-  expect(tokens).toEqual(
-    expect.arrayContaining([
-      "rounded-xl",
-      "shadow-none",
-      "border-[color:var(--hero-primary-border-rest)]",
-      "bg-[color:var(--hero-primary-bg-rest)]",
-      "text-foreground",
-      "hover:border-[color:var(--hero-primary-border-hover)]",
-      "hover:bg-[color:var(--hero-primary-bg-hover)]",
-      "hover:text-(--hero-accent-foreground,hsl(var(--primary-foreground)))",
-      "focus-visible:border-[color:var(--hero-primary-border-hover)]",
-      "focus-visible:bg-[color:var(--hero-primary-bg-hover)]",
-      "focus-visible:text-(--hero-accent-foreground,hsl(var(--primary-foreground)))",
-    ]),
-  );
-  expect(element.style.getPropertyValue("--hero-primary-bg-rest")).toBe(
-    "color-mix(in srgb, var(--hero-accent, hsl(var(--primary))) 10%, transparent)",
-  );
-  expect(element.style.getPropertyValue("--hero-primary-border-rest")).toBe(
-    "color-mix(in srgb, var(--hero-accent, hsl(var(--primary))) 70%, transparent)",
-  );
-  expect(element.style.getPropertyValue("--hero-primary-bg-hover")).toBe(
-    "var(--hero-accent, hsl(var(--primary)))",
-  );
-  expect(element.style.getPropertyValue("--hero-primary-border-hover")).toBe(
-    "color-mix(in srgb, var(--hero-accent, hsl(var(--primary))) 100%, transparent)",
-  );
-  expect(tokens).not.toContain("hover:brightness-110");
-  expect(tokens).not.toContain("interactive-lift-sm");
-  expect(tokens).not.toContain("pressable");
+  expect(tokens).toEqual(expect.arrayContaining(["hero-home__primary-action"]));
 };
 
 describe("HeroSection cover fit", () => {
@@ -300,6 +281,8 @@ describe("HeroSection cover fit", () => {
     browserIdleState.callbacks.splice(0, browserIdleState.callbacks.length);
     carouselState.api = null;
     carouselState.scrollNext.mockReset();
+    carouselState.scrollPrev.mockReset();
+    carouselState.scrollTo.mockReset();
     carouselState.selectedIndex = 0;
     carouselState.slideCount = 0;
   });
@@ -322,7 +305,8 @@ describe("HeroSection cover fit", () => {
 
     const heroSection = container.querySelector("section");
     expect(heroSection).not.toBeNull();
-    expect(heroSection).toHaveClass("min-h-[78vh]", "md:min-h-screen");
+    expect(heroSection).toHaveClass("md:min-h-screen");
+    expect(heroSection).toHaveStyle({ minHeight: "78vh" });
     expectHeroPrimaryButtonTokens(
       screen.getByRole("link", { name: /Acessar p.gina de Projeto com Hero/i }),
     );
@@ -355,7 +339,6 @@ describe("HeroSection cover fit", () => {
     await screen.findByRole("heading", { name: "Projeto com Hero" });
 
     const meta = await screen.findByTestId("hero-slide-meta-project-1");
-    expect(meta).toHaveClass("flex-col", "md:flex-row");
 
     const latest = screen.getByTestId("hero-slide-latest-project-1");
     const typeStatus = screen.getByTestId("hero-slide-type-status-project-1");
@@ -367,17 +350,14 @@ describe("HeroSection cover fit", () => {
     expect(children.indexOf(typeStatus)).toBeGreaterThanOrEqual(0);
     expect(children.indexOf(latest)).toBeLessThan(children.indexOf(typeStatus));
 
-    expect(within(typeStatus).getByText("Anime")).toBeInTheDocument();
-    expect(within(typeStatus).getByText("Em andamento")).toBeInTheDocument();
+    expect(typeStatus).toHaveTextContent("Anime • Em andamento");
     expectHeroPrimaryButtonTokens(
       screen.getByRole("link", { name: /Acessar p.gina de Projeto com Hero/i }),
     );
-    const separator = within(typeStatus).getByText("\u2022");
-    expect(separator).toHaveClass("animate-slide-up", "opacity-0", "text-muted-foreground/50");
-    expect(separator).not.toHaveClass("opacity-50");
+    expect(typeStatus).toHaveClass("hero-home__meta-text");
   });
 
-  it("aplica animacao escalonada em tipo, separador, status e titulo no modo carrossel", async () => {
+  it("aplica animacao escalonada em meta e titulo no modo carrossel", async () => {
     setupBootstrapMock({ includeSecondProject: true });
 
     render(
@@ -392,22 +372,13 @@ describe("HeroSection cover fit", () => {
     expectHeroPrimaryButtonTokens(
       screen.getByRole("link", { name: /Acessar p.gina de Projeto com Hero/i }),
     );
-    const type = within(typeStatus).getByText("Anime");
-    const separator = within(typeStatus).getByText("\u2022");
-    const status = within(typeStatus).getByText("Em andamento");
-
-    expect(type).toHaveClass("animate-slide-up", "opacity-0");
-    expect(separator).toHaveClass("animate-slide-up", "opacity-0");
-    expect(status).toHaveClass("animate-slide-up", "opacity-0");
-    expect(separator).toHaveClass("text-muted-foreground/50");
-    expect(separator).not.toHaveClass("opacity-50");
-    expect(type).toHaveStyle({ animationDelay: "120ms" });
-    expect(separator).toHaveStyle({ animationDelay: "120ms" });
-    expect(status).toHaveStyle({ animationDelay: "120ms" });
+    expect(typeStatus).toHaveTextContent("Anime • Em andamento");
+    expect(typeStatus).toHaveClass("animate-slide-up", "opacity-0", "hero-home__meta-text");
+    expect(typeStatus).toHaveStyle({ animationDelay: "80ms" });
 
     const heading = screen.getByRole("heading", { name: "Projeto com Hero" });
     expect(heading).toHaveClass("animate-slide-up", "opacity-0");
-    expect(heading).toHaveStyle({ animationDelay: "240ms" });
+    expect(heading).toHaveStyle({ animationDelay: "220ms" });
   });
 
   it("monta a estrutura completa do carrossel no primeiro render mesmo antes do idle", () => {
@@ -422,6 +393,21 @@ describe("HeroSection cover fit", () => {
 
     expect(screen.getByTestId("hero-slide-meta-project-1")).toBeInTheDocument();
     expect(screen.getByTestId("hero-slide-meta-project-2")).toBeInTheDocument();
+    expect(screen.getByTestId("hero-carousel-dock")).toBeInTheDocument();
+    expect(screen.getByTestId("hero-carousel-counter")).toHaveTextContent("01/02");
+  });
+
+  it("nao renderiza dock de navegacao quando existe apenas um slide", async () => {
+    setupBootstrapMock();
+
+    render(
+      <MemoryRouter>
+        <HeroSection />
+      </MemoryRouter>,
+    );
+
+    await screen.findByRole("heading", { name: "Projeto com Hero" });
+    expect(screen.queryByTestId("hero-carousel-dock")).not.toBeInTheDocument();
   });
 
   it("remove as animacoes de entrada do primeiro slide quando o shell inicial existe", async () => {
@@ -438,7 +424,9 @@ describe("HeroSection cover fit", () => {
 
     const heading = await screen.findByRole("heading", { name: "Projeto com Hero" });
     const latestBadge = screen.getByTestId("hero-slide-latest-project-1");
-    const actions = heading.parentElement?.querySelector(".mt-8");
+    const actions = screen
+      .getByRole("link", { name: /Acessar p.gina de Projeto com Hero/i })
+      .closest("div.hero-home__action-group")?.parentElement;
 
     expect(heading).not.toHaveClass("animate-slide-up", "opacity-0");
     expect(latestBadge).not.toHaveClass("animate-slide-up", "opacity-0");
@@ -489,7 +477,7 @@ describe("HeroSection cover fit", () => {
     });
     expect(carouselState.scrollNext).not.toHaveBeenCalled();
 
-    fireEvent.click(screen.getByRole("button", { name: /next slide/i }));
+    fireEvent.click(screen.getAllByRole("button", { name: /pr.ximo slide/i })[0]);
     expect(carouselState.scrollNext).toHaveBeenCalledTimes(1);
 
     act(() => {
@@ -591,5 +579,48 @@ describe("HeroSection cover fit", () => {
         name: /Acessar p.gina de Projeto Manga/i,
       }),
     ).toHaveAttribute("href", "/projeto/project-manga");
+  });
+
+  it("renderiza a marca oficial do projeto quando heroLogoUrl existe", async () => {
+    usePublicBootstrapMock.mockReturnValue({
+      isFetched: true,
+      data: {
+        projects: [
+          {
+            id: "project-1",
+            title: "Projeto com Marca",
+            synopsis: "Sinopse de teste",
+            description: "Descricao de teste",
+            type: "Anime",
+            status: "Em andamento",
+            heroImageUrl: "/uploads/hero-fit.jpg",
+            heroLogoUrl: "/uploads/hero-logo.png",
+            heroLogoAlt: "Marca oficial do Projeto com Marca",
+            banner: "",
+            cover: "",
+            trailerUrl: "",
+            forceHero: true,
+          },
+        ],
+        updates: [
+          {
+            projectId: "project-1",
+            kind: "lancamento",
+            updatedAt: "2026-02-10T12:00:00.000Z",
+          },
+        ],
+        mediaVariants: {},
+      },
+    });
+
+    render(
+      <MemoryRouter>
+        <HeroSection />
+      </MemoryRouter>,
+    );
+
+    await screen.findByRole("heading", { name: "Projeto com Marca" });
+    expect(screen.getByAltText("Marca oficial do Projeto com Marca")).toBeInTheDocument();
+    expect(screen.queryByTestId("hero-slide-brand-fallback-project-1")).not.toBeInTheDocument();
   });
 });

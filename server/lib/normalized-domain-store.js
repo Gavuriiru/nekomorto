@@ -561,6 +561,8 @@ const projectRowFromEntry = (entry, index) => ({
   forceHero: Boolean(entry?.forceHero),
   heroImageUrl: String(entry?.heroImageUrl || ""),
   heroImageAlt: String(entry?.heroImageAlt || ""),
+  heroLogoUrl: String(entry?.heroLogoUrl || ""),
+  heroLogoAlt: String(entry?.heroLogoAlt || ""),
   readerConfig:
     entry?.readerConfig &&
     typeof entry.readerConfig === "object" &&
@@ -866,6 +868,8 @@ export const loadProjectsFromNormalized = async (db) => {
       forceHero: Boolean(row?.forceHero),
       heroImageUrl: String(row?.heroImageUrl || ""),
       heroImageAlt: String(row?.heroImageAlt || ""),
+      heroLogoUrl: String(row?.heroLogoUrl || ""),
+      heroLogoAlt: String(row?.heroLogoAlt || ""),
       readerConfig:
         row?.readerConfig && typeof row.readerConfig === "object"
           ? cloneValue(row.readerConfig)

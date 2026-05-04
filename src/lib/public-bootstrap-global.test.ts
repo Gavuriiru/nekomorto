@@ -132,6 +132,8 @@ describe("public bootstrap global parser", () => {
             trailerUrl: "",
             format: "Anime",
             status: "Em andamento",
+            heroLogoUrl: "/uploads/project-1-hero-logo.png",
+            heroLogoAlt: "Marca oficial do projeto",
           },
         ],
       },
@@ -146,6 +148,8 @@ describe("public bootstrap global parser", () => {
           id: "project-1",
           image: "/uploads/project-1-hero.jpg",
           projectId: "project-1",
+          heroLogoUrl: "/uploads/project-1-hero-logo.png",
+          heroLogoAlt: "Marca oficial do projeto",
         }),
       ],
     });

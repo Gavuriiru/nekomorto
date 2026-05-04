@@ -135,6 +135,8 @@ const projectFixture: ProjectRecord = {
   forceHero: false,
   heroImageUrl: "",
   heroImageAlt: "",
+  heroLogoUrl: "",
+  heroLogoAlt: "",
   volumeEntries: [],
   volumeCovers: [],
   episodeDownloads: [],

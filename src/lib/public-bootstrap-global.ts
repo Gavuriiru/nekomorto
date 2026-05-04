@@ -89,6 +89,8 @@ const normalizePublicBootstrapHomeHero = (value: unknown): PublicBootstrapHomeHe
             trailerUrl: String(safeSlide.trailerUrl || ""),
             format: String(safeSlide.format || ""),
             status: String(safeSlide.status || ""),
+            heroLogoUrl: String(safeSlide.heroLogoUrl || ""),
+            heroLogoAlt: String(safeSlide.heroLogoAlt || ""),
           } satisfies PublicBootstrapHomeHeroSlide;
         })
         .filter(Boolean)

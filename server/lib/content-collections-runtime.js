@@ -292,6 +292,10 @@ export const createContentCollectionsRuntime = (dependencies = {}) => {
         heroImageAlt: String(
           project?.heroImageAlt || `${project?.title || "Projeto"} (hero)`,
         ).trim(),
+        heroLogoUrl: String(project?.heroLogoUrl || ""),
+        heroLogoAlt: String(
+          project?.heroLogoAlt || `${project?.title || "Projeto"} (marca oficial)`,
+        ).trim(),
         readerConfig: normalizeProjectReaderConfig(project?.readerConfig, {
           projectType: project?.type || project?.format || "",
         }),

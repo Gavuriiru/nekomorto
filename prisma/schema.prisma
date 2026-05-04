@@ -637,6 +637,8 @@ model ProjectV2Record {
   forceHero     Boolean                @default(false)
   heroImageUrl  String
   heroImageAlt  String
+  heroLogoUrl   String
+  heroLogoAlt   String
   readerConfig  Json?
   staff         Json?
   animeStaff    Json?

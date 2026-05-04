@@ -11,6 +11,7 @@ export const DEFAULT_POST_COVER_ALT = "Capa da postagem";
 export const DEFAULT_PROJECT_COVER_ALT = "Capa do projeto";
 export const DEFAULT_PROJECT_BANNER_ALT = "Banner do projeto";
 export const DEFAULT_PROJECT_HERO_ALT = "Imagem de destaque do projeto";
+export const DEFAULT_PROJECT_HERO_LOGO_ALT = "Marca oficial do projeto";
 export const DEFAULT_EPISODE_COVER_ALT = "Capa do episódio";
 export const DEFAULT_CHAPTER_COVER_ALT = "Capa do capítulo";
 export const DEFAULT_SITE_SHARE_IMAGE_ALT = "Imagem padrão de compartilhamento";

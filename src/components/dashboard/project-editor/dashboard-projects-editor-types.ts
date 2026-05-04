@@ -66,8 +66,10 @@ export type ProjectRecord = {
   animeStaff: ProjectStaff[];
   trailerUrl: string;
   forceHero?: boolean;
-  heroImageUrl?: string;
+  heroImageUrl: string;
   heroImageAlt: string;
+  heroLogoUrl: string;
+  heroLogoAlt: string;
   readerConfig?: ProjectReaderConfig;
   volumeEntries: ProjectVolumeEntry[];
   volumeCovers: ProjectVolumeCover[];

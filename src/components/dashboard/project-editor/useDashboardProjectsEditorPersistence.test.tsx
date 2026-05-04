@@ -67,6 +67,8 @@ const createProjectRecord = (overrides: Partial<ProjectRecord> = {}): ProjectRec
   forceHero: false,
   heroImageUrl: "",
   heroImageAlt: "",
+  heroLogoUrl: "",
+  heroLogoAlt: "",
   readerConfig: {},
   volumeEntries: [],
   volumeCovers: [],

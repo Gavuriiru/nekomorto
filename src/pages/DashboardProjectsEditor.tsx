@@ -1507,6 +1507,7 @@ const DashboardProjectsEditor = () => {
                 editorSectionClassName={editorSectionClassName}
                 editorSectionContentClassName={editorSectionContentClassName}
                 editorSectionTriggerClassName={editorSectionTriggerClassName}
+                heroLogoUrl={formState.heroLogoUrl || ""}
                 heroImageUrl={formState.heroImageUrl || ""}
                 onOpenLibrary={openLibraryForProjectImage}
               />

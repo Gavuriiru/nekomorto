@@ -79,6 +79,8 @@ export type PublicBootstrapProject = {
   bannerAlt: string;
   heroImageUrl: string;
   heroImageAlt: string;
+  heroLogoUrl: string;
+  heroLogoAlt: string;
   forceHero: boolean;
   trailerUrl: string;
   studio: string;
@@ -160,6 +162,8 @@ export type PublicBootstrapHomeHeroSlide = {
   trailerUrl: string;
   format: string;
   status: string;
+  heroLogoUrl: string;
+  heroLogoAlt: string;
 };
 
 export type PublicBootstrapHomeHero = {

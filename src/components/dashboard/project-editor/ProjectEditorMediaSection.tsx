@@ -5,7 +5,7 @@ import ProjectEditorAccordionHeader from "@/components/dashboard/project-editor/
 import { AccordionContent, AccordionItem, AccordionTrigger } from "@/components/ui/accordion";
 import { Label } from "@/components/ui/label";
 
-type ProjectEditorMediaTarget = "cover" | "banner" | "hero";
+type ProjectEditorMediaTarget = "cover" | "banner" | "hero" | "heroLogo";
 
 type ProjectEditorMediaSectionProps = {
   banner: string;
@@ -14,6 +14,7 @@ type ProjectEditorMediaSectionProps = {
   editorSectionClassName: string;
   editorSectionContentClassName: string;
   editorSectionTriggerClassName: string;
+  heroLogoUrl: string;
   heroImageUrl: string;
   onOpenLibrary: (target: ProjectEditorMediaTarget) => void;
 };
@@ -60,22 +61,30 @@ const ProjectEditorMediaSectionComponent = ({
   editorSectionClassName,
   editorSectionContentClassName,
   editorSectionTriggerClassName,
+  heroLogoUrl,
   heroImageUrl,
   onOpenLibrary,
 }: ProjectEditorMediaSectionProps) => {
-  const selectedMediaCount = [heroImageUrl, cover, banner].filter(Boolean).length;
+  const selectedMediaCount = [heroLogoUrl, heroImageUrl, cover, banner].filter(Boolean).length;
 
   return (
     <AccordionItem value="midias" className={editorSectionClassName}>
       <AccordionTrigger className={editorSectionTriggerClassName}>
         <ProjectEditorAccordionHeader
           title="Mídias"
-          subtitle={`${selectedMediaCount}/3 selecionadas`}
+          subtitle={`${selectedMediaCount}/4 selecionadas`}
         />
       </AccordionTrigger>
       <AccordionContent className={editorSectionContentClassName}>
         <div className="space-y-4">
-          <div className="grid gap-3 md:grid-cols-3">
+          <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-4">
+            <ProjectEditorMediaCard
+              label="Logo do carrossel"
+              alt="Logo do carrossel"
+              cardClassName={cardClassName}
+              url={heroLogoUrl}
+              onOpenLibrary={() => onOpenLibrary("heroLogo")}
+            />
             <ProjectEditorMediaCard
               label="Imagem do carrossel"
               alt="Imagem do carrossel"

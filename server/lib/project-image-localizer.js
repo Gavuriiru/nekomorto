@@ -228,6 +228,14 @@ export const localizeProjectImageFields = async ({
     },
     { folder: projectFolder },
   );
+  enqueue(
+    "heroLogoUrl",
+    nextProject.heroLogoUrl,
+    (nextValue) => {
+      nextProject.heroLogoUrl = nextValue;
+    },
+    { folder: projectFolder },
+  );
 
   nextProject.relations.forEach((relation, index) => {
     enqueue(

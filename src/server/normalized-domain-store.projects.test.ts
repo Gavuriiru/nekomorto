@@ -72,6 +72,8 @@ describe("project normalized-domain-store round-trip", () => {
           forceHero: false,
           heroImageUrl: "",
           heroImageAlt: "",
+          heroLogoUrl: "/uploads/projects/project-1/hero-logo.png",
+          heroLogoAlt: "Marca oficial do projeto",
           volumeEntries: [],
           volumeCovers: [],
           episodeDownloads: [],
@@ -96,6 +98,8 @@ describe("project normalized-domain-store round-trip", () => {
         studio: "Doga Kobo",
         animationStudios: ["Doga Kobo"],
         producers: ["Kadokawa Media House"],
+        heroLogoUrl: "/uploads/projects/project-1/hero-logo.png",
+        heroLogoAlt: "Marca oficial do projeto",
       }),
     );
   });

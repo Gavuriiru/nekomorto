@@ -245,6 +245,8 @@ export const registerIntegrationRoutes = ({
           cover: placeholderImage,
           banner: placeholderImage,
           heroImageUrl: "",
+          heroLogoUrl: "",
+          heroLogoAlt: "",
           discordRoleId: "",
           episodeDownloads: [
             {

@@ -63,6 +63,8 @@ export const buildEmptyProjectForm = (): ProjectForm => ({
   forceHero: false,
   heroImageUrl: "",
   heroImageAlt: "",
+  heroLogoUrl: "",
+  heroLogoAlt: "",
   readerConfig: {},
   volumeEntries: [],
   volumeCovers: [],
@@ -175,6 +177,10 @@ export const buildProjectFormFromRecord = (project: ProjectRecord): ProjectForm 
     heroImageUrl: project.heroImageUrl || "",
     heroImageAlt: project.heroImageUrl
       ? resolveProjectAssetAltText("hero", project.heroImageAlt)
+      : "",
+    heroLogoUrl: project.heroLogoUrl || "",
+    heroLogoAlt: project.heroLogoUrl
+      ? resolveProjectAssetAltText("heroLogo", project.heroLogoAlt)
       : "",
     readerConfig:
       project.readerConfig && typeof project.readerConfig === "object" ? project.readerConfig : {},
@@ -701,6 +707,10 @@ export const buildProjectSavePayload = ({
     heroImageUrl: formState.heroImageUrl?.trim() || "",
     heroImageAlt: formState.heroImageUrl?.trim()
       ? resolveProjectAssetAltText("hero", formState.heroImageAlt)
+      : "",
+    heroLogoUrl: formState.heroLogoUrl?.trim() || "",
+    heroLogoAlt: formState.heroLogoUrl?.trim()
+      ? resolveProjectAssetAltText("heroLogo", formState.heroLogoAlt)
       : "",
     relations: formState.relations
       .filter((item) => item.title || item.relation || item.projectId)

@@ -11,6 +11,7 @@ describe("collectBootstrapPublicMediaUrls", () => {
             cover: "https://dev.nekomata.moe/uploads/projects/21878/cover.png?cache=1",
             banner: "/uploads/projects/21878/banner.png",
             heroImageUrl: "/uploads/projects/21878/hero.png",
+            heroLogoUrl: "/uploads/projects/21878/hero-logo.png",
             episodeDownloads: [
               {
                 coverImageUrl: "/uploads/projects/21878/episodes/ep-1.png",
@@ -53,12 +54,12 @@ describe("collectBootstrapPublicMediaUrls", () => {
         url: "/uploads/projects/21878/hero.png",
       },
       {
-        label: "posts[0].coverImageUrl",
-        url: "/uploads/posts/post-1.png",
+        label: "projects[0].heroLogoUrl",
+        url: "/uploads/projects/21878/hero-logo.png",
       },
       {
-        label: "pages.home.shareImage",
-        url: "/uploads/shared/home-og.png",
+        label: "posts[0].coverImageUrl",
+        url: "/uploads/posts/post-1.png",
       },
     ]);
   });
@@ -71,6 +72,7 @@ describe("collectBootstrapPublicMediaUrls", () => {
             cover: "/uploads/projects/1/cover.png",
             banner: "/uploads/projects/1/banner.png",
             heroImageUrl: "/uploads/projects/1/hero.png",
+            heroLogoUrl: "/uploads/projects/1/hero-logo.png",
             episodeDownloads: [{ coverImageUrl: "/uploads/projects/1/episodes/1.png" }],
           },
         ],

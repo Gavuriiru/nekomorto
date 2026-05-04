@@ -1,0 +1,3 @@
+ALTER TABLE "projects_v2"
+ADD COLUMN "heroLogoUrl" TEXT NOT NULL DEFAULT '',
+ADD COLUMN "heroLogoAlt" TEXT NOT NULL DEFAULT '';

@@ -4,6 +4,7 @@ import {
   DEFAULT_PROJECT_BANNER_ALT,
   DEFAULT_PROJECT_COVER_ALT,
   DEFAULT_PROJECT_HERO_ALT,
+  DEFAULT_PROJECT_HERO_LOGO_ALT,
   getEpisodeCoverAltFallback,
   resolveAssetAltText,
 } from "@/lib/image-alt";
@@ -52,7 +53,7 @@ export const buildProjectScopedLibraryOptions = ({
 });
 
 export const resolveProjectAssetAltText = (
-  target: "cover" | "banner" | "hero",
+  target: "cover" | "banner" | "hero" | "heroLogo",
   altText?: string | null,
 ) => {
   if (target === "banner") {
@@ -60,6 +61,9 @@ export const resolveProjectAssetAltText = (
   }
   if (target === "hero") {
     return resolveAssetAltText(altText, DEFAULT_PROJECT_HERO_ALT);
+  }
+  if (target === "heroLogo") {
+    return resolveAssetAltText(altText, DEFAULT_PROJECT_HERO_LOGO_ALT);
   }
   return resolveAssetAltText(altText, DEFAULT_PROJECT_COVER_ALT);
 };

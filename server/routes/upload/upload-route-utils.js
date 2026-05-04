@@ -72,6 +72,13 @@ export const collectProjectImageItems = ({
       `${project.title} (Carrossel)`,
       folders.projectRootFolder,
     );
+    push(
+      project,
+      project.heroLogoUrl,
+      "hero-logo",
+      `${project.title} (Logo do carrossel)`,
+      folders.projectRootFolder,
+    );
 
     const volumeEntries =
       Array.isArray(project.volumeEntries) && project.volumeEntries.length > 0

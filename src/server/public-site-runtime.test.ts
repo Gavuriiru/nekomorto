@@ -77,6 +77,8 @@ const createDeps = (overrides = {}) => ({
       cover: "/uploads/project-cover.jpg",
       banner: "/uploads/project-banner.jpg",
       heroImageUrl: "/uploads/project-hero.jpg",
+      heroLogoUrl: "/uploads/project-hero-logo.png",
+      heroLogoAlt: "Marca oficial do Projeto",
       forceHero: true,
       updatedAt: "2026-03-28T11:00:00.000Z",
       episodeDownloads: [{ number: 5, volume: 1, coverImageUrl: "/uploads/chapter-5.jpg" }],
@@ -184,6 +186,12 @@ describe("public-site-runtime", () => {
       expect.objectContaining({
         initialSlideId: "project-1",
         latestSlideId: "project-1",
+        slides: [
+          expect.objectContaining({
+            heroLogoUrl: "/uploads/project-hero-logo.png",
+            heroLogoAlt: "Marca oficial do Projeto",
+          }),
+        ],
       }),
     );
     expect(fullPayload.inProgressItems).toEqual([
@@ -201,7 +209,14 @@ describe("public-site-runtime", () => {
     expect(criticalPayload.inProgressItems).toEqual(fullPayload.inProgressItems);
     expect(criticalPayload.homeHero).toEqual(
       expect.objectContaining({
-        slides: [expect.objectContaining({ id: "project-1", title: "Projeto" })],
+        slides: [
+          expect.objectContaining({
+            id: "project-1",
+            title: "Projeto",
+            heroLogoUrl: "/uploads/project-hero-logo.png",
+            heroLogoAlt: "Marca oficial do Projeto",
+          }),
+        ],
       }),
     );
 
