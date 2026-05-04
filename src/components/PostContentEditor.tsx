@@ -270,6 +270,7 @@ const PostContentEditor = ({
                     variant="outline"
                     size="icon"
                     title="Gradiente"
+                    aria-label="Gradiente"
                     className="border-border/60 bg-linear-to-br from-primary/20 via-background to-accent/20 text-primary hover:border-primary/60"
                   >
                     <Palette className="h-4 w-4" />
