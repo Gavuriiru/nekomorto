@@ -24,6 +24,7 @@ import {
   SidebarProvider,
   useSidebarState,
 } from "@/components/ui/sidebar";
+import { preloadRoute } from "@/routes/DashboardRoutes";
 import { useDashboardSession } from "@/hooks/use-dashboard-session";
 import {
   buildDashboardMenuFromGrants,
@@ -87,49 +88,66 @@ type DashboardSidebarMenuSectionProps = {
 };
 
 const DashboardSidebarMenuSection = memo(
-  ({ pathname, section, onMenuItemClick }: DashboardSidebarMenuSectionProps) => (
-    <SidebarGroup className="px-0 py-0">
-      <SidebarGroupLabel className="px-2 text-[10px] uppercase tracking-[0.2em] text-sidebar-foreground/55 group-data-[collapsible=icon]:hidden">
-        {section.label}
-      </SidebarGroupLabel>
-      <SidebarGroupContent>
-        <SidebarMenu className="gap-1.5">
-          {section.items.map((item) => {
-            const ItemIcon = item.icon;
+  ({ pathname, section, onMenuItemClick }: DashboardSidebarMenuSectionProps) => {
+    const { isMobile, setOpenMobile } = useSidebarState();
 
-            return (
-              <SidebarMenuItem key={item.href}>
-                <SidebarMenuButton
-                  asChild
-                  isActive={isDashboardMenuItemActive(item, pathname)}
-                  tooltip={item.label}
-                  disabled={!item.enabled}
-                  className="h-10 rounded-xl text-sidebar-foreground/80 hover:text-sidebar-foreground data-[active=true]:bg-sidebar-primary/15 data-[active=true]:text-sidebar-foreground data-[active=true]:shadow-[inset_0_0_0_1px_hsl(var(--sidebar-ring)/0.35)]"
-                >
-                  {item.enabled ? (
-                    <Link
-                      to={item.href}
-                      onClick={
-                        onMenuItemClick ? (event) => onMenuItemClick(item, event) : undefined
-                      }
-                    >
-                      <ItemIcon />
-                      <span className="group-data-[collapsible=icon]:hidden">{item.label}</span>
-                    </Link>
-                  ) : (
-                    <button type="button" aria-disabled="true" disabled>
-                      <ItemIcon />
-                      <span className="group-data-[collapsible=icon]:hidden">{item.label}</span>
-                    </button>
-                  )}
-                </SidebarMenuButton>
-              </SidebarMenuItem>
-            );
-          })}
-        </SidebarMenu>
-      </SidebarGroupContent>
-    </SidebarGroup>
-  ),
+    const handleMenuItemClick = (item: DashboardMenuItem, event: MouseEvent<HTMLAnchorElement>) => {
+      if (isMobile) {
+        setOpenMobile(false);
+      }
+      if (onMenuItemClick) {
+        onMenuItemClick(item, event);
+      }
+    };
+
+    const handlePreload = (href: string) => {
+      preloadRoute(href);
+    };
+
+    return (
+      <SidebarGroup className="px-0 py-0">
+        <SidebarGroupLabel className="px-2 text-[10px] uppercase tracking-[0.2em] text-sidebar-foreground/55 group-data-[collapsible=icon]:hidden">
+          {section.label}
+        </SidebarGroupLabel>
+        <SidebarGroupContent>
+          <SidebarMenu className="gap-1.5">
+            {section.items.map((item) => {
+              const ItemIcon = item.icon;
+
+              return (
+                <SidebarMenuItem key={item.href}>
+                  <SidebarMenuButton
+                    asChild
+                    isActive={isDashboardMenuItemActive(item, pathname)}
+                    tooltip={item.label}
+                    disabled={!item.enabled}
+                    className="h-10 rounded-xl text-sidebar-foreground/80 hover:text-sidebar-foreground data-[active=true]:bg-sidebar-primary/15 data-[active=true]:text-sidebar-foreground data-[active=true]:shadow-[inset_0_0_0_1px_hsl(var(--sidebar-ring)/0.35)]"
+                  >
+                    {item.enabled ? (
+                      <Link
+                        to={item.href}
+                        onClick={(event) => handleMenuItemClick(item, event)}
+                        onMouseEnter={() => handlePreload(item.href)}
+                        onFocus={() => handlePreload(item.href)}
+                      >
+                        <ItemIcon />
+                        <span className="group-data-[collapsible=icon]:hidden">{item.label}</span>
+                      </Link>
+                    ) : (
+                      <button type="button" aria-disabled="true" disabled>
+                        <ItemIcon />
+                        <span className="group-data-[collapsible=icon]:hidden">{item.label}</span>
+                      </button>
+                    )}
+                  </SidebarMenuButton>
+                </SidebarMenuItem>
+              );
+            })}
+          </SidebarMenu>
+        </SidebarGroupContent>
+      </SidebarGroup>
+    );
+  },
 );
 
 DashboardSidebarMenuSection.displayName = "DashboardSidebarMenuSection";

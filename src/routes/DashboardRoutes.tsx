@@ -24,6 +24,31 @@ const DashboardWebhooks = lazy(() => import("@/pages/DashboardWebhooks"));
 const DashboardSecurity = lazy(() => import("@/pages/DashboardSecurity"));
 const NotFound = lazy(() => import("@/pages/NotFound"));
 
+type RoutePreloadMap = Record<string, () => Promise<{ default: React.ComponentType<any> }>>;
+
+const routePreloadMap: RoutePreloadMap = {
+  "/dashboard": () => import("@/pages/Dashboard"),
+  "/dashboard/usuarios": () => import("@/pages/DashboardUsers"),
+  "/dashboard/posts": () => import("@/pages/DashboardPosts"),
+  "/dashboard/projetos": () => import("@/pages/DashboardProjectsEditor"),
+  "/dashboard/comentarios": () => import("@/pages/DashboardComments"),
+  "/dashboard/uploads": () => import("@/pages/DashboardUploads"),
+  "/dashboard/analytics": () => import("@/pages/DashboardAnalytics"),
+  "/dashboard/audit-log": () => import("@/pages/DashboardAuditLog"),
+  "/dashboard/paginas": () => import("@/pages/DashboardPages"),
+  "/dashboard/configuracoes": () => import("@/pages/DashboardSettings"),
+  "/dashboard/redirecionamentos": () => import("@/pages/DashboardRedirects"),
+  "/dashboard/webhooks": () => import("@/pages/DashboardWebhooks"),
+  "/dashboard/seguranca": () => import("@/pages/DashboardSecurity"),
+};
+
+export const preloadRoute = (path: string) => {
+  const entry = Object.entries(routePreloadMap).find(([key]) => path.startsWith(key));
+  if (entry) {
+    entry[1]().catch(() => {});
+  }
+};
+
 const PageTransition = ({ children }: { children: ReactNode }) => (
   <div className="page-transition">{children}</div>
 );
