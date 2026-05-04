@@ -7,17 +7,29 @@
  *
  */
 
+.PollNode__wrapper {
+  display: block;
+  width: 100%;
+}
+
 .PollNode__container {
   border: 1px solid hsl(var(--border));
   background-color: hsl(var(--card));
   border-radius: 10px;
   width: 100%;
-  max-width: 600px;
+  max-width: 100%;
   min-width: 0;
   color: hsl(var(--foreground));
   cursor: pointer;
   user-select: none;
   box-sizing: border-box;
+  overflow-x: hidden;
+}
+
+@media (min-width: 768px) {
+  .PollNode__container {
+    max-width: 600px;
+  }
 }
 .PollNode__container.readonly {
   cursor: default;
@@ -26,7 +38,7 @@
   outline: 2px solid hsl(var(--primary));
 }
 .PollNode__inner {
-  margin: 15px;
+  padding: 15px;
   cursor: default;
 }
 .PollNode__heading {

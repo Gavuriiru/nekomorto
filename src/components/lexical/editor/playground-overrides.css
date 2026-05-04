@@ -286,10 +286,8 @@
   min-width: 0;
 }
 
-.chapter-editor-lexical-wrapper {
-  position: relative;
-  isolation: isolate;
-  min-width: 0;
+.post-editor-lexical-wrapper .editor-shell span.editor-image {
+  overflow: hidden;
 }
 
 .chapter-editor-content-shell {
@@ -308,10 +306,71 @@
   z-index: 19;
 }
 
+.post-editor-lexical-wrapper .editor-shell span.editor-image {
+  max-width: 100%;
+  width: 100%;
+}
+
+.post-editor-lexical-wrapper .editor-shell span.editor-image img {
+  max-width: 100% !important;
+  height: auto !important;
+  width: auto !important;
+}
+
+.post-editor-lexical-wrapper .editor-shell span.editor-image > div {
+  max-width: 100%;
+}
+
+.chapter-editor-lexical-wrapper .PollNode__container {
+  max-width: 100%;
+}
+
 .chapter-editor-lexical-wrapper .lexical-playground.lexical-playground--chapter-editor .toolbar {
   position: sticky;
   top: var(--chapter-editor-toolbar-sticky-top, 0px);
   z-index: 19;
+}
+
+.chapter-editor-lexical-wrapper {
+  position: relative;
+  isolation: isolate;
+  min-width: 0;
+  overflow: hidden;
+}
+
+.chapter-editor-lexical-wrapper .lexical-playground {
+  overflow: hidden;
+}
+
+.chapter-editor-lexical-wrapper .editor-shell {
+  overflow: hidden;
+}
+
+.chapter-editor-lexical-wrapper .editor-container {
+  overflow: hidden;
+}
+
+.chapter-editor-lexical-wrapper .ContentEditable__root {
+  overflow-x: hidden;
+}
+
+.chapter-editor-lexical-wrapper .editor-shell span.editor-image {
+  max-width: 100%;
+  width: 100%;
+}
+
+.chapter-editor-lexical-wrapper .editor-shell span.editor-image img {
+  max-width: 100% !important;
+  height: auto !important;
+  width: auto !important;
+}
+
+.chapter-editor-lexical-wrapper .editor-shell span.editor-image > div {
+  max-width: 100%;
+}
+
+.chapter-editor-lexical-wrapper .PollNode__container {
+  max-width: min(600px, calc(100% - 92px));
 }
 
 .lexical-playground .toolbar.toolbar--compact {

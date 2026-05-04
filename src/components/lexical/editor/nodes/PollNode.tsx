@@ -188,7 +188,7 @@ export class PollNode extends DecoratorNode<JSX.Element> {
 
   createDOM(): HTMLElement {
     const elem = document.createElement("span");
-    elem.style.display = "inline-block";
+    elem.className = "PollNode__wrapper";
     return elem;
   }
 
