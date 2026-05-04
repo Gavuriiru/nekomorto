@@ -692,6 +692,11 @@
 }
 
 @layer utilities {
+  .touch-scroll-y {
+    touch-action: pan-y;
+    -webkit-overflow-scrolling: touch;
+  }
+
   .page-transition {
     opacity: 1;
     transform: none;

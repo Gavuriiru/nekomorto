@@ -46,7 +46,10 @@ const ImageLibraryDialog = ({
             </DialogDescription>
           </DialogHeader>
 
-          <div className="-mx-1 min-h-0 flex-1 overflow-y-auto overflow-x-hidden px-1 overscroll-contain no-scrollbar">
+          <div
+            className="-mx-1 min-h-0 flex-1 overflow-y-auto overflow-x-hidden px-1 no-scrollbar touch-scroll-y"
+            data-remove-scroll-ignore=""
+          >
             <ImageLibraryUploadPanel {...uploadPanelProps} />
             <ImageLibraryBrowserPane {...browserProps} />
           </div>

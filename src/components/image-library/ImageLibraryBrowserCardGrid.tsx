@@ -71,18 +71,19 @@ const ImageLibraryBrowserCardGrid = ({
           <ContextMenu key={`${item.source}:${item.url}`} modal={false}>
             <ContextMenuTrigger asChild>
               <button
-                ref={(node) => setCardRef(item.url, node)}
-                type="button"
-                data-library-section={section}
-                className={`group min-w-0 overflow-hidden rounded-xl border border-border/60 bg-card/60 text-left transition hover:border-primary/40 ${
-                  isSelected ? "border-primary/60 ring-2 ring-inset ring-primary/60" : ""
-                }`}
-                onClick={() =>
-                  setSelection(item.url, {
-                    openCrop: cropAvatar && mode === "single",
-                  })
-                }
-              >
+                 ref={(node) => setCardRef(item.url, node)}
+                 type="button"
+                 data-library-section={section}
+                 className={`group min-w-0 overflow-hidden rounded-xl border border-border/60 bg-card/60 text-left transition hover:border-primary/40 touch-scroll-y ${
+                   isSelected ? "border-primary/60 ring-2 ring-inset ring-primary/60" : ""
+                 }`}
+                 style={{ touchAction: "pan-y" }}
+                 onClick={() =>
+                   setSelection(item.url, {
+                     openCrop: cropAvatar && mode === "single",
+                   })
+                 }
+               >
                 <img
                   src={itemRenderUrl}
                   alt={toEffectiveName(item)}

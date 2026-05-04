@@ -86,7 +86,10 @@ const ImageLibraryBrowserPane = ({
   onRequestDelete,
   onRequestRename,
 }: ImageLibraryBrowserPaneProps) => (
-  <div className="mt-3 min-h-0 min-w-0 flex-1 space-y-6 overflow-auto overscroll-contain no-scrollbar sm:mt-4 sm:space-y-8">
+  <div
+    className="mt-3 min-h-0 min-w-0 flex-1 space-y-6 overflow-auto no-scrollbar touch-scroll-y sm:mt-4 sm:space-y-8"
+    data-remove-scroll-ignore=""
+  >
     <ImageLibraryUploadSection
       allowUploadManagementActions={allowUploadManagementActions}
       beginAltTextEdit={beginAltTextEdit}
