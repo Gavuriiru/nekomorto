@@ -347,6 +347,82 @@ const heroDockStyleLight = {
   boxShadow: "0 18px 40px rgba(15,23,42,0.12)",
 } as const satisfies React.CSSProperties;
 
+type HeroCarouselDockProps = {
+  activeIndex: number;
+  slideCount: number;
+  onPreviousSlide: () => void;
+  onNextSlide: () => void;
+  onSelectSlide: (index: number) => void;
+  isLightTheme: boolean;
+  className?: string;
+  testIdSuffix: "mobile" | "desktop";
+};
+
+const HeroCarouselDock = ({
+  activeIndex,
+  slideCount,
+  onPreviousSlide,
+  onNextSlide,
+  onSelectSlide,
+  isLightTheme,
+  className,
+  testIdSuffix,
+}: HeroCarouselDockProps) => (
+  <div className={isLightTheme ? "hero-home--light" : undefined}>
+    <div
+      data-testid={`hero-carousel-dock-${testIdSuffix}`}
+      className={`hero-home__dock pointer-events-auto ${className || ""}`.trim()}
+      style={isLightTheme ? heroDockStyleLight : heroDockStyle}
+      role="group"
+      aria-label="NavegaÃ§Ã£o do carrossel da home"
+    >
+      <button
+        type="button"
+        aria-label="Slide anterior"
+        className={heroDockButtonClassName}
+        onClick={onPreviousSlide}
+      >
+        <ChevronLeft className="h-4 w-4" />
+      </button>
+      <div className="hero-home__indicators">
+        {Array.from({ length: slideCount }, (_item, dotIndex) => {
+          const isCurrent = dotIndex === activeIndex;
+          return (
+            <button
+              key={`hero-dot-${testIdSuffix}-${dotIndex + 1}`}
+              type="button"
+              data-testid={`hero-carousel-indicator-${testIdSuffix}-${dotIndex}`}
+              aria-label={`Ir para slide ${dotIndex + 1} de ${slideCount}`}
+              aria-pressed={isCurrent}
+              className={
+                isCurrent
+                  ? "hero-home__indicator hero-home__indicator--current"
+                  : "hero-home__indicator"
+              }
+              onClick={() => onSelectSlide(dotIndex)}
+            />
+          );
+        })}
+      </div>
+      <span
+        data-testid={`hero-carousel-counter-${testIdSuffix}`}
+        aria-live="polite"
+        className="hero-home__counter"
+      >
+        {formatDockCounter(activeIndex + 1)}/{formatDockCounter(slideCount)}
+      </span>
+      <button
+        type="button"
+        aria-label="PrÃ³ximo slide"
+        className={heroDockButtonClassName}
+        onClick={onNextSlide}
+      >
+        <ChevronRight className="h-4 w-4" />
+      </button>
+    </div>
+  </div>
+);
+
 type HeroSlideFrameProps = {
   slide: HeroSlide;
   index: number;
@@ -364,11 +440,10 @@ type HeroSlideFrameProps = {
   priorityImageRef?: React.Ref<HTMLImageElement>;
   onPriorityImageLoad?: React.ReactEventHandler<HTMLImageElement>;
   onPriorityImageError?: React.ReactEventHandler<HTMLImageElement>;
-  showControls: boolean;
   slideCount: number;
-  onPreviousSlide?: () => void;
-  onNextSlide?: () => void;
-  onSelectSlide?: (index: number) => void;
+  onPreviousSlide: () => void;
+  onNextSlide: () => void;
+  onSelectSlide: (index: number) => void;
 };
 
 const HeroSlideFrame = ({
@@ -388,14 +463,12 @@ const HeroSlideFrame = ({
   priorityImageRef,
   onPriorityImageLoad,
   onPriorityImageError,
-  showControls,
   slideCount,
   onPreviousSlide,
   onNextSlide,
   onSelectSlide,
 }: HeroSlideFrameProps) => {
-  const isActive = index === activeIndex;
-  const isPrioritySlide = index === 0 || isActive;
+  const isPrioritySlide = index === 0 || index === activeIndex;
   const shouldLoadImage = loadedSlideIds.has(slide.id) || isPrioritySlide;
   const loading = isPrioritySlide ? "eager" : "lazy";
   const imagePriorityProps = {
@@ -528,6 +601,7 @@ const HeroSlideFrame = ({
                 shouldAnimateEntry,
               )}
               style={resolveHeroEntryStyle("title", shouldAnimateEntry)}
+              title={slide.title}
             >
               {slide.title}
             </h1>
@@ -541,16 +615,14 @@ const HeroSlideFrame = ({
             >
               {clampSynopsis(slide.description, hasBrandLogo ? 132 : 148)}
             </p>
-          </div>
 
-          <div
-            className={composeHeroEntryClassName(
-              "hero-home__actions",
-              shouldAnimateEntry,
-            )}
-            style={resolveHeroEntryStyle("actions", shouldAnimateEntry)}
-          >
-            <div className="hero-home__action-group">
+            <div
+              className={composeHeroEntryClassName(
+                "hero-home__action-group",
+                shouldAnimateEntry,
+              )}
+              style={resolveHeroEntryStyle("actions", shouldAnimateEntry)}
+            >
               <Link
                 to={`/projeto/${slide.projectId}`}
                 aria-label={`Acessar página de ${slide.title}`}
@@ -571,62 +643,17 @@ const HeroSlideFrame = ({
                 </a>
               ) : null}
             </div>
-
-            {showControls && isActive ? (
-              <div
-                data-testid="hero-carousel-dock"
-                className="hero-home__dock"
-                style={isLightTheme ? heroDockStyleLight : heroDockStyle}
-                role="group"
-                aria-label="Navegação do carrossel da home"
-              >
-                <button
-                  type="button"
-                  aria-label="Slide anterior"
-                  className={heroDockButtonClassName}
-                  onClick={onPreviousSlide}
-                >
-                  <ChevronLeft className="h-4 w-4" />
-                </button>
-
-                <div className="hero-home__indicators">
-                  {Array.from({ length: slideCount }, (_item, dotIndex) => {
-                    const isCurrent = dotIndex === activeIndex;
-                    return (
-                      <button
-                        key={`hero-dot-${dotIndex + 1}`}
-                        type="button"
-                        data-testid={`hero-carousel-indicator-${dotIndex}`}
-                        aria-label={`Ir para slide ${dotIndex + 1} de ${slideCount}`}
-                        aria-pressed={isCurrent}
-                        className={
-                          isCurrent
-                            ? "hero-home__indicator hero-home__indicator--current"
-                            : "hero-home__indicator"
-                        }
-                        onClick={() => onSelectSlide?.(dotIndex)}
-                      />
-                    );
-                  })}
-                </div>
-
-                <span
-                  data-testid="hero-carousel-counter"
-                  aria-live="polite"
-                  className="hero-home__counter"
-                >
-                  {formatDockCounter(activeIndex + 1)}/{formatDockCounter(slideCount)}
-                </span>
-
-                <button
-                  type="button"
-                  aria-label="Próximo slide"
-                  className={heroDockButtonClassName}
-                  onClick={onNextSlide}
-                >
-                  <ChevronRight className="h-4 w-4" />
-                </button>
-              </div>
+            {slideCount > 1 && activeIndex === index ? (
+              <HeroCarouselDock
+                activeIndex={activeIndex}
+                slideCount={slideCount}
+                onPreviousSlide={onPreviousSlide}
+                onNextSlide={onNextSlide}
+                onSelectSlide={onSelectSlide}
+                isLightTheme={isLightTheme}
+                className="hero-home__dock-mobile"
+                testIdSuffix="mobile"
+              />
             ) : null}
           </div>
         </div>
@@ -905,15 +932,13 @@ const HeroSection = () => {
     [api, scheduleAutoplayResume],
   );
 
-  const heroViewportClass = `${PUBLIC_HOME_HERO_VIEWPORT_CLASS} md:min-h-screen`;
-  const heroViewportStyle = {
-    minHeight: "78vh",
-  } as const satisfies React.CSSProperties;
+  const heroViewportClass = PUBLIC_HOME_HERO_VIEWPORT_CLASS;
   const isLightTheme = effectiveMode === "light";
   const shouldRenderNavbarOverlay = effectiveMode === "light";
   const navbarOverlayClass =
     "pointer-events-none absolute inset-x-0 top-0 h-20 bg-linear-to-b from-background/72 via-background/18 to-transparent md:h-24";
   const shouldRenderCarousel = visibleSlides.length > 1;
+  const slideCount = visibleSlides.length;
   const hasInitialHomeShellSnapshot = initialHomeShellSnapshotRef.current;
 
   React.useEffect(() => {
@@ -930,14 +955,13 @@ const HeroSection = () => {
   return (
     <section
       className={`relative w-screen overflow-hidden ${heroViewportClass}`}
-      style={{ ...heroViewportStyle, ...heroSectionStyle }}
+      style={heroSectionStyle}
     >
       {shouldRenderCarousel ? (
         <Carousel
           opts={{ loop: true }}
           setApi={setApi}
-          className={heroViewportClass}
-          style={heroViewportStyle}
+          className={`relative ${heroViewportClass}`}
         >
           <CarouselContent className="ml-0">
             {visibleSlides.map((slide, index) => (
@@ -959,7 +983,6 @@ const HeroSection = () => {
                   priorityImageRef={handlePrimaryHeroImageRef}
                   onPriorityImageLoad={handlePrimaryHeroImageReady}
                   onPriorityImageError={handlePrimaryHeroImageReady}
-                  showControls
                   slideCount={visibleSlides.length}
                   onPreviousSlide={handlePreviousSlide}
                   onNextSlide={handleNextSlide}
@@ -968,6 +991,63 @@ const HeroSection = () => {
               </CarouselItem>
             ))}
           </CarouselContent>
+          <div className="pointer-events-none absolute inset-x-0 bottom-6 z-20 hidden px-5 md:px-10 lg:block lg:px-14">
+            <div className="flex justify-end">
+              <div className={isLightTheme ? "hero-home--light" : undefined}>
+                <div
+                  data-testid="hero-carousel-dock-desktop"
+                  className="hero-home__dock hero-home__dock-desktop pointer-events-auto"
+                  style={isLightTheme ? heroDockStyleLight : heroDockStyle}
+                  role="group"
+                  aria-label="Navegação do carrossel da home"
+                >
+                  <button
+                    type="button"
+                    aria-label="Slide anterior"
+                    className={heroDockButtonClassName}
+                    onClick={handlePreviousSlide}
+                  >
+                    <ChevronLeft className="h-4 w-4" />
+                  </button>
+                  <div className="hero-home__indicators">
+                    {Array.from({ length: slideCount }, (_item, dotIndex) => {
+                      const isCurrent = dotIndex === activeIndex;
+                      return (
+                        <button
+                          key={`hero-dot-${dotIndex + 1}`}
+                          type="button"
+                          data-testid={`hero-carousel-indicator-desktop-${dotIndex}`}
+                          aria-label={`Ir para slide ${dotIndex + 1} de ${slideCount}`}
+                          aria-pressed={isCurrent}
+                          className={
+                            isCurrent
+                              ? "hero-home__indicator hero-home__indicator--current"
+                              : "hero-home__indicator"
+                          }
+                          onClick={() => handleSelectSlide(dotIndex)}
+                        />
+                      );
+                    })}
+                  </div>
+                  <span
+                    data-testid="hero-carousel-counter-desktop"
+                    aria-live="polite"
+                    className="hero-home__counter"
+                  >
+                    {formatDockCounter(activeIndex + 1)}/{formatDockCounter(slideCount)}
+                  </span>
+                  <button
+                    type="button"
+                    aria-label="Próximo slide"
+                    className={heroDockButtonClassName}
+                    onClick={handleNextSlide}
+                  >
+                    <ChevronRight className="h-4 w-4" />
+                  </button>
+                </div>
+              </div>
+            </div>
+          </div>
         </Carousel>
       ) : visibleSlides[0] ? (
         <HeroSlideFrame
@@ -987,8 +1067,10 @@ const HeroSection = () => {
           priorityImageRef={handlePrimaryHeroImageRef}
           onPriorityImageLoad={handlePrimaryHeroImageReady}
           onPriorityImageError={handlePrimaryHeroImageReady}
-          showControls={false}
           slideCount={1}
+          onPreviousSlide={handlePreviousSlide}
+          onNextSlide={handleNextSlide}
+          onSelectSlide={handleSelectSlide}
         />
       ) : null}
     </section>

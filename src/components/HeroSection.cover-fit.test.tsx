@@ -193,13 +193,15 @@ vi.mock("@/components/ui/carousel", () => {
 
 const setupBootstrapMock = ({
   includeSecondProject = false,
+  projectTitle = "Projeto com Hero",
 }: {
   includeSecondProject?: boolean;
+  projectTitle?: string;
 } = {}) => {
   const projects = [
     {
       id: "project-1",
-      title: "Projeto com Hero",
+      title: projectTitle,
       synopsis: "Sinopse de teste",
       description: "Descricao de teste",
       type: "Anime",
@@ -305,8 +307,7 @@ describe("HeroSection cover fit", () => {
 
     const heroSection = container.querySelector("section");
     expect(heroSection).not.toBeNull();
-    expect(heroSection).toHaveClass("md:min-h-screen");
-    expect(heroSection).toHaveStyle({ minHeight: "78vh" });
+    expect(heroSection).toHaveClass("public-home-hero-viewport");
     expectHeroPrimaryButtonTokens(
       screen.getByRole("link", { name: /Acessar p.gina de Projeto com Hero/i }),
     );
@@ -381,6 +382,41 @@ describe("HeroSection cover fit", () => {
     expect(heading).toHaveStyle({ animationDelay: "220ms" });
   });
 
+  it("aplica clamp no titulo longo e preserva texto completo no atributo title", async () => {
+    const longTitle =
+      "Rekishi ni Nokoru Akujo ni Naruzo: Akuyaku Reijou ni Naru hodo Ouji no Dekiai wa Kasoku Suru you desu!";
+    setupBootstrapMock({ projectTitle: longTitle });
+
+    render(
+      <MemoryRouter>
+        <HeroSection />
+      </MemoryRouter>,
+    );
+
+    const heading = await screen.findByRole("heading", { name: longTitle });
+    expect(heading).toHaveClass("hero-home__title");
+    expect(heading).toHaveAttribute("title", longTitle);
+  });
+
+  it("mantem botoes de acao na coluna de conteudo e fora do bloco direito antigo", async () => {
+    setupBootstrapMock();
+
+    const { container } = render(
+      <MemoryRouter>
+        <HeroSection />
+      </MemoryRouter>,
+    );
+
+    await screen.findByRole("heading", { name: "Projeto com Hero" });
+
+    const actionGroup = screen
+      .getByRole("link", { name: /Acessar p.gina de Projeto com Hero/i })
+      .closest("div.hero-home__action-group");
+    expect(actionGroup).not.toBeNull();
+    expect(actionGroup?.closest("div.hero-home__copy")).not.toBeNull();
+    expect(container.querySelector(".hero-home__actions")).toBeNull();
+  });
+
   it("monta a estrutura completa do carrossel no primeiro render mesmo antes do idle", () => {
     browserIdleState.autoRun = false;
     setupBootstrapMock({ includeSecondProject: true });
@@ -393,8 +429,10 @@ describe("HeroSection cover fit", () => {
 
     expect(screen.getByTestId("hero-slide-meta-project-1")).toBeInTheDocument();
     expect(screen.getByTestId("hero-slide-meta-project-2")).toBeInTheDocument();
-    expect(screen.getByTestId("hero-carousel-dock")).toBeInTheDocument();
-    expect(screen.getByTestId("hero-carousel-counter")).toHaveTextContent("01/02");
+    expect(screen.getByTestId("hero-carousel-dock-desktop")).toBeInTheDocument();
+    expect(screen.getByTestId("hero-carousel-dock-mobile")).toBeInTheDocument();
+    expect(screen.getByTestId("hero-carousel-counter-desktop")).toHaveTextContent("01/02");
+    expect(screen.getByTestId("hero-carousel-counter-mobile")).toHaveTextContent("01/02");
   });
 
   it("nao renderiza dock de navegacao quando existe apenas um slide", async () => {
@@ -407,7 +445,8 @@ describe("HeroSection cover fit", () => {
     );
 
     await screen.findByRole("heading", { name: "Projeto com Hero" });
-    expect(screen.queryByTestId("hero-carousel-dock")).not.toBeInTheDocument();
+    expect(screen.queryByTestId("hero-carousel-dock-desktop")).not.toBeInTheDocument();
+    expect(screen.queryByTestId("hero-carousel-dock-mobile")).not.toBeInTheDocument();
   });
 
   it("remove as animacoes de entrada do primeiro slide quando o shell inicial existe", async () => {
@@ -426,7 +465,7 @@ describe("HeroSection cover fit", () => {
     const latestBadge = screen.getByTestId("hero-slide-latest-project-1");
     const actions = screen
       .getByRole("link", { name: /Acessar p.gina de Projeto com Hero/i })
-      .closest("div.hero-home__action-group")?.parentElement;
+      .closest("div.hero-home__action-group");
 
     expect(heading).not.toHaveClass("animate-slide-up", "opacity-0");
     expect(latestBadge).not.toHaveClass("animate-slide-up", "opacity-0");
@@ -489,6 +528,32 @@ describe("HeroSection cover fit", () => {
       vi.advanceTimersByTime(1);
     });
     expect(carouselState.scrollNext).toHaveBeenCalledTimes(2);
+  });
+
+  it("mantem o mesmo dock montado ao navegar entre slides", async () => {
+    setupBootstrapMock({ includeSecondProject: true });
+
+    render(
+      <MemoryRouter>
+        <HeroSection />
+      </MemoryRouter>,
+    );
+
+    await screen.findByTestId("hero-slide-meta-project-2");
+
+    const initialDock = screen.getByTestId("hero-carousel-dock-desktop");
+    expect(screen.getByTestId("hero-carousel-dock-mobile")).toBeInTheDocument();
+    expect(screen.getByTestId("hero-carousel-counter-desktop")).toHaveTextContent("01/02");
+    expect(screen.getByTestId("hero-carousel-counter-mobile")).toHaveTextContent("01/02");
+
+    fireEvent.click(screen.getAllByRole("button", { name: /pr.ximo slide/i })[0]);
+
+    const dockAfterNext = screen.getByTestId("hero-carousel-dock-desktop");
+    const mobileDockAfterNext = screen.getByTestId("hero-carousel-dock-mobile");
+    expect(dockAfterNext).toBe(initialDock);
+    expect(mobileDockAfterNext).toBeInTheDocument();
+    expect(screen.getByTestId("hero-carousel-counter-desktop")).toHaveTextContent("02/02");
+    expect(screen.getByTestId("hero-carousel-counter-mobile")).toHaveTextContent("02/02");
   });
 
   it("renderiza overlay superior para contraste da navbar no tema claro", async () => {

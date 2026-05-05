@@ -478,31 +478,25 @@
   }
 
   :root {
-    --public-home-hero-height: 78vh;
+    --public-home-hero-height: 100vh;
   }
 
   @supports (height: 1svh) {
     :root {
-      --public-home-hero-height: 78svh;
+      --public-home-hero-height: 100svh;
     }
   }
 
-  @media (min-width: 768px) {
+  @supports (height: 1dvh) {
     :root {
-      --public-home-hero-height: 100vh;
-    }
-  }
-
-  @media (min-width: 768px) {
-    @supports (height: 1svh) {
-      :root {
-        --public-home-hero-height: 100svh;
-      }
+      --public-home-hero-height: 100dvh;
     }
   }
 
   .public-home-hero-viewport {
+    height: var(--public-home-hero-height);
     min-height: var(--public-home-hero-height);
+    max-height: var(--public-home-hero-height);
   }
 
   .public-home-hero-shell {
