@@ -11,3 +11,7 @@
 ## 2025-05-01 - Avoid precomputing timestamps unconditionally
 **Learning:** Precomputing timestamps for sorting avoids O(N log N) date parsing, but precomputing them unconditionally when the array might be sorted by non-date keys (e.g., alphabetically or by views) introduces unnecessary O(N) date parsing overhead.
 **Action:** Only precompute timestamps inside `useMemo` hooks if the selected `sortMode` actually utilizes those timestamps for sorting.
+
+## 2026-05-05 - Precomputing Complex String Operations in O(N log N) Sort
+**Learning:** When sorting arrays by combined fields (like joining multiple tag arrays into a single string), executing `[...array1, ...array2].join(',')` directly inside the `.sort()` comparator invokes heavy array creation and string concatenation (N \log N)$ times, causing significant main thread blockage for large lists.
+**Action:** Use a Schwartzian transform pattern to perform the array spreading and string joining exactly once per item during an initial (N)$ map pass, saving the computed string alongside the item, and then sort by comparing those strings. Map back to the original objects after sorting.
