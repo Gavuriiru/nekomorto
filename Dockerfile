@@ -67,7 +67,7 @@ COPY --from=build /app/node_modules/.prisma ./node_modules/.prisma
 COPY --from=build /app/package.json ./package.json 
 COPY --from=build /app/prisma ./prisma
 COPY --from=build /app/prisma.config.ts ./prisma.config.ts
-COPY --from=build /app/scripts/check-health.mjs ./scripts/check-health.mjs
+COPY --from=build /app/scripts ./scripts
 COPY --from=build /app/server ./server
 COPY --from=build /app/shared ./shared
 COPY --from=build /app/dist ./dist
@@ -75,7 +75,6 @@ COPY --from=build /app/dist ./dist
 # Create necessary directories and set permissions
 RUN test ! -e /app/node_modules/next && \
     test ! -e /app/node_modules/@next && \
-    test ! -e /app/node_modules/prisma && \
     mkdir -p /app/public/uploads && \
     chown -R node:node /app/public/uploads
 
@@ -83,4 +82,4 @@ USER node
 
 EXPOSE 8080
 
-CMD ["node", "server/index.js"]
+CMD ["sh", "-c", "npm run prisma:migrate:deploy && node server/index.js"]
