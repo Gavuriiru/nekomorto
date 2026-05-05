@@ -76,7 +76,9 @@ const HeaderActionsFallback = ({
   headerAvatarUrl,
 }: Pick<HeaderActionMenusProps, "currentUser" | "headerAvatarUrl">) => (
   <>
-    <ThemeModeSwitcher />
+    <div className="hidden lg:block">
+      <ThemeModeSwitcher />
+    </div>
     <Button
       variant="ghost"
       size="icon"

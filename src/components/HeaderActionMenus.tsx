@@ -12,7 +12,8 @@ import {
 import { getNavbarIcon } from "@/lib/navbar-icons";
 import type { PublicBootstrapCurrentUser } from "@/lib/public-bootstrap-global";
 import { uiCopy } from "@/lib/ui-copy";
-import { LogOut, Menu } from "lucide-react";
+import { useThemeMode } from "@/hooks/use-theme-mode";
+import { LogOut, Menu, Sun, Moon } from "lucide-react";
 import { Link } from "react-router-dom";
 
 export type HeaderActionMenuNavbarLink = {
@@ -43,50 +44,66 @@ const HeaderActionMenus = ({
   headerMenuItemClass,
   isLoggingOut,
   onLogout,
-}: HeaderActionMenusProps) => (
-  <>
-    <ThemeModeSwitcher />
-    <DropdownMenu>
-      <DropdownMenuTrigger asChild>
-        <Button
-          variant="ghost"
-          size="icon"
-          className="lg:hidden h-10 w-10 rounded-full border border-border/60 bg-card/50 text-foreground/85 hover:bg-accent hover:text-accent-foreground"
-          aria-label="Abrir menu"
-        >
-          <Menu className="h-5 w-5" />
-        </Button>
-      </DropdownMenuTrigger>
-      <DropdownMenuContent align="end" className={`w-48 ${headerMenuContentClass}`}>
-        {navbarLinks.map((item) => {
-          const ItemIcon = getNavbarIcon(item.icon);
-          return (
-            <DropdownMenuItem
-              key={`${item.label}-${item.href}`}
-              asChild
-              className={headerMenuItemClass}
-            >
-              {isInternalHref(item.href) ? (
-                <Link to={item.href} className="flex items-center gap-2">
-                  <ItemIcon className="h-4 w-4" />
-                  {item.label}
-                </Link>
-              ) : (
-                <a
-                  href={item.href}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="flex items-center gap-2"
-                >
-                  <ItemIcon className="h-4 w-4" />
-                  {item.label}
-                </a>
-              )}
-            </DropdownMenuItem>
-          );
-        })}
-      </DropdownMenuContent>
-    </DropdownMenu>
+}: HeaderActionMenusProps) => {
+  const { effectiveMode, setPreference } = useThemeMode();
+  const isDark = effectiveMode === "dark";
+
+  return (
+    <>
+      <div className="hidden lg:block">
+        <ThemeModeSwitcher />
+      </div>
+      <DropdownMenu>
+        <DropdownMenuTrigger asChild>
+          <Button
+            variant="ghost"
+            size="icon"
+            className="lg:hidden h-10 w-10 rounded-full border border-border/60 bg-card/50 text-foreground/85 hover:bg-accent hover:text-accent-foreground"
+            aria-label="Abrir menu"
+          >
+            <Menu className="h-5 w-5" />
+          </Button>
+        </DropdownMenuTrigger>
+        <DropdownMenuContent align="end" className={`w-48 ${headerMenuContentClass}`}>
+          {navbarLinks.map((item) => {
+            const ItemIcon = getNavbarIcon(item.icon);
+            return (
+              <DropdownMenuItem
+                key={`${item.label}-${item.href}`}
+                asChild
+                className={headerMenuItemClass}
+              >
+                {isInternalHref(item.href) ? (
+                  <Link to={item.href} className="flex items-center gap-2">
+                    <ItemIcon className="h-4 w-4" />
+                    {item.label}
+                  </Link>
+                ) : (
+                  <a
+                    href={item.href}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="flex items-center gap-2"
+                  >
+                    <ItemIcon className="h-4 w-4" />
+                    {item.label}
+                  </a>
+                )}
+              </DropdownMenuItem>
+            );
+          })}
+          <DropdownMenuSeparator className="bg-border/70" />
+          <DropdownMenuItem
+            className={headerMenuItemClass}
+            onClick={() => setPreference(isDark ? "light" : "dark")}
+          >
+            <div className="flex items-center gap-2">
+              {isDark ? <Sun className="h-4 w-4" /> : <Moon className="h-4 w-4" />}
+              <span>Tema: {isDark ? "Claro" : "Escuro"}</span>
+            </div>
+          </DropdownMenuItem>
+        </DropdownMenuContent>
+      </DropdownMenu>
 
     {currentUser ? (
       <DropdownMenu modal={false}>
@@ -130,8 +147,9 @@ const HeaderActionMenus = ({
           </DropdownMenuItem>
         </DropdownMenuContent>
       </DropdownMenu>
-    ) : null}
-  </>
-);
+      ) : null}
+    </>
+  );
+};
 
 export default HeaderActionMenus;
