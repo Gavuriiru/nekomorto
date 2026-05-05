@@ -597,7 +597,7 @@ const HeroSlideFrame = ({
 
             <h1
               className={composeHeroEntryClassName(
-                hasBrandLogo ? "hero-home__title hero-home__title--compact" : "hero-home__title",
+                "hero-home__title",
                 shouldAnimateEntry,
               )}
               style={resolveHeroEntryStyle("title", shouldAnimateEntry)}
@@ -613,7 +613,7 @@ const HeroSlideFrame = ({
               )}
               style={resolveHeroEntryStyle("synopsis", shouldAnimateEntry)}
             >
-              {clampSynopsis(slide.description, hasBrandLogo ? 132 : 148)}
+              {clampSynopsis(slide.description, 148)}
             </p>
 
             <div
