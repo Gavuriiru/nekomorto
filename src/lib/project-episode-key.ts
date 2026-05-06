@@ -174,6 +174,17 @@ export const resolveEpisodeLookup = <
   }
 
   if (matches.length > 1) {
+    const noVolumeMatches = matches.filter(
+      ({ episode }) => getEpisodeVolumeIdentity(episode?.volume) === null,
+    );
+    if (noVolumeMatches.length === 1) {
+      return {
+        ok: true as const,
+        code: "ok" as const,
+        ...noVolumeMatches[0],
+        key: buildEpisodeKey(noVolumeMatches[0].episode?.number, noVolumeMatches[0].episode?.volume),
+      };
+    }
     return { ok: false as const, code: "volume_required" as const, matches };
   }
 

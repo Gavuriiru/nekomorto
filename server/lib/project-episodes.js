@@ -24,6 +24,14 @@ export const getEpisodeVolumeValue = (value) => {
   return Number.isFinite(parsed) ? parsed : 0;
 };
 
+const getEpisodeVolumeIdentity = (value) => {
+  if (value === null || value === undefined || String(value).trim() === "") {
+    return null;
+  }
+  const parsed = Number(value);
+  return Number.isFinite(parsed) ? Math.floor(parsed) : null;
+};
+
 export const getEpisodeEntryKind = (episode) =>
   String(episode?.entryKind || "")
     .trim()
@@ -196,6 +204,17 @@ export const resolveEpisodeLookup = (
   }
 
   if (matches.length > 1) {
+    const noVolumeMatches = matches.filter(
+      ({ episode }) => getEpisodeVolumeIdentity(episode?.volume) === null,
+    );
+    if (noVolumeMatches.length === 1) {
+      return {
+        ok: true,
+        code: "ok",
+        ...noVolumeMatches[0],
+        key: buildEpisodeKey(noVolumeMatches[0].episode?.number, noVolumeMatches[0].episode?.volume),
+      };
+    }
     return { ok: false, code: "volume_required", matches };
   }
 

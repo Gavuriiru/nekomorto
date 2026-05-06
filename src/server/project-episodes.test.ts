@@ -51,6 +51,42 @@ describe("project episode helpers", () => {
     });
   });
 
+  it("resolves chapter without volume when same number exists with and without volume", () => {
+    const project = {
+      episodeDownloads: [
+        { number: 1, volume: undefined, title: "Cap 1 sem volume", publicationStatus: "published" },
+        { number: 1, volume: 1, title: "Cap 1 v1", publicationStatus: "published" },
+      ],
+    };
+
+    expect(resolveEpisodeLookup(project, 1, undefined)).toMatchObject({
+      ok: true,
+      code: "ok",
+      key: "1:0",
+      episode: expect.objectContaining({
+        title: "Cap 1 sem volume",
+      }),
+    });
+
+    expect(resolveEpisodeLookup(project, 1, null)).toMatchObject({
+      ok: true,
+      code: "ok",
+      key: "1:0",
+      episode: expect.objectContaining({
+        title: "Cap 1 sem volume",
+      }),
+    });
+
+    expect(resolveEpisodeLookup(project, 1, 1)).toMatchObject({
+      ok: true,
+      code: "ok",
+      key: "1:1",
+      episode: expect.objectContaining({
+        title: "Cap 1 v1",
+      }),
+    });
+  });
+
   it("builds standardized published lookup results for route callers", () => {
     const project = {
       type: "Anime",
