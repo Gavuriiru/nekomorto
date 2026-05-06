@@ -2,6 +2,7 @@ import heroImageAvif from "@/assets/hero-illya.avif";
 import heroImageJpg from "@/assets/hero-illya.jpg";
 import heroImageWebp from "@/assets/hero-illya.webp";
 import UploadPicture from "@/components/UploadPicture";
+import { Button } from "@/components/ui/button";
 import { Carousel, type CarouselApi, CarouselContent, CarouselItem } from "@/components/ui/carousel";
 import { usePublicBootstrap } from "@/hooks/use-public-bootstrap";
 import { useThemeMode } from "@/hooks/use-theme-mode";
@@ -254,8 +255,6 @@ const resolveHeroEntryStyle = (
   shouldAnimateEntry: boolean,
 ) => (shouldAnimateEntry ? heroEntryDelayStyles[key] : undefined);
 
-const heroPrimaryButtonClassName = "hero-home__primary-action";
-const heroSecondaryButtonClassName = "hero-home__secondary-action";
 const heroDockButtonClassName = "hero-home__dock-button";
 
 const transparentPixel = "data:image/gif;base64,R0lGODlhAQABAAAAACw=";
@@ -623,25 +622,27 @@ const HeroSlideFrame = ({
               )}
               style={resolveHeroEntryStyle("actions", shouldAnimateEntry)}
             >
-              <Link
-                to={`/projeto/${slide.projectId}`}
-                aria-label={`Acessar página de ${slide.title}`}
-                className={heroPrimaryButtonClassName}
-              >
-                <Globe className="h-4 w-4" />
-                Acessar página
-              </Link>
-              {slide.trailerUrl ? (
-                <a
-                  href={slide.trailerUrl}
-                  target="_blank"
-                  rel="noreferrer"
-                  className={heroSecondaryButtonClassName}
-                >
-                  <Play className="h-4 w-4" />
-                  Assistir trailer
-                </a>
-              ) : null}
+              <Button asChild className="gap-2">
+                 <Link
+                   to={`/projeto/${slide.projectId}`}
+                   aria-label={`Acessar página de ${slide.title}`}
+                 >
+                   <Globe className="h-4 w-4" />
+                   Acessar página
+                 </Link>
+               </Button>
+               {slide.trailerUrl ? (
+                 <Button asChild variant="outline" className="gap-2">
+                   <a
+                     href={slide.trailerUrl}
+                     target="_blank"
+                     rel="noreferrer"
+                   >
+                     <Play className="h-4 w-4" />
+                     Assistir trailer
+                   </a>
+                 </Button>
+               ) : null}
             </div>
             {slideCount > 1 && activeIndex === index ? (
               <HeroCarouselDock
