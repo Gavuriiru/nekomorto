@@ -24,7 +24,7 @@ import {
   SidebarProvider,
   useSidebarState,
 } from "@/components/ui/sidebar";
-import { preloadRoute } from "@/routes/DashboardRoutes";
+import { preloadRoute } from "@/routes/dashboard-preload";
 import { useDashboardSession } from "@/hooks/use-dashboard-session";
 import {
   buildDashboardMenuFromGrants,
