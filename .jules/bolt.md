@@ -11,3 +11,6 @@
 ## 2025-05-01 - Avoid precomputing timestamps unconditionally
 **Learning:** Precomputing timestamps for sorting avoids O(N log N) date parsing, but precomputing them unconditionally when the array might be sorted by non-date keys (e.g., alphabetically or by views) introduces unnecessary O(N) date parsing overhead.
 **Action:** Only precompute timestamps inside `useMemo` hooks if the selected `sortMode` actually utilizes those timestamps for sorting.
+## 2025-05-03 - O(N) date parsing optimization for backend posts query
+**Learning:** The public visible posts fetching function (`listPublishedPublicPosts`) was doing an expensive string-based `new Date().getTime()` calculation repeatedly during the array `.sort()` comparator.
+**Action:** Applied a Schwartzian Transform (map-sort-map) to only parse dates once per post. This turns the O(N log N) `Date` instantiation overhead into O(N).
