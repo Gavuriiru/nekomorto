@@ -102,8 +102,8 @@ const ImageLibraryUploadSection = ({
             searchable
             searchPlaceholder="Buscar pasta"
             emptyMessage="Nenhuma pasta encontrada."
-            className="h-9 min-w-0 w-full flex-1 basis-[11rem] bg-card/70 sm:flex-none sm:w-[220px]"
-            popoverClassName="z-[210]"
+            className="h-9 min-w-0 w-full flex-1 basis-44 bg-card/70 sm:flex-none sm:w-[220px]"
+            popoverClassName="z-210"
           />
         ) : null}
         <Combobox
@@ -113,8 +113,8 @@ const ImageLibraryUploadSection = ({
           options={uploadSortModeOptions}
           placeholder="Mais recentes"
           searchable={false}
-          className="h-9 min-w-0 w-full flex-1 basis-[9.5rem] bg-card/70 sm:flex-none sm:w-[180px]"
-          popoverClassName="z-[210]"
+          className="h-9 min-w-0 w-full flex-1 basis-38 bg-card/70 sm:flex-none sm:w-[180px]"
+          popoverClassName="z-210"
         />
       </div>
       <p

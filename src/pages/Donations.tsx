@@ -664,7 +664,7 @@ const Donations = () => {
                                   tabIndex={isActive ? 0 : -1}
                                   data-testid={`donations-crypto-tab-${index}`}
                                   onClick={() => setActiveCryptoIndex(index)}
-                                  className={`group/tab relative flex h-12 w-12 shrink-0 items-center justify-center overflow-hidden rounded-[1.1rem] border transition-all duration-300 md:h-[3.25rem] md:w-[3.25rem] ${
+                                  className={`group/tab relative flex h-12 w-12 shrink-0 items-center justify-center overflow-hidden rounded-[1.1rem] border transition-all duration-300 md:h-13 md:w-13 ${
                                     isActive
                                       ? "border-primary/50 bg-transparent text-primary"
                                       : "border-border/50 bg-transparent text-muted-foreground hover:border-primary/40 hover:text-foreground"
@@ -702,7 +702,7 @@ const Donations = () => {
                               : undefined
                           }
                           data-testid="donations-crypto-panel"
-                          className="rounded-[1.5rem] border-0 bg-transparent p-0 shadow-none"
+                          className="rounded-3xl border-0 bg-transparent p-0 shadow-none"
                         >
                           <CryptoDonationPanel
                             service={normalizeDonationsCryptoService(activeCryptoService)}

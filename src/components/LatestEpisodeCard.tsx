@@ -132,7 +132,7 @@ const LatestEpisodeCard = () => {
                     width: RECENT_UPDATES_THUMB_WIDTH,
                   }}
                 />
-                <div className="flex min-w-0 flex-1 flex-col gap-2 p-[1.125rem]">
+                <div className="flex min-w-0 flex-1 flex-col gap-2 p-4.5">
                   <Skeleton className="h-3 w-24" />
                   <Skeleton className="h-4 w-3/4" />
                   <Skeleton className="h-3 w-2/3" />

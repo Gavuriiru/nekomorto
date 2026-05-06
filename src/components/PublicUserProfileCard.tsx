@@ -366,7 +366,7 @@ const PublicUserProfileCard = ({
           >
             <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
               <div className="min-w-0 space-y-3 sm:pr-4">
-                <h3 className="break-words text-lg font-semibold text-foreground">{member.name}</h3>
+                <h3 className="wrap-break-word text-lg font-semibold text-foreground">{member.name}</h3>
               </div>
               {socials.length > 0 ? (
                 <div className="flex flex-wrap items-center gap-2 sm:justify-end">
@@ -418,8 +418,8 @@ const PublicUserProfileCard = ({
                   className={cn(
                     "rounded-2xl border px-3 py-2 text-xs italic leading-6",
                     retired
-                      ? "border-white/[0.04] bg-white/[0.02] text-muted-foreground/90"
-                      : "border-primary/10 bg-primary/[0.06] text-muted-foreground/90",
+                      ? "border-white/4 bg-white/2 text-muted-foreground/90"
+                      : "border-primary/10 bg-primary/6 text-muted-foreground/90",
                   )}
                 >
                   {member.phrase ? `"${member.phrase}"` : "-"}
@@ -444,7 +444,7 @@ const PublicUserProfileCard = ({
                       return (
                         <div
                           key={`${member.id}-${category}`}
-                          className="space-y-2 rounded-xl border border-primary/15 bg-primary/[0.04] p-3"
+                          className="space-y-2 rounded-xl border border-primary/15 bg-primary/4 p-3"
                         >
                           <p className="text-[11px] font-semibold uppercase tracking-[0.12em] text-primary/90">
                             {categoryLabel}
@@ -454,7 +454,7 @@ const PublicUserProfileCard = ({
                               {items.map((work, index) => (
                                 <li
                                   key={`${member.id}-${category}-${work}-${index}`}
-                                  className="rounded-xl border border-primary/15 bg-primary/[0.06] px-3 py-2 text-sm text-foreground/90"
+                                  className="rounded-xl border border-primary/15 bg-primary/6 px-3 py-2 text-sm text-foreground/90"
                                 >
                                   {work}
                                 </li>

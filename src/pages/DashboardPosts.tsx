@@ -1596,7 +1596,7 @@ const DashboardPosts = () => {
     "project-editor-section rounded-2xl border border-border/60 bg-card/70 px-4";
   const editorSectionHeaderClassName =
     "project-editor-section-trigger flex w-full items-start gap-4 pb-1 pt-3 text-left md:pb-1.5 md:pt-3";
-  const editorSectionContentClassName = "project-editor-section-content px-1 pb-3.5 !pt-0";
+  const editorSectionContentClassName = "project-editor-section-content px-1 pb-3.5 pt-0!";
   const subtleSummarySurfaceClassName = `border border-border/60 bg-card/65 ${dashboardSubtleSurfaceHoverClassName}`;
   const subtleSurfaceClassName = `border border-border/60 bg-card/60 ${dashboardSubtleSurfaceHoverClassName}`;
   const editorPostLabel = editingPost ? "Postagem em edição" : "Nova postagem";

@@ -503,7 +503,7 @@ const DashboardComments = () => {
                             className="rounded-xl border border-border/80 bg-background px-4 py-3"
                             data-testid={`pending-comment-body-${comment.id}`}
                           >
-                            <p className="whitespace-pre-line break-words text-sm leading-6 text-foreground">
+                            <p className="whitespace-pre-line wrap-break-word text-sm leading-6 text-foreground">
                               {comment.content}
                             </p>
                           </div>

@@ -471,7 +471,7 @@ const DashboardSecurity = () => {
                           </div>
                         )}
                         <div className="min-w-0 space-y-1">
-                          <p className="break-words text-sm font-medium">{session.userName}</p>
+                          <p className="wrap-break-word text-sm font-medium">{session.userName}</p>
                           <p
                             className={`break-all text-xs ${dashboardPageLayoutTokens.cardMetaText}`}
                           >
@@ -505,13 +505,13 @@ const DashboardSecurity = () => {
                     <div
                       className={`grid min-w-0 gap-1 text-xs ${dashboardPageLayoutTokens.cardMetaText} md:grid-cols-2`}
                     >
-                      <p className="min-w-0 break-words">
+                      <p className="min-w-0 wrap-break-word">
                         Criada em: {formatDateTime(session.createdAt)}
                       </p>
-                      <p className="min-w-0 break-words">
+                      <p className="min-w-0 wrap-break-word">
                         Última atividade: {formatDateTime(session.lastSeenAt)}
                       </p>
-                      <p className="min-w-0 break-words">IP: {session.lastIp || "-"}</p>
+                      <p className="min-w-0 wrap-break-word">IP: {session.lastIp || "-"}</p>
                       <p className="min-w-0 break-all">User-Agent: {session.userAgent || "-"}</p>
                     </div>
                   </article>

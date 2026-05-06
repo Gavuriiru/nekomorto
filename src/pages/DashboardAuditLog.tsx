@@ -946,11 +946,11 @@ const DashboardAuditLog = () => {
                         <div className="mt-2 grid gap-2 text-xs md:grid-cols-2">
                           <div>
                             <p className="text-muted-foreground">Antes</p>
-                            <p className="break-words">{formatMetaValue(change.before)}</p>
+                            <p className="wrap-break-word">{formatMetaValue(change.before)}</p>
                           </div>
                           <div>
                             <p className="text-muted-foreground">Depois</p>
-                            <p className="break-words">{formatMetaValue(change.after)}</p>
+                            <p className="wrap-break-word">{formatMetaValue(change.after)}</p>
                           </div>
                         </div>
                       </div>

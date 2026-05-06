@@ -538,8 +538,8 @@ const Combobox = ({
       : undefined;
   const compactTriggerClassName = isCompactVariant ? "min-h-8 gap-2 px-2.5 py-1.5" : "";
   const compactPopoverClassName = isCompactVariant
-    ? "w-[var(--radix-popover-trigger-width)] min-w-[var(--radix-popover-trigger-width)] max-w-[calc(100vw-2rem)] p-2"
-    : "w-[var(--radix-popover-trigger-width)] min-w-[min(16rem,calc(100vw-2rem))] p-3";
+    ? "w-(--radix-popover-trigger-width) min-w-(--radix-popover-trigger-width) max-w-[calc(100vw-2rem)] p-2"
+    : "w-(--radix-popover-trigger-width) min-w-[min(16rem,calc(100vw-2rem))] p-3";
   const compactItemClassName = isCompactVariant ? "py-1.5 pl-8 pr-2 text-xs" : "";
   const compactIndicatorClassName = isCompactVariant ? "left-2.5" : "";
   const compactRichContentClassName = isCompactVariant ? "gap-1.5" : "";

@@ -1270,7 +1270,7 @@ const DashboardProjectsEditor = () => {
                             </div>
 
                             <div data-slot="project-card-headline" className="min-h-11 min-w-0">
-                              <h3 className="clamp-safe-2 break-words text-lg font-semibold leading-tight text-muted-foreground transition-colors duration-300 group-hover:text-primary lg:clamp-safe-1">
+                              <h3 className="clamp-safe-2 wrap-break-word text-lg font-semibold leading-tight text-muted-foreground transition-colors duration-300 group-hover:text-primary lg:clamp-safe-1">
                                 {project.title}
                               </h3>
                               <p
@@ -1282,7 +1282,7 @@ const DashboardProjectsEditor = () => {
 
                             <p
                               data-slot="project-card-synopsis"
-                              className={`min-h-0 max-h-[7.5rem] overflow-hidden whitespace-pre-wrap break-words text-sm leading-5 ${dashboardPageLayoutTokens.cardMetaText}`}
+                              className={`min-h-0 max-h-30 overflow-hidden whitespace-pre-wrap wrap-break-word text-sm leading-5 ${dashboardPageLayoutTokens.cardMetaText}`}
                               style={{
                                 display: "-webkit-box",
                                 WebkitBoxOrient: "vertical",
@@ -2001,7 +2001,7 @@ const DashboardProjectsEditor = () => {
                                       >
                                         <Card
                                           ref={(node) => registerEpisodeCardNode(episode, node)}
-                                          className="project-editor-episode-card border-border/60 bg-card/70 !shadow-none hover:!shadow-none"
+                                          className="project-editor-episode-card border-border/60 bg-card/70 shadow-none! hover:shadow-none!"
                                           data-episode-key={episodeKey}
                                           data-testid={`episode-card-${index}`}
                                           onDragStart={() => setEpisodeDragId(null)}

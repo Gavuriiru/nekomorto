@@ -831,7 +831,7 @@ const ProjectPage = () => {
                         asChild
                         variant="outline"
                         size="sm"
-                        className="h-9 w-9 rounded-full bg-card/70 px-0 text-sm hover:bg-[var(--download-source-hover-bg)] md:w-auto md:px-4"
+                        className="h-9 w-9 rounded-full bg-card/70 px-0 text-sm hover:bg-(--download-source-hover-bg) md:w-auto md:px-4"
                         style={buildDownloadSourceButtonStyle(color)}
                       >
                         <a
@@ -906,7 +906,7 @@ const ProjectPage = () => {
     return (
       <Card
         key={key}
-        className="chapter-download-card group/chapter-card w-full !transform-none rounded-2xl border border-border/60 bg-background/40 shadow-project-download-card"
+        className="chapter-download-card group/chapter-card w-full transform-none! rounded-2xl border border-border/60 bg-background/40 shadow-project-download-card"
       >
         <CardContent className="flex flex-col gap-3 p-4 md:flex-row md:items-center md:justify-between">
           <p
@@ -933,7 +933,7 @@ const ProjectPage = () => {
                       asChild
                       variant="outline"
                       size="sm"
-                      className="h-9 w-9 rounded-full bg-card/70 px-0 text-sm hover:bg-[var(--download-source-hover-bg)] md:w-auto md:px-4"
+                      className="h-9 w-9 rounded-full bg-card/70 px-0 text-sm hover:bg-(--download-source-hover-bg) md:w-auto md:px-4"
                       style={buildDownloadSourceButtonStyle(color)}
                     >
                       <a

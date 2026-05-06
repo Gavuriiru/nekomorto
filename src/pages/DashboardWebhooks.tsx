@@ -1031,7 +1031,7 @@ const WebhookPlaceholderField = ({ label, wide = false }: { label: string; wide?
 );
 
 const WebhookTypesPlaceholder = () => (
-  <div className="space-y-4 min-h-[19rem]" data-testid="dashboard-webhooks-placeholder-types">
+  <div className="space-y-4 min-h-76" data-testid="dashboard-webhooks-placeholder-types">
     <DashboardFieldStack data-testid="dashboard-webhooks-general-role-placeholder-field">
       <Label>Role geral de lançamentos (ID)</Label>
       <Skeleton className="h-10 w-full" />
@@ -1060,7 +1060,7 @@ const WebhookChannelPlaceholder = ({
   channelKey: ChannelKey;
   testId: string;
 }) => (
-  <div className="space-y-4 min-h-[39rem]" data-testid={testId}>
+  <div className="space-y-4 min-h-156" data-testid={testId}>
     <div className="grid gap-3 md:grid-cols-3">
       <WebhookPlaceholderField label="Webhook URL" wide />
       <WebhookPlaceholderField label="Timeout (ms)" />
@@ -3118,7 +3118,7 @@ const DashboardWebhooks = () => {
                                   {WEBHOOK_DELIVERY_SCOPE_LABELS[delivery.scope] || delivery.scope}
                                 </Badge>
                                 <Badge variant="secondary">{channelLabel}</Badge>
-                                <span className="min-w-0 break-words text-sm font-medium">
+                                <span className="min-w-0 wrap-break-word text-sm font-medium">
                                   {eventLabel}
                                 </span>
                               </div>
@@ -3143,12 +3143,12 @@ const DashboardWebhooks = () => {
                                   </p>
                                 ) : null}
                                 {resourceSummary ? (
-                                  <p className="break-words text-xs text-muted-foreground">
+                                  <p className="wrap-break-word text-xs text-muted-foreground">
                                     Recursos: {resourceSummary}
                                   </p>
                                 ) : null}
                                 {delivery.error ? (
-                                  <p className="break-words text-xs text-destructive">
+                                  <p className="wrap-break-word text-xs text-destructive">
                                     {delivery.error}
                                   </p>
                                 ) : null}

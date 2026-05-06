@@ -1372,7 +1372,7 @@ const DashboardProjectEpisodeEditor = () => {
                           testId="anime-episode-cover-section"
                         >
                           <div
-                            className="w-full max-w-[38rem]"
+                            className="w-full max-w-152"
                             data-testid="anime-episode-cover-layout"
                           >
                             <div className="grid gap-4 lg:grid-cols-[minmax(0,24rem)_minmax(220px,1fr)] lg:items-start">
@@ -1380,7 +1380,7 @@ const DashboardProjectEpisodeEditor = () => {
                                 className="w-full max-w-[24rem]"
                                 data-testid="anime-episode-cover-preview"
                               >
-                                <div className="overflow-hidden rounded-[26px] border border-border/60 bg-gradient-to-b from-background via-background to-muted/30">
+                                <div className="overflow-hidden rounded-[26px] border border-border/60 bg-linear-to-b from-background via-background to-muted/30">
                                   <div className="relative aspect-video bg-muted/35">
                                     {activeDraft.coverImageUrl ? (
                                       <>
@@ -1391,7 +1391,7 @@ const DashboardProjectEpisodeEditor = () => {
                                           }
                                           className="absolute inset-0 h-full w-full object-cover"
                                         />
-                                        <div className="absolute inset-x-0 bottom-0 bg-gradient-to-t from-black/80 via-black/35 to-transparent p-3">
+                                        <div className="absolute inset-x-0 bottom-0 bg-linear-to-t from-black/80 via-black/35 to-transparent p-3">
                                           <Badge
                                             variant="secondary"
                                             className="border border-white/15 bg-black/45 text-[10px] uppercase tracking-[0.12em] text-white"
@@ -1401,7 +1401,7 @@ const DashboardProjectEpisodeEditor = () => {
                                         </div>
                                       </>
                                     ) : (
-                                      <div className="flex h-full flex-col items-center justify-center gap-3 bg-[radial-gradient(circle_at_top,_hsl(var(--background))_0%,_transparent_70%)] px-6 text-center">
+                                      <div className="flex h-full flex-col items-center justify-center gap-3 bg-[radial-gradient(circle_at_top,hsl(var(--background))_0%,transparent_70%)] px-6 text-center">
                                         <div className="flex h-14 w-14 items-center justify-center rounded-full border border-border/60 bg-background/90 shadow-sm">
                                           <ImagePlus className="h-6 w-6 text-muted-foreground" />
                                         </div>

@@ -478,7 +478,7 @@ const MangaPageTile = ({
         </div>
         <div
           className={cn(
-            "pointer-events-none absolute inset-x-0 bottom-0 bg-gradient-to-t from-black/70 via-black/20 to-transparent px-3 pb-3 pt-12 transition duration-150",
+            "pointer-events-none absolute inset-x-0 bottom-0 bg-linear-to-t from-black/70 via-black/20 to-transparent px-3 pb-3 pt-12 transition duration-150",
             isSurfaceActive ? "opacity-100" : "opacity-0",
           )}
         >

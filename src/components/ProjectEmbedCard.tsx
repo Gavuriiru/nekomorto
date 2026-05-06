@@ -106,7 +106,7 @@ const ProjectEmbedCard = ({ projectId }: ProjectEmbedCardProps) => {
             key: "status",
             label: project.status,
             variant: "outline" as const,
-            className: "max-w-[8.5rem] truncate",
+            className: "max-w-34 truncate",
           }
         : null,
       project?.studio
@@ -114,7 +114,7 @@ const ProjectEmbedCard = ({ projectId }: ProjectEmbedCardProps) => {
             key: "studio",
             label: project.studio,
             variant: "outline" as const,
-            className: "max-w-[8.5rem] truncate",
+            className: "max-w-34 truncate",
           }
         : null,
       project?.episodes

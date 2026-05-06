@@ -793,7 +793,7 @@ const DashboardAnalytics = () => {
                                 {formatInt(entry.uniqueViews)} únicas
                               </span>
                             </div>
-                            <p className="mt-3 break-words text-sm font-medium text-foreground">
+                            <p className="mt-3 wrap-break-word text-sm font-medium text-foreground">
                               {entry.title}
                             </p>
                           </>
@@ -839,7 +839,7 @@ const DashboardAnalytics = () => {
                           return (
                             <TableRow
                               key={`${entry.resourceType}:${entry.resourceId}`}
-                              className={entryHref ? "[&:hover>td]:!bg-transparent" : undefined}
+                              className={entryHref ? "[&:hover>td]:bg-transparent!" : undefined}
                             >
                               {entryHref ? (
                                 <TableCell colSpan={4} className="p-0">

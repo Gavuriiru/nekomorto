@@ -2021,7 +2021,7 @@ const DashboardUsers = () => {
                   data-slot="user-card-title"
                   className="flex min-w-0 flex-wrap items-center gap-2"
                 >
-                  <h3 className="min-w-0 break-words text-lg font-semibold">{user.name}</h3>
+                  <h3 className="min-w-0 wrap-break-word text-lg font-semibold">{user.name}</h3>
                   {!isRetired && ownerIds.includes(user.id) ? (
                     <Badge className="bg-primary/20 text-primary">Dono</Badge>
                   ) : null}
@@ -2035,7 +2035,7 @@ const DashboardUsers = () => {
                     <Badge className="bg-background text-foreground/70">Administrador</Badge>
                   ) : null}
                 </div>
-                <p className={`break-words text-sm ${dashboardPageLayoutTokens.cardMetaText}`}>
+                <p className={`wrap-break-word text-sm ${dashboardPageLayoutTokens.cardMetaText}`}>
                   {user.phrase || "-"}
                 </p>
                 <p
@@ -2114,7 +2114,7 @@ const DashboardUsers = () => {
               <div className="flex items-center justify-between">
                 <h2 className="text-lg font-semibold">Usuários ativos</h2>
                 {isLoading ? (
-                  <span className="inline-flex min-h-6 min-w-[2.5rem] items-center justify-center">
+                  <span className="inline-flex min-h-6 min-w-10 items-center justify-center">
                     <Skeleton
                       className="h-6 w-10 rounded-full"
                       data-testid="dashboard-users-active-count-loading"
@@ -2123,12 +2123,12 @@ const DashboardUsers = () => {
                 ) : (
                   <span
                     key={`active-count-${activeUsers.length}`}
-                    className="inline-flex min-h-6 min-w-[2.5rem] items-center justify-center animate-slide-up opacity-0"
+                    className="inline-flex min-h-6 min-w-10 items-center justify-center animate-slide-up opacity-0"
                     style={dashboardAnimationDelay(dashboardMotionDelays.sectionMetaMs)}
                   >
                     <Badge
                       variant="static"
-                      className="min-w-[2.5rem] justify-center bg-background text-foreground/70"
+                      className="min-w-10 justify-center bg-background text-foreground/70"
                       data-testid="dashboard-users-active-count-badge"
                     >
                       {activeUsers.length}
@@ -2182,12 +2182,12 @@ const DashboardUsers = () => {
                     <h2 className="text-lg font-semibold">Usuários aposentados</h2>
                     <span
                       key={`retired-count-${retiredUsers.length}`}
-                      className="inline-flex min-h-6 min-w-[2.5rem] items-center justify-center animate-slide-up opacity-0"
+                      className="inline-flex min-h-6 min-w-10 items-center justify-center animate-slide-up opacity-0"
                       style={dashboardAnimationDelay(dashboardMotionDelays.sectionMetaMs)}
                     >
                       <Badge
                         variant="static"
-                        className="min-w-[2.5rem] justify-center bg-background text-foreground/70"
+                        className="min-w-10 justify-center bg-background text-foreground/70"
                         data-testid="dashboard-users-retired-count-badge"
                       >
                         {retiredUsers.length}
@@ -2319,10 +2319,10 @@ const DashboardUsers = () => {
                   <Badge variant="secondary" className="text-[10px] uppercase tracking-[0.12em]">
                     {editorStatusLabel}
                   </Badge>
-                  <span className="min-w-0 max-w-[7.5rem] truncate text-[11px] text-muted-foreground">
+                  <span className="min-w-0 max-w-30 truncate text-[11px] text-muted-foreground">
                     {formState.socials.length} redes
                   </span>
-                  <span className="min-w-0 max-w-[9rem] truncate text-[11px] text-muted-foreground">
+                  <span className="min-w-0 max-w-36 truncate text-[11px] text-muted-foreground">
                     {stripOwnerRole(formState.roles).length} funções
                   </span>
                 </div>
@@ -2600,7 +2600,7 @@ const DashboardUsers = () => {
                                       searchable
                                       searchPlaceholder="Buscar rede"
                                       emptyMessage="Nenhuma rede encontrada."
-                                      className="col-span-2 h-10 min-w-0 max-w-full w-full justify-between gap-1 bg-background/60 px-2 sm:col-span-1 sm:min-w-[9.5rem] sm:w-auto"
+                                      className="col-span-2 h-10 min-w-0 max-w-full w-full justify-between gap-1 bg-background/60 px-2 sm:col-span-1 sm:min-w-38 sm:w-auto"
                                     />
                                     <Input
                                       className="col-span-4 min-w-0 max-w-full"

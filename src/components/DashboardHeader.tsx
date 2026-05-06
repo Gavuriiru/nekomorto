@@ -342,7 +342,7 @@ const DashboardHeader = ({
         left: "var(--sidebar-header-left)",
       }}
       className={cn(
-        "dashboard-scroll-lock-fixed-right fixed left-0 right-0 top-0 z-20 bg-sidebar transition-[left] duration-[var(--sidebar-desktop-transition-duration)] ease-[var(--sidebar-desktop-transition-timing)]",
+        "dashboard-scroll-lock-fixed-right fixed left-0 right-0 top-0 z-20 bg-sidebar transition-[left] duration-(--sidebar-desktop-transition-duration) ease-(--sidebar-desktop-transition-timing)",
         className,
       )}
     >

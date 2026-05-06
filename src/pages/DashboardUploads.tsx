@@ -376,7 +376,7 @@ const UploadsMetricCard = ({
   delayMs: number;
 }) => (
   <article
-    className={`min-h-[8.5rem] ${dashboardPageLayoutTokens.surfaceSolid} p-5 animate-slide-up opacity-0`}
+    className={`min-h-34 ${dashboardPageLayoutTokens.surfaceSolid} p-5 animate-slide-up opacity-0`}
     style={dashboardAnimationDelay(delayMs)}
   >
     <p className={`text-xs uppercase tracking-[0.22em] ${dashboardPageLayoutTokens.cardMetaText}`}>
@@ -611,7 +611,7 @@ const DashboardUploads = () => {
     ? formatDateTime(cleanupPreview.generatedAt)
     : "aguardando dados";
   const cleanupCardClassName =
-    showCleanupShell || cleanupPreview.examples.length > 0 ? "min-h-[28rem]" : "";
+    showCleanupShell || cleanupPreview.examples.length > 0 ? "min-h-112" : "";
 
   useDashboardRefreshToast({
     active: isAnyRefreshing && (hasSummaryLoadedOnce || hasCleanupLoadedOnce),
@@ -769,7 +769,7 @@ const DashboardUploads = () => {
 
           {!isForbidden ? (
             <article
-              className={`min-h-[22rem] overflow-hidden ${dashboardPageLayoutTokens.surfaceSolid} animate-slide-up opacity-0`}
+              className={`min-h-88 overflow-hidden ${dashboardPageLayoutTokens.surfaceSolid} animate-slide-up opacity-0`}
               style={dashboardAnimationDelay(dashboardMotionDelays.headerActionsMs)}
               data-testid="dashboard-uploads-storage-card"
             >
@@ -777,7 +777,7 @@ const DashboardUploads = () => {
                 <h2 className="text-sm font-semibold text-foreground">Consumo por área</h2>
               </div>
               <div
-                className="min-h-[18rem] overflow-x-auto"
+                className="min-h-72 overflow-x-auto"
                 aria-busy={showSummaryShell || isSummaryRefreshing ? "true" : "false"}
               >
                 <table className="w-full min-w-[760px] text-sm">

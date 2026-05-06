@@ -2,7 +2,7 @@ import { floatingSurfaceShadowClassName } from "@/components/ui/floating-surface
 import { cn } from "@/lib/utils";
 
 export const dropdownTriggerClassName =
-  "group interactive-content-transition flex min-h-11 min-w-0 w-full flex-nowrap items-center justify-between gap-3 rounded-xl border border-border/60 bg-background/60 px-3 py-2 text-left text-sm text-foreground focus-visible:outline-hidden focus-visible:border-primary focus-visible:ring-1 focus-visible:ring-primary/45 focus-visible:ring-inset disabled:cursor-not-allowed disabled:opacity-50 data-[placeholder]:text-muted-foreground";
+  "group interactive-content-transition flex min-h-11 min-w-0 w-full flex-nowrap items-center justify-between gap-3 rounded-xl border border-border/60 bg-background/60 px-3 py-2 text-left text-sm text-foreground focus-visible:outline-hidden focus-visible:border-primary focus-visible:ring-1 focus-visible:ring-primary/45 focus-visible:ring-inset disabled:cursor-not-allowed disabled:opacity-50 data-placeholder:text-muted-foreground";
 
 export const dropdownChevronClassName =
   "interactive-media-transition h-4 w-4 shrink-0 text-muted-foreground group-data-[state=open]:rotate-180";
@@ -16,7 +16,7 @@ export const dropdownSurfaceClassName = cn(
 );
 
 export const dropdownPopoverClassName = cn(
-  "relative z-50 max-h-96 min-w-32 overflow-hidden origin-[var(--radix-select-content-transform-origin)] data-[state=open]:animate-in data-[state=closed]:animate-out data-[state=closed]:fade-out-0 data-[state=open]:fade-in-0 data-[state=closed]:zoom-out-95 data-[state=open]:zoom-in-95 data-[side=bottom]:slide-in-from-top-2 data-[side=left]:slide-in-from-right-2 data-[side=right]:slide-in-from-left-2 data-[side=top]:slide-in-from-bottom-2",
+  "relative z-50 max-h-96 min-w-32 overflow-hidden origin-(--radix-select-content-transform-origin) data-[state=open]:animate-in data-[state=closed]:animate-out data-[state=closed]:fade-out data-[state=open]:fade-in data-[state=closed]:zoom-out-95 data-[state=open]:zoom-in-95 data-[side=bottom]:slide-in-from-top-2 data-[side=left]:slide-in-from-right-2 data-[side=right]:slide-in-from-left-2 data-[side=top]:slide-in-from-bottom-2",
   dropdownSurfaceClassName,
 );
 
@@ -26,7 +26,7 @@ export const dropdownListClassName = "no-scrollbar max-h-64 overflow-y-auto over
 
 export const dropdownItemInteractionSurfaceClassName = "combobox-item-interaction-surface";
 
-export const dropdownItemClassName = `interactive-content-transition ${dropdownItemInteractionSurfaceClassName} relative flex min-w-0 w-full flex-nowrap cursor-default select-none items-center rounded-xl py-2 pl-9 pr-3 text-left text-sm text-foreground outline-hidden data-[disabled]:pointer-events-none data-[disabled]:opacity-50 data-[state=checked]:bg-accent data-[state=checked]:font-medium data-[state=checked]:text-accent-foreground`;
+export const dropdownItemClassName = `interactive-content-transition ${dropdownItemInteractionSurfaceClassName} relative flex min-w-0 w-full flex-nowrap cursor-default select-none items-center rounded-xl py-2 pl-9 pr-3 text-left text-sm text-foreground outline-hidden data-disabled:pointer-events-none data-disabled:opacity-50 data-[state=checked]:bg-accent data-[state=checked]:font-medium data-[state=checked]:text-accent-foreground`;
 
 export const dropdownItemTextClassName =
   "min-w-0 flex-1 overflow-hidden whitespace-nowrap text-ellipsis";

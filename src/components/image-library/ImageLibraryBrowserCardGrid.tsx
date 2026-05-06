@@ -89,7 +89,7 @@ const ImageLibraryBrowserCardGrid = ({
                   alt={toEffectiveName(item)}
                   className="h-24 w-full object-cover sm:h-28"
                 />
-                <div className="line-clamp-2 break-words p-2 text-xs text-muted-foreground">
+                <div className="line-clamp-2 wrap-break-word p-2 text-xs text-muted-foreground">
                   {item.label || toEffectiveName(item)}
                 </div>
               </button>

@@ -11,7 +11,7 @@ const DashboardEditorBackdrop = ({ className }: DashboardEditorBackdropProps) =>
       aria-hidden="true"
       data-testid="dashboard-editor-backdrop"
       className={cn(
-        "pointer-events-auto fixed inset-0 z-[45] bg-black/80 backdrop-blur-xs",
+        "pointer-events-auto fixed inset-0 z-45 bg-black/80 backdrop-blur-xs",
         className,
       )}
     />

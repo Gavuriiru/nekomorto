@@ -208,14 +208,14 @@ export const ChapterEditorStructureSection = memo(
                   <section
                     key={group.key}
                     className={`overflow-hidden rounded-[20px] border bg-background/40 ${
-                      isSelected ? "border-primary/45 bg-primary/[0.06]" : "border-border/50"
+                      isSelected ? "border-primary/45 bg-primary/6" : "border-border/50"
                     }`}
                     data-testid={`chapter-structure-group-${group.key}`}
                   >
                     <div
                       className={`space-y-3 px-4 py-4 ${
                         isOpen ? "border-b border-border/50" : ""
-                      } ${isSelected ? "bg-primary/[0.04]" : ""}`}
+                      } ${isSelected ? "bg-primary/4" : ""}`}
                       data-testid={`chapter-structure-group-header-${group.key}`}
                     >
                       <div className="flex items-start gap-3">

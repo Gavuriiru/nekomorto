@@ -126,7 +126,7 @@ const WorkStatusCard = () => {
                 >
                   <Link
                     to={`/projeto/${item.projectId}`}
-                    className="work-status-item relative z-10 min-h-[5.75rem] rounded-md p-3 group-hover/progress-item:border-primary/60 group-focus-within/progress-item:border-primary/60 focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-primary/45"
+                    className="work-status-item relative z-10 min-h-23 rounded-md p-3 group-hover/progress-item:border-primary/60 group-focus-within/progress-item:border-primary/60 focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-primary/45"
                   >
                     <div className="flex items-start justify-between gap-3">
                       <div className="flex-1 min-w-0">

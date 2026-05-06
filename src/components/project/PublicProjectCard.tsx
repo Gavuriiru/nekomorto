@@ -601,7 +601,7 @@ const PublicProjectCard = ({
           )}
         >
           <div
-            className="w-[4.5rem] shrink-0 overflow-hidden bg-secondary sm:w-20"
+            className="w-18 shrink-0 overflow-hidden bg-secondary sm:w-20"
             style={{
               aspectRatio: PROJECT_COVER_ASPECT_RATIO,
               ...coverStyle,
@@ -622,7 +622,7 @@ const PublicProjectCard = ({
           <div
             data-synopsis-role="column"
             data-synopsis-key={synopsisKey}
-            className={cn("min-w-0 space-y-2 p-[1.125rem]", bodyClassName)}
+            className={cn("min-w-0 space-y-2 p-4.5", bodyClassName)}
           >
             {model.eyebrow ? (
               <p
@@ -709,7 +709,7 @@ const PublicProjectCard = ({
                     data-synopsis-role="synopsis"
                     data-synopsis-lines={model.synopsisLines}
                     className={cn(
-                      "mt-2 min-h-0 text-sm text-muted-foreground break-normal [overflow-wrap:normal] [word-break:normal]",
+                      "mt-2 min-h-0 text-sm text-muted-foreground break-normal wrap-normal [word-break:normal]",
                       model.synopsisClampClass,
                     )}
                   >

@@ -235,8 +235,8 @@ const DashboardSidebarProfileCard = ({
   }, [open]);
 
   const isClosingTransition = forceTextTransition && transitionDirection === "closing";
-  const textTransitionDurationClass = "duration-[220ms]";
-  const textOpacityDurationClass = isClosingTransition ? "duration-0" : "duration-[220ms]";
+  const textTransitionDurationClass = "duration-220";
+  const textOpacityDurationClass = isClosingTransition ? "duration-0" : "duration-220";
   const textTransitionTimingClass = isClosingTransition
     ? "ease-[cubic-bezier(0.32,0,0.67,0)]"
     : "ease-[cubic-bezier(0.16,1,0.3,1)]";
@@ -245,7 +245,7 @@ const DashboardSidebarProfileCard = ({
     : "ease-[cubic-bezier(0.16,1,0.3,1)]";
   const shouldUseExpandedProfileLayout = open && textVisible;
   const textVisibleStateClass = shouldUseExpandedProfileLayout
-    ? "max-w-[10rem] opacity-100 translate-x-0"
+    ? "max-w-40 opacity-100 translate-x-0"
     : "max-w-0 flex-none opacity-0 translate-x-1";
   const textInnerVisibleStateClass = shouldUseExpandedProfileLayout
     ? "opacity-100 translate-x-0"
@@ -256,7 +256,7 @@ const DashboardSidebarProfileCard = ({
   const collapsedCardStateClass =
     userCardDataCollapsible === "icon"
       ? "h-10 w-10 self-start justify-center gap-0 border-sidebar-border/60 bg-sidebar-accent/15 p-0"
-      : "h-[4.25rem] w-full self-stretch gap-3.5 px-3 py-2.5";
+      : "h-17 w-full self-stretch gap-3.5 px-3 py-2.5";
   const userCardClass = `group/profile relative flex items-center overflow-hidden rounded-[1.15rem] border border-sidebar-border/70 bg-[linear-gradient(180deg,hsl(var(--sidebar-accent)/0.34),hsl(var(--sidebar-accent)/0.18))] text-left shadow-[0_18px_40px_-28px_hsl(var(--sidebar-background)/0.95)] transition-[width,height,padding,gap,background-color,border-color,box-shadow,transform] duration-200 ${cardTransitionTimingClass} ${collapsedCardStateClass}`;
   const interactiveUserCardClass = isUserClickable
     ? "cursor-pointer hover:border-sidebar-ring/45 focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-sidebar-ring focus-visible:ring-offset-2 focus-visible:ring-offset-sidebar"

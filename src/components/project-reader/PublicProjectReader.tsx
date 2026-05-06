@@ -1148,7 +1148,7 @@ const PublicProjectReaderContent = ({
   const stageToneClassName = getStageToneClassName(visualState.background);
   const purchaseToneClassName = getPurchaseToneClassName(visualState.background);
   const sidebarToneClassName =
-    "border-border/55 bg-background/92 text-foreground supports-[backdrop-filter]:bg-background/84 supports-[backdrop-filter]:backdrop-blur-xl";
+    "border-border/55 bg-background/92 text-foreground supports-backdrop-filter:bg-background/84 supports-backdrop-filter:backdrop-blur-xl";
   const resolvedInitialPageIndex = useMemo(() => {
     const requestedOrDefault = requestedPageIndex ?? 0;
     const clampedPageIndex = clampIndex(requestedOrDefault, Math.max(originalPages.length, 1));
@@ -4779,7 +4779,7 @@ const PublicProjectReaderContent = ({
     "mx-auto flex items-center justify-center gap-0",
     shouldPanPaginatedImage ? "w-max min-w-full justify-start" : "w-full",
     shouldTopAlignPaginatedImage ? "items-start" : "",
-    shouldSafeCenterPaginatedImage ? "[align-items:safe_center]" : "",
+    shouldSafeCenterPaginatedImage ? "items-center-safe" : "",
     layout === "double" && direction === "rtl" ? "md:flex-row-reverse" : "md:flex-row",
   );
 
@@ -4813,7 +4813,7 @@ const PublicProjectReaderContent = ({
           "no-scrollbar flex w-full items-center justify-center overflow-x-auto",
           shouldPanPaginatedVertically ? "overflow-y-auto" : "overflow-y-hidden",
           shouldTopAlignPaginatedImage ? "items-start" : "",
-          shouldSafeCenterPaginatedImage ? "[align-items:safe_center]" : "",
+          shouldSafeCenterPaginatedImage ? "items-center-safe" : "",
           shouldContainPaginatedOverscroll ? "overscroll-contain" : "",
           shouldPanPaginatedImage ? "justify-start" : "",
           isCinemaMode || layout === "double" ? "px-0" : "px-2 md:px-4",
@@ -4824,7 +4824,7 @@ const PublicProjectReaderContent = ({
             "relative flex min-h-0 flex-1 items-center justify-center",
             shouldPanPaginatedImage ? "w-max min-w-full justify-start" : "w-full",
             shouldTopAlignPaginatedImage ? "items-start" : "",
-            shouldSafeCenterPaginatedImage ? "[align-items:safe_center]" : "",
+            shouldSafeCenterPaginatedImage ? "items-center-safe" : "",
           )}
         >
           {paginatedBufferedSlotIndices.map((slotIndex) => {
@@ -4862,7 +4862,7 @@ const PublicProjectReaderContent = ({
                     ? "w-max max-w-none shrink-0 justify-start"
                     : "",
                   shouldTopAlignPaginatedImage && isActiveSlot ? "items-start" : "",
-                  shouldSafeCenterPaginatedImage && isActiveSlot ? "[align-items:safe_center]" : "",
+                  shouldSafeCenterPaginatedImage && isActiveSlot ? "items-center-safe" : "",
                 )}
               >
                 <div
@@ -4916,7 +4916,7 @@ const PublicProjectReaderContent = ({
                             ? "w-auto max-w-none shrink-0 flex-none justify-start"
                             : "",
                           shouldTopAlignPaginatedImage ? "items-start" : "",
-                          shouldSafeCenterPaginatedImage ? "[align-items:safe_center]" : "",
+                          shouldSafeCenterPaginatedImage ? "items-center-safe" : "",
                         )}
                       >
                         {renderReaderPage(page, pageIndex, {
@@ -5489,7 +5489,7 @@ const PublicProjectReaderContent = ({
                   role="dialog"
                   data-testid="project-reader-sidebar"
                   className={cn(
-                    "absolute right-0 top-0 z-20 flex min-h-0 flex-col overflow-hidden rounded-[2rem] border shadow-reader-menu transition-[opacity,transform] duration-200 ease-out origin-top-right",
+                    "absolute right-0 top-0 z-20 flex min-h-0 flex-col overflow-hidden rounded-4xl border shadow-reader-menu transition-[opacity,transform] duration-200 ease-out origin-top-right",
                     sidebarToneClassName,
                     isMenuOverlayVisible
                       ? "pointer-events-auto translate-y-0 scale-100 opacity-100"

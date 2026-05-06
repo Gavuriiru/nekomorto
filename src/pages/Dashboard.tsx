@@ -1077,7 +1077,7 @@ const Dashboard = () => {
                             className={`block min-w-0 ${dashboardOverviewInsetClassName} p-4 transition ${dashboardOverviewInteractiveSurfaceClassName}`}
                           >
                             <div className="grid min-w-0 gap-3 sm:flex sm:items-center sm:justify-between">
-                              <span className="min-w-0 break-words text-sm font-medium">
+                              <span className="min-w-0 wrap-break-word text-sm font-medium">
                                 {project.title}
                               </span>
                               <div
@@ -1135,7 +1135,7 @@ const Dashboard = () => {
                             className={`grid min-w-0 gap-3 ${dashboardOverviewInsetClassName} p-4 transition ${dashboardOverviewInteractiveSurfaceClassName} md:flex md:items-center md:justify-between`}
                           >
                             <div className="min-w-0">
-                              <p className="break-words font-medium">{post.title}</p>
+                              <p className="wrap-break-word font-medium">{post.title}</p>
                               <p className={`text-xs ${dashboardOverviewMetaTextClassName}`}>
                                 Status: {post.status}
                               </p>
