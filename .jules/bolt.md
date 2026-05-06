@@ -11,3 +11,6 @@
 ## 2025-05-01 - Avoid precomputing timestamps unconditionally
 **Learning:** Precomputing timestamps for sorting avoids O(N log N) date parsing, but precomputing them unconditionally when the array might be sorted by non-date keys (e.g., alphabetically or by views) introduces unnecessary O(N) date parsing overhead.
 **Action:** Only precompute timestamps inside `useMemo` hooks if the selected `sortMode` actually utilizes those timestamps for sorting.
+## 2025-05-18 - Precomputing Timestamps in O(N log N) Sort Operations
+**Learning:** Precomputing timestamps during sorting is only efficient if conditionally applied for the correct `sortMode`. Running `.map` to parse `new Date()` when the active sort is alphabetical ("name") wastes memory and CPU.
+**Action:** Always wrap the timestamp precomputation mapping inside a conditional check so it only executes when the `sortMode` is related to dates (e.g. "oldest" or "newest"), and fallback to simple normal sorting if `sortMode` is string-based.
