@@ -86,3 +86,73 @@ describe("project editor form hero logo fields", () => {
     expect(payload.heroLogoAlt).toBe("Marca oficial do projeto");
   });
 });
+
+describe("project editor form chapter content formats", () => {
+  it("preserva capítulos de mangá como imagens ao abrir e salvar pelo editor geral", () => {
+    const mangaRecord: ProjectRecord = {
+      ...projectRecordFixture,
+      type: "Mangá",
+      episodeDownloads: [
+        {
+          number: 1,
+          title: "Capitulo 1",
+          synopsis: "",
+          releaseDate: "",
+          duration: "",
+          sourceType: "TV",
+          sources: [],
+          content: "{\"root\":{\"children\":[]}}",
+          contentFormat: "lexical",
+          pages: [{ position: 0, imageUrl: "/uploads/projects/1/page-1.jpg" }],
+          publicationStatus: "published",
+        },
+      ],
+    };
+
+    const form = buildProjectFormFromRecord(mangaRecord);
+    expect(form.episodeDownloads[0]?.contentFormat).toBe("images");
+    expect(form.episodeDownloads[0]?.content).toBe("");
+
+    const payload = buildProjectSavePayload({
+      anilistIdInput: "",
+      editingProject: mangaRecord,
+      formState: form,
+      normalizedEpisodesForSave: form.episodeDownloads,
+      normalizedVolumeEntriesForSave: [],
+      staffMemberInput: {},
+    });
+
+    expect(payload.episodeDownloads[0]?.contentFormat).toBe("images");
+    expect(payload.episodeDownloads[0]?.content).toBe("");
+    expect(payload.episodeDownloads[0]?.pages).toEqual([
+      { position: 0, imageUrl: "/uploads/projects/1/page-1.jpg" },
+    ]);
+  });
+
+  it("preserva capítulos de light novel como lexical", () => {
+    const novelRecord: ProjectRecord = {
+      ...projectRecordFixture,
+      type: "Light Novel",
+      episodeDownloads: [
+        {
+          number: 1,
+          title: "Capitulo 1",
+          synopsis: "",
+          releaseDate: "",
+          duration: "",
+          sourceType: "TV",
+          sources: [],
+          content: "{\"root\":{\"children\":[]}}",
+          contentFormat: "lexical",
+          pages: [{ position: 0, imageUrl: "/uploads/projects/1/illustration.jpg" }],
+          publicationStatus: "published",
+        },
+      ],
+    };
+
+    const form = buildProjectFormFromRecord(novelRecord);
+
+    expect(form.episodeDownloads[0]?.contentFormat).toBe("lexical");
+    expect(form.episodeDownloads[0]?.content).toBe("{\"root\":{\"children\":[]}}");
+  });
+});

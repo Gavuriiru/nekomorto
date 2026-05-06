@@ -85,6 +85,39 @@ export const normalizeProjectEpisodeContentFormat = (value, fallback = "lexical"
     : PROJECT_EPISODE_CONTENT_FORMATS.LEXICAL;
 };
 
+export const isProjectReaderMangaType = (projectType) => {
+  const normalized = normalizeProjectTypeKey(projectType);
+  return normalized.includes("mang") || normalized.includes("webtoon");
+};
+
+export const isProjectReaderLightNovelType = (projectType) => {
+  const normalized = normalizeProjectTypeKey(projectType);
+  return normalized.includes("light") || normalized.includes("novel");
+};
+
+export const resolveProjectEpisodeContentFormat = ({
+  contentFormat,
+  episode,
+  pages,
+  projectType,
+} = {}) => {
+  if (isProjectReaderMangaType(projectType)) {
+    return PROJECT_EPISODE_CONTENT_FORMATS.IMAGES;
+  }
+  if (isProjectReaderLightNovelType(projectType)) {
+    return PROJECT_EPISODE_CONTENT_FORMATS.LEXICAL;
+  }
+  const normalizedPages = Array.isArray(pages)
+    ? pages
+    : normalizeProjectEpisodePages(episode?.pages);
+  return normalizeProjectEpisodeContentFormat(
+    contentFormat ?? episode?.contentFormat,
+    normalizedPages.length > 0
+      ? PROJECT_EPISODE_CONTENT_FORMATS.IMAGES
+      : PROJECT_EPISODE_CONTENT_FORMATS.LEXICAL,
+  );
+};
+
 export const normalizeProjectEpisodePages = (value) =>
   (() => {
     const normalizedPages = (Array.isArray(value) ? value : [])

@@ -105,6 +105,17 @@ export function normalizeProjectEpisodeContentFormat(
   fallback?: NormalizedProjectEpisodeContentFormat,
 ): NormalizedProjectEpisodeContentFormat;
 
+export function isProjectReaderMangaType(projectType: unknown): boolean;
+
+export function isProjectReaderLightNovelType(projectType: unknown): boolean;
+
+export function resolveProjectEpisodeContentFormat(options?: {
+  contentFormat?: unknown;
+  episode?: { contentFormat?: unknown; pages?: unknown } | null;
+  pages?: ProjectEpisodePage[];
+  projectType?: unknown;
+}): NormalizedProjectEpisodeContentFormat;
+
 export function normalizeProjectEpisodePages(value: unknown): ProjectEpisodePage[];
 
 export function getProjectEpisodePageCount(

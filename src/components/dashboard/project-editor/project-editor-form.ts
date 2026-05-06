@@ -16,6 +16,10 @@ import { resolveProjectEpisodePublicationState } from "@/lib/project-publication
 import { isChapterBasedType, isLightNovelType, isMangaType } from "@/lib/project-utils";
 import { buildVolumeCoverKey, findDuplicateVolumeCover } from "@/lib/project-volume-cover-key";
 import { normalizeProjectVolumeEntries } from "@/lib/project-volume-entries";
+import {
+  normalizeProjectEpisodePages,
+  resolveProjectEpisodeContentFormat,
+} from "../../../../shared/project-reader.js";
 
 import type {
   EditorProjectEpisode,
@@ -88,29 +92,41 @@ export const normalizeUniqueStringList = (values: Array<string | null | undefine
 const normalizeProjectRecordEpisode = (
   episode: EditorProjectEpisode,
   projectType: string,
-): EditorProjectEpisode => ({
-  ...episode,
-  synopsis: String(episode.synopsis || "").trim(),
-  _editorKey: resolveEpisodeEditorLocalKey(episode),
-  entryKind: episode.entryKind === "extra" ? "extra" : "main",
-  entrySubtype: String(episode.entrySubtype || "").trim() || undefined,
-  readingOrder: Number.isFinite(Number(episode.readingOrder))
-    ? Number(episode.readingOrder)
-    : undefined,
-  displayLabel:
-    episode.entryKind === "extra"
-      ? String(episode.displayLabel || "").trim() || undefined
+): EditorProjectEpisode => {
+  const pages = normalizeProjectEpisodePages(episode.pages);
+  const contentFormat = resolveProjectEpisodeContentFormat({
+    contentFormat: episode.contentFormat,
+    episode,
+    pages,
+    projectType,
+  });
+  return {
+    ...episode,
+    synopsis: String(episode.synopsis || "").trim(),
+    _editorKey: resolveEpisodeEditorLocalKey(episode),
+    entryKind: episode.entryKind === "extra" ? "extra" : "main",
+    entrySubtype: String(episode.entrySubtype || "").trim() || undefined,
+    readingOrder: Number.isFinite(Number(episode.readingOrder))
+      ? Number(episode.readingOrder)
       : undefined,
-  content: episode.content || "",
-  contentFormat: "lexical",
-  publicationStatus: episode.publicationStatus === "draft" ? "draft" : "published",
-  coverImageAlt: episode.coverImageUrl
-    ? resolveProjectEpisodeAssetAltText({
-        altText: episode.coverImageAlt,
-        isChapterBased: isChapterBasedType(projectType || ""),
-      })
-    : "",
-});
+    displayLabel:
+      episode.entryKind === "extra"
+        ? String(episode.displayLabel || "").trim() || undefined
+        : undefined,
+    content: contentFormat === "images" ? "" : episode.content || "",
+    contentFormat,
+    pages,
+    pageCount: pages.length,
+    hasPages: pages.length > 0,
+    publicationStatus: episode.publicationStatus === "draft" ? "draft" : "published",
+    coverImageAlt: episode.coverImageUrl
+      ? resolveProjectEpisodeAssetAltText({
+          altText: episode.coverImageAlt,
+          isChapterBased: isChapterBasedType(projectType || ""),
+        })
+      : "",
+  };
+};
 
 export const supportsProjectVolumeEntries = (projectType?: string | null) =>
   isLightNovelType(projectType || "") || isMangaType(projectType || "");
@@ -196,6 +212,13 @@ export const normalizeProjectEpisodesForSave = (formState: ProjectForm): EditorP
     const parsedVolume = Number(episode.volume);
     const parsedReadingOrder = Number(episode.readingOrder);
     const entryKind: "main" | "extra" = episode.entryKind === "extra" ? "extra" : "main";
+    const pages = normalizeProjectEpisodePages(episode.pages);
+    const contentFormat = resolveProjectEpisodeContentFormat({
+      contentFormat: episode.contentFormat,
+      episode,
+      pages,
+      projectType: formState.type,
+    });
     return {
       ...episode,
       number: Number.isFinite(parsedNumber) ? parsedNumber : 0,
@@ -208,7 +231,11 @@ export const normalizeProjectEpisodesForSave = (formState: ProjectForm): EditorP
         : undefined,
       displayLabel:
         entryKind === "extra" ? String(episode.displayLabel || "").trim() || undefined : undefined,
-      contentFormat: "lexical" as const,
+      content: contentFormat === "images" ? "" : episode.content || "",
+      contentFormat,
+      pages,
+      pageCount: pages.length,
+      hasPages: pages.length > 0,
       publicationStatus: episode.publicationStatus === "draft" ? "draft" : "published",
       sources: Array.isArray(episode.sources)
         ? episode.sources.map((source) => ({ ...source }))
@@ -729,6 +756,13 @@ export const buildProjectSavePayload = ({
     volumeCovers: normalizedVolumeCoversForSave,
     episodeDownloads: normalizedEpisodesForSave.map((episode) => {
       const { _editorKey: _ignoredEditorKey, ...episodePayload } = episode;
+      const pages = normalizeProjectEpisodePages(episode.pages);
+      const contentFormat = resolveProjectEpisodeContentFormat({
+        contentFormat: episode.contentFormat,
+        episode,
+        pages,
+        projectType: formState.type,
+      });
       const prev = prevEpisodesMap.get(buildEpisodeKey(episode.number, episode.volume));
       const hash = String(episode.hash || "").trim();
       const coverImageUrl = String(episode.coverImageUrl || "").trim();
@@ -758,7 +792,11 @@ export const buildProjectSavePayload = ({
           .filter((source) => source.url || source.label),
         completedStages: progressState.completedStages,
         progressStage: progressState.currentStageId,
-        contentFormat: "lexical",
+        content: contentFormat === "images" ? "" : episode.content || "",
+        contentFormat,
+        pages,
+        pageCount: pages.length,
+        hasPages: pages.length > 0,
         publicationStatus: episode.publicationStatus === "draft" ? "draft" : "published",
         chapterUpdatedAt: prev?.chapterUpdatedAt || episode.chapterUpdatedAt || "",
       };

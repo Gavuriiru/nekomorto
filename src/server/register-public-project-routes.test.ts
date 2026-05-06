@@ -227,6 +227,44 @@ describe("registerPublicProjectRoutes", () => {
     });
   });
 
+  it("serve capítulos de mangá como imagens mesmo quando dados legados marcaram lexical", async () => {
+    const { app, routes } = createAppRecorder();
+    const dependencies = createDependencies({
+      app,
+      overrides: {
+        getPublicReadableProjects: vi.fn(() => [
+          {
+            id: "project-1",
+            type: "Mangá",
+            episodeDownloads: [
+              {
+                number: 1,
+                title: "Capitulo 1",
+                publicationStatus: "published",
+                content: "{\"root\":{\"children\":[]}}",
+                contentFormat: "lexical",
+                pages: [{ imageUrl: "/uploads/projects/1/page-1.jpg" }],
+              },
+            ],
+          },
+        ]),
+      },
+    });
+
+    registerPublicProjectRoutes(dependencies);
+
+    const route = getRoute(routes, "GET", "/api/public/projects/:id/chapters/:number");
+    const res = await invokeFinalHandler(route, {
+      params: { id: "project-1", number: "1" },
+      query: {},
+    });
+
+    expect(res.statusCode).toBe(200);
+    expect(res.body.chapter.contentFormat).toBe("images");
+    expect(res.body.chapter.content).toBe("");
+    expect(res.body.chapter.pages).toEqual([{ imageUrl: "/uploads/projects/1/page-1.jpg" }]);
+  });
+
   it("returns not_found when a published chapter is legacy-invalid and has no readable content or source", async () => {
     const { app, routes } = createAppRecorder();
     const dependencies = createDependencies({

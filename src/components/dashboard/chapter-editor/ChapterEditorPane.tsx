@@ -297,6 +297,7 @@ const ChapterEditorPane = forwardRef<ChapterEditorPaneHandle, ChapterEditorPaneP
       [draft.pages],
     );
     const isImageChapter =
+      isMangaProject ||
       normalizeProjectEpisodeContentFormat(
         draft.contentFormat,
         normalizedDraftPages.length > 0 ? "images" : "lexical",

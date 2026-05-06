@@ -1,4 +1,5 @@
 import { resolvePublishedEpisodeLookup } from "../../lib/project-episodes.js";
+import { resolveProjectEpisodeContentFormat } from "../../../shared/project-reader.js";
 
 const serializePublicProjectListItem = (project) => ({
   id: project.id,
@@ -138,10 +139,12 @@ const resolvePublishedPublicProjectChapter = ({
 
   const chapter = chapterLookup.episode;
   const normalizedPages = normalizeProjectEpisodePages(chapter?.pages);
-  const contentFormat = normalizeProjectEpisodeContentFormat(
-    chapter?.contentFormat,
-    normalizedPages.length > 0 ? "images" : "lexical",
-  );
+  const contentFormat = resolveProjectEpisodeContentFormat({
+    contentFormat: chapter?.contentFormat,
+    episode: chapter,
+    pages: normalizedPages,
+    projectType: project?.type,
+  });
   const pageCount = getProjectEpisodePageCount({
     ...chapter,
     contentFormat,

@@ -1,7 +1,7 @@
 import {
   getProjectEpisodePageCount,
-  normalizeProjectEpisodeContentFormat,
   normalizeProjectEpisodePages,
+  resolveProjectEpisodeContentFormat,
 } from "../../shared/project-reader.js";
 import { resolveEpisodeLookup } from "./project-episodes.js";
 
@@ -107,13 +107,12 @@ export const applyProjectChapterUpdate = ({ project, targetNumber, targetVolume,
     normalizeOptionalNumber(nextChapterInput.number) ?? Number(currentChapter.number) ?? 1;
   const nextEntryKind = normalizeEntryKind(nextChapterInput.entryKind, currentChapter.entryKind);
   const nextPages = normalizePages(nextChapterInput.pages, currentChapter.pages);
-  const nextContentFormat = normalizeProjectEpisodeContentFormat(
-    nextChapterInput.contentFormat,
-    normalizeProjectEpisodeContentFormat(
-      currentChapter.contentFormat,
-      nextPages.length > 0 ? "images" : "lexical",
-    ),
-  );
+  const nextContentFormat = resolveProjectEpisodeContentFormat({
+    contentFormat: nextChapterInput.contentFormat ?? currentChapter.contentFormat,
+    episode: currentChapter,
+    pages: nextPages,
+    projectType: project?.type,
+  });
   const nextPageCount = hasOwn(nextChapterInput, "pageCount")
     ? Math.max(0, normalizeOptionalNumber(nextChapterInput.pageCount) ?? nextPages.length)
     : getProjectEpisodePageCount({
@@ -176,9 +175,12 @@ export const applyProjectChapterUpdate = ({ project, targetNumber, targetVolume,
       nextChapterInput.completedStages,
       currentChapter.completedStages,
     ),
-    content: hasOwn(nextChapterInput, "content")
-      ? normalizeOptionalString(nextChapterInput.content)
-      : currentChapter.content,
+    content:
+      nextContentFormat === "images"
+        ? ""
+        : hasOwn(nextChapterInput, "content")
+          ? normalizeOptionalString(nextChapterInput.content)
+          : currentChapter.content,
     contentFormat: nextContentFormat,
     pages: nextPages,
     pageCount: nextPageCount,

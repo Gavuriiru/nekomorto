@@ -49,8 +49,8 @@ import { cn } from "@/lib/utils";
 import "@/styles/project-reading.css";
 import type { PublicBootstrapPayload, PublicBootstrapProject } from "@/types/public-bootstrap";
 import {
-  normalizeProjectEpisodeContentFormat,
   normalizeProjectEpisodePages,
+  resolveProjectEpisodeContentFormat,
   resolveProjectReaderConfig,
 } from "../../shared/project-reader.js";
 import {
@@ -812,10 +812,12 @@ const ProjectReading = () => {
   const currentUserId = String(currentUser?.id || "").trim() || null;
   const chapterLexical = chapterContent?.content || "";
   const chapterPages = normalizeProjectEpisodePages(chapterContent?.pages || chapterData?.pages);
-  const chapterContentFormat = normalizeProjectEpisodeContentFormat(
-    chapterContent?.contentFormat || chapterData?.contentFormat,
-    chapterPages.length > 0 ? "images" : "lexical",
-  );
+  const chapterContentFormat = resolveProjectEpisodeContentFormat({
+    contentFormat: chapterContent?.contentFormat || chapterData?.contentFormat,
+    episode: chapterContent || chapterData,
+    pages: chapterPages,
+    projectType: project?.type,
+  });
   const isImageReader = chapterContentFormat === "images" && chapterPages.length > 0;
   const chapterReaderConfigResolved = resolveProjectReaderConfig({
     projectType: project?.type,
