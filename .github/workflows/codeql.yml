@@ -15,6 +15,10 @@ jobs:
   analyze:
     name: Analyze JavaScript and TypeScript
     runs-on: ubuntu-latest
+    # Disabled because CodeQL Default Setup is enabled for this repository.
+    # Running this advanced configuration alongside Default Setup causes:
+    # "CodeQL analyses from advanced configurations cannot be processed when the default setup is enabled"
+    if: ${{ false }}
     permissions:
       actions: read
       contents: read
