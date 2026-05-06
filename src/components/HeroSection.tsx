@@ -340,7 +340,7 @@ const heroLogoImageStyle = {
 } as const satisfies React.CSSProperties;
 
 const heroDockStyle = {
-  boxShadow: "0 18px 55px rgba(0,0,0,0.35)",
+  boxShadow: "0 9px 15px rgba(0,0,0,0.35)",
 } as const satisfies React.CSSProperties;
 
 const heroDockStyleLight = {
