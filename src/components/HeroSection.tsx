@@ -344,7 +344,7 @@ const heroDockStyle = {
 } as const satisfies React.CSSProperties;
 
 const heroDockStyleLight = {
-  boxShadow: "0 18px 40px rgba(15,23,42,0.12)",
+  boxShadow: "0 9px 15px rgba(15,23,42,0.12)",
 } as const satisfies React.CSSProperties;
 
 type HeroCarouselDockProps = {
