@@ -1,10 +1,10 @@
-import { Input } from "@/components/dashboard/dashboard-form-controls";
-import DashboardActionButton from "@/components/dashboard/DashboardActionButton";
-import { Card, CardContent } from "@/components/ui/card";
-import { TabsContent } from "@/components/ui/tabs";
 import { Download, Plus, Save, Trash2 } from "lucide-react";
 import type { UIEvent } from "react";
 import { useState } from "react";
+import DashboardActionButton from "@/components/dashboard/DashboardActionButton";
+import { Input } from "@/components/dashboard/dashboard-form-controls";
+import { Card, CardContent } from "@/components/ui/card";
+import { TabsContent } from "@/components/ui/tabs";
 import { useDashboardSettingsContext } from "./dashboard-settings-context";
 import {
   dashboardSettingsCardClassName,
@@ -188,6 +188,7 @@ export const DashboardSettingsTranslationsTab = () => {
                                 return next;
                               })
                             }
+                            aria-label={`Remover tradução da tag ${tag}`}
                           >
                             <Trash2 className="h-4 w-4" />
                           </DashboardActionButton>
@@ -324,6 +325,7 @@ export const DashboardSettingsTranslationsTab = () => {
                                 return next;
                               })
                             }
+                            aria-label={`Remover tradução do gênero ${genre}`}
                           >
                             <Trash2 className="h-4 w-4" />
                           </DashboardActionButton>
@@ -455,6 +457,7 @@ export const DashboardSettingsTranslationsTab = () => {
                                 return next;
                               })
                             }
+                            aria-label={`Remover tradução do cargo ${role}`}
                           >
                             <Trash2 className="h-4 w-4" />
                           </DashboardActionButton>

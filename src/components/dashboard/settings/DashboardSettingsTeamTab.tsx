@@ -99,6 +99,7 @@ export const DashboardSettingsTeamTab = () => {
                       teamRoles: prev.teamRoles.filter((_, idx) => idx !== index),
                     }))
                   }
+                  aria-label={`Remover função ${role.label || index + 1}`}
                 >
                   <Trash2 className="h-4 w-4" />
                 </DashboardActionButton>
