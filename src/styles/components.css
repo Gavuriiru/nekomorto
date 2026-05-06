@@ -1,0 +1,154 @@
+@layer components {
+  .public-strong-focus-scope
+    :where(
+      input:not([type="checkbox"]):not([type="radio"]),
+      textarea,
+      select,
+      [role="combobox"]
+    ):focus-visible {
+    border-color: hsl(var(--primary)) !important;
+    box-shadow: inset 0 0 0 1px hsl(var(--primary) / 0.45) !important;
+  }
+
+  .combobox-item-interaction-surface:not([data-state="checked"]):hover,
+  .combobox-item-interaction-surface:not([data-state="checked"])[data-highlighted] {
+    background-color: hsl(var(--accent) / 0.6);
+    color: hsl(var(--accent-foreground));
+  }
+
+  :root[data-theme-mode="dark"]
+    .combobox-item-interaction-surface:not([data-state="checked"]):hover,
+  :root[data-theme-mode="dark"]
+    .combobox-item-interaction-surface:not([data-state="checked"])[data-highlighted] {
+    background-color: hsl(var(--accent) / 0.6);
+    color: hsl(var(--accent-foreground));
+  }
+
+  :root[data-theme-mode="light"]
+    .combobox-item-interaction-surface:not([data-state="checked"]):hover,
+  :root[data-theme-mode="light"]
+    .combobox-item-interaction-surface:not([data-state="checked"])[data-highlighted] {
+    background-color: hsl(var(--accent) / 0.82);
+    color: hsl(var(--accent-foreground));
+  }
+}
+
+@layer components {
+  .recent-updates-item {
+    display: flex;
+    height: var(--card-h);
+    overflow: hidden;
+    border-radius: 1rem;
+    border: 1px solid hsl(var(--border) / 0.6);
+    background-color: hsl(var(--background) / 0.7);
+    background-image: none;
+    box-shadow: none;
+    transition:
+      border-color var(--interactive-duration-fast) var(--interactive-ease-standard),
+      background-color var(--interactive-duration-fast) var(--interactive-ease-standard),
+      color var(--interactive-duration-fast) var(--interactive-ease-standard);
+  }
+
+  .recent-updates-item-body {
+    padding: 1.125rem;
+  }
+
+  .top-projects-viewport {
+    border-radius: 1.375rem;
+    overflow: hidden;
+  }
+
+  .top-projects-scroll-region {
+    max-height: calc((var(--top-card-h) * 2) + (var(--top-gap) * 1) + 1.5rem);
+    overflow-y: auto;
+    overscroll-behavior: contain;
+    padding: 0.75rem;
+    scrollbar-color: transparent transparent;
+    scrollbar-width: none;
+  }
+
+  .top-projects-scroll-region::-webkit-scrollbar {
+    display: none;
+    width: 0;
+    height: 0;
+  }
+
+  .top-projects-list {
+    display: flex;
+    flex-direction: column;
+  }
+
+  .top-projects-list > * + * {
+    margin-top: var(--top-gap);
+  }
+
+  @media (min-width: 768px) {
+    .top-projects-scroll-region {
+      max-height: calc((var(--top-card-h) * 3) + (var(--top-gap) * 2) + 1.5rem);
+    }
+  }
+
+  .work-status-scroll-region {
+    overflow-y: auto;
+    overscroll-behavior: contain;
+    padding: 0.5rem;
+    scrollbar-color: transparent transparent;
+    scrollbar-width: none;
+  }
+
+  .work-status-scroll-region::-webkit-scrollbar {
+    display: none;
+    width: 0;
+    height: 0;
+  }
+
+  .top-projects-link {
+    display: flex;
+    height: var(--top-card-h);
+    overflow: hidden;
+    border-radius: 1rem;
+    border: 1px solid hsl(var(--border) / 0.5);
+    background-color: hsl(var(--background) / 0.7);
+    background-image: none;
+    box-shadow: none;
+    transition:
+      border-color var(--interactive-duration-fast) var(--interactive-ease-standard),
+      background-color var(--interactive-duration-fast) var(--interactive-ease-standard),
+      color var(--interactive-duration-fast) var(--interactive-ease-standard);
+  }
+
+  .top-projects-link-body {
+    padding: 1.125rem;
+  }
+
+  .work-status-item {
+    display: block;
+    border: 1px solid hsl(var(--border) / 0.5);
+    background-color: hsl(var(--secondary) / 0.5);
+    background-image: none;
+    box-shadow: none;
+    transition:
+      border-color var(--interactive-duration-fast) var(--interactive-ease-standard),
+      background-color var(--interactive-duration-fast) var(--interactive-ease-standard),
+      color var(--interactive-duration-fast) var(--interactive-ease-standard);
+  }
+}
+
+@layer components {
+  .text-gradient-rainbow {
+    background: var(--gradient-rainbow);
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    background-clip: text;
+  }
+
+  .bg-gradient-card {
+    background: var(--gradient-card);
+  }
+
+  .bg-gradient-surface {
+    background-color: hsl(var(--background));
+    background-image: var(--gradient-surface);
+    background-repeat: no-repeat;
+  }
+}
