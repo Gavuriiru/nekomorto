@@ -184,6 +184,7 @@ export const DashboardSettingsDownloadsTab = () => {
                         type="button"
                         size="icon"
                         className={responsiveSvgCardMobileRemoveButtonClass}
+                        aria-label={`Excluir fonte de download ${source.label || index + 1}`}
                         onClick={() =>
                           setSettings((prev) => ({
                             ...prev,
@@ -202,6 +203,7 @@ export const DashboardSettingsDownloadsTab = () => {
                     type="button"
                     size="icon"
                     className={responsiveSvgCardDesktopRemoveButtonClass}
+                    aria-label={`Excluir fonte de download ${source.label || index + 1}`}
                     onClick={() =>
                       setSettings((prev) => ({
                         ...prev,
