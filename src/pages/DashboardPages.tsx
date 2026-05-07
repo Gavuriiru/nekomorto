@@ -103,9 +103,9 @@ import {
 } from "react";
 import { useLocation, useNavigate, useSearchParams } from "react-router-dom";
 
-type AboutHighlight = { label: string; text: string; icon: string };
-type AboutValue = { title: string; description: string; icon: string };
-type AboutPillar = { title: string; description: string; icon: string };
+type AboutHighlight = DashboardPagesEditorRecord & { label: string; text: string; icon: string };
+type AboutValue = DashboardPagesEditorRecord & { title: string; description: string; icon: string };
+type AboutPillar = DashboardPagesEditorRecord & { title: string; description: string; icon: string };
 type DashboardPagesEditorRecord = { _editorKey?: string };
 type DonationsCost = DashboardPagesEditorRecord & {
   title: string;
@@ -119,10 +119,10 @@ type Donor = DashboardPagesEditorRecord & {
   date: string;
 };
 type CryptoService = DonationsCryptoService & DashboardPagesEditorRecord;
-type FAQItem = { question: string; answer: string };
-type FAQGroup = { title: string; icon: string; items: FAQItem[] };
-type FAQIntro = { title: string; icon: string; text: string; note: string };
-type RecruitmentRole = { title: string; description: string; icon: string };
+type FAQItem = DashboardPagesEditorRecord & { question: string; answer: string };
+type FAQGroup = DashboardPagesEditorRecord & { title: string; icon: string; items: FAQItem[] };
+type FAQIntro = DashboardPagesEditorRecord & { title: string; icon: string; text: string; note: string };
+type RecruitmentRole = DashboardPagesEditorRecord & { title: string; description: string; icon: string };
 type PageWithShareImage = { shareImage: string; shareImageAlt: string };
 type PublicPageKey = "about" | "donations" | "faq" | "team" | "recruitment";
 type ShareImagePageKey = "home" | "projects" | PublicPageKey;
@@ -519,9 +519,38 @@ const normalizeDonationsMonthlyGoalFields = (
   donors: stripDashboardPagesEditorKeys(donations.donors),
 });
 
+const stripEditorKeysFromAbout = (
+  about: PagesConfig["about"],
+): PagesConfig["about"] => ({
+  ...about,
+  highlights: stripDashboardPagesEditorKeys(about.highlights),
+  pillars: stripDashboardPagesEditorKeys(about.pillars),
+  values: stripDashboardPagesEditorKeys(about.values),
+});
+
+const stripEditorKeysFromFaq = (faq: PagesConfig["faq"]): PagesConfig["faq"] => ({
+  ...faq,
+  introCards: stripDashboardPagesEditorKeys(faq.introCards),
+  groups: faq.groups.map((group) => ({
+    ...group,
+    _editorKey: undefined,
+    items: stripDashboardPagesEditorKeys(group.items),
+  })),
+});
+
+const stripEditorKeysFromRecruitment = (
+  recruitment: PagesConfig["recruitment"],
+): PagesConfig["recruitment"] => ({
+  ...recruitment,
+  roles: stripDashboardPagesEditorKeys(recruitment.roles),
+});
+
 const normalizePagesConfigForSave = (pages: PagesConfig): PagesConfig => ({
   ...pages,
+  about: stripEditorKeysFromAbout(pages.about),
   donations: normalizeDonationsMonthlyGoalFields(pages.donations),
+  faq: stripEditorKeysFromFaq(pages.faq),
+  recruitment: stripEditorKeysFromRecruitment(pages.recruitment),
 });
 
 const normalizeDonationsEditorCollections = (
@@ -537,6 +566,39 @@ const normalizeDonationsEditorCollections = (
   donors: withDashboardPagesEditorKeys(donations.donors, previousDonations?.donors),
 });
 
+const normalizeAboutEditorCollections = (
+  about: PagesConfig["about"],
+  previousAbout?: PagesConfig["about"] | null,
+): PagesConfig["about"] => ({
+  ...about,
+  highlights: withDashboardPagesEditorKeys(about.highlights, previousAbout?.highlights),
+  pillars: withDashboardPagesEditorKeys(about.pillars, previousAbout?.pillars),
+  values: withDashboardPagesEditorKeys(about.values, previousAbout?.values),
+});
+
+const normalizeFaqEditorCollections = (
+  faq: PagesConfig["faq"],
+  previousFaq?: PagesConfig["faq"] | null,
+): PagesConfig["faq"] => ({
+  ...faq,
+  introCards: withDashboardPagesEditorKeys(faq.introCards, previousFaq?.introCards),
+  groups: withDashboardPagesEditorKeys(faq.groups, previousFaq?.groups).map((group) => ({
+    ...group,
+    items: withDashboardPagesEditorKeys(
+      group.items,
+      previousFaq?.groups?.find((g) => g._editorKey === group._editorKey)?.items,
+    ),
+  })),
+});
+
+const normalizeRecruitmentEditorCollections = (
+  recruitment: PagesConfig["recruitment"],
+  previousRecruitment?: PagesConfig["recruitment"] | null,
+): PagesConfig["recruitment"] => ({
+  ...recruitment,
+  roles: withDashboardPagesEditorKeys(recruitment.roles, previousRecruitment?.roles),
+});
+
 const normalizePagesConfigForState = (
   pages: PagesConfig,
   previousPages?: PagesConfig | null,
@@ -544,9 +606,18 @@ const normalizePagesConfigForState = (
   const normalizedPages = normalizePagesShareImages(normalizePagesConfigForSave(pages));
   return {
     ...normalizedPages,
+    about: normalizeAboutEditorCollections(
+      normalizedPages.about,
+      previousPages?.about,
+    ),
     donations: normalizeDonationsEditorCollections(
       normalizedPages.donations,
       previousPages?.donations,
+    ),
+    faq: normalizeFaqEditorCollections(normalizedPages.faq, previousPages?.faq),
+    recruitment: normalizeRecruitmentEditorCollections(
+      normalizedPages.recruitment,
+      previousPages?.recruitment,
     ),
   };
 };
@@ -1328,9 +1399,9 @@ const DashboardPagesContent = ({ currentUser }: DashboardPagesContentProps) => {
                             <DashboardFieldStack className="md:col-span-2">
                               <Label>Badges do topo</Label>
                               <div className="flex flex-wrap gap-2">
-                                {pages.about.heroBadges.map((badge, index) => (
-                                  <div
-                                    key={`${badge}-${index}`}
+                             {pages.about.heroBadges.map((badge, index) => (
+                                   <div
+                                     key={`about-heroBadge-${index}`}
                                     className="flex items-center gap-2"
                                   >
                                     <Input
@@ -1380,30 +1451,31 @@ const DashboardPagesContent = ({ currentUser }: DashboardPagesContentProps) => {
                               >
                                 Destaques
                               </h2>
-                              <DashboardActionButton
-                                type="button"
-                                size="sm"
-                                onClick={() =>
-                                  updateAbout({
-                                    highlights: [
-                                      ...pages.about.highlights,
-                                      {
-                                        label: "Novo destaque",
-                                        text: "",
-                                        icon: "Sparkles",
-                                      },
-                                    ],
-                                  })
-                                }
+                               <DashboardActionButton
+                                 type="button"
+                                 size="sm"
+                                 onClick={() =>
+                                   updateAbout({
+                                     highlights: [
+                                       ...pages.about.highlights,
+                                       {
+                                         _editorKey: generateDashboardPagesEditorLocalId(),
+                                         label: "Novo destaque",
+                                         text: "",
+                                         icon: "Sparkles",
+                                       },
+                                     ],
+                                   })
+                                 }
                               >
                                 <Plus className="h-4 w-4" />
                                 Adicionar
                               </DashboardActionButton>
                             </div>
                             <div className="grid gap-4">
-                              {pages.about.highlights.map((item, index) => (
-                                <div
-                                  key={`${item.label}-${index}`}
+                               {pages.about.highlights.map((item, index) => (
+                                 <div
+                                   key={item._editorKey || `about-highlight-${index}`}
                                   draggable
                                   onDragStart={() => handleDragStart("about.highlights", index)}
                                   onDragOver={(event) =>
@@ -1513,8 +1585,8 @@ const DashboardPagesContent = ({ currentUser }: DashboardPagesContentProps) => {
                               />
                             </DashboardFieldStack>
                             <div className="grid gap-3">
-                              {pages.about.manifestoParagraphs.map((paragraph, index) => (
-                                <div key={`${paragraph}-${index}`} className="flex gap-2">
+                               {pages.about.manifestoParagraphs.map((paragraph, index) => (
+                                 <div key={`about-manifesto-paragraph-${index}`} className="flex gap-2">
                                   <Textarea
                                     value={paragraph}
                                     onChange={(e) => {
@@ -1565,30 +1637,31 @@ const DashboardPagesContent = ({ currentUser }: DashboardPagesContentProps) => {
                               >
                                 Pilares
                               </h2>
-                              <DashboardActionButton
-                                type="button"
-                                size="sm"
-                                onClick={() =>
-                                  updateAbout({
-                                    pillars: [
-                                      ...pages.about.pillars,
-                                      {
-                                        title: "Novo pilar",
-                                        description: "",
-                                        icon: "Sparkles",
-                                      },
-                                    ],
-                                  })
-                                }
+                               <DashboardActionButton
+                                 type="button"
+                                 size="sm"
+                                 onClick={() =>
+                                   updateAbout({
+                                     pillars: [
+                                       ...pages.about.pillars,
+                                       {
+                                         _editorKey: generateDashboardPagesEditorLocalId(),
+                                         title: "Novo pilar",
+                                         description: "",
+                                         icon: "Sparkles",
+                                       },
+                                     ],
+                                   })
+                                 }
                               >
                                 <Plus className="h-4 w-4" />
                                 Adicionar
                               </DashboardActionButton>
                             </div>
                             <div className="grid gap-4 md:grid-cols-2">
-                              {pages.about.pillars.map((item, index) => (
-                                <div
-                                  key={`${item.title}-${index}`}
+                               {pages.about.pillars.map((item, index) => (
+                                 <div
+                                   key={item._editorKey || `about-pillar-${index}`}
                                   draggable
                                   onDragStart={() => handleDragStart("about.pillars", index)}
                                   onDragOver={(event) =>
@@ -1685,30 +1758,31 @@ const DashboardPagesContent = ({ currentUser }: DashboardPagesContentProps) => {
                               >
                                 Valores
                               </h2>
-                              <DashboardActionButton
-                                type="button"
-                                size="sm"
-                                onClick={() =>
-                                  updateAbout({
-                                    values: [
-                                      ...pages.about.values,
-                                      {
-                                        title: "Novo valor",
-                                        description: "",
-                                        icon: "Heart",
-                                      },
-                                    ],
-                                  })
-                                }
+                               <DashboardActionButton
+                                 type="button"
+                                 size="sm"
+                                 onClick={() =>
+                                   updateAbout({
+                                     values: [
+                                       ...pages.about.values,
+                                       {
+                                         _editorKey: generateDashboardPagesEditorLocalId(),
+                                         title: "Novo valor",
+                                         description: "",
+                                         icon: "Heart",
+                                       },
+                                     ],
+                                   })
+                                 }
                               >
                                 <Plus className="h-4 w-4" />
                                 Adicionar
                               </DashboardActionButton>
                             </div>
                             <div className="grid gap-4 md:grid-cols-2">
-                              {pages.about.values.map((item, index) => (
-                                <div
-                                  key={`${item.title}-${index}`}
+                               {pages.about.values.map((item, index) => (
+                                 <div
+                                   key={item._editorKey || `about-value-${index}`}
                                   draggable
                                   onDragStart={() => handleDragStart("about.values", index)}
                                   onDragOver={(event) =>
@@ -2592,31 +2666,32 @@ const DashboardPagesContent = ({ currentUser }: DashboardPagesContentProps) => {
                               >
                                 Cards introdutórios
                               </h2>
-                              <DashboardActionButton
-                                type="button"
-                                size="sm"
-                                onClick={() =>
-                                  updateFaq({
-                                    introCards: [
-                                      ...pages.faq.introCards,
-                                      {
-                                        title: "Novo card",
-                                        icon: "Info",
-                                        text: "",
-                                        note: "",
-                                      },
-                                    ],
-                                  })
-                                }
+                                <DashboardActionButton
+                                 type="button"
+                                 size="sm"
+                                 onClick={() =>
+                                   updateFaq({
+                                     introCards: [
+                                       ...pages.faq.introCards,
+                                       {
+                                         _editorKey: generateDashboardPagesEditorLocalId(),
+                                         title: "Novo card",
+                                         icon: "Info",
+                                         text: "",
+                                         note: "",
+                                       },
+                                     ],
+                                   })
+                                 }
                               >
                                 <Plus className="h-4 w-4" />
                                 Adicionar
                               </DashboardActionButton>
                             </div>
                             <div className="grid gap-4 md:grid-cols-2">
-                              {pages.faq.introCards.map((card, index) => (
-                                <div
-                                  key={`${card.title}-${index}`}
+                               {pages.faq.introCards.map((card, index) => (
+                                 <div
+                                   key={card._editorKey || `faq-introCard-${index}`}
                                   draggable
                                   onDragStart={() => handleDragStart("faq.intro", index)}
                                   onDragOver={(event) => handleDragOver(event, "faq.intro", index)}
@@ -2719,30 +2794,31 @@ const DashboardPagesContent = ({ currentUser }: DashboardPagesContentProps) => {
                               >
                                 Grupos de FAQ
                               </h2>
-                              <DashboardActionButton
-                                type="button"
-                                size="sm"
-                                onClick={() =>
-                                  updateFaq({
-                                    groups: [
-                                      ...pages.faq.groups,
-                                      {
-                                        title: "Novo grupo",
-                                        icon: "Info",
-                                        items: [],
-                                      },
-                                    ],
-                                  })
-                                }
+                                <DashboardActionButton
+                                 type="button"
+                                 size="sm"
+                                 onClick={() =>
+                                   updateFaq({
+                                     groups: [
+                                       ...pages.faq.groups,
+                                       {
+                                         _editorKey: generateDashboardPagesEditorLocalId(),
+                                         title: "Novo grupo",
+                                         icon: "Info",
+                                         items: [],
+                                       },
+                                     ],
+                                   })
+                                 }
                               >
                                 <Plus className="h-4 w-4" />
                                 Adicionar grupo
                               </DashboardActionButton>
                             </div>
                             <div className="grid gap-4">
-                              {pages.faq.groups.map((group, groupIndex) => (
-                                <div
-                                  key={`${group.title}-${groupIndex}`}
+                               {pages.faq.groups.map((group, groupIndex) => (
+                                 <div
+                                   key={group._editorKey || `faq-group-${groupIndex}`}
                                   draggable
                                   onDragStart={() => handleDragStart("faq.groups", groupIndex)}
                                   onDragOver={(event) =>
@@ -2819,31 +2895,32 @@ const DashboardPagesContent = ({ currentUser }: DashboardPagesContentProps) => {
                                         Perguntas
                                       </span>
                                       <DashboardActionButton
-                                        type="button"
-                                        size="sm"
-                                        onClick={() => {
-                                          const next = [...pages.faq.groups];
-                                          next[groupIndex] = {
-                                            ...group,
-                                            items: [
-                                              ...group.items,
-                                              {
-                                                question: "Nova pergunta",
-                                                answer: "",
-                                              },
-                                            ],
-                                          };
-                                          updateFaq({ groups: next });
-                                        }}
+                                         type="button"
+                                         size="sm"
+                                         onClick={() => {
+                                           const next = [...pages.faq.groups];
+                                           next[groupIndex] = {
+                                             ...group,
+                                             items: [
+                                               ...group.items,
+                                               {
+                                                 _editorKey: generateDashboardPagesEditorLocalId(),
+                                                 question: "Nova pergunta",
+                                                 answer: "",
+                                               },
+                                             ],
+                                           };
+                                           updateFaq({ groups: next });
+                                         }}
                                       >
                                         <Plus className="h-4 w-4" />
                                         Adicionar
                                       </DashboardActionButton>
                                     </div>
                                     <div className="grid gap-3">
-                                      {group.items.map((item, itemIndex) => (
-                                        <div
-                                          key={`${item.question}-${itemIndex}`}
+                                       {group.items.map((item, itemIndex) => (
+                                         <div
+                                           key={item._editorKey || `faq-item-${groupIndex}-${itemIndex}`}
                                           draggable
                                           onDragStart={(event) => {
                                             // Avoid parent FAQ group dragstart overriding item drag state.
@@ -3058,30 +3135,31 @@ const DashboardPagesContent = ({ currentUser }: DashboardPagesContentProps) => {
                               >
                                 Funções
                               </h2>
-                              <DashboardActionButton
-                                type="button"
-                                size="sm"
-                                onClick={() =>
-                                  updateRecruitment({
-                                    roles: [
-                                      ...pages.recruitment.roles,
-                                      {
-                                        title: "Nova função",
-                                        description: "",
-                                        icon: "Sparkles",
-                                      },
-                                    ],
-                                  })
-                                }
+                                <DashboardActionButton
+                                 type="button"
+                                 size="sm"
+                                 onClick={() =>
+                                   updateRecruitment({
+                                     roles: [
+                                       ...pages.recruitment.roles,
+                                       {
+                                         _editorKey: generateDashboardPagesEditorLocalId(),
+                                         title: "Nova função",
+                                         description: "",
+                                         icon: "Sparkles",
+                                       },
+                                     ],
+                                   })
+                                 }
                               >
                                 <Plus className="h-4 w-4" />
                                 Adicionar
                               </DashboardActionButton>
                             </div>
                             <div className="grid gap-4">
-                              {pages.recruitment.roles.map((role, index) => (
-                                <div
-                                  key={`${role.title}-${index}`}
+                               {pages.recruitment.roles.map((role, index) => (
+                                 <div
+                                   key={role._editorKey || `recruitment-role-${index}`}
                                   draggable
                                   onDragStart={() => handleDragStart("recruitment.roles", index)}
                                   onDragOver={(event) =>
