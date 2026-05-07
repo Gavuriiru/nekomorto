@@ -48,7 +48,7 @@ describe("Sidebar mobile toggle", () => {
     ).find((element) => element.getAttribute("role") !== "dialog");
 
     expect(overlay).toBeTruthy();
-    expect(String(overlay?.className)).toContain("top-[4.75rem]");
+    expect(String(overlay?.className)).toContain("top-19");
 
     fireEvent.click(trigger);
 

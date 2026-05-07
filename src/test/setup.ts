@@ -2,6 +2,7 @@ import "@testing-library/jest-dom";
 import { toHaveNoViolations } from "jest-axe";
 
 expect.extend(toHaveNoViolations);
+(globalThis as any).IS_REACT_ACT_ENVIRONMENT = true;
 
 if (!window.requestAnimationFrame) {
   window.requestAnimationFrame = (callback: FrameRequestCallback) =>

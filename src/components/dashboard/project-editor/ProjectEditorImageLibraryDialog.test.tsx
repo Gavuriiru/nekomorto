@@ -135,7 +135,7 @@ describe("ProjectEditorImageLibraryDialog", () => {
         tokens.includes("flex-1") &&
         tokens.includes("overflow-y-auto") &&
         tokens.includes("overflow-x-hidden") &&
-        tokens.includes("overscroll-contain")
+        tokens.includes("touch-scroll-y")
       );
     });
     const footer = Array.from(dialog.querySelectorAll("div")).find((node) =>

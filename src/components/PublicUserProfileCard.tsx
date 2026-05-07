@@ -366,7 +366,7 @@ const PublicUserProfileCard = ({
           >
             <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
               <div className="min-w-0 space-y-3 sm:pr-4">
-                <h3 className="wrap-break-word text-lg font-semibold text-foreground">{member.name}</h3>
+                <h3 className="break-words text-lg font-semibold text-foreground">{member.name}</h3>
               </div>
               {socials.length > 0 ? (
                 <div className="flex flex-wrap items-center gap-2 sm:justify-end">
