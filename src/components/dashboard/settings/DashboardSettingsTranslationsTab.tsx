@@ -181,6 +181,7 @@ export const DashboardSettingsTranslationsTab = () => {
                         <td className="px-4 py-3 text-right">
                           <DashboardActionButton
                             size="icon"
+                            aria-label={`Excluir tradução da tag ${tag}`}
                             onClick={() =>
                               setTagTranslations((prev) => {
                                 const next = { ...prev };
@@ -317,6 +318,7 @@ export const DashboardSettingsTranslationsTab = () => {
                         <td className="px-4 py-3 text-right">
                           <DashboardActionButton
                             size="icon"
+                            aria-label={`Excluir tradução do gênero ${genre}`}
                             onClick={() =>
                               setGenreTranslations((prev) => {
                                 const next = { ...prev };
@@ -448,6 +450,7 @@ export const DashboardSettingsTranslationsTab = () => {
                         <td className="px-4 py-3 text-right">
                           <DashboardActionButton
                             size="icon"
+                            aria-label={`Excluir tradução do cargo ${role}`}
                             onClick={() =>
                               setStaffRoleTranslations((prev) => {
                                 const next = { ...prev };

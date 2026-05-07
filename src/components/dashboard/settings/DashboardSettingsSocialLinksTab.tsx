@@ -134,6 +134,7 @@ export const DashboardSettingsSocialLinksTab = () => {
                         type="button"
                         size="icon"
                         className={responsiveSvgCardMobileRemoveButtonClass}
+                        aria-label={`Excluir rede ${link.label || index + 1}`}
                         onClick={() =>
                           setLinkTypes((prev) => prev.filter((_, idx) => idx !== index))
                         }
@@ -146,6 +147,7 @@ export const DashboardSettingsSocialLinksTab = () => {
                     type="button"
                     size="icon"
                     className={responsiveSvgCardDesktopRemoveButtonClass}
+                    aria-label={`Excluir rede ${link.label || index + 1}`}
                     onClick={() => setLinkTypes((prev) => prev.filter((_, idx) => idx !== index))}
                   >
                     <Trash2 className="h-4 w-4" />
