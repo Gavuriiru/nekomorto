@@ -80,21 +80,21 @@
   }
 
   .public-interactive-card-shadow--base {
-    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+    box-shadow: 0 2px 8px -2px rgba(0, 0, 0, 0.08);
     opacity: 0;
   }
 
   .public-interactive-card-shadow--hover {
-    box-shadow: 0 4px 6px rgba(0, 0, 0, 0.15);
+    box-shadow: 0 6px 16px -4px rgba(0, 0, 0, 0.12);
     opacity: 0;
   }
 
   .public-interactive-card-shell--compact > .public-interactive-card-shadow--base {
-    box-shadow: 0 1px 2px rgba(0, 0, 0, 0.1);
+    box-shadow: 0 1px 6px -2px rgba(0, 0, 0, 0.08);
   }
 
   .public-interactive-card-shell--compact > .public-interactive-card-shadow--hover {
-    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.15);
+    box-shadow: 0 3px 10px -3px rgba(0, 0, 0, 0.12);
   }
 
   .public-interactive-card-shell:hover > .public-interactive-card-shadow--hover,

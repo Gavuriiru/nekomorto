@@ -50,7 +50,7 @@
     border-radius: 1.8rem;
     border: 1px solid hsl(var(--border) / 0.18);
     background: linear-gradient(146deg, hsl(var(--card) / 0.9), hsl(var(--background) / 0.68));
-    box-shadow: 0 42px 110px -80px hsl(var(--foreground) / 0.5);
+    box-shadow: 0 42px 140px -90px hsl(var(--foreground) / 0.42);
     backdrop-filter: blur(14px);
   }
 
