@@ -1544,12 +1544,14 @@ const DashboardUsers = () => {
     const requestPayload = !editingUser && !basePayload.id ? { ...payload, id: null } : payload;
 
     const method = editingUser ? "PUT" : "POST";
-    const canUseUsersByIdEndpoint = isPrimaryOwnerActor || isSecondaryOwnerActor || isAdminActor;
-    const path = editingUser
-      ? canUseUsersByIdEndpoint
-        ? `/api/users/${editingUser.id}`
-        : "/api/users/self"
-      : "/api/users";
+    const isSelfEdit = editingUser && currentUser?.id === editingUser.id;
+    const path = isSelfEdit
+      ? "/api/users/self"
+      : editingUser
+        ? canUseUsersByIdEndpoint
+          ? `/api/users/${editingUser.id}`
+          : "/api/users/self"
+        : "/api/users";
 
     const response = await apiFetch(apiBase, path, {
       method,

@@ -214,6 +214,7 @@ export const hasManagedUserPrivilegeEscalation = ({ afterSnapshot, beforeSnapsho
 export const getManagedUserUpdateAuthorizationError = ({
   AccessRole,
   actorCapabilities,
+  actorContext,
   isBasicProfileField,
   targetContext,
   update,
@@ -249,11 +250,25 @@ export const getManagedUserUpdateAuthorizationError = ({
   }
 
   if (targetContext?.isPrimaryOwner) {
+    const actorUserId = actorContext?.user?.id || actorContext?.id;
+    const isSelfEdit = actorUserId === targetContext.id;
+    const updateKeys = Object.keys(update || {});
     const immutableFields = ["permissions", "status", "accessRole"].filter((field) =>
-      Object.prototype.hasOwnProperty.call(update || {}, field),
+      updateKeys.includes(field),
     );
+
     if (immutableFields.length > 0) {
-      return "primary_owner_immutable";
+      if (!isSelfEdit) {
+        return "primary_owner_immutable";
+      }
+      const isActuallyChanging = immutableFields.some((field) => {
+        const currentValue = targetContext.user?.[field] ?? targetContext[field];
+        const updateValue = update[field];
+        return JSON.stringify(currentValue) !== JSON.stringify(updateValue);
+      });
+      if (isActuallyChanging) {
+        return "primary_owner_immutable";
+      }
     }
   }
 

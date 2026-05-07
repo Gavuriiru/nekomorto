@@ -370,6 +370,7 @@ export const registerUserManagementRoutes = ({
     const authorizationError = getManagedUserUpdateAuthorizationError({
       AccessRole,
       actorCapabilities,
+      actorContext,
       isBasicProfileField,
       targetContext,
       update,
