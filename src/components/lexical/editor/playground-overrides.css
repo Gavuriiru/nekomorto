@@ -327,7 +327,7 @@
 
 .chapter-editor-lexical-wrapper .lexical-playground.lexical-playground--chapter-editor .toolbar {
   position: sticky;
-  top: var(--chapter-editor-toolbar-sticky-top, 0px);
+  top: var(--header-height, 0px);
   z-index: 19;
 }
 
@@ -335,19 +335,18 @@
   position: relative;
   isolation: isolate;
   min-width: 0;
-  overflow: hidden;
 }
 
 .chapter-editor-lexical-wrapper .lexical-playground {
-  overflow: hidden;
+  overflow: visible;
 }
 
 .chapter-editor-lexical-wrapper .editor-shell {
-  overflow: hidden;
+  overflow: visible;
 }
 
 .chapter-editor-lexical-wrapper .editor-container {
-  overflow: hidden;
+  overflow: visible;
 }
 
 .chapter-editor-lexical-wrapper .ContentEditable__root {

@@ -417,7 +417,7 @@ const ChapterEditorPane = forwardRef<ChapterEditorPaneHandle, ChapterEditorPaneP
     const chapterEditorLexicalWrapperStyle = useMemo(
       () =>
         ({
-          "--chapter-editor-toolbar-sticky-top": `${chapterEditorToolbarStickyTop}px`,
+          "--header-height": `${chapterEditorToolbarStickyTop}px`,
         }) as CSSProperties,
       [chapterEditorToolbarStickyTop],
     );
