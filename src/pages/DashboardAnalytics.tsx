@@ -540,7 +540,7 @@ const DashboardAnalytics = () => {
 
         {hasRetainedError ? (
           <Alert
-            className={`${dashboardPageLayoutTokens.surfaceSolid} animate-slide-up opacity-0`}
+            className={`${dashboardPageLayoutTokens.surfaceSolid} animate-slide-up`}
             style={dashboardAnimationDelay(dashboardMotionDelays.sectionLeadMs)}
           >
             <AlertDescription className="flex flex-col gap-3 text-foreground/70 md:flex-row md:items-center md:justify-between">
@@ -577,7 +577,7 @@ const DashboardAnalytics = () => {
             <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
               <Card
                 lift={false}
-                className={`${dashboardPageLayoutTokens.surfaceSolid} animate-slide-up opacity-0`}
+                className={`${dashboardPageLayoutTokens.surfaceSolid} animate-slide-up`}
                 style={dashboardAnimationDelay(0)}
               >
                 <CardHeader className="pb-2">
@@ -591,7 +591,7 @@ const DashboardAnalytics = () => {
               </Card>
               <Card
                 lift={false}
-                className={`${dashboardPageLayoutTokens.surfaceSolid} animate-slide-up opacity-0`}
+                className={`${dashboardPageLayoutTokens.surfaceSolid} animate-slide-up`}
                 style={dashboardAnimationDelay(dashboardMotionDelays.sectionStepMs)}
               >
                 <CardHeader className="pb-2">
@@ -605,7 +605,7 @@ const DashboardAnalytics = () => {
               </Card>
               <Card
                 lift={false}
-                className={`${dashboardPageLayoutTokens.surfaceSolid} animate-slide-up opacity-0`}
+                className={`${dashboardPageLayoutTokens.surfaceSolid} animate-slide-up`}
                 style={dashboardAnimationDelay(dashboardMotionDelays.sectionStepMs * 2)}
               >
                 <CardHeader className="pb-2">
@@ -619,7 +619,7 @@ const DashboardAnalytics = () => {
               </Card>
               <Card
                 lift={false}
-                className={`${dashboardPageLayoutTokens.surfaceSolid} animate-slide-up opacity-0`}
+                className={`${dashboardPageLayoutTokens.surfaceSolid} animate-slide-up`}
                 style={dashboardAnimationDelay(dashboardMotionDelays.sectionStepMs * 3)}
               >
                 <CardHeader className="pb-2">
@@ -635,7 +635,7 @@ const DashboardAnalytics = () => {
 
             <Card
               lift={false}
-              className={`${dashboardPageLayoutTokens.surfaceSolid} animate-slide-up opacity-0`}
+              className={`${dashboardPageLayoutTokens.surfaceSolid} animate-slide-up`}
               style={dashboardAnimationDelay(dashboardMotionDelays.headerActionsMs)}
             >
               <CardHeader>
@@ -674,7 +674,7 @@ const DashboardAnalytics = () => {
             <div className="grid min-w-0 gap-6 lg:grid-cols-[minmax(0,2fr)_minmax(0,1fr)]">
               <Card
                 lift={false}
-                className={`${dashboardPageLayoutTokens.surfaceSolid} min-w-0 animate-slide-up opacity-0`}
+                className={`${dashboardPageLayoutTokens.surfaceSolid} min-w-0 animate-slide-up`}
                 style={dashboardAnimationDelay(dashboardMotionDelays.sectionLeadMs)}
               >
                 <CardHeader>
@@ -730,7 +730,7 @@ const DashboardAnalytics = () => {
 
               <Card
                 lift={false}
-                className={`${dashboardPageLayoutTokens.surfaceSolid} min-w-0 animate-slide-up opacity-0`}
+                className={`${dashboardPageLayoutTokens.surfaceSolid} min-w-0 animate-slide-up`}
                 style={dashboardAnimationDelay(
                   dashboardMotionDelays.sectionLeadMs + dashboardMotionDelays.sectionStepMs,
                 )}
@@ -766,7 +766,7 @@ const DashboardAnalytics = () => {
 
             <Card
               lift={false}
-              className={`${dashboardPageLayoutTokens.surfaceSolid} animate-slide-up opacity-0`}
+              className={`${dashboardPageLayoutTokens.surfaceSolid} animate-slide-up`}
               style={dashboardAnimationDelay(
                 dashboardMotionDelays.sectionLeadMs + dashboardMotionDelays.sectionStepMs * 2,
               )}

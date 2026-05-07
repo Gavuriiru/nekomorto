@@ -1047,7 +1047,7 @@ const DashboardProjectsEditor = () => {
           <section className="mt-8 space-y-6">
             <div
               data-testid="dashboard-projects-toolbar"
-              className="relative z-10 grid min-w-0 gap-3 animate-slide-up opacity-0 sm:flex sm:items-start sm:justify-between"
+              className="relative z-10 grid min-w-0 gap-3 animate-slide-up sm:flex sm:items-start sm:justify-between"
             >
               <div className="grid min-w-0 gap-3 sm:grid-cols-2 lg:flex lg:flex-wrap lg:items-center">
                 <div className="min-w-0 sm:col-span-2 lg:w-full lg:max-w-sm">
@@ -1081,7 +1081,7 @@ const DashboardProjectsEditor = () => {
               </div>
               <Badge
                 variant="static"
-                className="w-fit text-xs uppercase animate-slide-up opacity-0 sm:justify-self-end"
+                className="w-fit text-xs uppercase animate-slide-up sm:justify-self-end"
               >
                 {sortedProjects.length} projetos
               </Badge>
@@ -1343,7 +1343,7 @@ const DashboardProjectsEditor = () => {
                     {trashedProjects.map((project, index) => (
                       <div
                         key={`trash-${project.id}`}
-                        className={`${dashboardPageLayoutTokens.surfaceInset} flex flex-wrap items-center justify-between gap-3 px-4 py-3 animate-slide-up opacity-0`}
+                        className={`${dashboardPageLayoutTokens.surfaceInset} flex flex-wrap items-center justify-between gap-3 px-4 py-3 animate-slide-up`}
                         style={dashboardAnimationDelay(dashboardClampedStaggerMs(index))}
                       >
                         <div className="min-w-0">

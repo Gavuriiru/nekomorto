@@ -658,6 +658,7 @@ const DashboardUsers = () => {
   const actorCanUploadManagement = currentUser?.grants?.uploads === true;
   const canManageUsers =
     actorCanUsers && (isPrimaryOwnerActor || isSecondaryOwnerActor || isAdminActor);
+  const canUseUsersByIdEndpoint = canManageUsers;
   const allowSelfEditOnly = !actorCanUsers && isSelfEditQuery(searchParams);
   const canManageOwners = isPrimaryOwnerActor;
   const isOwnerUser = useCallback(
@@ -2103,7 +2104,7 @@ const DashboardUsers = () => {
                 <DashboardActionButton
                   type="button"
                   size="toolbar"
-                  className="animate-slide-up opacity-0"
+                  className="animate-slide-up"
                   style={dashboardAnimationDelay(dashboardMotionDelays.headerActionsMs)}
                   onClick={openNewDialog}
                 >
@@ -2125,7 +2126,7 @@ const DashboardUsers = () => {
                 ) : (
                   <span
                     key={`active-count-${activeUsers.length}`}
-                    className="inline-flex min-h-6 min-w-10 items-center justify-center animate-slide-up opacity-0"
+                    className="inline-flex min-h-6 min-w-10 items-center justify-center animate-slide-up"
                     style={dashboardAnimationDelay(dashboardMotionDelays.sectionMetaMs)}
                   >
                     <Badge
@@ -2184,7 +2185,7 @@ const DashboardUsers = () => {
                     <h2 className="text-lg font-semibold">Usuários aposentados</h2>
                     <span
                       key={`retired-count-${retiredUsers.length}`}
-                      className="inline-flex min-h-6 min-w-10 items-center justify-center animate-slide-up opacity-0"
+                    className="inline-flex min-h-6 min-w-10 items-center justify-center animate-slide-up"
                       style={dashboardAnimationDelay(dashboardMotionDelays.sectionMetaMs)}
                     >
                       <Badge

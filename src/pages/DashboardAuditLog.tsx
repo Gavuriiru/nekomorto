@@ -613,14 +613,14 @@ const DashboardAuditLog = () => {
                   Registro de Auditoria
                 </h1>
                 <p
-                  className="mt-2 text-sm text-muted-foreground animate-slide-up opacity-0"
+                  className="mt-2 text-sm text-muted-foreground animate-slide-up"
                   style={dashboardAnimationDelay(dashboardMotionDelays.headerDescriptionMs)}
                 >
                   Eventos mutáveis e de segurança dos últimos 30 dias.
                 </p>
               </div>
               <div
-                className="flex items-center gap-3 animate-slide-up opacity-0"
+                className="flex items-center gap-3 animate-slide-up"
                 style={dashboardAnimationDelay(dashboardMotionDelays.headerActionsMs)}
               >
                 <Badge variant="static">{formattedTotal} eventos</Badge>
@@ -642,7 +642,7 @@ const DashboardAuditLog = () => {
             </header>
 
             <div
-              className={`mt-8 ${dashboardPageLayoutTokens.surfaceSolid} p-4 md:p-5 animate-slide-up opacity-0`}
+              className={`mt-8 ${dashboardPageLayoutTokens.surfaceSolid} p-4 md:p-5 animate-slide-up`}
               style={dashboardAnimationDelay(dashboardMotionDelays.sectionLeadMs)}
             >
               <div className="grid gap-3 md:grid-cols-2 lg:grid-cols-4">
@@ -758,7 +758,7 @@ const DashboardAuditLog = () => {
             </div>
 
             <div
-              className={`mt-6 ${dashboardPageLayoutTokens.surfaceSolid} p-2 md:p-4 animate-slide-up opacity-0`}
+              className={`mt-6 ${dashboardPageLayoutTokens.surfaceSolid} p-2 md:p-4 animate-slide-up`}
               style={dashboardAnimationDelay(
                 dashboardMotionDelays.sectionLeadMs + dashboardMotionDelays.sectionStepMs,
               )}
@@ -857,7 +857,7 @@ const DashboardAuditLog = () => {
 
             {!forbidden && !hasBlockingError && !isInitialLoading ? (
               <div
-                className="mt-4 flex flex-col gap-3 animate-slide-up opacity-0 md:flex-row md:items-center md:justify-between"
+                className="mt-4 flex flex-col gap-3 animate-slide-up md:flex-row md:items-center md:justify-between"
                 style={dashboardAnimationDelay(
                   dashboardMotionDelays.sectionLeadMs + dashboardMotionDelays.sectionStepMs * 2,
                 )}

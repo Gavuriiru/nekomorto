@@ -2093,7 +2093,7 @@ const DashboardWebhooks = () => {
           >
             <AccordionItem
               value="types"
-              className={`${dashboardPageLayoutTokens.surfaceSolid} rounded-xl px-4 animate-slide-up opacity-0`}
+              className={`${dashboardPageLayoutTokens.surfaceSolid} rounded-xl px-4 animate-slide-up`}
               style={dashboardAnimationDelay(SECTION_REVEAL_DELAYS.types)}
               data-testid="dashboard-webhooks-section-types"
             >
@@ -2182,7 +2182,7 @@ const DashboardWebhooks = () => {
                 <AccordionItem
                   key={channelKey}
                   value={channelKey}
-                  className={`${dashboardPageLayoutTokens.surfaceSolid} rounded-xl px-4 animate-slide-up opacity-0`}
+                  className={`${dashboardPageLayoutTokens.surfaceSolid} rounded-xl px-4 animate-slide-up`}
                   style={dashboardAnimationDelay(SECTION_REVEAL_DELAYS[sectionKey])}
                   data-testid={`dashboard-webhooks-section-${sectionKey}`}
                 >
@@ -2720,7 +2720,7 @@ const DashboardWebhooks = () => {
 
             <AccordionItem
               value="operational"
-              className={`${dashboardPageLayoutTokens.surfaceSolid} rounded-xl px-4 animate-slide-up opacity-0`}
+              className={`${dashboardPageLayoutTokens.surfaceSolid} rounded-xl px-4 animate-slide-up`}
               style={dashboardAnimationDelay(SECTION_REVEAL_DELAYS.operational)}
               data-testid="dashboard-webhooks-section-operational"
             >
@@ -2851,7 +2851,7 @@ const DashboardWebhooks = () => {
 
             <AccordionItem
               value="security"
-              className={`${dashboardPageLayoutTokens.surfaceSolid} rounded-xl px-4 animate-slide-up opacity-0`}
+              className={`${dashboardPageLayoutTokens.surfaceSolid} rounded-xl px-4 animate-slide-up`}
               style={dashboardAnimationDelay(SECTION_REVEAL_DELAYS.security)}
               data-testid="dashboard-webhooks-section-security"
             >
@@ -2960,7 +2960,7 @@ const DashboardWebhooks = () => {
 
             <AccordionItem
               value="deliveries"
-              className={`${dashboardPageLayoutTokens.surfaceSolid} rounded-xl px-4 animate-slide-up opacity-0`}
+              className={`${dashboardPageLayoutTokens.surfaceSolid} rounded-xl px-4 animate-slide-up`}
               style={dashboardAnimationDelay(dashboardMotionDelays.sectionStepMs * 3)}
               data-testid="dashboard-webhooks-section-deliveries"
             >

@@ -2203,7 +2203,7 @@ const DashboardPosts = () => {
           ) : null}
 
           <section className="mt-10 space-y-6">
-            <div className="flex flex-wrap items-center justify-between gap-3 animate-slide-up opacity-0">
+             <div className="flex flex-wrap items-center justify-between gap-3 animate-slide-up">
               <div className="flex flex-1 flex-wrap items-center gap-3">
                 <div className="w-full max-w-sm">
                   <Input
@@ -2273,7 +2273,7 @@ const DashboardPosts = () => {
                     Calendário
                   </DashboardSegmentedActionButton>
                 </div>
-                <Badge variant="static" className="text-xs uppercase animate-slide-up opacity-0">
+                 <Badge variant="static" className="text-xs uppercase animate-slide-up">
                   {sortedPosts.length} posts
                 </Badge>
               </div>
@@ -2763,7 +2763,7 @@ const DashboardPosts = () => {
                     {trashedPosts.map((post, index) => (
                       <div
                         key={`trash-${post.id}`}
-                        className={`${dashboardPageLayoutTokens.surfaceInset} flex flex-wrap items-center justify-between gap-3 px-4 py-3 animate-slide-up opacity-0`}
+                        className={`${dashboardPageLayoutTokens.surfaceInset} flex flex-wrap items-center justify-between gap-3 px-4 py-3 animate-slide-up`}
                         style={dashboardAnimationDelay(dashboardClampedStaggerMs(index))}
                       >
                         <div className="min-w-0">

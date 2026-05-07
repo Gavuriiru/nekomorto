@@ -1,11 +1,9 @@
 import DashboardPageBadge from "@/components/dashboard/DashboardPageBadge";
-import {
-  dashboardAnimationDelay,
-  dashboardMotionDelays,
-} from "@/components/dashboard/dashboard-motion";
+import DashboardPageTransition from "@/components/dashboard/DashboardPageTransition";
+import { dashboardMotionDelays } from "@/components/dashboard/dashboard-motion";
 import { dashboardPageLayoutTokens } from "@/components/dashboard/dashboard-page-tokens";
 import { cn } from "@/lib/utils";
-import type { ComponentPropsWithoutRef, CSSProperties, ReactNode } from "react";
+import type { ReactNode } from "react";
 
 type DashboardPageHeaderProps = {
   badge: string;
@@ -15,7 +13,7 @@ type DashboardPageHeaderProps = {
   className?: string;
   descriptionDelayMs?: number;
   actionsDelayMs?: number;
-  badgeProps?: Omit<ComponentPropsWithoutRef<typeof DashboardPageBadge>, "children">;
+  badgeProps?: { reveal?: boolean; wrapperClassName?: string; className?: string };
 };
 
 const DashboardPageHeader = ({
@@ -31,24 +29,22 @@ const DashboardPageHeader = ({
   return (
     <header className={cn(dashboardPageLayoutTokens.header, className)}>
       <div>
-        <DashboardPageBadge {...badgeProps}>{badge}</DashboardPageBadge>
-        <h1 className={dashboardPageLayoutTokens.headerTitle}>{title}</h1>
+        <DashboardPageTransition delayMs={dashboardMotionDelays.headerMetaMs} {...badgeProps}>
+          <DashboardPageBadge {...badgeProps}>{badge}</DashboardPageBadge>
+        </DashboardPageTransition>
+        <DashboardPageTransition>
+          <h1 className={dashboardPageLayoutTokens.headerTitle}>{title}</h1>
+        </DashboardPageTransition>
         {description ? (
-          <p
-            className={dashboardPageLayoutTokens.headerDescription}
-            style={dashboardAnimationDelay(descriptionDelayMs) as CSSProperties}
-          >
-            {description}
-          </p>
+          <DashboardPageTransition delayMs={descriptionDelayMs}>
+            <p className={dashboardPageLayoutTokens.headerDescription}>{description}</p>
+          </DashboardPageTransition>
         ) : null}
       </div>
       {actions ? (
-        <div
-          className={dashboardPageLayoutTokens.headerActions}
-          style={dashboardAnimationDelay(actionsDelayMs) as CSSProperties}
-        >
-          {actions}
-        </div>
+        <DashboardPageTransition delayMs={actionsDelayMs}>
+          <div className={dashboardPageLayoutTokens.headerActions}>{actions}</div>
+        </DashboardPageTransition>
       ) : null}
     </header>
   );

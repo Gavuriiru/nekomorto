@@ -325,7 +325,7 @@ const DashboardSecurity = () => {
           </DashboardPageBadge>
           <h1 className="mt-4 text-3xl font-semibold animate-slide-up">Sessões Ativas</h1>
           <p
-            className="mt-2 text-sm text-foreground/70 animate-slide-up opacity-0"
+            className="mt-2 text-sm text-foreground/70 animate-slide-up"
             style={dashboardAnimationDelay(dashboardMotionDelays.headerDescriptionMs)}
           >
             Painel somente leitura com sessões ativas e usuário responsável por cada sessão.
@@ -333,12 +333,12 @@ const DashboardSecurity = () => {
         </header>
 
         <section
-          className={`space-y-4 rounded-3xl ${dashboardPageLayoutTokens.surfaceSolid} p-4 animate-slide-up opacity-0 sm:p-6`}
+          className={`space-y-4 rounded-3xl ${dashboardPageLayoutTokens.surfaceSolid} p-4 animate-slide-up sm:p-6`}
           style={dashboardAnimationDelay(dashboardMotionDelays.sectionLeadMs)}
           data-testid="dashboard-security-sessions-card"
         >
           <div
-            className="flex flex-wrap items-center justify-between gap-3 animate-slide-up opacity-0"
+            className="flex flex-wrap items-center justify-between gap-3 animate-slide-up"
             style={dashboardAnimationDelay(
               dashboardMotionDelays.sectionLeadMs + dashboardMotionDelays.sectionStepMs,
             )}
@@ -385,7 +385,7 @@ const DashboardSecurity = () => {
 
           {isInitialLoading ? (
             <div
-              className="space-y-3 animate-slide-up opacity-0"
+              className="space-y-3 animate-slide-up"
               style={dashboardAnimationDelay(
                 dashboardMotionDelays.sectionLeadMs + dashboardMotionDelays.sectionStepMs * 2,
               )}
@@ -424,7 +424,7 @@ const DashboardSecurity = () => {
             </div>
           ) : hasBlockingLoadError ? (
             <p
-              className="text-sm text-amber-300 animate-slide-up opacity-0"
+              className="text-sm text-amber-300 animate-slide-up"
               style={dashboardAnimationDelay(
                 dashboardMotionDelays.sectionLeadMs + dashboardMotionDelays.sectionStepMs * 2,
               )}
@@ -433,7 +433,7 @@ const DashboardSecurity = () => {
             </p>
           ) : sessions.length === 0 ? (
             <p
-              className="text-sm text-foreground/70 animate-slide-up opacity-0"
+              className="text-sm text-foreground/70 animate-slide-up"
               style={dashboardAnimationDelay(
                 dashboardMotionDelays.sectionLeadMs + dashboardMotionDelays.sectionStepMs * 2,
               )}
@@ -451,7 +451,7 @@ const DashboardSecurity = () => {
                 return (
                   <article
                     key={session.sid}
-                    className={`space-y-3 ${sessionCardClassName} p-4 animate-slide-up opacity-0`}
+                    className={`space-y-3 ${sessionCardClassName} p-4 animate-slide-up`}
                     style={dashboardAnimationDelay(
                       dashboardClampedStaggerMs(index, dashboardMotionDelays.sectionLeadMs + 120),
                     )}

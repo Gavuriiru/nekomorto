@@ -376,7 +376,7 @@ const UploadsMetricCard = ({
   delayMs: number;
 }) => (
   <article
-    className={`min-h-34 ${dashboardPageLayoutTokens.surfaceSolid} p-5 animate-slide-up opacity-0`}
+    className={`min-h-34 ${dashboardPageLayoutTokens.surfaceSolid} p-5 animate-slide-up`}
     style={dashboardAnimationDelay(delayMs)}
   >
     <p className={`text-xs uppercase tracking-[0.22em] ${dashboardPageLayoutTokens.cardMetaText}`}>
@@ -731,7 +731,7 @@ const DashboardUploads = () => {
         <section className="mt-8 space-y-6">
           {isForbidden ? (
             <article
-              className={`${dashboardPageLayoutTokens.surfaceSolid} p-5 text-sm text-foreground/70 animate-slide-up opacity-0`}
+              className={`${dashboardPageLayoutTokens.surfaceSolid} p-5 text-sm text-foreground/70 animate-slide-up`}
             >
               Você não possui permissão para visualizar o painel de uploads.
             </article>
@@ -769,7 +769,7 @@ const DashboardUploads = () => {
 
           {!isForbidden ? (
             <article
-              className={`min-h-88 overflow-hidden ${dashboardPageLayoutTokens.surfaceSolid} animate-slide-up opacity-0`}
+              className={`min-h-88 overflow-hidden ${dashboardPageLayoutTokens.surfaceSolid} animate-slide-up`}
               style={dashboardAnimationDelay(dashboardMotionDelays.headerActionsMs)}
               data-testid="dashboard-uploads-storage-card"
             >
@@ -853,7 +853,7 @@ const DashboardUploads = () => {
 
           {!isForbidden ? (
             <article
-              className={`${cleanupCardClassName} overflow-hidden ${dashboardPageLayoutTokens.surfaceSolid} animate-slide-up opacity-0`}
+              className={`${cleanupCardClassName} overflow-hidden ${dashboardPageLayoutTokens.surfaceSolid} animate-slide-up`}
               style={dashboardAnimationDelay(dashboardMotionDelays.sectionLeadMs)}
               data-testid="dashboard-uploads-cleanup-card"
             >

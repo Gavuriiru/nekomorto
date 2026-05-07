@@ -2,6 +2,7 @@ import DashboardShell from "@/components/DashboardShell";
 import DashboardActionButton from "@/components/dashboard/DashboardActionButton";
 import DashboardPageBadge from "@/components/dashboard/DashboardPageBadge";
 import DashboardPageContainer from "@/components/dashboard/DashboardPageContainer";
+import DashboardPageTransition from "@/components/dashboard/DashboardPageTransition";
 import {
   dashboardAnimationDelay,
   dashboardMotionDelays,
@@ -852,59 +853,57 @@ const Dashboard = () => {
       onUserCardClick={() => navigate("/dashboard/usuarios?edit=me")}
     >
       <DashboardPageContainer>
-        <header className="flex flex-col gap-6 lg:flex-row lg:items-center lg:justify-between">
-          <div className="space-y-3">
-            <DashboardPageBadge>Painel interno</DashboardPageBadge>
-            <h1 className="text-3xl font-semibold lg:text-4xl animate-slide-up">
-              Painel de controle da comunidade
-            </h1>
-            <p
-              className="max-w-2xl text-sm text-foreground/70 animate-slide-up"
-              style={dashboardAnimationDelay(dashboardMotionDelays.headerDescriptionMs)}
-            >
-              Visão geral dos projetos e do conteúdo. Assim que as integrações de analytics e
-              comentários estiverem ativas, os dados aparecem aqui automaticamente.
-            </p>
-          </div>
-          <div
-            className="grid w-full min-w-0 grid-cols-1 gap-3 animate-slide-up sm:flex sm:flex-wrap sm:items-center lg:w-auto lg:justify-end"
-            style={dashboardAnimationDelay(dashboardMotionDelays.headerActionsMs)}
-          >
-            <DashboardActionButton
-              type="button"
-              size="toolbar"
-              className="w-full justify-center sm:w-auto"
-              onClick={() => setIsCustomizeOpen(true)}
-            >
-              <SlidersHorizontal className="h-4 w-4" />
-              Personalizar painel
-            </DashboardActionButton>
-            {isLoadingUser ? (
-              <Skeleton
-                className="h-10 w-40 shrink-0 rounded-md border border-border/70"
-                data-testid="dashboard-header-user-action-skeleton"
-              />
-            ) : canExportReport ? (
-              <DashboardActionButton
-                type="button"
-                size="toolbar"
-                className="w-full justify-center sm:w-auto"
-                onClick={() => void handleExportReport()}
-                disabled={isExportingReport}
-              >
-                {isExportingReport ? "Exportando..." : "Exportar relatório"}
-              </DashboardActionButton>
-            ) : currentUser ? null : (
-              <DashboardActionButton
-                asChild
-                size="toolbar"
-                className="w-full justify-center sm:w-auto"
-              >
-                <Link to="/login">Fazer login</Link>
-              </DashboardActionButton>
-            )}
-          </div>
-        </header>
+        <DashboardPageTransition>
+          <header className="flex flex-col gap-6 lg:flex-row lg:items-center lg:justify-between">
+            <div className="space-y-3">
+              <DashboardPageBadge>Painel interno</DashboardPageBadge>
+              <h1 className="text-3xl font-semibold lg:text-4xl">
+                Painel de controle da comunidade
+              </h1>
+              <p className="max-w-2xl text-sm text-foreground/70">
+                Visão geral dos projetos e do conteúdo. Assim que as integrações de analytics e
+                comentários estiverem ativas, os dados aparecem aqui automaticamente.
+              </p>
+            </div>
+            <div className="w-full lg:w-auto">
+              <div className="flex w-full flex-wrap items-center gap-3">
+                <DashboardActionButton
+                  type="button"
+                  size="toolbar"
+                  className="w-full justify-center sm:w-auto"
+                  onClick={() => setIsCustomizeOpen(true)}
+                >
+                  <SlidersHorizontal className="h-4 w-4" />
+                  Personalizar painel
+                </DashboardActionButton>
+                {isLoadingUser ? (
+                  <Skeleton
+                    className="h-10 w-40 shrink-0 rounded-md border border-border/70"
+                    data-testid="dashboard-header-user-action-skeleton"
+                  />
+                ) : canExportReport ? (
+                  <DashboardActionButton
+                    type="button"
+                    size="toolbar"
+                    className="w-full justify-center sm:w-auto"
+                    onClick={() => void handleExportReport()}
+                    disabled={isExportingReport}
+                  >
+                    {isExportingReport ? "Exportando..." : "Exportar relatório"}
+                  </DashboardActionButton>
+                ) : currentUser ? null : (
+                  <DashboardActionButton
+                    asChild
+                    size="toolbar"
+                    className="w-full justify-center sm:w-auto"
+                  >
+                    <Link to="/login">Fazer login</Link>
+                  </DashboardActionButton>
+                )}
+              </div>
+            </div>
+          </header>
+        </DashboardPageTransition>
 
         {!isDashboardReady ? (
           <DashboardLoadingSkeleton />

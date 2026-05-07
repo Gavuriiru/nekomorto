@@ -741,12 +741,27 @@
     }
   }
 
+  /* Unified dashboard page transition system */
+  /* Fix flickering: animate-slide-up already handles initial opacity via fill-mode: both */
+
+  [data-dashboard-motion="true"] .animate-fade-in,
+  [data-dashboard-motion="true"] .animate-slide-up {
+    animation-fill-mode: both;
+  }
+
+  /* When inside a reveal container, pause animations until visible */
+  [data-reveal]:not(.reveal-visible) .animate-fade-in,
+  [data-reveal]:not(.reveal-visible) .animate-slide-up {
+    animation-play-state: paused;
+  }
+
+  [data-reveal].reveal-visible .animate-fade-in,
+  [data-reveal].reveal-visible .animate-slide-up {
+    animation-play-state: running;
+  }
+
+  /* Reveal base (for non-dashboard public pages) */
   .reveal {
-    opacity: 0;
-    transform: translateY(12px) scale(1);
-    transition:
-      opacity var(--dashboard-motion-reveal-duration, 0.6s) ease,
-      transform var(--dashboard-motion-reveal-duration, 0.6s) ease;
     will-change: opacity, transform;
   }
 
@@ -761,35 +776,18 @@
     will-change: auto;
   }
 
-  [data-reveal]:not(.reveal-visible) .animate-fade-in,
-  [data-reveal]:not(.reveal-visible) .animate-slide-up {
-    animation-play-state: paused;
-  }
-
-  [data-reveal].reveal-visible .animate-fade-in,
-  [data-reveal].reveal-visible .animate-slide-up {
-    animation-play-state: running;
-  }
-
-  [data-dashboard-motion="true"] .animate-fade-in,
-  [data-dashboard-motion="true"] .animate-slide-up {
-    animation-fill-mode: both;
-  }
-
-  [data-dashboard-motion="true"] [data-reveal]:not(.reveal-visible) .animate-fade-in {
-    opacity: 0;
-  }
-
-  [data-dashboard-motion="true"] [data-reveal]:not(.reveal-visible) .animate-slide-up {
-    opacity: 0;
-    transform: translateY(4px);
+  @media (prefers-reduced-motion: no-preference) {
+    .reveal {
+      transition:
+        opacity var(--dashboard-motion-reveal-duration, 420ms) ease-out,
+        transform var(--dashboard-motion-reveal-duration, 420ms) ease-out;
+    }
   }
 
   @media (prefers-reduced-motion: reduce) {
     .reveal,
     .reveal-hidden,
     .reveal-visible {
-      animation: none !important;
       transition: none !important;
       opacity: 1 !important;
       transform: none !important;
@@ -802,18 +800,6 @@
       opacity: 1 !important;
       transform: none !important;
     }
-  }
-
-  .reveal-delay-1 {
-    transition-delay: 80ms;
-  }
-
-  .reveal-delay-2 {
-    transition-delay: 160ms;
-  }
-
-  .reveal-delay-3 {
-    transition-delay: 240ms;
   }
 
   .lift-hover {

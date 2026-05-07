@@ -1153,14 +1153,14 @@ const DashboardPagesContent = ({ currentUser }: DashboardPagesContentProps) => {
                 Gerenciar páginas
               </h1>
               <p
-                className={`mt-2 text-sm ${dashboardPagesMetaTextClassName} animate-slide-up opacity-0`}
+                className={`mt-2 text-sm ${dashboardPagesMetaTextClassName} animate-slide-up`}
                 style={dashboardAnimationDelay(dashboardMotionDelays.headerDescriptionMs)}
               >
                 Edite textos e previews de compartilhamento das páginas públicas.
               </p>
             </div>
             <div
-              className="w-full animate-slide-up opacity-0 sm:w-auto"
+              className="w-full animate-slide-up sm:w-auto"
               style={dashboardAnimationDelay(dashboardMotionDelays.headerActionsMs)}
               data-testid="dashboard-pages-autosave-reveal"
             >
@@ -1196,7 +1196,7 @@ const DashboardPagesContent = ({ currentUser }: DashboardPagesContentProps) => {
             value={activeTab}
             onValueChange={setDashboardPagesTab}
             activationMode="manual"
-            className="mt-8 animate-slide-up opacity-0"
+            className="mt-8 animate-slide-up"
             style={dashboardAnimationDelay(dashboardMotionDelays.sectionLeadMs)}
           >
             <TabsList className="no-scrollbar flex w-full flex-nowrap justify-start overflow-x-auto overscroll-x-contain md:grid md:grid-cols-6 md:overflow-visible">

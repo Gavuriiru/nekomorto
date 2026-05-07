@@ -304,7 +304,7 @@ const DashboardComments = () => {
           badge="Comentários"
           title="Comentários pendentes"
           description="Aprove ou exclua comentários enviados pelos visitantes."
-          badgeProps={{ "data-testid": "dashboard-comments-header-badge" }}
+          badgeProps={{ wrapperClassName: "data-testid-dashboard-comments-header-badge" }}
           actions={
             <div
               className="flex flex-wrap items-center justify-end gap-2"
@@ -449,7 +449,7 @@ const DashboardComments = () => {
                 key={comment.id}
                 lift={false}
                 data-testid={`pending-comment-card-${comment.id}`}
-                className={`${dashboardPageLayoutTokens.listCard} ${dashboardInteractiveStackedSurfaceClassName} ${dashboardStrongSurfaceHoverClassName} border-border bg-card overflow-hidden animate-slide-up opacity-0`}
+                className={`${dashboardPageLayoutTokens.listCard} ${dashboardInteractiveStackedSurfaceClassName} ${dashboardStrongSurfaceHoverClassName} border-border bg-card overflow-hidden animate-slide-up`}
                 style={dashboardAnimationDelay(dashboardClampedStaggerMs(index))}
               >
                 <CardContent className="p-0">

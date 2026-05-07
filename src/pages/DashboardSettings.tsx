@@ -299,14 +299,14 @@ const DashboardSettingsContent = () => {
                 Painel de ajustes
               </h1>
               <p
-                className="mt-2 text-sm text-foreground/70 animate-slide-up opacity-0"
+                className="mt-2 text-sm text-foreground/70 animate-slide-up"
                 style={dashboardAnimationDelay(dashboardMotionDelays.headerDescriptionMs)}
               >
                 Atualize identidade, traduções e links globais do site.
               </p>
             </div>
             <div
-              className="w-full animate-slide-up opacity-0 sm:w-auto"
+              className="w-full animate-slide-up sm:w-auto"
               style={dashboardAnimationDelay(dashboardMotionDelays.headerActionsMs)}
               data-testid="dashboard-settings-autosave-reveal"
             >
@@ -331,7 +331,7 @@ const DashboardSettingsContent = () => {
             value={resource.activeTab}
             onValueChange={resource.setActiveTab}
             activationMode="manual"
-            className="mt-8 animate-slide-up opacity-0"
+            className="mt-8 animate-slide-up"
             style={dashboardAnimationDelay(dashboardMotionDelays.sectionLeadMs)}
           >
             <TabsList className="no-scrollbar flex w-full flex-nowrap justify-start overflow-x-auto overscroll-x-contain md:grid md:grid-cols-8 md:overflow-visible">
