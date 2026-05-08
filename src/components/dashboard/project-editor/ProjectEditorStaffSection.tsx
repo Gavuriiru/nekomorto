@@ -1,5 +1,7 @@
-import { Combobox, Input } from "@/components/dashboard/dashboard-form-controls";
+import { X } from "lucide-react";
+import { type Dispatch, memo, type SetStateAction } from "react";
 import DashboardActionButton from "@/components/dashboard/DashboardActionButton";
+import { Combobox, Input } from "@/components/dashboard/dashboard-form-controls";
 import ProjectMemberCombobox from "@/components/dashboard/ProjectMemberCombobox";
 import ReorderControls from "@/components/ReorderControls";
 import { AccordionContent, AccordionItem, AccordionTrigger } from "@/components/ui/accordion";
@@ -7,7 +9,6 @@ import { Badge } from "@/components/ui/badge";
 import { badgeVariants } from "@/components/ui/badge-variants";
 import { translateAnilistRole } from "@/lib/project-taxonomy";
 import { cn } from "@/lib/utils";
-import { type Dispatch, memo, type SetStateAction } from "react";
 
 import type { ProjectForm, ProjectStaff } from "./dashboard-projects-editor-types";
 import ProjectEditorAccordionHeader from "./ProjectEditorAccordionHeader";
@@ -230,11 +231,11 @@ const ProjectEditorStaffSectionComponent = ({
                         <span>{member}</span>
                         <button
                           type="button"
-                          className="rounded-sm p-0.5 text-muted-foreground transition hover:text-foreground"
+                          className="rounded-full p-0.5 text-muted-foreground transition-colors hover:bg-destructive hover:text-destructive-foreground focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2"
                           onClick={() => removeMember(index, member)}
                           aria-label={`Remover ${member}`}
                         >
-                          x
+                          <X className="h-3 w-3" />
                         </button>
                       </Badge>
                     ) : (
