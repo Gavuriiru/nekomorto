@@ -46,7 +46,7 @@ const PublicPageHero = ({ badge, title, subtitle, badges = [], children }: Publi
           </h1>
           {subtitle ? (
             <p
-              className="text-sm text-muted-foreground md:text-base animate-slide-up"
+              className="whitespace-pre-wrap text-sm text-muted-foreground md:text-base animate-slide-up"
               style={subtitleAnimationDelay}
             >
               {subtitle}

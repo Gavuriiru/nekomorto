@@ -188,7 +188,7 @@ const Recruitment = () => {
                           {role.title}
                         </h2>
                       </div>
-                      <p className="interactive-content-transition text-sm text-muted-foreground group-hover:text-foreground/80">
+                      <p className="whitespace-pre-wrap interactive-content-transition text-sm text-muted-foreground group-hover:text-foreground/80">
                         {role.description}
                       </p>
                     </CardContent>
@@ -211,7 +211,7 @@ const Recruitment = () => {
               <CardContent className="flex flex-col items-stretch justify-between gap-4 p-6 md:flex-row md:items-center">
                 <div className="space-y-1">
                   <h2 className="text-lg font-semibold text-foreground">{recruitment.ctaTitle}</h2>
-                  <p className="text-sm text-muted-foreground">{recruitment.ctaSubtitle}</p>
+                  <p className="whitespace-pre-wrap text-sm text-muted-foreground">{recruitment.ctaSubtitle}</p>
                 </div>
                 {recruitment.ctaButtonLabel ? (
                   <Button asChild className="w-full md:w-auto">

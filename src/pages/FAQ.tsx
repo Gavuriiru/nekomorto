@@ -159,11 +159,11 @@ const FAQ = () => {
                         <Icon className="h-4 w-4 text-primary/80 transition-colors duration-300 group-hover:text-primary" />
                         {card.title}
                       </div>
-                      <p className="text-sm text-muted-foreground transition-colors duration-300 group-hover:text-foreground/80">
+                      <p className="whitespace-pre-wrap text-sm text-muted-foreground transition-colors duration-300 group-hover:text-foreground/80">
                         {card.text}
                       </p>
                       <Separator className="bg-border/60" />
-                      <p className="text-sm text-muted-foreground transition-colors duration-300 group-hover:text-foreground/80">
+                      <p className="whitespace-pre-wrap text-sm text-muted-foreground transition-colors duration-300 group-hover:text-foreground/80">
                         {card.note}
                       </p>
                     </CardContent>
@@ -201,7 +201,7 @@ const FAQ = () => {
                             <p className="text-sm font-semibold text-foreground transition-colors duration-300 group-hover/item:text-primary">
                               {item.question}
                             </p>
-                            <p className="mt-2 text-sm text-muted-foreground transition-colors duration-300 group-hover/item:text-foreground/80">
+                            <p className="mt-2 whitespace-pre-wrap text-sm text-muted-foreground transition-colors duration-300 group-hover/item:text-foreground/80">
                               {item.answer}
                             </p>
                           </div>

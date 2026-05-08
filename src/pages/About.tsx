@@ -212,7 +212,7 @@ const About = () => {
                           <HighlightIcon className={publicPageLayoutTokens.sectionLabelIcon} />
                           {item.label}
                         </div>
-                        <p className="mt-2 text-sm text-muted-foreground transition-colors duration-300 group-hover:text-foreground/80">
+                        <p className="mt-2 whitespace-pre-wrap text-sm text-muted-foreground transition-colors duration-300 group-hover:text-foreground/80">
                           {item.text}
                         </p>
                       </div>
@@ -241,7 +241,7 @@ const About = () => {
                     {about.manifestoParagraphs.map((paragraph) => (
                       <p
                         key={paragraph}
-                        className="text-sm text-muted-foreground transition-colors duration-300 group-hover:text-foreground/80 md:text-base"
+                        className="whitespace-pre-wrap text-sm text-muted-foreground transition-colors duration-300 group-hover:text-foreground/80 md:text-base"
                       >
                         {paragraph}
                       </p>
@@ -273,7 +273,7 @@ const About = () => {
                         <Icon className={publicPageLayoutTokens.sectionLabelIcon} />
                         {pillar.title}
                       </div>
-                      <p className="text-sm text-muted-foreground transition-colors duration-300 group-hover:text-foreground/80">
+                      <p className="whitespace-pre-wrap text-sm text-muted-foreground transition-colors duration-300 group-hover:text-foreground/80">
                         {pillar.description}
                       </p>
                     </CardContent>
@@ -304,7 +304,7 @@ const About = () => {
                         <Icon className={publicPageLayoutTokens.sectionLabelIcon} />
                         {value.title}
                       </div>
-                      <p className="text-sm text-muted-foreground transition-colors duration-300 group-hover:text-foreground/80">
+                      <p className="whitespace-pre-wrap text-sm text-muted-foreground transition-colors duration-300 group-hover:text-foreground/80">
                         {value.description}
                       </p>
                     </CardContent>

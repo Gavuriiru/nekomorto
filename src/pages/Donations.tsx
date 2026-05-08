@@ -226,7 +226,7 @@ const CryptoDonationPanel = ({
             <div className="text-[11px] font-medium uppercase tracking-[0.18em] text-muted-foreground">
               Observações
             </div>
-            <p className="text-sm leading-relaxed text-muted-foreground">{service.note}</p>
+            <p className="whitespace-pre-wrap text-sm leading-relaxed text-muted-foreground">{service.note}</p>
           </div>
         ) : null}
       </div>
@@ -437,7 +437,7 @@ const Donations = () => {
                             <Icon className="h-4 w-4 text-primary/80 transition-colors duration-300 group-hover:text-primary" />
                             {item.title}
                           </div>
-                          <p className="text-sm text-muted-foreground transition-colors duration-300 group-hover:text-foreground/80">
+                          <p className="whitespace-pre-wrap text-sm text-muted-foreground transition-colors duration-300 group-hover:text-foreground/80">
                             {item.description}
                           </p>
                         </CardContent>
@@ -508,7 +508,7 @@ const Donations = () => {
                     </div>
                     {monthlyGoal.note ? (
                       <div
-                        className={`rounded-2xl border px-4 py-3 text-sm ${
+                        className={`whitespace-pre-wrap rounded-2xl border px-4 py-3 text-sm ${
                           monthlyGoal.isComplete
                             ? "border-primary/15 bg-background/80 text-foreground/80"
                             : "border-border/60 bg-background/60 text-muted-foreground"
@@ -559,11 +559,11 @@ const Donations = () => {
                           })()}
                           {donations.reasonTitle}
                         </div>
-                        <p className="text-sm text-muted-foreground md:text-base">
+                        <p className="whitespace-pre-wrap text-sm text-muted-foreground md:text-base">
                           {donations.reasonText}
                         </p>
                         {donations.reasonNote ? (
-                          <div className="rounded-2xl border border-border/60 bg-background/60 p-4 text-sm text-muted-foreground">
+                          <div className="whitespace-pre-wrap rounded-2xl border border-border/60 bg-background/60 p-4 text-sm text-muted-foreground">
                             {donations.reasonNote}
                           </div>
                         ) : null}
