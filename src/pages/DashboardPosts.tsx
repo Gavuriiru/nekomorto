@@ -1005,21 +1005,28 @@ const DashboardPosts = () => {
       return mapped.map((w) => w.post);
     }
 
+    if (sortMode === "tags") {
+      // Precompute tag strings to avoid O(N log N) array spreading and string joining
+      const mapped = filteredPosts.map((post) => {
+        const tags = [
+          ...(post.projectId ? projectMap.get(post.projectId)?.tags || [] : []),
+          ...(Array.isArray(post.tags) ? post.tags : []),
+        ];
+        return {
+          post,
+          tagsString: tags.join(","),
+        };
+      });
+
+      mapped.sort((a, b) => a.tagsString.localeCompare(b.tagsString, "pt-BR"));
+
+      return mapped.map((w) => w.post);
+    }
+
     const next = [...filteredPosts];
     next.sort((a, b) => {
       if (sortMode === "alpha") {
         return a.title.localeCompare(b.title, "pt-BR");
-      }
-      if (sortMode === "tags") {
-        const tagsA = [
-          ...(a.projectId ? projectMap.get(a.projectId)?.tags || [] : []),
-          ...(Array.isArray(a.tags) ? a.tags : []),
-        ];
-        const tagsB = [
-          ...(b.projectId ? projectMap.get(b.projectId)?.tags || [] : []),
-          ...(Array.isArray(b.tags) ? b.tags : []),
-        ];
-        return tagsA.join(",").localeCompare(tagsB.join(","), "pt-BR");
       }
       if (sortMode === "status") {
         return a.status.localeCompare(b.status, "pt-BR");
