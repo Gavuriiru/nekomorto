@@ -60,7 +60,7 @@ const publicBootstrapCache = {
 
 const listeners = new Set<() => void>();
 
-const isCriticalHomePayload = (value: PublicBootstrapPayload | null | undefined) =>
+export const isCriticalHomePayload = (value: PublicBootstrapPayload | null | undefined) =>
   value?.payloadMode === "critical-home";
 
 const toError = (value: unknown) =>

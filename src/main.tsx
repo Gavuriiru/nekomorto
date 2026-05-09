@@ -1,4 +1,7 @@
-import { primePublicBootstrapCache } from "@/hooks/use-public-bootstrap";
+import {
+  isCriticalHomePayload,
+  primePublicBootstrapCache,
+} from "@/hooks/use-public-bootstrap";
 import { getApiBase } from "@/lib/api-base";
 import { apiFetch } from "@/lib/api-client";
 import { armHomeHeroShellCleanup } from "@/lib/home-hero";
@@ -107,13 +110,15 @@ const bootstrap = async () => {
     apiBase,
   });
 
-  if (!(initialBootstrap || shouldSkipPublicBootstrapFetch)) {
+  const needsFullFetch =
+    !initialBootstrap || isCriticalHomePayload(initialBootstrap) || shouldSkipPublicBootstrapFetch;
+  if (needsFullFetch) {
     void (async () => {
       try {
         const fetchTimeoutMs = 4000;
 
         const bootstrapPromise = globalWindow.__BOOTSTRAP_PUBLIC_PROMISE__;
-        if (bootstrapPromise) {
+        if (bootstrapPromise && !isCriticalHomePayload(initialBootstrap)) {
           const resolved = asPublicBootstrapPayload(
             await Promise.race([
               bootstrapPromise,

@@ -1,26 +1,64 @@
 import CompactPagination from "@/components/ui/compact-pagination";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
 import { usePublicBootstrap } from "@/hooks/use-public-bootstrap";
 import { formatDate } from "@/lib/date";
 import { cn } from "@/lib/utils";
 import { CalendarDays, User } from "lucide-react";
-import { useCallback, useMemo, useRef, useState } from "react";
+import { lazy, Suspense, useCallback, useMemo, useRef, useState } from "react";
 import { Link } from "react-router-dom";
 import DiscordInviteCard from "./DiscordInviteCard";
 import LatestEpisodeCard from "./LatestEpisodeCard";
-import TopProjectsSection from "./TopProjectsSection";
 import UploadPicture from "./UploadPicture";
 import WorkStatusCard from "./WorkStatusCard";
 
+const TopProjectsSection = lazy(() => import("./TopProjectsSection"));
+
 const HOME_POSTS_PAGE_SIZE = 10;
+const TOP_PROJECTS_THUMB_ASPECT_RATIO = "9 / 14";
+
+const TopProjectsSkeleton = () => (
+  <Card lift={false} className="bg-card rounded-lg border border-border/60 shadow-none">
+    <CardHeader className="px-4 pb-3 pt-4">
+      <div className="flex items-center justify-between gap-3">
+        <CardTitle className="text-lg font-semibold text-foreground">
+          Projetos Populares
+        </CardTitle>
+        <Skeleton className="h-8 w-[108px] rounded" />
+      </div>
+    </CardHeader>
+    <CardContent className="space-y-3 px-4 pb-4 pt-0">
+      {Array.from({ length: 4 }).map((_, index) => (
+        <div
+          key={`top-projects-skeleton-${index}`}
+          className="rounded-2xl bg-background/40 p-4"
+        >
+          <div className="flex gap-4">
+            <Skeleton
+              className="h-32 shrink-0 rounded-xl"
+              style={{ aspectRatio: TOP_PROJECTS_THUMB_ASPECT_RATIO }}
+            />
+            <div className="min-w-0 flex-1 space-y-2">
+              <Skeleton className="h-3 w-10" />
+              <Skeleton className="h-4 w-3/4" />
+              <Skeleton className="h-3 w-2/3" />
+              <Skeleton className="h-3 w-full" />
+              <Skeleton className="h-3 w-5/6" />
+            </div>
+          </div>
+        </div>
+      ))}
+    </CardContent>
+  </Card>
+);
 
 const ReleasesSection = () => {
   const [currentPage, setCurrentPage] = useState(1);
   const postsSectionRef = useRef<HTMLDivElement | null>(null);
-  const { data: bootstrapData, isLoading } = usePublicBootstrap();
+  const { data: bootstrapData, isLoading, isHydratingFullPayload } = usePublicBootstrap();
   const posts = bootstrapData?.posts || [];
   const mediaVariants = bootstrapData?.mediaVariants || {};
-  const isLoadingPosts = isLoading && !bootstrapData;
+  const showPostsSkeleton = (isLoading && !bootstrapData) || isHydratingFullPayload;
   const totalPages = Math.ceil(posts.length / HOME_POSTS_PAGE_SIZE) || 1;
   const pagedReleases = useMemo(() => {
     const startIndex = (currentPage - 1) * HOME_POSTS_PAGE_SIZE;
@@ -60,7 +98,7 @@ const ReleasesSection = () => {
         </h2>
         <div className="grid grid-cols-1 gap-8 lg:grid-cols-3">
           <div ref={postsSectionRef} className="lg:col-span-2">
-            {isLoadingPosts ? (
+            {showPostsSkeleton ? (
               <div className="grid grid-cols-1 gap-8 sm:grid-cols-2">
                 {Array.from({ length: 4 }).map((_, index) => (
                   <div
@@ -159,7 +197,9 @@ const ReleasesSection = () => {
           <div className="flex h-full flex-col gap-6">
             <LatestEpisodeCard />
             <WorkStatusCard />
-            <TopProjectsSection />
+            <Suspense fallback={<TopProjectsSkeleton />}>
+              <TopProjectsSection />
+            </Suspense>
             <DiscordInviteCard />
           </div>
         </div>
