@@ -653,6 +653,18 @@
     will-change: opacity, transform;
   }
 
+  /* Skip all entry animations on browser back/forward navigation */
+  html.skip-route-motion .animate-slide-up,
+  html.skip-route-motion .animate-fade-in {
+    animation-duration: 0ms !important;
+    animation-delay: 0ms !important;
+  }
+
+  html.skip-route-motion .reveal-hidden {
+    opacity: 1 !important;
+    transform: none !important;
+  }
+
   .reveal-hidden {
     opacity: 0;
     transform: translateY(12px);

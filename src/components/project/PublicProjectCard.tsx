@@ -2,6 +2,8 @@ import { Eye, Hash } from "lucide-react";
 import { memo, type CSSProperties, type MouseEvent, type Ref } from "react";
 import { Link } from "react-router-dom";
 
+import { preloadPublicRoute } from "@/routes/public-preload";
+
 import PublicInteractiveCardShell from "@/components/PublicInteractiveCardShell";
 import UploadPicture from "@/components/UploadPicture";
 import { publicStrongSurfaceHoverClassName } from "@/components/public-page-tokens";
@@ -336,6 +338,7 @@ const PublicProjectCard = ({
       >
         <Link
           to={model.href}
+          onMouseEnter={() => preloadPublicRoute(model.href)}
           className={cn(
             "projects-public-card group relative flex h-50 w-full items-stretch overflow-hidden rounded-2xl border border-border/60 bg-gradient-card focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-primary/45 md:h-60",
             publicStrongSurfaceHoverClassName,
@@ -427,6 +430,7 @@ const PublicProjectCard = ({
       >
         <Link
           to={model.href}
+          onMouseEnter={() => preloadPublicRoute(model.href)}
           className={cn(
             "group flex h-36 items-stretch overflow-hidden rounded-xl border border-border/60 bg-card/60 transition hover:border-primary/60 hover:bg-card/70 focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-primary/45",
             linkClassName,
@@ -500,6 +504,7 @@ const PublicProjectCard = ({
         <Link
           data-testid={testIdBase}
           to={model.href}
+          onMouseEnter={() => preloadPublicRoute(model.href)}
           className={cn(
             "top-projects-link group relative z-10 rounded-2xl focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-primary/45",
             publicStrongSurfaceHoverClassName,
@@ -595,6 +600,7 @@ const PublicProjectCard = ({
       >
         <Link
           to={model.href}
+          onMouseEnter={() => preloadPublicRoute(model.href)}
           className={cn(
             "group flex overflow-hidden rounded-xl border border-border/50 bg-background/60 focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-primary/45 hover:border-primary/60 hover:bg-background/80",
             linkClassName,
@@ -653,6 +659,7 @@ const PublicProjectCard = ({
     >
       <Link
         to={model.href}
+        onMouseEnter={() => preloadPublicRoute(model.href)}
         className={cn(
           "project-embed-card group block overflow-hidden rounded-2xl border border-border/60 bg-card focus-visible:border-primary/60 focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-primary/45 hover:border-primary/60 hover:bg-card/90",
           linkClassName,

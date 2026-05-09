@@ -29,6 +29,7 @@ import { Menu } from "lucide-react";
 import type { ReactNode } from "react";
 import { lazy, Suspense, useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { Link, useLocation } from "react-router-dom";
+import { preloadPublicRoute } from "@/routes/public-preload";
 
 type HeaderProps = {
   variant?: "fixed" | "static";
@@ -543,7 +544,12 @@ const Header = ({
               }`;
               if (isInternal) {
                 return (
-                  <Link key={`${item.label}-${item.href}`} to={item.href} className={className}>
+                  <Link
+                    key={`${item.label}-${item.href}`}
+                    to={item.href}
+                    className={className}
+                    onMouseEnter={() => preloadPublicRoute(item.href)}
+                  >
                     {item.label}
                   </Link>
                 );

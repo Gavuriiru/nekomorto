@@ -1,6 +1,8 @@
 import { useEffect } from "react";
 import { useLocation } from "react-router-dom";
 
+import { clearSkipRouteMotion, consumePopstate } from "@/lib/route-motion";
+
 const DEFAULT_SELECTOR = "[data-reveal]";
 
 const shouldRunRevealForPath = (pathname: string) => {
@@ -14,6 +16,14 @@ const shouldRunRevealForPath = (pathname: string) => {
   return true;
 };
 
+const instantlyRevealAll = (selector: string) => {
+  const elements = document.querySelectorAll<HTMLElement>(selector);
+  elements.forEach((el) => {
+    el.classList.add("reveal-visible");
+    el.classList.remove("reveal-hidden");
+  });
+};
+
 export const useReveal = (selector = DEFAULT_SELECTOR) => {
   const location = useLocation();
   const shouldRunReveal = shouldRunRevealForPath(location.pathname);
@@ -22,6 +32,14 @@ export const useReveal = (selector = DEFAULT_SELECTOR) => {
     if (!shouldRunReveal) {
       return;
     }
+
+    const wasPopstate = consumePopstate();
+    if (wasPopstate) {
+      instantlyRevealAll(selector);
+      return;
+    }
+
+    clearSkipRouteMotion();
 
     const prefersReducedMotion = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
     const tracked = new Set<HTMLElement>();

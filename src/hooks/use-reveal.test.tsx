@@ -1,4 +1,5 @@
 import { useReveal } from "@/hooks/use-reveal";
+import { initRouteMotion } from "@/lib/route-motion";
 import { act, render, screen, waitFor } from "@testing-library/react";
 import { MemoryRouter, Route, Routes } from "react-router-dom";
 import { afterEach, describe, expect, it, vi } from "vitest";
@@ -228,5 +229,48 @@ describe("useReveal", () => {
     expect(observer.observe).not.toHaveBeenCalled();
     expect(target).not.toHaveClass("reveal-hidden");
     expect(target).not.toHaveClass("reveal-visible");
+  });
+
+  it("pula animacoes e marca elementos como visiveis imediatamente em navegacao popstate", async () => {
+    setReducedMotion(false);
+    const observer = installIntersectionObserver();
+    const detach = initRouteMotion();
+
+    window.dispatchEvent(new PopStateEvent("popstate"));
+
+    render(
+      <MemoryRouter>
+        <RevealHarness />
+      </MemoryRouter>,
+    );
+
+    const target = screen.getByTestId("reveal-target");
+
+    await waitFor(() => {
+      expect(target).toHaveClass("reveal-visible");
+      expect(target).not.toHaveClass("reveal-hidden");
+    });
+
+    expect(observer.observe).not.toHaveBeenCalled();
+
+    detach();
+    document.documentElement.classList.remove("skip-route-motion");
+  });
+
+  it("remove classe skip-route-motion apos navegacao normal", () => {
+    setReducedMotion(false);
+    installIntersectionObserver();
+
+    document.documentElement.classList.add("skip-route-motion");
+
+    render(
+      <MemoryRouter>
+        <RevealHarness />
+      </MemoryRouter>,
+    );
+
+    expect(document.documentElement.classList.contains("skip-route-motion")).toBe(false);
+
+    document.documentElement.classList.remove("skip-route-motion");
   });
 });

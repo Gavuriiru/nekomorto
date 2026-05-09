@@ -5,6 +5,7 @@ import { SiteSettingsProvider } from "@/hooks/site-settings-provider";
 import { ThemeModeProvider } from "@/hooks/theme-mode-provider";
 import { useReveal } from "@/hooks/use-reveal";
 import { scheduleOnBrowserLoadIdle } from "@/lib/browser-idle";
+import { initRouteMotion } from "@/lib/route-motion";
 import { lazy, Suspense, useEffect, useLayoutEffect, useState } from "react";
 import { BrowserRouter, Route, Routes, useLocation } from "react-router-dom";
 
@@ -19,6 +20,12 @@ const RouteLoadingFallback = () => <AppLoadingFallback label="Carregando..." />;
 
 export const ScrollToTop = () => {
   const location = useLocation();
+
+  useLayoutEffect(() => {
+    if ("scrollRestoration" in window.history) {
+      window.history.scrollRestoration = "manual";
+    }
+  }, []);
 
   useLayoutEffect(() => {
     const locationState =
@@ -70,6 +77,25 @@ export const ScrollToTop = () => {
     return () => window.cancelAnimationFrame(frameId);
   }, [location.hash, location.pathname, location.search, location.state]);
 
+  useEffect(() => {
+    const locationState =
+      typeof location.state === "object" && location.state !== null
+        ? (location.state as { preserveScroll?: boolean })
+        : null;
+    const shouldPreserveScroll = locationState?.preserveScroll === true;
+    if (shouldPreserveScroll || location.hash) {
+      return;
+    }
+    let raf = window.requestAnimationFrame(() => {
+      raf = window.requestAnimationFrame(() => {
+        if (window.scrollY > 0) {
+          window.scrollTo({ top: 0, left: 0, behavior: "auto" });
+        }
+      });
+    });
+    return () => window.cancelAnimationFrame(raf);
+  }, [location.hash, location.pathname, location.search, location.state]);
+
   return null;
 };
 
@@ -116,7 +142,12 @@ const App = ({
 }: {
   initialSettings?: Parameters<typeof SiteSettingsProvider>[0]["initialSettings"];
   initiallyLoaded?: boolean;
-}) => (
+}) => {
+  useEffect(() => {
+    return initRouteMotion();
+  }, []);
+
+  return (
   <SiteSettingsProvider initialSettings={initialSettings} initiallyLoaded={initiallyLoaded}>
     <ThemeModeProvider>
       <AccessibilityAnnouncerProvider>
@@ -130,6 +161,7 @@ const App = ({
       </AccessibilityAnnouncerProvider>
     </ThemeModeProvider>
   </SiteSettingsProvider>
-);
+  );
+};
 
 export default App;

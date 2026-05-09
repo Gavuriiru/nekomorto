@@ -22,8 +22,9 @@ import type {
 import { ChevronLeft, ChevronRight, Globe, Play } from "lucide-react";
 import * as React from "react";
 import { Link } from "react-router-dom";
-import "./HeroSection.css";
 
+import { preloadPublicRoute } from "@/routes/public-preload";
+import "./HeroSection.css";
 type HeroSlide = PublicBootstrapHomeHeroSlide & {
   optimizedImageSet?: {
     avif: string;
@@ -616,6 +617,7 @@ const HeroSlideFrame = ({
               <Button asChild className="gap-2">
                 <Link
                   to={`/projeto/${slide.projectId}`}
+                  onMouseEnter={() => preloadPublicRoute(`/projeto/${slide.projectId}`)}
                   aria-label={`Acessar página de ${slide.title}`}
                 >
                   <Globe className="h-4 w-4" />

@@ -7,6 +7,7 @@ import { cn } from "@/lib/utils";
 import { CalendarDays, User } from "lucide-react";
 import { lazy, Suspense, useCallback, useMemo, useRef, useState } from "react";
 import { Link } from "react-router-dom";
+import { preloadPublicRoute } from "@/routes/public-preload";
 import DiscordInviteCard from "./DiscordInviteCard";
 import LatestEpisodeCard from "./LatestEpisodeCard";
 import UploadPicture from "./UploadPicture";
@@ -129,6 +130,7 @@ const ReleasesSection = () => {
                     >
                       <Link
                         to={`/postagem/${release.slug}`}
+                        onMouseEnter={() => preloadPublicRoute(`/postagem/${release.slug}`)}
                         className={cn(
                           "home-post-card-link group/home-post-card relative flex h-full w-full flex-col overflow-hidden rounded-2xl border border-border/60 bg-card hover:border-primary/60 focus-visible:border-primary/60 focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-primary/45",
                           isOrphan && "sm:w-[calc(50%-1rem)]",
