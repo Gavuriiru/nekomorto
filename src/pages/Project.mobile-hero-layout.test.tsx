@@ -104,7 +104,7 @@ const expectContextualSourceButtonTokens = (element: HTMLElement) => {
     expect.arrayContaining([
       "rounded-full",
       "bg-card/70",
-      "hover:bg-[var(--download-source-hover-bg)]",
+      "hover:bg-(--download-source-hover-bg)",
     ]),
   );
   expect(tokens).not.toContain("hover:bg-primary/10");
@@ -603,10 +603,10 @@ describe("Project mobile hero layout", () => {
     expect(relationLink).not.toBeNull();
     expect(relationContent).not.toBeNull();
     expect(classTokens(relationLink as HTMLElement)).toContain("overflow-hidden");
-    expect(classTokens(relationCover as HTMLElement)).toContain("w-[4.5rem]");
+    expect(classTokens(relationCover as HTMLElement)).toContain("w-18");
     expect(classTokens(relationCover as HTMLElement)).toContain("sm:w-20");
     expect(classTokens(relationCover as HTMLElement)).not.toContain("rounded-lg");
-    expect(classTokens(relationContent as HTMLElement)).toContain("p-[1.125rem]");
+    expect(classTokens(relationContent as HTMLElement)).toContain("p-4.5");
     expect(classTokens(relationCover as HTMLElement)).not.toContain("aspect-2/3");
     expect(classTokens(relationImage as HTMLElement)).not.toContain("scale-110");
     expect(relationCover?.style.aspectRatio).toBe("9 / 14");
@@ -796,7 +796,6 @@ describe("Project mobile hero layout", () => {
     expect(readCard).not.toBeNull();
     expect(classTokens(readCard as HTMLElement)).toContain("w-full");
     expect(classTokens(readCard as HTMLElement)).toContain("group/chapter-card");
-    expect(classTokens(readCard as HTMLElement)).toContain("!transform-none");
     expect(classTokens(readCard as HTMLElement)).not.toContain("hover:-translate-y-1");
     expect(classTokens(readCard as HTMLElement)).not.toContain("hover:!translate-y-0");
     expect(classTokens(readCard as HTMLElement)).not.toContain("hover:border-primary/60");
@@ -1090,7 +1089,6 @@ describe("Project mobile hero layout", () => {
     expect(episodeCard).not.toBeNull();
     expect(classTokens(episodeCard as HTMLElement)).toContain("w-full");
     expect(classTokens(episodeCard as HTMLElement)).toContain("group/chapter-card");
-    expect(classTokens(episodeCard as HTMLElement)).toContain("!transform-none");
     expect(classTokens(episodeCard as HTMLElement)).not.toContain("hover:-translate-y-1");
     expect(classTokens(episodeCard as HTMLElement)).not.toContain("hover:!translate-y-0");
     expect(classTokens(episodeCard as HTMLElement)).not.toContain("hover:border-primary/60");

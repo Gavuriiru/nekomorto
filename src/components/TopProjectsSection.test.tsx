@@ -228,8 +228,8 @@ describe("TopProjectsSection", () => {
     const topProjectsListbox = await screen.findByRole("listbox");
     const topProjectsPopover = topProjectsListbox.parentElement as HTMLElement;
     expect(topProjectsPopover).toHaveClass(
-      "w-[var(--radix-popover-trigger-width)]",
-      "min-w-[var(--radix-popover-trigger-width)]",
+      "w-(--radix-popover-trigger-width)",
+      "min-w-(--radix-popover-trigger-width)",
       "max-w-[calc(100vw-2rem)]",
       "p-2",
     );
@@ -280,7 +280,7 @@ describe("TopProjectsSection", () => {
     expect(firstItem.firstElementChild).toBe(firstCoverShell);
     expect(classTokens(firstCoverShell as HTMLElement)).toContain("h-full");
     expect(classTokens(firstCoverShell as HTMLElement)).not.toContain("rounded-xl");
-    expect(classTokens(firstCoverShell as HTMLElement)).not.toContain("w-[4.5rem]");
+    expect(classTokens(firstCoverShell as HTMLElement)).not.toContain("w-18");
     expect(classTokens(firstCoverShell as HTMLElement)).not.toContain("sm:w-20");
     expect(firstCoverShell?.style.width).toBe("calc(var(--top-card-h) * 9 / 14)");
     expect(firstCoverShell?.style.aspectRatio).toBe("9 / 14");

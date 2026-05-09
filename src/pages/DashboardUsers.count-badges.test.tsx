@@ -165,14 +165,12 @@ describe("DashboardUsers count badges", () => {
 
     expect(activeReveal).not.toBeNull();
     expect(classTokens(activeReveal as HTMLElement)).toContain("animate-slide-up");
-    expect(classTokens(activeReveal as HTMLElement)).toContain("opacity-0");
     expect(activeReveal).toHaveStyle({
       animationDelay: `${dashboardMotionDelays.sectionMetaMs}ms`,
     });
     expect(activeBadge).toHaveTextContent("1");
     expect(retiredReveal).not.toBeNull();
     expect(classTokens(retiredReveal as HTMLElement)).toContain("animate-slide-up");
-    expect(classTokens(retiredReveal as HTMLElement)).toContain("opacity-0");
     expect(retiredReveal).toHaveStyle({
       animationDelay: `${dashboardMotionDelays.sectionMetaMs}ms`,
     });

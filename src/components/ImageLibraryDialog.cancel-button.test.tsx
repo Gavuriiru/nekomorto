@@ -88,7 +88,7 @@ describe("ImageLibraryDialog cancel button", () => {
     const clearButton = screen.getByRole("button", { name: /Limpar sele/i });
     const cancelButton = screen.getByRole("button", { name: "Cancelar" });
     const saveButton = screen.getByRole("button", { name: "Salvar" });
-    const footer = cancelButton.closest("div.mt-4") as HTMLElement | null;
+    const footer = cancelButton.closest("div[class*='sm:mt-4']") as HTMLElement | null;
 
     expect(clearButton).toBeInTheDocument();
     expect(cancelButton).toBeInTheDocument();

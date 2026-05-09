@@ -2,7 +2,7 @@ import { render, screen } from "@testing-library/react";
 import { describe, expect, it } from "vitest";
 
 import DashboardEditorBackdrop from "@/components/dashboard/DashboardEditorBackdrop";
-import { Dialog, DialogContent } from "@/components/ui/dialog";
+import { Dialog, DialogContent, DialogTitle } from "@/components/ui/dialog";
 
 const classTokens = (element: HTMLElement) =>
   String(element.className).split(/\s+/).filter(Boolean);
@@ -18,6 +18,7 @@ describe("DashboardEditorBackdrop", () => {
         <Dialog open modal={false}>
           <DashboardEditorBackdrop />
           <DialogContent>
+            <DialogTitle className="sr-only">Editor</DialogTitle>
             <div>Editor aberto</div>
           </DialogContent>
         </Dialog>
@@ -29,7 +30,7 @@ describe("DashboardEditorBackdrop", () => {
 
     expect(backdrop.parentElement).toBe(document.body);
     expect(classTokens(backdrop)).toEqual(
-      expect.arrayContaining(["pointer-events-auto", "fixed", "inset-0", "z-[45]", "bg-black/80"]),
+      expect.arrayContaining(["pointer-events-auto", "fixed", "inset-0", "z-45", "bg-black/80"]),
     );
     expect(classTokens(header)).toContain("z-40");
   });

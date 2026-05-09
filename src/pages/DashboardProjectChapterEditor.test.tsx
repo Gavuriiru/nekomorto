@@ -712,20 +712,20 @@ const openVolumeAccordion = () => {
 const expectStructureGroupSelected = (groupKey: string) => {
   expect(screen.getByTestId(`chapter-structure-group-${groupKey}`)).toHaveClass(
     "border-primary/45",
-    "bg-primary/[0.06]",
+    "bg-primary/6",
   );
   expect(screen.getByTestId(`chapter-structure-group-header-${groupKey}`)).toHaveClass(
-    "bg-primary/[0.04]",
+    "bg-primary/4",
   );
 };
 
 const expectStructureGroupNotSelected = (groupKey: string) => {
   expect(screen.getByTestId(`chapter-structure-group-${groupKey}`)).not.toHaveClass(
     "border-primary/45",
-    "bg-primary/[0.06]",
+    "bg-primary/6",
   );
   expect(screen.getByTestId(`chapter-structure-group-header-${groupKey}`)).not.toHaveClass(
-    "bg-primary/[0.04]",
+    "bg-primary/4",
   );
 };
 
@@ -1151,11 +1151,11 @@ describe("DashboardProjectChapterEditor", () => {
     expect(structureAccordion).toHaveClass("project-editor-accordion", "space-y-2.5", "min-h-0");
     expect(structureSection).toHaveClass(
       "flex",
-      "max-h-[var(--dedicated-editor-sidebar-height,34rem)]",
+      "max-h-(--dedicated-editor-sidebar-height,34rem)",
       "min-h-0",
       "flex-col",
     );
-    expect(structureSection).not.toHaveClass("h-[var(--dedicated-editor-sidebar-height,34rem)]");
+    expect(structureSection).not.toHaveClass("h-(--dedicated-editor-sidebar-height,34rem)");
     expect(structureSection).not.toHaveClass("max-h-[calc(100dvh-9rem)]");
     expect(structureScrollRegion).toHaveClass(
       "no-scrollbar",
@@ -2082,11 +2082,11 @@ describe("DashboardProjectChapterEditor", () => {
     expect(structureAccordion).toHaveClass("project-editor-accordion", "space-y-2.5", "min-h-0");
     expect(structureSection).toHaveClass(
       "flex",
-      "max-h-[var(--dedicated-editor-sidebar-height,34rem)]",
+      "max-h-(--dedicated-editor-sidebar-height,34rem)",
       "min-h-0",
       "flex-col",
     );
-    expect(structureSection).not.toHaveClass("h-[var(--dedicated-editor-sidebar-height,34rem)]");
+    expect(structureSection).not.toHaveClass("h-(--dedicated-editor-sidebar-height,34rem)");
     expect(structureSection).not.toHaveClass("max-h-[calc(100dvh-9rem)]");
     expect(structureScrollRegion).toHaveClass(
       "no-scrollbar",

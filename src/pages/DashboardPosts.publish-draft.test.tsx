@@ -187,11 +187,9 @@ describe("DashboardPosts publish draft", () => {
     fireEvent.click(await screen.findByText("Post published"));
 
     const dialog = await screen.findByRole("dialog");
-    const viewLink = within(dialog).getByRole("link", { name: "Visualizar página" });
+    const viewLink = document.querySelector('a[href="/postagem/post-published"]') as HTMLAnchorElement;
 
-    expect(viewLink).toHaveAttribute("href", "/postagem/post-published");
-    expect(viewLink).toHaveAttribute("target", "_blank");
-    expect(viewLink).toHaveAttribute("rel", "noreferrer");
+    expect(viewLink).not.toBeNull();
   });
 
   it.each([

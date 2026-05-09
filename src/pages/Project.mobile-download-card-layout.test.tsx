@@ -226,7 +226,7 @@ describe("Project mobile download card layout", () => {
     expect(sourceLink).toHaveAttribute("aria-label", "Google Drive");
     expect(classTokens(sourceLink)).toContain("w-9");
     expect(classTokens(sourceLink)).toContain("px-0");
-    expect(classTokens(sourceLink)).toContain("hover:bg-[var(--download-source-hover-bg)]");
+    expect(classTokens(sourceLink)).toContain("hover:bg-(--download-source-hover-bg)");
     expect(classTokens(sourceLink)).not.toContain("hover:bg-primary/10");
     expect(sourceLink.getAttribute("style")).toContain("--download-source-hover-bg: #34A85324");
     expect(classTokens(sourceLink)).toContain("md:w-auto");

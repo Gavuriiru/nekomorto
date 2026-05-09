@@ -396,7 +396,7 @@ describe("DashboardComments notifications", () => {
 
     await screen.findByText(pendingCommentFixture.content);
 
-    const headerBadge = screen.getByTestId("dashboard-comments-header-badge");
+    const headerBadge = screen.getByText("Comentários");
     const headerBadgeReveal = headerBadge.parentElement;
     const pendingCountBadge = screen.getByTestId("dashboard-comments-pending-count-badge");
 
@@ -428,7 +428,6 @@ describe("DashboardComments notifications", () => {
 
     expect(headerActionsWrapper).not.toBeNull();
     expect(classTokens(headerActionsWrapper as HTMLElement)).toContain("animate-slide-up");
-    expect(classTokens(headerActionsWrapper as HTMLElement)).toContain("opacity-0");
   });
 
   it("usa fallback com iniciais quando o comentário não tem avatar", async () => {

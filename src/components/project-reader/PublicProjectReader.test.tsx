@@ -1013,14 +1013,14 @@ describe("PublicProjectReader", () => {
     const image = screen.getByRole("img", { name: /P.gina 1/i });
 
     expect(lane).toHaveClass("no-scrollbar", "overflow-x-auto", "overflow-y-auto");
-    expect(lane.className).toContain("[align-items:safe_center]");
+    expect(lane.className).toContain("items-center-safe");
     expect(lane).not.toHaveClass("items-start", "overscroll-contain");
     expect(lane).not.toHaveClass("overflow-y-hidden");
     expect(strip).toHaveClass("w-full");
-    expect(strip.className).toContain("[align-items:safe_center]");
+    expect(strip.className).toContain("items-center-safe");
     expect(strip).not.toHaveClass("w-max");
     expect(slot).toHaveClass("w-full");
-    expect(slot.className).toContain("[align-items:safe_center]");
+    expect(slot.className).toContain("items-center-safe");
     expect(slot).not.toHaveClass("w-max", "max-w-none", "shrink-0");
     expect(page.parentElement).toHaveClass("w-full");
     expect(page).toHaveClass("w-full", "min-w-0");
@@ -1100,14 +1100,14 @@ describe("PublicProjectReader", () => {
     const image = within(page).getByRole("img", { name: /P.gina 1/i });
 
     expect(lane).toHaveClass("no-scrollbar", "overflow-x-auto", "overflow-y-auto");
-    expect(lane.className).toContain("[align-items:safe_center]");
+    expect(lane.className).toContain("items-center-safe");
     expect(lane).not.toHaveClass("items-start", "overscroll-contain");
     expect(lane).not.toHaveClass("overflow-y-hidden");
     expect(strip).toHaveClass("w-full");
-    expect(strip.className).toContain("[align-items:safe_center]");
+    expect(strip.className).toContain("items-center-safe");
     expect(strip).not.toHaveClass("w-max");
     expect(slot).toHaveClass("w-full");
-    expect(slot.className).toContain("[align-items:safe_center]");
+    expect(slot.className).toContain("items-center-safe");
     expect(slot).not.toHaveClass("w-max", "max-w-none", "shrink-0");
     expect(page.parentElement).toHaveClass("flex-1", "min-w-0");
     expect(page).toHaveClass("w-full", "min-w-0");
@@ -3818,7 +3818,7 @@ describe("PublicProjectReader", () => {
     expect(indicator).toBeInTheDocument();
     expect(indicator).toHaveClass("bg-accent");
     expect(indicator.className).not.toContain("transition-all");
-    expect(label).toHaveClass("bg-accent", "text-accent-foreground", "py-0.5", "opacity-0");
+    expect(label).toHaveClass("bg-accent", "text-accent-foreground", "py-0.5");
     expect(label.className).not.toContain("transition-all");
     expect(label).toHaveClass(progressPosition === "bottom" ? "bottom-2" : "min-h-7");
     await waitFor(() => {

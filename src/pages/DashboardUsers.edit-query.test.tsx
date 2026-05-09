@@ -277,8 +277,8 @@ describe("DashboardUsers edit query", () => {
     expect(classTokens(editorDialog as HTMLElement)).toContain(
       "sm:max-w-[min(1760px,calc(100vw-1rem))]",
     );
-    expect(editorDialog?.style.width).toBe("calc(100vw - 3rem)");
-    expect(editorDialog?.style.maxWidth).toBe("300px");
+    expect(editorDialog?.style.width).toBe("95vw");
+    expect(editorDialog?.style.maxWidth).toBe("500px");
     expect(classTokens(editorFrame as HTMLElement)).toEqual(
       expect.arrayContaining(["w-full", "min-w-0", "overflow-x-clip"]),
     );
@@ -833,10 +833,10 @@ describe("DashboardUsers edit query", () => {
     const socialCountMeta = within(editorStatusBar as HTMLElement).getByText(/redes$/i);
     const rolesCountMeta = within(editorStatusBar as HTMLElement).getByText(/fun..es$/i);
     expect(classTokens(socialCountMeta as HTMLElement)).toEqual(
-      expect.arrayContaining(["truncate", "max-w-[7.5rem]"]),
+      expect.arrayContaining(["truncate", "max-w-30"]),
     );
     expect(classTokens(rolesCountMeta as HTMLElement)).toEqual(
-      expect.arrayContaining(["truncate", "max-w-[9rem]"]),
+      expect.arrayContaining(["truncate", "max-w-36"]),
     );
     const editorIdBadge = within(editorStatusBar as HTMLElement).getByText(/^ID\s/i).parentElement;
     expect(editorIdBadge).not.toBeNull();

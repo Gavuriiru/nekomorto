@@ -207,7 +207,7 @@ describe("DashboardProjectsEditor card layout", () => {
     const meta = card.querySelector('[data-slot="project-card-meta"]');
 
     expect(classTokens(card)).toEqual(
-      expect.arrayContaining(["bg-card", "animate-fade-in", "opacity-0"]),
+      expect.arrayContaining(["bg-card", "animate-fade-in"]),
     );
     expect(classTokens(card)).not.toContain("lift-hover");
     expect(layout).not.toBeNull();
@@ -280,7 +280,7 @@ describe("DashboardProjectsEditor card layout", () => {
     ).toBeInTheDocument();
     expect(synopsis).not.toBeNull();
     expect(classTokens(synopsis)).toEqual(
-      expect.arrayContaining(["min-h-0", "max-h-[7.5rem]", "overflow-hidden", "leading-5"]),
+      expect.arrayContaining(["min-h-0", "max-h-30", "overflow-hidden", "leading-5"]),
     );
     expect(classTokens(synopsis)).not.toContain("clamp-safe-3");
     expect((synopsis as HTMLElement).getAttribute("style") || "").toContain(
@@ -325,7 +325,7 @@ describe("DashboardProjectsEditor card layout", () => {
       within(synopsis as HTMLElement).getByText("Sem sinopse cadastrada."),
     ).toBeInTheDocument();
     expect(classTokens(synopsis)).toEqual(
-      expect.arrayContaining(["max-h-[7.5rem]", "overflow-hidden", "leading-5"]),
+      expect.arrayContaining(["max-h-30", "overflow-hidden", "leading-5"]),
     );
     expect((synopsis as HTMLElement).getAttribute("style") || "").toContain(
       "-webkit-line-clamp: 6",

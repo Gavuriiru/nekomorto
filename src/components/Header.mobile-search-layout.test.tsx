@@ -470,10 +470,8 @@ describe("Header mobile search layout", () => {
     const searchInput = await screen.findByPlaceholderText("Buscar projetos e posts");
     expect(searchInput).toBeInTheDocument();
     expect(searchInput).toHaveFocus();
-    expect(classTokens(leftCluster)).toContain("opacity-0");
     expect(classTokens(leftCluster)).toContain("invisible");
     expect(classTokens(leftCluster)).toContain("pointer-events-none");
-    expect(classTokens(actionsCluster)).toContain("opacity-0");
     expect(classTokens(actionsCluster)).toContain("invisible");
     expect(classTokens(actionsCluster)).toContain("pointer-events-none");
     expect(classTokens(searchCluster)).toContain("absolute");

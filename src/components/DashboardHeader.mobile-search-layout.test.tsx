@@ -156,8 +156,8 @@ describe("DashboardHeader mobile search layout", () => {
         "top-0",
         "z-20",
         "transition-[left]",
-        "duration-[var(--sidebar-desktop-transition-duration)]",
-        "ease-[var(--sidebar-desktop-transition-timing)]",
+        "duration-(--sidebar-desktop-transition-duration)",
+        "ease-(--sidebar-desktop-transition-timing)",
       ]),
     );
     expect((header as HTMLElement).style.left).toBe("var(--sidebar-header-left)");
@@ -211,10 +211,8 @@ describe("DashboardHeader mobile search layout", () => {
     const searchInput = await screen.findByPlaceholderText("Buscar projetos e posts");
     expect(searchInput).toBeInTheDocument();
     expect(searchInput).toHaveFocus();
-    expect(classTokens(leftCluster)).toContain("opacity-0");
     expect(classTokens(leftCluster)).toContain("invisible");
     expect(classTokens(leftCluster)).toContain("pointer-events-none");
-    expect(classTokens(actionsCluster)).toContain("opacity-0");
     expect(classTokens(actionsCluster)).toContain("invisible");
     expect(classTokens(actionsCluster)).toContain("pointer-events-none");
     expect(classTokens(searchCluster)).toContain("absolute");

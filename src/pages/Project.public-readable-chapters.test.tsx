@@ -227,7 +227,7 @@ describe("Project public readable chapters", () => {
       expect.arrayContaining([
         "rounded-full",
         "bg-card/70",
-        "hover:bg-[var(--download-source-hover-bg)]",
+        "hover:bg-(--download-source-hover-bg)",
       ]),
     );
     expect(classTokens(sourceLink)).not.toContain("bg-primary/10");

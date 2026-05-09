@@ -52,7 +52,7 @@ describe("ImageLibraryDialog mobile layout", () => {
     const dialog = await screen.findByRole("dialog");
     const dialogTokens = classTokens(dialog);
 
-    expect(dialogTokens).toContain("h-[92vh]");
+    expect(dialogTokens).toContain("max-h-[min(92vh,calc(100dvh-1rem))]");
     expect(dialogTokens).toContain("w-[96vw]");
     expect(dialogTokens).toContain("sm:w-[92vw]");
     expect(dialogTokens).toContain("p-3");
@@ -71,14 +71,12 @@ describe("ImageLibraryDialog mobile layout", () => {
 
     expect(importButtonTokens).toContain("shrink-0");
     expect(importButtonTokens).toContain("w-full");
-    expect(importButtonTokens).toContain("sm:w-auto");
     expect(importControls).toBeTruthy();
 
     const importControlsTokens = classTokens(importControls as HTMLElement);
 
     expect(importControlsTokens).toContain("grid");
     expect(importControlsTokens).toContain("min-w-0");
-    expect(importControlsTokens).toContain("sm:flex");
 
     const folderTrigger = screen.getByRole("combobox", { name: "Filtrar por pasta" });
     const sortTrigger = screen.getByRole("combobox", { name: "Ordenar biblioteca" });

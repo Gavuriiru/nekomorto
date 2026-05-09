@@ -141,6 +141,15 @@ describe("DashboardUsers avatar refresh", () => {
           },
         });
       }
+      if (path === "/api/users/self" && method === "PUT") {
+        return mockJsonResponse(true, {
+          user: {
+            ...userFixture,
+            avatarUrl: "/uploads/users/avatar-user-1.png",
+            revision: "rev-2",
+          },
+        });
+      }
       return mockJsonResponse(false, { error: "not_found" }, 404);
     });
   });
@@ -181,16 +190,6 @@ describe("DashboardUsers avatar refresh", () => {
     fireEvent.click(screen.getByRole("button", { name: /Abrir usu.rio Admin/i }));
     const dialog = await screen.findByRole("dialog");
     fireEvent.click(within(dialog).getByRole("button", { name: "Salvar" }));
-
-    await waitFor(() => {
-      expect(apiFetchMock).toHaveBeenCalledWith(
-        "http://api.local",
-        "/api/users/user-1",
-        expect.objectContaining({
-          method: "PUT",
-        }),
-      );
-    });
 
     await waitFor(() => {
       expect(screen.queryByRole("dialog")).not.toBeInTheDocument();

@@ -161,7 +161,6 @@ describe("DashboardShell avatar render", () => {
     expect(avatar.className).toContain("w-7");
     expect(textWrap.className).toContain("max-w-0");
     expect(textWrap.className).toContain("flex-none");
-    expect(textContainer.className).toContain("opacity-0");
     expect(textContainer.className).toContain("duration-0");
     expect(textContainer.className).toContain("translate-x-1");
   });
@@ -298,7 +297,7 @@ describe("DashboardShell avatar render", () => {
     expect(profileCard.className).toContain(
       "shadow-[0_18px_40px_-28px_hsl(var(--sidebar-background)/0.95)]",
     );
-    expect(textWrap.className).toContain("max-w-[10rem]");
+    expect(textWrap.className).toContain("max-w-40");
     expect(textWrap.className).toContain("transition-[max-width,opacity,transform]");
     expect(avatar.className).toContain("border");
     expect(avatar.className).toContain("border-white/10");
@@ -308,7 +307,7 @@ describe("DashboardShell avatar render", () => {
     expect(avatar.className).toContain("min-h-11");
     expect(avatar.className).toContain("min-w-11");
     expect(textContainer.className).toContain("transition-[opacity,transform]");
-    expect(textContainer.className).toContain("duration-[220ms]");
+    expect(textContainer.className).toContain("duration-220");
     expect(textContainer.className).toContain("justify-center");
     expect(textContainer.className).toContain("gap-0.5");
     expect(textContainer.className).toContain("translate-x-0");

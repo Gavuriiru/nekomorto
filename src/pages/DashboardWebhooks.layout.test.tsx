@@ -722,9 +722,7 @@ describe("DashboardWebhooks layout", () => {
     expect(headerBadgeReveal).toHaveAttribute("data-reveal");
 
     expect(classTokens(typesSection)).toContain("animate-slide-up");
-    expect(classTokens(typesSection)).toContain("opacity-0");
     expect(classTokens(postsSection)).toContain("animate-slide-up");
-    expect(classTokens(postsSection)).toContain("opacity-0");
   });
 
   it("aplica motion ao shell principal sem reanimar blocos internos em refresh de dados", async () => {
@@ -746,7 +744,6 @@ describe("DashboardWebhooks layout", () => {
     const eventItem = screen.getByTestId("dashboard-webhooks-event-posts-post_create");
 
     expect(classTokens(typesSection)).toContain("animate-slide-up");
-    expect(classTokens(typesSection)).toContain("opacity-0");
     expect(classTokens(postsSection)).toContain("animate-slide-up");
     expect(classTokens(typesContent)).not.toContain("animate-slide-up");
     expect(classTokens(postsContent)).not.toContain("animate-slide-up");

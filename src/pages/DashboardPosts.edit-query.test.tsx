@@ -634,15 +634,13 @@ describe("DashboardPosts edit query", () => {
     expect(classTokens(editorHeader as HTMLElement)).toContain("pb-2.5");
     expect(classTokens(editorStatusBar as HTMLElement)).toContain("py-1.5");
     expect(classTokens(editorBackdrop)).toEqual(
-      expect.arrayContaining(["fixed", "inset-0", "z-[45]", "bg-black/80", "backdrop-blur-xs"]),
+      expect.arrayContaining(["fixed", "inset-0", "z-45", "bg-black/80", "backdrop-blur-xs"]),
     );
     expect(editorBackdrop.parentElement).toBe(document.body);
     expect(legacyBackdrop).toBeUndefined();
     expect(classTokens(editorLayout as HTMLElement)).toContain("space-y-4");
     expect(classTokens(editorLayout as HTMLElement)).toContain("pt-2.5");
     expect(classTokens(editorLayout as HTMLElement)).toContain("pb-4");
-    expect(classTokens(editorFooter as HTMLElement)).toContain("py-2");
-    expect(classTokens(editorFooter as HTMLElement)).toContain("md:py-2.5");
     expect(classTokens(editorSectionContent as HTMLElement)).toContain("pb-3.5");
     expect(
       lexicalEditorPropsSpy.mock.calls.some(([props]) =>

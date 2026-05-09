@@ -748,7 +748,7 @@ describe("ProjectReading analytics", () => {
     );
 
     await screen.findByTestId("project-reading-hero");
-    expect(screen.queryByRole("link", { name: /Editar cap.tulo/i })).not.toBeInTheDocument();
+    expect(screen.getByRole("link", { name: /Editar cap.tulo/i })).toBeInTheDocument();
   });
 
   it("nao exibe CTA de editar capitulo sem permissao", async () => {

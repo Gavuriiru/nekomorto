@@ -377,7 +377,7 @@ const HeroCarouselDock = ({
       className={`hero-home__dock pointer-events-auto ${className || ""}`.trim()}
       style={isLightTheme ? heroDockStyleLight : heroDockStyle}
       role="group"
-      aria-label="NavegaÃ§Ã£o do carrossel da home"
+      aria-label="Navegação do carrossel da home"
     >
       <button
         type="button"
@@ -416,7 +416,7 @@ const HeroCarouselDock = ({
       </span>
       <button
         type="button"
-        aria-label="PrÃ³ximo slide"
+        aria-label="Próximo slide"
         className={heroDockButtonClassName}
         onClick={onNextSlide}
       >

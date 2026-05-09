@@ -121,8 +121,8 @@ describe("ProjectEmbedCard", () => {
     expect(episodesBadge).toHaveClass("hidden", "sm:inline-flex");
     expect(badgesRow).toHaveClass("flex-nowrap", "overflow-hidden", "sm:flex-wrap");
     expect(badgesSection).toHaveClass("mt-auto");
-    expect(statusBadge).toHaveClass("max-w-[8.5rem]", "truncate");
-    expect(studioBadge).toHaveClass("max-w-[8.5rem]", "truncate");
+    expect(statusBadge).toHaveClass("max-w-34", "truncate");
+    expect(studioBadge).toHaveClass("max-w-34", "truncate");
     expect(cardRoot).not.toBeNull();
     expect(cardLink).toHaveClass(
       "project-embed-card",
@@ -157,7 +157,7 @@ describe("ProjectEmbedCard", () => {
       "mt-2",
       "clamp-safe-2",
       "break-normal",
-      "[overflow-wrap:normal]",
+      "wrap-normal",
       "[word-break:normal]",
     );
     expect(synopsis).toHaveAttribute("data-synopsis-lines", "2");

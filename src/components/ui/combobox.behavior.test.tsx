@@ -154,8 +154,8 @@ describe("Combobox", () => {
 
     expect(classTokens(popover)).toEqual(
       expect.arrayContaining([
-        "w-[var(--radix-popover-trigger-width)]",
-        "min-w-[var(--radix-popover-trigger-width)]",
+        "w-(--radix-popover-trigger-width)",
+        "min-w-(--radix-popover-trigger-width)",
         "max-w-[calc(100vw-2rem)]",
         "p-2",
       ]),

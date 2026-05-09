@@ -939,7 +939,7 @@ describe("DashboardProjectsEditor edit query", () => {
     expect(editorFrame?.className).toContain("flex-col");
     expect(editorFrame?.className).toContain("min-h-0");
     expect(classTokens(editorBackdrop)).toEqual(
-      expect.arrayContaining(["fixed", "inset-0", "z-[45]", "bg-black/80", "backdrop-blur-xs"]),
+      expect.arrayContaining(["fixed", "inset-0", "z-45", "bg-black/80", "backdrop-blur-xs"]),
     );
     expect(editorBackdrop.parentElement).toBe(document.body);
     expect(legacyBackdrop).toBeUndefined();
@@ -952,8 +952,7 @@ describe("DashboardProjectsEditor edit query", () => {
     expect(editorLayout?.className).toContain("gap-3.5");
     expect(editorLayout?.className).toContain("pt-2.5");
     expect(editorLayout?.className).toContain("pb-3");
-    expect(editorFooter?.className).toContain("py-1.5");
-    expect(editorFooter?.className).toContain("md:py-2");
+    expect(editorFooter?.className).toContain("py-2");
     expect(editorSectionContent?.className).toContain("pb-2.5");
     expect(editorAccordion?.className).toContain("space-y-2.5");
     expect(editorDialog).not.toHaveClass("editor-modal-scrolled");

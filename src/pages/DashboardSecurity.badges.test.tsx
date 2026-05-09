@@ -119,11 +119,9 @@ describe("DashboardSecurity semantic badges", () => {
     expect(classTokens(pageSection as HTMLElement)).toContain("reveal");
     expect(pageSection).toHaveAttribute("data-reveal");
     expect(classTokens(sessionsCard)).toContain("animate-slide-up");
-    expect(classTokens(sessionsCard)).toContain("opacity-0");
     expect(classTokens(sessionsCard)).toContain("bg-card");
     expect(firstSessionCard).not.toBeNull();
     expect(classTokens(firstSessionCard as HTMLElement)).toContain("animate-slide-up");
-    expect(classTokens(firstSessionCard as HTMLElement)).toContain("opacity-0");
     expect(classTokens(firstSessionCard as HTMLElement)).toContain("bg-background");
     expect(classTokens(firstSessionCard as HTMLElement)).toContain("hover:border-primary/40");
     expect(await screen.findByText("Sua sess\u00E3o atual")).toHaveClass(

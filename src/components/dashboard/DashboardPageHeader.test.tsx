@@ -29,12 +29,12 @@ describe("DashboardPageHeader", () => {
     expect(badgeReveal).toHaveAttribute("data-reveal");
 
     expect(description).toHaveStyle({
-      animationDelay: `${dashboardMotionDelays.headerDescriptionMs}ms`,
-    });
+      "--tw-enter-delay": `${dashboardMotionDelays.headerDescriptionMs}ms`,
+    } as CSSStyleDeclaration);
 
     expect(actionWrapper).not.toBeNull();
     expect(actionWrapper).toHaveStyle({
-      animationDelay: `${dashboardMotionDelays.headerActionsMs}ms`,
-    });
+      "--tw-enter-delay": `${dashboardMotionDelays.headerActionsMs}ms`,
+    } as CSSStyleDeclaration);
   });
 });

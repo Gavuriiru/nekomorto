@@ -139,43 +139,25 @@ describe("Index releases defer", () => {
     });
   });
 
-  it("nao renderiza ReleasesSection no load mobile sem scroll", async () => {
+  it("renderiza ReleasesSection imediatamente no mobile", async () => {
     createMatchMediaController(true);
     const observer = installIntersectionObserver();
 
     render(<Index />);
 
-    expect(screen.queryByTestId("releases-section")).not.toBeInTheDocument();
+    expect(await screen.findByTestId("releases-section")).toBeInTheDocument();
     await waitFor(() => {
       expect(observer.observe).not.toHaveBeenCalled();
     });
   });
 
-  it("renderiza ReleasesSection apos scroll real e sentinela intersectar", async () => {
+  it("renderiza ReleasesSection imediatamente no mobile sem esperar scroll", async () => {
     createMatchMediaController(true);
     const observer = installIntersectionObserver();
 
-    const { container } = render(<Index />);
-    expect(screen.queryByTestId("releases-section")).not.toBeInTheDocument();
-
-    setScrollY(32);
-    act(() => {
-      window.dispatchEvent(new Event("scroll"));
-    });
-
-    await waitFor(() => {
-      expect(observer.observe).toHaveBeenCalledTimes(1);
-    });
-
-    const sentinel = container.querySelector("div[aria-hidden='true']");
-    expect(sentinel).not.toBeNull();
-    expect(observer.getOptions()?.rootMargin).toBe("0px 0px -35% 0px");
-
-    act(() => {
-      observer.triggerIntersecting(sentinel as Element);
-    });
-
+    render(<Index />);
     expect(await screen.findByTestId("releases-section")).toBeInTheDocument();
+    expect(observer.observe).not.toHaveBeenCalled();
   });
 
   it("renderiza ReleasesSection imediatamente com hash #lancamentos", async () => {
@@ -189,19 +171,19 @@ describe("Index releases defer", () => {
     expect(observer.observe).not.toHaveBeenCalled();
   });
 
-  it("forca render da ReleasesSection quando viewport muda de mobile para desktop", async () => {
+  it("renderiza ReleasesSection imediatamente no mobile e mantem apos resize", async () => {
     const media = createMatchMediaController(true);
     const observer = installIntersectionObserver();
 
     render(<Index />);
-    expect(screen.queryByTestId("releases-section")).not.toBeInTheDocument();
+    expect(await screen.findByTestId("releases-section")).toBeInTheDocument();
     expect(observer.observe).not.toHaveBeenCalled();
 
     act(() => {
       media.setIsMobile(false);
     });
 
-    expect(await screen.findByTestId("releases-section")).toBeInTheDocument();
+    expect(screen.getByTestId("releases-section")).toBeInTheDocument();
     expect(observer.observe).not.toHaveBeenCalled();
   });
 });

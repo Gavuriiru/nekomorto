@@ -433,7 +433,6 @@ describe("DashboardPosts query sync", () => {
 
     const calendarSurface = await screen.findByTestId("dashboard-posts-calendar-surface");
     expect(classTokens(calendarSurface)).toContain("animate-fade-in");
-    expect(classTokens(calendarSurface)).toContain("opacity-0");
     expect(calendarSurface.style.animationDuration).toBe("220ms");
     expect(calendarSurface.style.animationTimingFunction).toBe("ease-out");
 
@@ -483,7 +482,6 @@ describe("DashboardPosts query sync", () => {
     const calendarSurface = screen.getByTestId("dashboard-posts-calendar-surface");
     expect(calendarSurface).toBeInTheDocument();
     expect(classTokens(calendarSurface)).toContain("animate-fade-in");
-    expect(classTokens(calendarSurface)).toContain("opacity-0");
     expect(calendarSurface.style.animationDuration).toBe("220ms");
     expect(calendarSurface.style.animationTimingFunction).toBe("ease-out");
 

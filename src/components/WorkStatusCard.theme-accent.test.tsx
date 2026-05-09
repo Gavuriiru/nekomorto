@@ -317,7 +317,7 @@ describe("WorkStatusCard accent mode", () => {
     const progressLinks = scrollRegion.querySelectorAll("a");
     expect(progressLinks).toHaveLength(6);
     progressLinks.forEach((link) => {
-      expect(link.className).toContain("min-h-[5.75rem]");
+      expect(link.className).toContain("min-h-23");
     });
   });
 });

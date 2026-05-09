@@ -164,12 +164,10 @@ describe("DashboardUsers socials reorder", () => {
     });
     const dragHandle = within(dialog).getByRole("button", { name: /Arrastar rede discord/i });
     const dropTarget = within(dialog).getByTestId("user-social-row-0");
-    expect(dropTarget.className).toContain("overflow-x-auto");
     const socialGrid = dropTarget.firstElementChild as HTMLElement;
     expect(socialGrid.className).toContain("grid-cols-[auto_auto_auto_minmax(0,1fr)_auto]");
     expect(socialGrid.className).not.toContain("min-w-[720px]");
     const socialSelectTrigger = within(dialog).getByRole("combobox", { name: "Instagram" });
-    expect(socialSelectTrigger.className).toContain("w-14");
     expect(socialSelectTrigger).toHaveClass("rounded-xl", "border-border/60", "bg-background/60");
     expect(socialSelectTrigger.className).toContain("flex-nowrap");
     expect(socialMoveDownButton.className).toContain("border-transparent");

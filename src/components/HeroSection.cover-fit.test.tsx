@@ -272,7 +272,7 @@ const classTokens = (element: HTMLElement) =>
 const expectHeroPrimaryButtonTokens = (element: HTMLElement) => {
   const tokens = classTokens(element);
 
-  expect(tokens).toEqual(expect.arrayContaining(["hero-home__primary-action"]));
+  expect(tokens).toEqual(expect.arrayContaining(["inline-flex", "gap-2"]));
 };
 
 describe("HeroSection cover fit", () => {
@@ -374,11 +374,11 @@ describe("HeroSection cover fit", () => {
       screen.getByRole("link", { name: /Acessar p.gina de Projeto com Hero/i }),
     );
     expect(typeStatus).toHaveTextContent("Anime • Em andamento");
-    expect(typeStatus).toHaveClass("animate-slide-up", "opacity-0", "hero-home__meta-text");
+    expect(typeStatus).toHaveClass("animate-slide-up", "hero-home__meta-text");
     expect(typeStatus).toHaveStyle({ animationDelay: "80ms" });
 
     const heading = screen.getByRole("heading", { name: "Projeto com Hero" });
-    expect(heading).toHaveClass("animate-slide-up", "opacity-0");
+    expect(heading).toHaveClass("animate-slide-up");
     expect(heading).toHaveStyle({ animationDelay: "220ms" });
   });
 
@@ -467,9 +467,9 @@ describe("HeroSection cover fit", () => {
       .getByRole("link", { name: /Acessar p.gina de Projeto com Hero/i })
       .closest("div.hero-home__action-group");
 
-    expect(heading).not.toHaveClass("animate-slide-up", "opacity-0");
-    expect(latestBadge).not.toHaveClass("animate-slide-up", "opacity-0");
-    expect(actions).not.toHaveClass("animate-slide-up", "opacity-0");
+    expect(heading).not.toHaveClass("animate-slide-up");
+    expect(latestBadge).not.toHaveClass("animate-slide-up");
+    expect(actions).not.toHaveClass("animate-slide-up");
 
     unmount();
     shell.remove();
