@@ -90,15 +90,24 @@ export const useImageLibraryBrowserDerivedState = ({
 
   const sortLibraryItems = useCallback(
     (items: LibraryImageItem[]) => {
-      const next = [...items];
-      next.sort((left, right) => {
-        if (sortMode === "name") {
-          return compareNaturalTextPtBr(toEffectiveName(left), toEffectiveName(right));
-        }
-        const leftTs = new Date(left.createdAt || 0).getTime();
-        const rightTs = new Date(right.createdAt || 0).getTime();
-        const safeLeftTs = Number.isFinite(leftTs) ? leftTs : 0;
-        const safeRightTs = Number.isFinite(rightTs) ? rightTs : 0;
+      if (sortMode === "name") {
+        const next = [...items];
+        next.sort((left, right) =>
+          compareNaturalTextPtBr(toEffectiveName(left), toEffectiveName(right)),
+        );
+        return next;
+      }
+
+      // Precompute timestamps to avoid O(N log N) date parsing
+      const mapped = items.map((item) => ({
+        item,
+        ts: new Date(item.createdAt || 0).getTime(),
+      }));
+
+      mapped.sort((left, right) => {
+        const safeLeftTs = Number.isFinite(left.ts) ? left.ts : 0;
+        const safeRightTs = Number.isFinite(right.ts) ? right.ts : 0;
+
         if (sortMode === "oldest") {
           if (safeLeftTs !== safeRightTs) {
             return safeLeftTs - safeRightTs;
@@ -106,9 +115,14 @@ export const useImageLibraryBrowserDerivedState = ({
         } else if (safeLeftTs !== safeRightTs) {
           return safeRightTs - safeLeftTs;
         }
-        return compareNaturalTextPtBr(toEffectiveName(left), toEffectiveName(right));
+
+        return compareNaturalTextPtBr(
+          toEffectiveName(left.item),
+          toEffectiveName(right.item),
+        );
       });
-      return next;
+
+      return mapped.map((w) => w.item);
     },
     [sortMode],
   );

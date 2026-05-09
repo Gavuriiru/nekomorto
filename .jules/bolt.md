@@ -11,3 +11,6 @@
 ## 2025-05-01 - Avoid precomputing timestamps unconditionally
 **Learning:** Precomputing timestamps for sorting avoids O(N log N) date parsing, but precomputing them unconditionally when the array might be sorted by non-date keys (e.g., alphabetically or by views) introduces unnecessary O(N) date parsing overhead.
 **Action:** Only precompute timestamps inside `useMemo` hooks if the selected `sortMode` actually utilizes those timestamps for sorting.
+## 2025-05-02 - Precomputing Timestamps correctly based on sortMode
+**Learning:** We must only apply Schwartzian transforms (like precomputing timestamps) when the `sortMode` actually depends on that timestamp to avoid introducing O(N) operations unnecessarily when sorting by 'name' or other non-date fields. The `useImageLibraryBrowserDerivedState.ts` file correctly bails out early for 'name' sort before doing the timestamp precomputation mapping.
+**Action:** Always wrap Schawartzian date parsing transforms behind an early-exit or conditional check if the `sortMode` doesn't require dates.
