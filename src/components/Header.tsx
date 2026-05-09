@@ -364,11 +364,14 @@ const Header = ({
   }, [isSearchOpen]);
 
   useEffect(() => {
+    setIsScrolled(false);
+  }, [location.pathname]);
+
+  useEffect(() => {
     const handleScroll = () => {
       setIsScrolled(window.scrollY > 12);
     };
 
-    handleScroll();
     window.addEventListener("scroll", handleScroll, { passive: true });
 
     return () => {
