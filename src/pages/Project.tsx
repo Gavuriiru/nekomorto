@@ -113,7 +113,7 @@ const normalizeProjectStaffEntries = (value: unknown) => {
 
 const shouldProjectStaffEntrySpanColumns = (members: string[]) => {
   const memberText = members.join(", ");
-  return members.length > 2 || memberText.length > 64;
+  return memberText.length > 64;
 };
 
 const buildProjectStaffEntryColumnSpans = (entries: Array<{ members: string[] }>) => {
