@@ -306,16 +306,16 @@ const MangaPageTile = ({
   const shiftTransform =
     shiftOffset && (shiftOffset.x !== 0 || shiftOffset.y !== 0)
       ? `translate3d(${shiftOffset.x}px, ${shiftOffset.y}px, 0)`
-      : undefined;
-  const shiftTransition =
-    isDraggingActive && shiftTransform ? "transform 200ms ease-out" : undefined;
+      : isDraggingActive
+        ? "translate3d(0, 0, 0)"
+        : undefined;
   const tileStyle = isDraggingActive
     ? {
-        transform: shiftTransform,
-        transition: shiftTransition,
+        transform: shiftTransform ?? "translate3d(0, 0, 0)",
+        transition: "transform 200ms ease-out",
         willChange: "transform" as const,
       }
-    : undefined;
+    : { willChange: "transform" as const };
 
   return (
     <motion.article

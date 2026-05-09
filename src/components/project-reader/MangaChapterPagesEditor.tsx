@@ -182,7 +182,8 @@ const MangaChapterPagesGrid = memo(
       const isCover = coverImageUrl === page.imageUrl;
       const isSpread = Boolean(page.spreadPairId);
       const isDragged = dragSourceIndex === index;
-      const isPreviewTarget = isDragging && shiftOffsets?.has(index) === true && !isDragged;
+      const overIndex = isDragging && pointerDragState ? pointerDragState.overIndex : null;
+      const isPreviewTarget = overIndex === index && !isDragged;
       const shiftOffset = shiftOffsets?.get(index) ?? null;
       const canJoinWithNext = Boolean(
         !page.spreadPairId && pages[index + 1] && !pages[index + 1]?.spreadPairId,
