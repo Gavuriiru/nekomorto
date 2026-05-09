@@ -101,7 +101,7 @@ describe("project editor form chapter content formats", () => {
           duration: "",
           sourceType: "TV",
           sources: [],
-          content: "{\"root\":{\"children\":[]}}",
+          content: '{"root":{"children":[]}}',
           contentFormat: "lexical",
           pages: [{ position: 0, imageUrl: "/uploads/projects/1/page-1.jpg" }],
           publicationStatus: "published",
@@ -142,7 +142,7 @@ describe("project editor form chapter content formats", () => {
           duration: "",
           sourceType: "TV",
           sources: [],
-          content: "{\"root\":{\"children\":[]}}",
+          content: '{"root":{"children":[]}}',
           contentFormat: "lexical",
           pages: [{ position: 0, imageUrl: "/uploads/projects/1/illustration.jpg" }],
           publicationStatus: "published",
@@ -153,6 +153,6 @@ describe("project editor form chapter content formats", () => {
     const form = buildProjectFormFromRecord(novelRecord);
 
     expect(form.episodeDownloads[0]?.contentFormat).toBe("lexical");
-    expect(form.episodeDownloads[0]?.content).toBe("{\"root\":{\"children\":[]}}");
+    expect(form.episodeDownloads[0]?.content).toBe('{"root":{"children":[]}}');
   });
 });

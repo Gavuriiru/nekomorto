@@ -502,7 +502,8 @@ const StagePagesGrid = memo(
     });
 
     const isDragging = stagePageDragState?.isDragging ?? false;
-    const dragSourceIndex = isDragging && stagePageDragState ? stagePageDragState.sourceIndex : null;
+    const dragSourceIndex =
+      isDragging && stagePageDragState ? stagePageDragState.sourceIndex : null;
     const pressedStagePage =
       stagePageDragState?.sourceIndex !== undefined
         ? chapter.pages[stagePageDragState.sourceIndex] || null
@@ -514,7 +515,8 @@ const StagePagesGrid = memo(
           {chapter.pages.map((page, index) => {
             const isCover = page.id === chapter.coverPageId;
             const isDragged = dragSourceIndex === index;
-            const overIndex = isDragging && stagePageDragState ? stagePageDragState.overIndex : null;
+            const overIndex =
+              isDragging && stagePageDragState ? stagePageDragState.overIndex : null;
             const isPreviewTarget = overIndex === index && !isDragged;
             const shiftOffset = computedShiftOffsets?.get(index) ?? null;
             const pageDisplayName = resolvePageDisplayName({

@@ -7,11 +7,7 @@ type PageRevealProps = {
 };
 
 const PageReveal = ({ children, className }: PageRevealProps) => {
-  return (
-    <div className={cn("page-reveal", className)}>
-      {children}
-    </div>
-  );
+  return <div className={cn("page-reveal", className)}>{children}</div>;
 };
 
 export default PageReveal;

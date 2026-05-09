@@ -105,48 +105,48 @@ const HeaderActionMenus = ({
         </DropdownMenuContent>
       </DropdownMenu>
 
-    {currentUser ? (
-      <DropdownMenu modal={false}>
-        <DropdownMenuTrigger asChild>
-          <Button variant="ghost" className="h-11 gap-2 rounded-full px-2">
-            <Avatar className="h-8 w-8 border border-border/70 shadow-avatar-subtle">
-              {headerAvatarUrl ? (
-                <AvatarImage src={headerAvatarUrl} alt={currentUser.name} />
-              ) : null}
-              <AvatarFallback className="bg-secondary text-xs text-foreground">
-                {(currentUser.name || "").slice(0, 2).toUpperCase()}
-              </AvatarFallback>
-            </Avatar>
-            <span className="hidden text-sm font-medium text-foreground lg:inline">
-              {currentUser.name || ""}
-            </span>
-          </Button>
-        </DropdownMenuTrigger>
-        <DropdownMenuContent align="end" className={`w-56 ${headerMenuContentClass}`}>
-          {dashboardMenuForUser.map((item) => {
-            const ItemIcon = item.icon;
-            return (
-              <DropdownMenuItem key={item.href} asChild className={headerMenuItemClass}>
-                <Link to={item.href} className="flex items-center gap-2">
-                  <ItemIcon className="h-4 w-4" />
-                  {item.label}
-                </Link>
-              </DropdownMenuItem>
-            );
-          })}
-          <DropdownMenuSeparator className="bg-border/70" />
-          <DropdownMenuItem
-            className={headerMenuItemClass}
-            onClick={() => {
-              void onLogout();
-            }}
-            disabled={isLoggingOut}
-          >
-            <LogOut className="h-4 w-4" />
-            {isLoggingOut ? uiCopy.actions.loggingOut : uiCopy.actions.logout}
-          </DropdownMenuItem>
-        </DropdownMenuContent>
-      </DropdownMenu>
+      {currentUser ? (
+        <DropdownMenu modal={false}>
+          <DropdownMenuTrigger asChild>
+            <Button variant="ghost" className="h-11 gap-2 rounded-full px-2">
+              <Avatar className="h-8 w-8 border border-border/70 shadow-avatar-subtle">
+                {headerAvatarUrl ? (
+                  <AvatarImage src={headerAvatarUrl} alt={currentUser.name} />
+                ) : null}
+                <AvatarFallback className="bg-secondary text-xs text-foreground">
+                  {(currentUser.name || "").slice(0, 2).toUpperCase()}
+                </AvatarFallback>
+              </Avatar>
+              <span className="hidden text-sm font-medium text-foreground lg:inline">
+                {currentUser.name || ""}
+              </span>
+            </Button>
+          </DropdownMenuTrigger>
+          <DropdownMenuContent align="end" className={`w-56 ${headerMenuContentClass}`}>
+            {dashboardMenuForUser.map((item) => {
+              const ItemIcon = item.icon;
+              return (
+                <DropdownMenuItem key={item.href} asChild className={headerMenuItemClass}>
+                  <Link to={item.href} className="flex items-center gap-2">
+                    <ItemIcon className="h-4 w-4" />
+                    {item.label}
+                  </Link>
+                </DropdownMenuItem>
+              );
+            })}
+            <DropdownMenuSeparator className="bg-border/70" />
+            <DropdownMenuItem
+              className={headerMenuItemClass}
+              onClick={() => {
+                void onLogout();
+              }}
+              disabled={isLoggingOut}
+            >
+              <LogOut className="h-4 w-4" />
+              {isLoggingOut ? uiCopy.actions.loggingOut : uiCopy.actions.logout}
+            </DropdownMenuItem>
+          </DropdownMenuContent>
+        </DropdownMenu>
       ) : null}
     </>
   );

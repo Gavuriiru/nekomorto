@@ -1357,7 +1357,9 @@ const DashboardUsers = () => {
     formatSecurityDateTime(value);
 
   const renderConnectedAccountsCard = () => (
-    <div className={`space-y-3 rounded-xl p-2.5 sm:rounded-2xl sm:p-3 ${subtleInsetSurfaceClassName}`}>
+    <div
+      className={`space-y-3 rounded-xl p-2.5 sm:rounded-2xl sm:p-3 ${subtleInsetSurfaceClassName}`}
+    >
       <div className="space-y-1">
         <p className="text-sm font-medium">Métodos de acesso</p>
         <p className="text-xs text-muted-foreground">
@@ -2185,7 +2187,7 @@ const DashboardUsers = () => {
                     <h2 className="text-lg font-semibold">Usuários aposentados</h2>
                     <span
                       key={`retired-count-${retiredUsers.length}`}
-                    className="inline-flex min-h-6 min-w-10 items-center justify-center animate-slide-up"
+                      className="inline-flex min-h-6 min-w-10 items-center justify-center animate-slide-up"
                       style={dashboardAnimationDelay(dashboardMotionDelays.sectionMetaMs)}
                     >
                       <Badge
@@ -2669,7 +2671,9 @@ const DashboardUsers = () => {
                         />
                       </AccordionTrigger>
                       <AccordionContent className={editorSectionContentClassName}>
-                        <div className={`grid gap-2.5 rounded-xl p-3 sm:rounded-2xl sm:p-4 ${subtleSurfaceClassName}`}>
+                        <div
+                          className={`grid gap-2.5 rounded-xl p-3 sm:rounded-2xl sm:p-4 ${subtleSurfaceClassName}`}
+                        >
                           <div className="flex flex-wrap min-w-0 items-center justify-between gap-2">
                             <div className="space-y-1">
                               <Label className="text-sm font-medium">Segurança da conta</Label>
@@ -2899,7 +2903,7 @@ const DashboardUsers = () => {
                                     className={`flex flex-col sm:flex-row sm:items-start sm:justify-between gap-2 rounded-xl p-2 ${subtleMutedSurfaceClassName}`}
                                   >
                                     <div className="space-y-1">
-                          <div className="flex flex-wrap min-w-0 items-center gap-2">
+                                      <div className="flex flex-wrap min-w-0 items-center gap-2">
                                         <p className="text-xs font-medium">
                                           {isCurrentSecuritySession(session)
                                             ? "Sessão atual"
@@ -2922,7 +2926,7 @@ const DashboardUsers = () => {
                                       <p className="text-[11px] text-muted-foreground">
                                         IP: {session.lastIp || "-"}
                                       </p>
-                                        <p className="max-w-[180px] truncate text-[11px] text-muted-foreground sm:max-w-[360px]">
+                                      <p className="max-w-[180px] truncate text-[11px] text-muted-foreground sm:max-w-[360px]">
                                         {session.userAgent || "-"}
                                       </p>
                                     </div>

@@ -9,14 +9,11 @@ export const transitionEasing = {
 
 export const transitionProperty = {
   borderColor: "border-color",
-  surface:
-    "background-color, border-color, color",
+  surface: "background-color, border-color, color",
   interactiveControl:
     "transform, box-shadow, background-color, border-color, color, opacity, fill, stroke, text-decoration-color",
-  interactiveSurface:
-    "transform, box-shadow, background-color, border-color, color, opacity",
-  content:
-    "color, background-color, border-color, opacity, fill, stroke, text-decoration-color",
+  interactiveSurface: "transform, box-shadow, background-color, border-color, color, opacity",
+  content: "color, background-color, border-color, opacity, fill, stroke, text-decoration-color",
   media: "transform, opacity",
 } as const;
 
@@ -29,11 +26,9 @@ export const shadowPresets = {
 
 export const stackedSurface = {
   dashboard: "stacked-surface stacked-surface--dashboard",
-  dashboardInteractive:
-    "stacked-surface stacked-surface--dashboard stacked-surface--interactive",
+  dashboardInteractive: "stacked-surface stacked-surface--dashboard stacked-surface--interactive",
   public: "stacked-surface stacked-surface--public",
-  publicInteractive:
-    "stacked-surface stacked-surface--public stacked-surface--interactive",
+  publicInteractive: "stacked-surface stacked-surface--public stacked-surface--interactive",
 } as const;
 
 export const borderPresets = {

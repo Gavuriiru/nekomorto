@@ -21,18 +21,13 @@ const TopProjectsSkeleton = () => (
   <Card lift={false} className="bg-card rounded-lg border border-border/60 shadow-none">
     <CardHeader className="px-4 pb-3 pt-4">
       <div className="flex items-center justify-between gap-3">
-        <CardTitle className="text-lg font-semibold text-foreground">
-          Projetos Populares
-        </CardTitle>
+        <CardTitle className="text-lg font-semibold text-foreground">Projetos Populares</CardTitle>
         <Skeleton className="h-8 w-[108px] rounded" />
       </div>
     </CardHeader>
     <CardContent className="space-y-3 px-4 pb-4 pt-0">
       {Array.from({ length: 4 }).map((_, index) => (
-        <div
-          key={`top-projects-skeleton-${index}`}
-          className="rounded-2xl bg-background/40 p-4"
-        >
+        <div key={`top-projects-skeleton-${index}`} className="rounded-2xl bg-background/40 p-4">
           <div className="flex gap-4">
             <Skeleton
               className="h-32 shrink-0 rounded-xl"

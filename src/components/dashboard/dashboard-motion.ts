@@ -11,6 +11,7 @@ export const dashboardMotionDelays = {
   headerMetaMs: 200,
   sectionLeadMs: 200,
   sectionStepMs: 40,
+  sectionStaggerGapMs: 200,
   sectionMetaMs: 40,
   itemStepMs: 40,
   itemMaxExtraMs: 200,

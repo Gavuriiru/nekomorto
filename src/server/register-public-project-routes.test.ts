@@ -241,7 +241,7 @@ describe("registerPublicProjectRoutes", () => {
                 number: 1,
                 title: "Capitulo 1",
                 publicationStatus: "published",
-                content: "{\"root\":{\"children\":[]}}",
+                content: '{"root":{"children":[]}}',
                 contentFormat: "lexical",
                 pages: [{ imageUrl: "/uploads/projects/1/page-1.jpg" }],
               },

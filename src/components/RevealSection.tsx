@@ -23,44 +23,34 @@ const RevealSection = ({
     <section
       className={cn("reveal", className)}
       data-reveal-section="true"
-      style={{
-        transitionDelay: `${sectionDelay}ms`,
-      } as CSSProperties}
+      style={
+        {
+          transitionDelay: `${sectionDelay}ms`,
+        } as CSSProperties
+      }
     >
-      {stagger
-        ? (
-          <StaggerContainer stepMs={staggerStepMs}>
-            {children}
-          </StaggerContainer>
-        )
-        : children}
+      {stagger ? <StaggerContainer stepMs={staggerStepMs}>{children}</StaggerContainer> : children}
     </section>
   );
 };
 
-const StaggerContainer = ({
-  children,
-  stepMs,
-}: {
-  children: ReactNode;
-  stepMs: number;
-}) => {
+const StaggerContainer = ({ children, stepMs }: { children: ReactNode; stepMs: number }) => {
   return (
     <>
       {Array.isArray(children)
         ? children.map((child, i) => {
-          const delay = Math.min(i * stepMs, 300);
-          return (
-            <div
-              key={i}
-              data-reveal-child="true"
-              data-reveal-delay={`${delay}`}
-              style={{ transitionDelay: `${delay}ms` } as CSSProperties}
-            >
-              {child}
-            </div>
-          );
-        })
+            const delay = Math.min(i * stepMs, 300);
+            return (
+              <div
+                key={i}
+                data-reveal-child="true"
+                data-reveal-delay={`${delay}`}
+                style={{ transitionDelay: `${delay}ms` } as CSSProperties}
+              >
+                {child}
+              </div>
+            );
+          })
         : children}
     </>
   );

@@ -212,7 +212,10 @@ export const resolveEpisodeLookup = (
         ok: true,
         code: "ok",
         ...noVolumeMatches[0],
-        key: buildEpisodeKey(noVolumeMatches[0].episode?.number, noVolumeMatches[0].episode?.volume),
+        key: buildEpisodeKey(
+          noVolumeMatches[0].episode?.number,
+          noVolumeMatches[0].episode?.volume,
+        ),
       };
     }
     return { ok: false, code: "volume_required", matches };

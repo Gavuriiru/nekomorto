@@ -189,9 +189,7 @@
   .lexical-playground--modal.lexical-playground--post-editor
   .ContentEditable__root,
 .lexical-playground.lexical-playground--modal.lexical-playground--chapter-editor .editor-shell,
-.lexical-playground
-  .lexical-playground--modal.lexical-playground--chapter-editor
-  .editor-container,
+.lexical-playground .lexical-playground--modal.lexical-playground--chapter-editor .editor-container,
 .lexical-playground.lexical-playground--modal.lexical-playground--chapter-editor .editor-scroller,
 .lexical-playground.lexical-playground--modal.lexical-playground--chapter-editor .editor,
 .lexical-playground
@@ -201,9 +199,7 @@
 }
 
 .lexical-playground.lexical-playground--modal.lexical-playground--post-editor .editor-scroller,
-.lexical-playground
-  .lexical-playground--modal.lexical-playground--chapter-editor
-  .editor-scroller {
+.lexical-playground .lexical-playground--modal.lexical-playground--chapter-editor .editor-scroller {
   overflow: hidden;
 }
 

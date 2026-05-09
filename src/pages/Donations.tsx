@@ -226,7 +226,9 @@ const CryptoDonationPanel = ({
             <div className="text-[11px] font-medium uppercase tracking-[0.18em] text-muted-foreground">
               Observações
             </div>
-            <p className="whitespace-pre-wrap text-sm leading-relaxed text-muted-foreground">{service.note}</p>
+            <p className="whitespace-pre-wrap text-sm leading-relaxed text-muted-foreground">
+              {service.note}
+            </p>
           </div>
         ) : null}
       </div>

@@ -182,7 +182,10 @@ export const resolveEpisodeLookup = <
         ok: true as const,
         code: "ok" as const,
         ...noVolumeMatches[0],
-        key: buildEpisodeKey(noVolumeMatches[0].episode?.number, noVolumeMatches[0].episode?.volume),
+        key: buildEpisodeKey(
+          noVolumeMatches[0].episode?.number,
+          noVolumeMatches[0].episode?.volume,
+        ),
       };
     }
     return { ok: false as const, code: "volume_required" as const, matches };

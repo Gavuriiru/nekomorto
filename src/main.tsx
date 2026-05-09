@@ -1,7 +1,4 @@
-import {
-  isCriticalHomePayload,
-  primePublicBootstrapCache,
-} from "@/hooks/use-public-bootstrap";
+import { isCriticalHomePayload, primePublicBootstrapCache } from "@/hooks/use-public-bootstrap";
 import { getApiBase } from "@/lib/api-base";
 import { apiFetch } from "@/lib/api-client";
 import { armHomeHeroShellCleanup } from "@/lib/home-hero";

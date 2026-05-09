@@ -3,7 +3,12 @@ import heroImageJpg from "@/assets/hero-illya.jpg";
 import heroImageWebp from "@/assets/hero-illya.webp";
 import UploadPicture from "@/components/UploadPicture";
 import { Button } from "@/components/ui/button";
-import { Carousel, type CarouselApi, CarouselContent, CarouselItem } from "@/components/ui/carousel";
+import {
+  Carousel,
+  type CarouselApi,
+  CarouselContent,
+  CarouselItem,
+} from "@/components/ui/carousel";
 import { usePublicBootstrap } from "@/hooks/use-public-bootstrap";
 import { useThemeMode } from "@/hooks/use-theme-mode";
 import { scheduleOnBrowserIdle } from "@/lib/browser-idle";
@@ -301,13 +306,11 @@ const resolveHeroBrandFallback = (slide: HeroSlide) => {
 };
 
 const heroHighlightOverlayStyle = {
-  background:
-    "radial-gradient(circle at 82% 18%, rgba(255,255,255,0.16), transparent 36%)",
+  background: "radial-gradient(circle at 82% 18%, rgba(255,255,255,0.16), transparent 36%)",
 } as const satisfies React.CSSProperties;
 
 const heroHighlightOverlayStyleLight = {
-  background:
-    "radial-gradient(circle at 82% 18%, rgba(255,255,255,0.22), transparent 36%)",
+  background: "radial-gradient(circle at 82% 18%, rgba(255,255,255,0.22), transparent 36%)",
 } as const satisfies React.CSSProperties;
 
 const heroDirectionalOverlayStyle = {
@@ -550,7 +553,10 @@ const HeroSlideFrame = ({
               <div className="hero-home__brand-slot hero-home__brand-slot--top">
                 <div
                   className={composeHeroEntryClassName("hero-home__brand", shouldAnimateEntry)}
-                  style={{ ...heroLogoWrapStyle, ...resolveHeroEntryStyle("brand", shouldAnimateEntry) }}
+                  style={{
+                    ...heroLogoWrapStyle,
+                    ...resolveHeroEntryStyle("brand", shouldAnimateEntry),
+                  }}
                 >
                   <UploadPicture
                     src={slide.heroLogoUrl}
@@ -567,17 +573,11 @@ const HeroSlideFrame = ({
               </div>
             ) : null}
 
-            <div
-              data-testid={`hero-slide-meta-${slide.id}`}
-              className="hero-home__meta"
-            >
+            <div data-testid={`hero-slide-meta-${slide.id}`} className="hero-home__meta">
               {slide.id === latestSlideId ? (
                 <span
                   data-testid={`hero-slide-latest-${slide.id}`}
-                  className={composeHeroEntryClassName(
-                    "hero-home__meta-pill",
-                    shouldAnimateEntry,
-                  )}
+                  className={composeHeroEntryClassName("hero-home__meta-pill", shouldAnimateEntry)}
                   style={resolveHeroEntryStyle("badge", shouldAnimateEntry)}
                 >
                   Último lançamento
@@ -595,10 +595,7 @@ const HeroSlideFrame = ({
             </div>
 
             <h1
-              className={composeHeroEntryClassName(
-                "hero-home__title",
-                shouldAnimateEntry,
-              )}
+              className={composeHeroEntryClassName("hero-home__title", shouldAnimateEntry)}
               style={resolveHeroEntryStyle("title", shouldAnimateEntry)}
               title={slide.title}
             >
@@ -606,43 +603,33 @@ const HeroSlideFrame = ({
             </h1>
 
             <p
-              className={composeHeroEntryClassName(
-                "hero-home__synopsis",
-                shouldAnimateEntry,
-              )}
+              className={composeHeroEntryClassName("hero-home__synopsis", shouldAnimateEntry)}
               style={resolveHeroEntryStyle("synopsis", shouldAnimateEntry)}
             >
               {clampSynopsis(slide.description, 148)}
             </p>
 
             <div
-              className={composeHeroEntryClassName(
-                "hero-home__action-group",
-                shouldAnimateEntry,
-              )}
+              className={composeHeroEntryClassName("hero-home__action-group", shouldAnimateEntry)}
               style={resolveHeroEntryStyle("actions", shouldAnimateEntry)}
             >
               <Button asChild className="gap-2">
-                 <Link
-                   to={`/projeto/${slide.projectId}`}
-                   aria-label={`Acessar página de ${slide.title}`}
-                 >
-                   <Globe className="h-4 w-4" />
-                   Acessar página
-                 </Link>
-               </Button>
-               {slide.trailerUrl ? (
-                 <Button asChild variant="outline" className="gap-2">
-                   <a
-                     href={slide.trailerUrl}
-                     target="_blank"
-                     rel="noreferrer"
-                   >
-                     <Play className="h-4 w-4" />
-                     Assistir trailer
-                   </a>
-                 </Button>
-               ) : null}
+                <Link
+                  to={`/projeto/${slide.projectId}`}
+                  aria-label={`Acessar página de ${slide.title}`}
+                >
+                  <Globe className="h-4 w-4" />
+                  Acessar página
+                </Link>
+              </Button>
+              {slide.trailerUrl ? (
+                <Button asChild variant="outline" className="gap-2">
+                  <a href={slide.trailerUrl} target="_blank" rel="noreferrer">
+                    <Play className="h-4 w-4" />
+                    Assistir trailer
+                  </a>
+                </Button>
+              ) : null}
             </div>
             {slideCount > 1 && activeIndex === index ? (
               <HeroCarouselDock
@@ -959,11 +946,7 @@ const HeroSection = () => {
       style={heroSectionStyle}
     >
       {shouldRenderCarousel ? (
-        <Carousel
-          opts={{ loop: true }}
-          setApi={setApi}
-          className={`relative ${heroViewportClass}`}
-        >
+        <Carousel opts={{ loop: true }} setApi={setApi} className={`relative ${heroViewportClass}`}>
           <CarouselContent className="ml-0">
             {visibleSlides.map((slide, index) => (
               <CarouselItem key={slide.id} className="pl-0">
@@ -979,7 +962,9 @@ const HeroSection = () => {
                   shouldRenderNavbarOverlay={shouldRenderNavbarOverlay}
                   navbarOverlayClass={navbarOverlayClass}
                   clampSynopsis={clampSynopsis}
-                  shouldAnimateEntry={!(hasInitialHomeShellSnapshot && index === 0) && !prefersReducedMotion}
+                  shouldAnimateEntry={
+                    !(hasInitialHomeShellSnapshot && index === 0) && !prefersReducedMotion
+                  }
                   isReadyCandidate={index === 0}
                   priorityImageRef={handlePrimaryHeroImageRef}
                   onPriorityImageLoad={handlePrimaryHeroImageReady}

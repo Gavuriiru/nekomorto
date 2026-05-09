@@ -77,11 +77,7 @@ export const collectBootstrapPublicMediaUrls = (payload, options = {}) => {
   });
 
   projects.forEach((project, projectIndex) => {
-    pushCandidate(
-      projectHeroLogos,
-      `projects[${projectIndex}].heroLogoUrl`,
-      project?.heroLogoUrl,
-    );
+    pushCandidate(projectHeroLogos, `projects[${projectIndex}].heroLogoUrl`, project?.heroLogoUrl);
   });
 
   projects.forEach((project, projectIndex) => {

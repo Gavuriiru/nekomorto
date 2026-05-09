@@ -2124,11 +2124,7 @@ const DashboardPosts = () => {
                             </DashboardActionButton>
                           ) : null}
                           {editorPublicHref ? (
-                            <DashboardActionButton
-                              type="button"
-                              size="icon"
-                              asChild
-                            >
+                            <DashboardActionButton type="button" size="icon" asChild>
                               <Link target="_blank" rel="noreferrer" to={editorPublicHref}>
                                 <Eye className="h-4 w-4" aria-hidden="true" />
                               </Link>
@@ -2144,10 +2140,7 @@ const DashboardPosts = () => {
                               <Trash2 className="h-4 w-4" />
                             </DashboardActionButton>
                           ) : null}
-                          <DashboardActionButton
-                            size="sm"
-                            onClick={requestCloseEditor}
-                          >
+                          <DashboardActionButton size="sm" onClick={requestCloseEditor}>
                             Cancelar
                           </DashboardActionButton>
                           {editingPost ? (
@@ -2171,10 +2164,7 @@ const DashboardPosts = () => {
                             </>
                           ) : (
                             <>
-                              <DashboardActionButton
-                                size="sm"
-                                onClick={() => handleSave("draft")}
-                              >
+                              <DashboardActionButton size="sm" onClick={() => handleSave("draft")}>
                                 Salvar rascunho
                               </DashboardActionButton>
                               <DashboardActionButton
@@ -2203,7 +2193,7 @@ const DashboardPosts = () => {
           ) : null}
 
           <section className="mt-10 space-y-6">
-             <div className="flex flex-wrap items-center justify-between gap-3 animate-slide-up">
+            <div className="flex flex-wrap items-center justify-between gap-3 animate-slide-up">
               <div className="flex flex-1 flex-wrap items-center gap-3">
                 <div className="w-full max-w-sm">
                   <Input
@@ -2273,7 +2263,7 @@ const DashboardPosts = () => {
                     Calendário
                   </DashboardSegmentedActionButton>
                 </div>
-                 <Badge variant="static" className="text-xs uppercase animate-slide-up">
+                <Badge variant="static" className="text-xs uppercase animate-slide-up">
                   {sortedPosts.length} posts
                 </Badge>
               </div>

@@ -1100,13 +1100,9 @@ const ProjectPage = () => {
           <AccordionContent className="px-5 pt-0 pb-6">
             <div className="grid gap-4">
               {group.items.map((chapter, chapterIndex) =>
-                renderChapterDownloadCard(
-                  chapter,
-                  buildChapterListItemKey(chapter, chapterIndex),
-                  {
-                    allowReadAction,
-                  },
-                ),
+                renderChapterDownloadCard(chapter, buildChapterListItemKey(chapter, chapterIndex), {
+                  allowReadAction,
+                }),
               )}
             </div>
           </AccordionContent>

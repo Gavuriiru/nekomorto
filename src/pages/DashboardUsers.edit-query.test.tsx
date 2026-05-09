@@ -254,7 +254,9 @@ describe("DashboardUsers edit query", () => {
     const editorSectionContent = document.querySelector(
       ".project-editor-section-content",
     ) as HTMLElement | null;
-    const editorStatusBar = document.querySelector(".project-editor-status-bar") as HTMLElement | null;
+    const editorStatusBar = document.querySelector(
+      ".project-editor-status-bar",
+    ) as HTMLElement | null;
     const editorIdBadge = editorStatusBar
       ? (within(editorStatusBar).getByText(/^ID\s/i).parentElement as HTMLElement | null)
       : null;
@@ -267,7 +269,9 @@ describe("DashboardUsers edit query", () => {
     expect(editorAccordion).not.toBeNull();
     expect(editorSectionContent).not.toBeNull();
     expect(editorStatusBar).not.toBeNull();
-    expect(classTokens(editorDialog as HTMLElement)).not.toContain("w-[min(calc(100vw-3rem),320px)]");
+    expect(classTokens(editorDialog as HTMLElement)).not.toContain(
+      "w-[min(calc(100vw-3rem),320px)]",
+    );
     expect(classTokens(editorDialog as HTMLElement)).not.toContain("max-w-[320px]");
     expect(classTokens(editorDialog as HTMLElement)).toContain("sm:w-auto");
     expect(classTokens(editorDialog as HTMLElement)).toContain(

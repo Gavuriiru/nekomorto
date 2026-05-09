@@ -1117,13 +1117,13 @@ const DashboardProjectsEditor = () => {
                     lift={false}
                     className={`${dashboardPageLayoutTokens.listCardSolid} overflow-hidden`}
                   >
-                      <CardContent className="grid min-h-[360px] gap-0 p-0 lg:h-[342px] lg:min-h-0 lg:grid-cols-[220px_1fr]">
-                        <div className="flex lg:block">
-                          <Skeleton
-                            className="h-auto w-full shrink-0 rounded-none lg:h-full lg:w-full"
-                            style={{ aspectRatio: PROJECT_COVER_ASPECT_RATIO }}
-                          />
-                        </div>
+                    <CardContent className="grid min-h-[360px] gap-0 p-0 lg:h-[342px] lg:min-h-0 lg:grid-cols-[220px_1fr]">
+                      <div className="flex lg:block">
+                        <Skeleton
+                          className="h-auto w-full shrink-0 rounded-none lg:h-full lg:w-full"
+                          style={{ aspectRatio: PROJECT_COVER_ASPECT_RATIO }}
+                        />
+                      </div>
                       <div className="space-y-4 p-4 lg:p-6">
                         <div className="flex gap-2">
                           <Skeleton className="h-5 w-20" />
@@ -1185,10 +1185,7 @@ const DashboardProjectsEditor = () => {
                           data-slot="project-card-layout"
                           className="grid min-h-[360px] min-w-0 gap-0 lg:h-[342px] lg:min-h-0 lg:grid-cols-[220px_1fr]"
                         >
-                          <div
-                            data-slot="project-card-cover-shell"
-                            className="flex lg:block"
-                          >
+                          <div data-slot="project-card-cover-shell" className="flex lg:block">
                             <div
                               data-slot="project-card-cover"
                               className="relative h-auto w-full shrink-0 overflow-hidden lg:h-full lg:w-full"

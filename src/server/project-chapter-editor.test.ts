@@ -12,7 +12,7 @@ describe("project chapter editor", () => {
           {
             number: 1,
             title: "Capitulo 1",
-            content: "{\"root\":{\"children\":[]}}",
+            content: '{"root":{"children":[]}}',
             contentFormat: "lexical",
             pages: [{ position: 0, imageUrl: "/uploads/projects/1/page-1.jpg" }],
           },
@@ -22,7 +22,7 @@ describe("project chapter editor", () => {
       targetVolume: undefined,
       chapter: {
         number: 1,
-        content: "{\"root\":{\"children\":[{\"type\":\"paragraph\"}]}}",
+        content: '{"root":{"children":[{"type":"paragraph"}]}}',
         contentFormat: "lexical",
         pages: [{ position: 0, imageUrl: "/uploads/projects/1/page-1.jpg" }],
       },
@@ -56,7 +56,7 @@ describe("project chapter editor", () => {
       targetVolume: undefined,
       chapter: {
         number: 1,
-        content: "{\"root\":{\"children\":[{\"type\":\"paragraph\"}]}}",
+        content: '{"root":{"children":[{"type":"paragraph"}]}}',
         contentFormat: "lexical",
         pages: [],
       },

@@ -231,7 +231,9 @@ const Team = () => {
                         </h2>
                       ) : null}
                       {pageCopy.retiredSubtitle ? (
-                        <p className="whitespace-pre-wrap text-sm text-muted-foreground">{pageCopy.retiredSubtitle}</p>
+                        <p className="whitespace-pre-wrap text-sm text-muted-foreground">
+                          {pageCopy.retiredSubtitle}
+                        </p>
                       ) : null}
                     </div>
                   ) : null}
