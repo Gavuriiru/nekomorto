@@ -1,7 +1,6 @@
 import MangaPageTile from "@/components/project-reader/MangaPageTile";
 import ProjectEditorSectionCard from "@/components/project-reader/ProjectEditorSectionCard";
 import {
-  buildPreviewReorderList,
   buildReorderAnnouncement,
   getReorderLayoutTransition,
   handleAltArrowReorder,
@@ -490,6 +489,7 @@ const StagePagesGrid = memo(
     const {
       cancelPointerReorder,
       pointerDragState: stagePageDragState,
+      shiftOffsets: computedShiftOffsets,
       startPointerReorder,
     } = usePointerReorder({
       containerRef: gridRef,
@@ -501,19 +501,8 @@ const StagePagesGrid = memo(
       touchLongPressMoveTolerance: 48,
     });
 
-    const previewPages = useMemo(() => {
-      if (!stagePageDragState?.isDragging) {
-        return chapter.pages;
-      }
-      return buildPreviewReorderList(
-        chapter.pages,
-        stagePageDragState.sourceIndex,
-        stagePageDragState.overIndex,
-      );
-    }, [chapter.pages, stagePageDragState]);
-    const draggedStagePage = stagePageDragState?.isDragging
-      ? chapter.pages[stagePageDragState.sourceIndex] || null
-      : null;
+    const isDragging = stagePageDragState?.isDragging ?? false;
+    const dragSourceIndex = isDragging && stagePageDragState ? stagePageDragState.sourceIndex : null;
     const pressedStagePage =
       stagePageDragState?.sourceIndex !== undefined
         ? chapter.pages[stagePageDragState.sourceIndex] || null
@@ -522,12 +511,11 @@ const StagePagesGrid = memo(
     return (
       <LayoutGroup id={`manga-stage-pages-${chapter.id}`}>
         <div ref={gridRef} className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5">
-          {previewPages.map((page, index) => {
+          {chapter.pages.map((page, index) => {
             const isCover = page.id === chapter.coverPageId;
-            const isDragged = draggedStagePage === page;
-            const isDropTarget = Boolean(
-              stagePageDragState?.isDragging && stagePageDragState.overIndex === index,
-            );
+            const isDragged = dragSourceIndex === index;
+            const isPreviewTarget = isDragging && computedShiftOffsets?.has(index) === true && !isDragged;
+            const shiftOffset = computedShiftOffsets?.get(index) ?? null;
             const pageDisplayName = resolvePageDisplayName({
               name: page.name,
               relativePath: page.relativePath,
@@ -545,12 +533,14 @@ const StagePagesGrid = memo(
                 isCover={isCover}
                 isSpread={false}
                 isDragged={isDragged}
-                isPreviewTarget={isDropTarget}
+                isPreviewTarget={isPreviewTarget}
                 isPressed={pressedStagePage === page}
                 isTouchReorderActive={Boolean(pressedStagePage === page && stagePageDragState)}
                 disabled={isImporting}
                 reorderMotion={shouldReduceMotion ? "reduced" : "spring"}
                 reorderTransition={reorderTransition}
+                shiftOffset={shiftOffset}
+                isDraggingActive={isDragging}
                 onPointerDown={startPointerReorder}
                 onPointerCancel={cancelPointerReorder}
                 onKeyDown={(event, pageIndex) => onKeyDown(event, chapter.id, pageIndex)}

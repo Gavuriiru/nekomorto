@@ -2,7 +2,6 @@ import DownloadSourceSelect from "@/components/project-reader/DownloadSourceSele
 import MangaPageTile from "@/components/project-reader/MangaPageTile";
 import { exportMangaChapter } from "@/components/project-reader/manga-chapter-export";
 import {
-  buildPreviewReorderList,
   buildReorderAnnouncement,
   getReorderLayoutTransition,
   handleAltArrowReorder,
@@ -21,9 +20,17 @@ import { apiFetch } from "@/lib/api-client";
 import { fileToDataUrl } from "@/lib/file-data-url";
 import type { UploadMediaVariantsMap } from "@/lib/upload-variants";
 import { unzipSync } from "fflate";
-import { LayoutGroup, useReducedMotion } from "framer-motion";
+import { LayoutGroup, type Transition, useReducedMotion } from "framer-motion";
 import { FileArchive, FolderOpen, ImagePlus, Loader2, Plus } from "lucide-react";
-import { type KeyboardEvent, type MouseEvent, memo, useMemo, useRef, useState } from "react";
+import {
+  type KeyboardEvent,
+  type MouseEvent,
+  memo,
+  useCallback,
+  useMemo,
+  useRef,
+  useState,
+} from "react";
 import { normalizeProjectEpisodePages } from "../../../shared/project-reader.js";
 
 type MangaChapterPagesEditorProps = {
@@ -126,7 +133,7 @@ type MangaChapterPagesGridProps = {
   isUploading: boolean;
   mediaVariants: UploadMediaVariantsMap;
   shouldReduceMotion: boolean;
-  reorderTransition: ReturnType<typeof getReorderLayoutTransition>;
+  reorderTransition: Transition;
   onMovePage: (fromIndex: number, toIndex: number) => void;
   onKeyDown: (event: KeyboardEvent<HTMLDivElement>, index: number) => void;
   onJoinSpread: (event: MouseEvent<HTMLButtonElement>, index: number) => void;
@@ -156,34 +163,29 @@ const MangaChapterPagesGrid = memo(
     onRemove,
   }: MangaChapterPagesGridProps) => {
     const gridRef = useRef<HTMLDivElement | null>(null);
-    const { cancelPointerReorder, pointerDragState, startPointerReorder } = usePointerReorder({
-      containerRef: gridRef,
-      disabled: isUploading,
-      itemCount: pages.length,
-      onCommit: onMovePage,
-      scope: "manga-page",
-      touchLongPressDelayMs: 350,
-      touchLongPressMoveTolerance: 48,
-    });
-    const dragIndex = pointerDragState?.isDragging ? pointerDragState.sourceIndex : null;
-    const dragOverIndex = pointerDragState?.isDragging ? pointerDragState.overIndex : null;
-    const previewPages = useMemo(
-      () => buildPreviewReorderList(pages, dragIndex, dragOverIndex),
-      [dragIndex, dragOverIndex, pages],
-    );
-    const draggedPage = dragIndex !== null ? pages[dragIndex] : null;
+    const { cancelPointerReorder, pointerDragState, shiftOffsets, startPointerReorder } =
+      usePointerReorder({
+        containerRef: gridRef,
+        disabled: isUploading,
+        itemCount: pages.length,
+        onCommit: onMovePage,
+        scope: "manga-page",
+        touchLongPressDelayMs: 350,
+        touchLongPressMoveTolerance: 48,
+      });
+    const isDragging = pointerDragState?.isDragging ?? false;
+    const dragSourceIndex = isDragging && pointerDragState ? pointerDragState.sourceIndex : null;
     const pressedPage =
       pointerDragState?.sourceIndex !== undefined ? pages[pointerDragState.sourceIndex] : null;
-    const shouldUseAnimatedLayout = dragIndex !== null || dragOverIndex !== null;
 
     const renderTile = (page: MangaEditorPage, index: number) => {
       const isCover = coverImageUrl === page.imageUrl;
       const isSpread = Boolean(page.spreadPairId);
-      const isDragged = draggedPage === page;
-      const isPreviewTarget = dragIndex !== null && dragOverIndex === index;
-      const pageList = shouldUseAnimatedLayout ? previewPages : pages;
+      const isDragged = dragSourceIndex === index;
+      const isPreviewTarget = isDragging && shiftOffsets?.has(index) === true && !isDragged;
+      const shiftOffset = shiftOffsets?.get(index) ?? null;
       const canJoinWithNext = Boolean(
-        !page.spreadPairId && pageList[index + 1] && !pageList[index + 1]?.spreadPairId,
+        !page.spreadPairId && pages[index + 1] && !pages[index + 1]?.spreadPairId,
       );
 
       return (
@@ -206,6 +208,8 @@ const MangaChapterPagesGrid = memo(
           canJoinWithNext={canJoinWithNext}
           reorderMotion={shouldReduceMotion ? "reduced" : "spring"}
           reorderTransition={reorderTransition}
+          shiftOffset={shiftOffset}
+          isDraggingActive={isDragging}
           onPointerDown={startPointerReorder}
           onPointerCancel={cancelPointerReorder}
           onKeyDown={onKeyDown}
@@ -223,7 +227,7 @@ const MangaChapterPagesGrid = memo(
         className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5"
         data-testid="manga-pages-grid"
       >
-        {(shouldUseAnimatedLayout ? previewPages : pages).map(renderTile)}
+        {pages.map(renderTile)}
       </div>
     );
 
@@ -404,111 +408,121 @@ const MangaChapterPagesEditor = ({
     }
   };
 
-  const movePage = (fromIndex: number, toIndex: number) => {
-    const nextPages = reorderList(pages, fromIndex, toIndex);
-    if (nextPages === pages) {
-      return;
-    }
-    setNextChapter(nextPages);
-    const removedSpreadPairIds = getRemovedSpreadPairIds(pages, nextPages);
-    announce(
-      removedSpreadPairIds.length > 0
-        ? `${buildReorderAnnouncement(`Pagina ${fromIndex + 1}`, toIndex)} Spread desfeito porque as paginas deixaram de ficar juntas.`
-        : buildReorderAnnouncement(`Pagina ${fromIndex + 1}`, toIndex),
-    );
-  };
-
-  const handlePageKeyDown = (event: KeyboardEvent<HTMLDivElement>, index: number) => {
-    handleAltArrowReorder({
-      event,
-      index,
-      total: pages.length,
-      label: `Página ${index + 1}`,
-      disabled: isUploading,
-      onMove: (targetIndex) => {
-        const nextPages = reorderList(pages, index, targetIndex);
-        if (nextPages !== pages) {
-          setNextChapter(nextPages);
-          const removedSpreadPairIds = getRemovedSpreadPairIds(pages, nextPages);
-          announce(
-            removedSpreadPairIds.length > 0
-              ? `${buildReorderAnnouncement(`Pagina ${index + 1}`, targetIndex)} Spread desfeito porque as paginas deixaram de ficar juntas.`
-              : buildReorderAnnouncement(`Pagina ${index + 1}`, targetIndex),
-          );
-        }
-      },
-      onAnnounce: undefined,
-    });
-  };
-
-  const removePage = (event: MouseEvent<HTMLButtonElement>, index: number) => {
-    event.stopPropagation();
-    const nextPages = pages.filter((_, pageIndex) => pageIndex !== index);
-    const normalizedNextPages = serializePagesForChange(nextPages);
-    setChapterState(
-      {
-        coverImageUrl:
-          chapter.coverImageUrl === pages[index]?.imageUrl
-            ? nextPages[0]?.imageUrl || ""
-            : undefined,
-      },
-      normalizedNextPages,
-    );
-    if (getRemovedSpreadPairIds(pages, normalizedNextPages).length > 0) {
-      announce("Spread desfeito após remover a página.");
-    }
-  };
-
-  const joinSpreadPair = (event: MouseEvent<HTMLButtonElement>, index: number) => {
-    event.stopPropagation();
-    const nextPage = pages[index + 1];
-    if (!pages[index] || !nextPage || pages[index].spreadPairId || nextPage.spreadPairId) {
-      return;
-    }
-    const spreadPairId = buildSpreadPairId();
-    const nextPages = pages.map((page, pageIndex) =>
-      pageIndex === index || pageIndex === index + 1 ? { ...page, spreadPairId } : page,
-    );
-    setNextChapter(nextPages);
-    announce(`Spread criado entre as paginas ${index + 1} e ${index + 2}.`);
-  };
-
-  const unsetSpreadPair = (
-    event: MouseEvent<HTMLButtonElement>,
-    _index: number,
-    spreadPairId: string,
-  ) => {
-    event.stopPropagation();
-    if (!spreadPairId) {
-      return;
-    }
-    const pairedPageIndexes = pages.reduce<number[]>((result, page, index) => {
-      if (page.spreadPairId === spreadPairId) {
-        result.push(index + 1);
+  const movePage = useCallback(
+    (fromIndex: number, toIndex: number) => {
+      const nextPages = reorderList(pages, fromIndex, toIndex);
+      if (nextPages === pages) {
+        return;
       }
-      return result;
-    }, []);
-    const nextPages = pages.map((page) =>
-      page.spreadPairId === spreadPairId ? { ...page, spreadPairId: undefined } : page,
-    );
-    setNextChapter(nextPages);
-    if (pairedPageIndexes.length >= 2) {
-      announce(`Spread removido das paginas ${pairedPageIndexes[0]} e ${pairedPageIndexes[1]}.`);
-    }
-  };
+      setNextChapter(nextPages);
+      const removedSpreadPairIds = getRemovedSpreadPairIds(pages, nextPages);
+      announce(
+        removedSpreadPairIds.length > 0
+          ? `${buildReorderAnnouncement(`Pagina ${fromIndex + 1}`, toIndex)} Spread desfeito porque as paginas deixaram de ficar juntas.`
+          : buildReorderAnnouncement(`Pagina ${fromIndex + 1}`, toIndex),
+      );
+    },
+    [pages, setNextChapter, announce],
+  );
 
-  const setPageAsCover = (
-    event: MouseEvent<HTMLButtonElement>,
-    _index: number,
-    imageUrl: string,
-  ) => {
-    event.stopPropagation();
-    setNextChapter(pages, { coverImageUrl: imageUrl });
-    toast({
-      title: "Capa atualizada",
-      intent: "success",
-    });
-  };
+  const handlePageKeyDown = useCallback(
+    (event: KeyboardEvent<HTMLDivElement>, index: number) => {
+      handleAltArrowReorder({
+        event,
+        index,
+        total: pages.length,
+        label: `Página ${index + 1}`,
+        disabled: isUploading,
+        onMove: (targetIndex) => {
+          const nextPages = reorderList(pages, index, targetIndex);
+          if (nextPages !== pages) {
+            setNextChapter(nextPages);
+            const removedSpreadPairIds = getRemovedSpreadPairIds(pages, nextPages);
+            announce(
+              removedSpreadPairIds.length > 0
+                ? `${buildReorderAnnouncement(`Pagina ${index + 1}`, targetIndex)} Spread desfeito porque as paginas deixaram de ficar juntas.`
+                : buildReorderAnnouncement(`Pagina ${index + 1}`, targetIndex),
+            );
+          }
+        },
+        onAnnounce: undefined,
+      });
+    },
+    [pages, isUploading, setNextChapter, announce],
+  );
+
+  const removePage = useCallback(
+    (event: MouseEvent<HTMLButtonElement>, index: number) => {
+      event.stopPropagation();
+      const nextPages = pages.filter((_, pageIndex) => pageIndex !== index);
+      const normalizedNextPages = serializePagesForChange(nextPages);
+      setChapterState(
+        {
+          coverImageUrl:
+            chapter.coverImageUrl === pages[index]?.imageUrl
+              ? nextPages[0]?.imageUrl || ""
+              : undefined,
+        },
+        normalizedNextPages,
+      );
+      if (getRemovedSpreadPairIds(pages, normalizedNextPages).length > 0) {
+        announce("Spread desfeito após remover a página.");
+      }
+    },
+    [pages, chapter.coverImageUrl, setChapterState, announce],
+  );
+
+  const joinSpreadPair = useCallback(
+    (event: MouseEvent<HTMLButtonElement>, index: number) => {
+      event.stopPropagation();
+      const nextPage = pages[index + 1];
+      if (!pages[index] || !nextPage || pages[index].spreadPairId || nextPage.spreadPairId) {
+        return;
+      }
+      const spreadPairId = buildSpreadPairId();
+      const nextPages = pages.map((page, pageIndex) =>
+        pageIndex === index || pageIndex === index + 1 ? { ...page, spreadPairId } : page,
+      );
+      setNextChapter(nextPages);
+      announce(`Spread criado entre as paginas ${index + 1} e ${index + 2}.`);
+    },
+    [pages, setNextChapter, announce],
+  );
+
+  const unsetSpreadPair = useCallback(
+    (event: MouseEvent<HTMLButtonElement>, _index: number, spreadPairId: string) => {
+      event.stopPropagation();
+      if (!spreadPairId) {
+        return;
+      }
+      const pairedPageIndexes = pages.reduce<number[]>((result, page, index) => {
+        if (page.spreadPairId === spreadPairId) {
+          result.push(index + 1);
+        }
+        return result;
+      }, []);
+      const nextPages = pages.map((page) =>
+        page.spreadPairId === spreadPairId ? { ...page, spreadPairId: undefined } : page,
+      );
+      setNextChapter(nextPages);
+      if (pairedPageIndexes.length >= 2) {
+        announce(`Spread removido das paginas ${pairedPageIndexes[0]} e ${pairedPageIndexes[1]}.`);
+      }
+    },
+    [pages, setNextChapter, announce],
+  );
+
+  const setPageAsCover = useCallback(
+    (event: MouseEvent<HTMLButtonElement>, _index: number, imageUrl: string) => {
+      event.stopPropagation();
+      setNextChapter(pages, { coverImageUrl: imageUrl });
+      toast({
+        title: "Capa atualizada",
+        intent: "success",
+      });
+    },
+    [pages, setNextChapter],
+  );
 
   const handleExport = async () => {
     setIsExportingZip(true);

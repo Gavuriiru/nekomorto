@@ -61,6 +61,65 @@ export type ReorderSurfaceRect = {
   centerY: number;
 };
 
+export type ReorderShiftOffset = { x: number; y: number };
+
+export type ReorderShiftOffsets = Map<number, ReorderShiftOffset>;
+
+export const buildReorderShiftOffsets = ({
+  fromIndex,
+  toIndex,
+  rects,
+}: {
+  fromIndex: number | null;
+  toIndex: number | null;
+  rects: ReorderSurfaceRect[];
+}): ReorderShiftOffsets => {
+  const offsets: ReorderShiftOffsets = new Map();
+  if (fromIndex === null || toIndex === null || fromIndex === toIndex) {
+    return offsets;
+  }
+  if (!rects.length) {
+    return offsets;
+  }
+
+  const fromRect = rects.find((r) => r.index === fromIndex);
+  const toRect = rects.find((r) => r.index === toIndex);
+  if (!fromRect || !toRect) {
+    return offsets;
+  }
+
+  offsets.set(fromIndex, {
+    x: toRect.centerX - fromRect.centerX,
+    y: toRect.centerY - fromRect.centerY,
+  });
+
+  if (toIndex > fromIndex) {
+    for (let i = fromIndex + 1; i <= toIndex; i++) {
+      const currentRect = rects.find((r) => r.index === i);
+      const prevRect = rects.find((r) => r.index === i - 1);
+      if (currentRect && prevRect) {
+        offsets.set(i, {
+          x: prevRect.centerX - currentRect.centerX,
+          y: prevRect.centerY - currentRect.centerY,
+        });
+      }
+    }
+  } else {
+    for (let i = toIndex; i < fromIndex; i++) {
+      const currentRect = rects.find((r) => r.index === i);
+      const nextRect = rects.find((r) => r.index === i + 1);
+      if (currentRect && nextRect) {
+        offsets.set(i, {
+          x: nextRect.centerX - currentRect.centerX,
+          y: nextRect.centerY - currentRect.centerY,
+        });
+      }
+    }
+  }
+
+  return offsets;
+};
+
 export type PointerReorderState = {
   sourceIndex: number;
   overIndex: number;
@@ -447,9 +506,19 @@ export const usePointerReorder = <TElement extends HTMLElement>({
     schedulePointerMove,
   ]);
 
+  const shiftOffsets =
+    pointerDragState?.isDragging && reorderGeometryRef.current
+      ? buildReorderShiftOffsets({
+          fromIndex: pointerDragState.sourceIndex,
+          toIndex: pointerDragState.overIndex,
+          rects: reorderGeometryRef.current.rects,
+        })
+      : null;
+
   return {
     cancelPointerReorder,
     pointerDragState,
+    shiftOffsets,
     startPointerReorder,
   };
 };

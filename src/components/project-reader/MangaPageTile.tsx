@@ -39,6 +39,8 @@ type MangaPageTileProps = {
   canJoinWithNext?: boolean;
   reorderMotion: "spring" | "reduced";
   reorderTransition: Transition;
+  shiftOffset?: { x: number; y: number } | null;
+  isDraggingActive?: boolean;
   onPointerDown?: (event: PointerEvent<HTMLDivElement>, index: number) => void;
   onPointerMove?: (event: PointerEvent<HTMLDivElement>) => void;
   onPointerUp?: (event: PointerEvent<HTMLDivElement>) => void;
@@ -129,6 +131,8 @@ const MangaPageTile = ({
   canJoinWithNext = false,
   reorderMotion,
   reorderTransition,
+  shiftOffset,
+  isDraggingActive = false,
   onPointerDown,
   onPointerMove,
   onPointerUp,
@@ -299,13 +303,28 @@ const MangaPageTile = ({
     onRemove(event, index, actionId);
   };
 
+  const shiftTransform =
+    shiftOffset && (shiftOffset.x !== 0 || shiftOffset.y !== 0)
+      ? `translate3d(${shiftOffset.x}px, ${shiftOffset.y}px, 0)`
+      : undefined;
+  const shiftTransition =
+    isDraggingActive && shiftTransform ? "transform 200ms ease-out" : undefined;
+  const tileStyle = isDraggingActive
+    ? {
+        transform: shiftTransform,
+        transition: shiftTransition,
+        willChange: "transform" as const,
+      }
+    : undefined;
+
   return (
     <motion.article
-      layout={isDragged ? false : "position"}
+      layout={isDraggingActive ? false : "position"}
       transition={reorderTransition}
       className="group"
       data-testid={`${testIdPrefix}-card-${index}`}
-      data-reorder-layout={!isDragged ? "animated" : "static"}
+      data-reorder-layout={isDraggingActive ? "static" : !isDragged ? "animated" : "static"}
+      style={tileStyle}
     >
       <div
         role="button"
@@ -512,6 +531,9 @@ const areMangaPageTilePropsEqual = (previous: MangaPageTileProps, next: MangaPag
   previous.mediaVariants === next.mediaVariants &&
   previous.canJoinWithNext === next.canJoinWithNext &&
   previous.reorderMotion === next.reorderMotion &&
-  previous.reorderTransition === next.reorderTransition;
+  previous.reorderTransition === next.reorderTransition &&
+  previous.shiftOffset?.x === next.shiftOffset?.x &&
+  previous.shiftOffset?.y === next.shiftOffset?.y &&
+  previous.isDraggingActive === next.isDraggingActive;
 
 export default memo(MangaPageTile, areMangaPageTilePropsEqual);
