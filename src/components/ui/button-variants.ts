@@ -12,9 +12,9 @@ export const buttonVariants = cva(
         outline:
           "border border-border/70 bg-background text-foreground/70 hover:border-primary/60 hover:bg-primary/5 hover:text-foreground focus-visible:border-primary/60 focus-visible:bg-primary/5 focus-visible:text-foreground",
         secondary:
-          "border border-border/70 bg-background text-foreground/70 hover:border-primary/60 hover:bg-primary/5 hover:text-foreground focus-visible:border-primary/60 focus-visible:bg-primary/5 focus-visible:text-foreground",
+          "border border-border/70 bg-secondary text-secondary-foreground hover:bg-secondary/80 focus-visible:border-primary/60",
         ghost:
-          "border border-border/70 bg-background text-foreground/70 hover:border-primary/60 hover:bg-primary/5 hover:text-foreground focus-visible:border-primary/60 focus-visible:bg-primary/5 focus-visible:text-foreground",
+          "border border-transparent bg-transparent text-foreground/70 hover:border-border/60 hover:bg-muted/50 hover:text-foreground focus-visible:border-primary/60 focus-visible:bg-primary/5 focus-visible:text-foreground",
         link: "rounded-none border border-transparent bg-transparent p-0 text-primary underline-offset-4 hover:underline",
       },
       size: {

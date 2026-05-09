@@ -512,7 +512,7 @@ const DashboardHeader = ({
           >
             <Button
               type="button"
-              variant="ghost"
+              variant="outline"
               className="hidden h-10 items-center gap-2 rounded-full border border-border/60 bg-card/50 px-3 text-xs text-muted-foreground hover:bg-accent hover:text-accent-foreground md:inline-flex"
               onClick={() => setIsCommandPaletteOpen(true)}
             >
@@ -532,7 +532,7 @@ const DashboardHeader = ({
             <DropdownMenu open={isNavbarMenuOpen} onOpenChange={setIsNavbarMenuOpen}>
               <DropdownMenuTrigger asChild>
                 <Button
-                  variant="ghost"
+                  variant="outline"
                   size="icon"
                   className="h-10 w-10 rounded-full border border-border/60 bg-card/50 text-foreground/85 hover:bg-accent hover:text-accent-foreground 2xl:hidden"
                   aria-label="Abrir menu"
@@ -580,7 +580,7 @@ const DashboardHeader = ({
             >
               <DropdownMenuTrigger asChild>
                 <Button
-                  variant="ghost"
+                  variant="outline"
                   className="h-10 rounded-full border border-border/60 bg-card/50 px-2 text-foreground hover:bg-accent"
                 >
                   <Avatar className="h-8 w-8 border border-border/70">

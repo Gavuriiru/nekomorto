@@ -1,0 +1,23 @@
+@layer components {
+  .combobox-item-interaction-surface:not([data-state="checked"]):hover,
+  .combobox-item-interaction-surface:not([data-state="checked"])[data-highlighted] {
+    background-color: hsl(var(--accent) / 0.6);
+    color: hsl(var(--accent-foreground));
+  }
+
+  :root[data-theme-mode="dark"]
+    .combobox-item-interaction-surface:not([data-state="checked"]):hover,
+  :root[data-theme-mode="dark"]
+    .combobox-item-interaction-surface:not([data-state="checked"])[data-highlighted] {
+    background-color: hsl(var(--accent) / 0.6);
+    color: hsl(var(--accent-foreground));
+  }
+
+  :root[data-theme-mode="light"]
+    .combobox-item-interaction-surface:not([data-state="checked"]):hover,
+  :root[data-theme-mode="light"]
+    .combobox-item-interaction-surface:not([data-state="checked"])[data-highlighted] {
+    background-color: hsl(var(--accent) / 0.82);
+    color: hsl(var(--accent-foreground));
+  }
+}

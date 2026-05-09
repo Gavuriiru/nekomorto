@@ -1,6 +1,7 @@
 @import "tailwindcss";
 @import "./styles/home-public-cards.css";
 @import "./styles/vendor/tw-animate.css";
+@import "./styles/combobox.css";
 @source not "./**/*.test.ts";
 @source not "./**/*.test.tsx";
 
@@ -168,129 +169,6 @@
     ):focus-visible {
     border-color: hsl(var(--primary)) !important;
     box-shadow: inset 0 0 0 1px hsl(var(--primary) / 0.45) !important;
-  }
-
-  .combobox-item-interaction-surface:not([data-state="checked"]):hover,
-  .combobox-item-interaction-surface:not([data-state="checked"])[data-highlighted] {
-    background-color: hsl(var(--accent) / 0.6);
-    color: hsl(var(--accent-foreground));
-  }
-
-  :root[data-theme-mode="dark"]
-    .combobox-item-interaction-surface:not([data-state="checked"]):hover,
-  :root[data-theme-mode="dark"]
-    .combobox-item-interaction-surface:not([data-state="checked"])[data-highlighted] {
-    background-color: hsl(var(--accent) / 0.6);
-    color: hsl(var(--accent-foreground));
-  }
-
-  :root[data-theme-mode="light"]
-    .combobox-item-interaction-surface:not([data-state="checked"]):hover,
-  :root[data-theme-mode="light"]
-    .combobox-item-interaction-surface:not([data-state="checked"])[data-highlighted] {
-    background-color: hsl(var(--accent) / 0.82);
-    color: hsl(var(--accent-foreground));
-  }
-}
-
-@layer components {
-  .recent-updates-item {
-    display: flex;
-    height: var(--card-h);
-    overflow: hidden;
-    border-radius: 1rem;
-    border: 1px solid hsl(var(--border) / 0.6);
-    background-color: hsl(var(--background) / 0.7);
-    background-image: none;
-    box-shadow: none;
-    transition:
-      border-color var(--interactive-duration-fast) var(--interactive-ease-standard),
-      background-color var(--interactive-duration-fast) var(--interactive-ease-standard),
-      color var(--interactive-duration-fast) var(--interactive-ease-standard);
-  }
-
-  .recent-updates-item-body {
-    padding: 1.125rem;
-  }
-
-  .top-projects-viewport {
-    border-radius: 1.375rem;
-    overflow: hidden;
-  }
-
-  .top-projects-scroll-region {
-    max-height: calc((var(--top-card-h) * 2) + (var(--top-gap) * 1) + 1.5rem);
-    overflow-y: auto;
-    overscroll-behavior: contain;
-    padding: 0.75rem;
-    scrollbar-color: transparent transparent;
-    scrollbar-width: none;
-  }
-
-  .top-projects-scroll-region::-webkit-scrollbar {
-    display: none;
-    width: 0;
-    height: 0;
-  }
-
-  .top-projects-list {
-    display: flex;
-    flex-direction: column;
-  }
-
-  .top-projects-list > * + * {
-    margin-top: var(--top-gap);
-  }
-
-  @media (min-width: 768px) {
-    .top-projects-scroll-region {
-      max-height: calc((var(--top-card-h) * 3) + (var(--top-gap) * 2) + 1.5rem);
-    }
-  }
-
-  .work-status-scroll-region {
-    overflow-y: auto;
-    overscroll-behavior: contain;
-    padding: 0.5rem;
-    scrollbar-color: transparent transparent;
-    scrollbar-width: none;
-  }
-
-  .work-status-scroll-region::-webkit-scrollbar {
-    display: none;
-    width: 0;
-    height: 0;
-  }
-
-  .top-projects-link {
-    display: flex;
-    height: var(--top-card-h);
-    overflow: hidden;
-    border-radius: 1rem;
-    border: 1px solid hsl(var(--border) / 0.5);
-    background-color: hsl(var(--background) / 0.7);
-    background-image: none;
-    box-shadow: none;
-    transition:
-      border-color var(--interactive-duration-fast) var(--interactive-ease-standard),
-      background-color var(--interactive-duration-fast) var(--interactive-ease-standard),
-      color var(--interactive-duration-fast) var(--interactive-ease-standard);
-  }
-
-  .top-projects-link-body {
-    padding: 1.125rem;
-  }
-
-  .work-status-item {
-    display: block;
-    border: 1px solid hsl(var(--border) / 0.5);
-    background-color: hsl(var(--secondary) / 0.5);
-    background-image: none;
-    box-shadow: none;
-    transition:
-      border-color var(--interactive-duration-fast) var(--interactive-ease-standard),
-      background-color var(--interactive-duration-fast) var(--interactive-ease-standard),
-      color var(--interactive-duration-fast) var(--interactive-ease-standard);
   }
 }
 
@@ -664,6 +542,16 @@
   h6 {
     @apply font-bold tracking-tight;
   }
+
+  :where(.lexical-editor, .ProseMirror) h1,
+  :where(.lexical-editor, .ProseMirror) h2,
+  :where(.lexical-editor, .ProseMirror) h3,
+  :where(.lexical-editor, .ProseMirror) h4,
+  :where(.lexical-editor, .ProseMirror) h5,
+  :where(.lexical-editor, .ProseMirror) h6 {
+    font-weight: revert;
+    letter-spacing: revert;
+  }
 }
 
 @layer components {
@@ -826,13 +714,6 @@
     will-change: transform;
   }
 
-  .interactive-surface-transition {
-    transition-property: transform, box-shadow, background-color, border-color, color, opacity;
-    transition-duration: var(--interactive-duration-medium);
-    transition-timing-function: var(--interactive-ease-standard);
-    will-change: transform;
-  }
-
   .interactive-content-transition {
     transition-property:
       color, background-color, border-color, opacity, fill, stroke, text-decoration-color;
@@ -885,17 +766,26 @@
     }
   }
 
-  /* Unified minimal shadow for all previously bloated shadows */
-  [class*="shadow-dashboard-"],
-  [class*="shadow-dedicated-"],
-  [class*="shadow-editor-"],
-  [class*="shadow-floating-"],
-  [class*="shadow-manga-"],
-  [class*="shadow-post-"],
-  [class*="shadow-profile-"],
-  [class*="shadow-public-"],
-  [class*="shadow-project-"],
-  [class*="shadow-reader-"] {
+  .shadow-surface,
+  .shadow-dashboard-surface,
+  .shadow-dedicated-editor-sticky,
+  .shadow-dedicated-editor-meta,
+  .shadow-editor-surface,
+  .shadow-editor-epub-tools,
+  .shadow-editor-nested-card,
+  .shadow-manga-page-active,
+  .shadow-manga-page-dragging,
+  .shadow-post-card,
+  .shadow-profile-avatar,
+  .shadow-profile-card,
+  .shadow-public-card,
+  .shadow-project-download-card,
+  .shadow-project-details-card,
+  .shadow-project-cover-card,
+  .shadow-reader-panel,
+  .shadow-reader-control,
+  .shadow-reader-active-control,
+  .shadow-reader-menu {
     box-shadow:
       0 2px 8px -2px rgba(0, 0, 0, 0.08),
       0 1px 3px rgba(0, 0, 0, 0.04);
@@ -937,18 +827,6 @@
     .recent-updates-item:focus-visible .home-card-media-transition,
     .recent-updates-item:focus-within .home-card-media-transition {
       transform: none;
-    }
-  }
-
-  .interactive-lift-md {
-    transition-property: background-color, border-color, color, opacity;
-    transition-duration: 150ms;
-  }
-
-  @media (prefers-reduced-motion: no-preference) {
-    .interactive-lift-md:hover,
-    .interactive-lift-md:focus-visible {
-      border-color: hsl(var(--primary) / 0.4);
     }
   }
 

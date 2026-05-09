@@ -391,9 +391,9 @@ describe("focus ring contract", () => {
       'export const floatingOverlayShadowClassName = "shadow-floating-soft-lg";',
     );
     expect(indexCssSource).toContain(".shadow-floating-soft {");
-    expect(indexCssSource).toContain("box-shadow: 0 12px 32px -24px rgba(0, 0, 0, 0.2);");
+    expect(indexCssSource).toContain("box-shadow: 0 12px 48px -32px rgba(0, 0, 0, 0.18);");
     expect(indexCssSource).toContain(".shadow-floating-soft-lg {");
-    expect(indexCssSource).toContain("box-shadow: 0 22px 52px -34px rgba(0, 0, 0, 0.22);");
+    expect(indexCssSource).toContain("box-shadow: 0 22px 72px -44px rgba(0, 0, 0, 0.2);");
 
     floatingSurfaceTokenFiles.forEach((relativePath) => {
       const source = readFileSync(repoFile(relativePath), "utf8");

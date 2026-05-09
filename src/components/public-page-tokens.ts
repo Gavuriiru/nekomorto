@@ -11,7 +11,10 @@ export const publicPageLayoutTokens = {
   sectionBase: "mx-auto w-full px-6 md:px-10",
   sectionSpacing: "space-y-8 md:space-y-10",
   surfaceDefault: "rounded-2xl border border-border/60 bg-card/60",
+  surfaceDefaultXl: "rounded-xl border border-border/60 bg-card/60",
   surfaceMuted: "rounded-2xl border border-dashed border-border/60 bg-card/60",
+  surfaceInset: "rounded-2xl border border-border/70 bg-background",
+  surfaceInsetXl: "rounded-xl border border-border/70 bg-background",
   sectionLabelBase:
     "flex items-center gap-3 font-semibold uppercase tracking-widest text-muted-foreground",
   sectionLabelXs: "text-xs",

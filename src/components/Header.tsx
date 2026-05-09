@@ -80,7 +80,7 @@ const HeaderActionsFallback = ({
       <ThemeModeSwitcher />
     </div>
     <Button
-      variant="ghost"
+      variant="outline"
       size="icon"
       className="lg:hidden h-10 w-10 rounded-full border border-border/60 bg-card/50 text-foreground/85 hover:bg-accent hover:text-accent-foreground"
       aria-label="Abrir menu"

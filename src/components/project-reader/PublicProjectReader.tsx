@@ -5456,7 +5456,7 @@ const PublicProjectReaderContent = ({
                   >
                     <Button
                       type="button"
-                      variant="ghost"
+                      variant="outline"
                       size="icon"
                       className={cn(
                         "h-10 w-10 rounded-full border border-border/45 bg-card/45 text-foreground/85 shadow-reader-control backdrop-blur-sm transition-[background-color,border-color,color,box-shadow] duration-300 ease-out hover:bg-accent/90 hover:text-accent-foreground",
@@ -5512,7 +5512,7 @@ const PublicProjectReaderContent = ({
                     <Button
                       type="button"
                       size="icon"
-                      variant="ghost"
+                      variant="outline"
                       className="absolute right-2.5 top-2.5 z-10 h-10 w-10 rounded-full border border-border/45 bg-background/70 text-foreground/80 shadow-sm backdrop-blur-sm transition-colors duration-200 hover:bg-accent hover:text-accent-foreground"
                       onClick={() => closeMenu()}
                       aria-label="Fechar menu do leitor"

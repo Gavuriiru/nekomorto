@@ -49,11 +49,15 @@ describe("buttonVariants", () => {
     expect(destructiveTokens).toEqual(
       expect.arrayContaining(["border-destructive/40", "bg-destructive/10", "text-destructive"]),
     );
-    [outlineTokens, secondaryTokens, ghostTokens].forEach((tokens) => {
-      expect(tokens).toEqual(
-        expect.arrayContaining(["border-border/70", "bg-background", "text-foreground/70"]),
-      );
-    });
+    expect(outlineTokens).toEqual(
+      expect.arrayContaining(["border-border/70", "bg-background", "text-foreground/70"]),
+    );
+    expect(secondaryTokens).toEqual(
+      expect.arrayContaining(["bg-secondary", "text-secondary-foreground"]),
+    );
+    expect(ghostTokens).toEqual(
+      expect.arrayContaining(["border-transparent", "bg-transparent", "text-foreground/70"]),
+    );
   });
 
   it("mantem link como link textual", () => {
