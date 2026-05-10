@@ -57,8 +57,9 @@ export const createSiteMetaBuilders = ({
 }) => {
   const buildSiteMetaWithSettings = (settings) => {
     const siteName = settings.site?.name || "Nekomata";
+    const separator = settings.site?.titleSeparator || " | ";
     return {
-      title: siteName,
+      title: `Início${separator}${siteName}`,
       description: truncateMetaDescription(
         settings.site?.description ||
           "Nekomata é uma fansub e scan feita por fãs, com traduções cuidadosas, carinho pela comunidade e respeito aos autores.",

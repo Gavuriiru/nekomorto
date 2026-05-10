@@ -16,6 +16,7 @@ import {
   buildVersionedInstitutionalOgImagePath,
   resolveInstitutionalOgSupportText,
 } from "../../shared/institutional-og-seo.js";
+import { normalizeFaqPublicPage } from "../../shared/public-page-content.js";
 
 const iconMap: Record<string, typeof HelpCircle> = {
   HelpCircle,
@@ -29,93 +30,9 @@ const iconMap: Record<string, typeof HelpCircle> = {
 const resolveFaqIcon = (iconName: string | undefined, fallback: typeof HelpCircle) =>
   (iconName ? iconMap[iconName] : undefined) || fallback;
 
-const defaultFaq = {
-  shareImage: "",
-  shareImageAlt: "",
-  heroTitle: "Perguntas frequentes",
-  heroSubtitle: "Respostas rápidas para dúvidas comuns sobre projetos, lançamentos e equipe.",
-  introCards: [
-    {
-      title: "Antes de perguntar",
-      icon: "HelpCircle",
-      text: "Se sua dúvida não estiver aqui, fale com a equipe no Discord. Responderemos assim que possível.",
-      note: "A equipe é pequena e trabalha no tempo livre. Obrigado pela compreensão!",
-    },
-    {
-      title: "Dica rápida",
-      icon: "Sparkles",
-      text: "Para melhor experiência, use players como MPV ou VLC e mantenha o arquivo na mesma pasta da legenda.",
-      note: "Sugestões de projetos são bem-vindas, mas dependem de disponibilidade.",
-    },
-  ],
-  groups: [
-    {
-      title: "Detalhes gerais",
-      icon: "Info",
-      items: [
-        {
-          question: "O que é a Nekomata Fansub?",
-          answer:
-            "Somos um grupo de fãs que traduz e adapta conteúdos com foco em qualidade, estilo e respeito à obra.",
-        },
-        {
-          question: "Vocês cobram pelos lançamentos?",
-          answer: "Não. Nosso trabalho é feito por paixão e sem fins lucrativos.",
-        },
-        {
-          question: "Qual a prioridade da equipe?",
-          answer: "Entregar algo bonito, legível e consistente, mesmo que isso leve mais tempo.",
-        },
-      ],
-    },
-    {
-      title: "Recrutamento",
-      icon: "Users",
-      items: [
-        {
-          question: "Posso entrar para a equipe?",
-          answer: "Sim! Sempre buscamos pessoas comprometidas. Entre em contato pelo Discord.",
-        },
-        {
-          question: "Preciso ter experiência?",
-          answer: "Ajuda, mas não é obrigatório. O principal é vontade de aprender e consistência.",
-        },
-      ],
-    },
-    {
-      title: "Projetos e lançamentos",
-      icon: "Rocket",
-      items: [
-        {
-          question: "Quando sai o próximo episódio?",
-          answer: "Quando estiver pronto. Evitamos datas exatas para priorizar qualidade.",
-        },
-        {
-          question: "Posso sugerir um projeto?",
-          answer: "Pode sim! Levamos em conta a demanda e a capacidade da equipe.",
-        },
-      ],
-    },
-    {
-      title: "Qualidade e suporte",
-      icon: "Shield",
-      items: [
-        {
-          question: "Como reporto um erro?",
-          answer: "Fale com a equipe pelo Discord. Quanto mais detalhes, melhor.",
-        },
-        {
-          question: "A legenda não aparece. O que faço?",
-          answer: "Verifique o player e o arquivo. Recomendamos players como MPV e VLC.",
-        },
-      ],
-    },
-  ],
-};
-
 const FAQ = () => {
   const bootstrap = readWindowPublicBootstrap();
-  const faq = useMemo(() => ({ ...defaultFaq, ...(bootstrap?.pages.faq || {}) }), [bootstrap]);
+  const faq = useMemo(() => normalizeFaqPublicPage(bootstrap?.pages.faq), [bootstrap]);
   const pageMediaVariants = bootstrap?.mediaVariants || {};
   usePageMeta({
     title: "FAQ",

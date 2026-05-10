@@ -1,4 +1,5 @@
 import { isReservedPublicPath } from "../../shared/public-paths.js";
+import { resolvePublicPathIndexability } from "../lib/public-indexability.js";
 
 export const registerAppRoutes = ({
   app,
@@ -29,7 +30,10 @@ export const registerAppRoutes = ({
     }
     try {
       const settings = loadSiteSettings();
-      const pages = loadPages();
+      const pages = resolvePublicPathIndexability({
+        pathname: req.path,
+        pages: loadPages(),
+      }).pages;
       const institutionalPageKey = resolveInstitutionalOgPageKeyFromPath(req.path);
       const meta = institutionalPageKey
         ? buildInstitutionalPageMeta(institutionalPageKey, {
@@ -49,9 +53,13 @@ export const registerAppRoutes = ({
       const canonicalUrl = `${PRIMARY_APP_ORIGIN}${req.path}`;
       const isDashboardPath = /^\/dashboard(?:\/|$)/.test(req.path);
       const isLoginPath = req.path === "/login" || req.path.startsWith("/login/");
-      const isKnownPublicShellPath = Boolean(institutionalPageKey) || req.path === "/login";
-      const shouldNoIndex = isDashboardPath || isLoginPath || !isKnownPublicShellPath;
-      const structuredData = shouldNoIndex
+      const indexability = resolvePublicPathIndexability({
+        pathname: req.path,
+        pages,
+        isDashboardPath,
+        isLoginPath,
+      });
+      const structuredData = !indexability.shouldIndex
         ? []
         : buildSchemaOrgPayload({
             origin: PRIMARY_APP_ORIGIN,
@@ -65,7 +73,7 @@ export const registerAppRoutes = ({
         ...meta,
         title,
         url: canonicalUrl,
-        robots: shouldNoIndex ? "noindex, nofollow" : "index, follow",
+        robots: indexability.robots,
         structuredData,
         themeColor,
       });

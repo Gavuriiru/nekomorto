@@ -27,6 +27,7 @@ import {
   buildVersionedInstitutionalOgImagePath,
   resolveInstitutionalOgSupportText,
 } from "../../shared/institutional-og-seo.js";
+import { normalizeRecruitmentPublicPage } from "../../shared/public-page-content.js";
 
 const iconMap = {
   Languages,
@@ -40,77 +41,8 @@ const iconMap = {
   ShieldCheck,
 };
 
-type RecruitmentRole = {
-  title: string;
-  description: string;
-  icon?: keyof typeof iconMap;
-};
-
-type RecruitmentPageRole = Omit<RecruitmentRole, "icon"> & {
-  icon?: string;
-};
-
 const isRecruitmentIconKey = (value: string | undefined): value is keyof typeof iconMap =>
   typeof value === "string" && value in iconMap;
-
-const defaultRecruitment = {
-  shareImage: "",
-  shareImageAlt: "",
-  heroBadge: "Recrutamento",
-  heroTitle: "Venha fazer parte da equipe",
-  heroSubtitle:
-    "Buscamos pessoas comprometidas e curiosas. Se você gosta de traduções, edição ou produção visual, há um lugar para você aqui.",
-  roles: [
-    {
-      title: "Tradutor",
-      description: "Adapta o texto original para português mantendo tom, contexto e naturalidade.",
-      icon: "Languages",
-    },
-    {
-      title: "Revisor",
-      description: "Garante coerência, gramática e fluidez do texto antes da etapa visual.",
-      icon: "ScanText",
-    },
-    {
-      title: "Typesetter",
-      description: "Integra o texto à arte, ajustando tipografia, efeitos e legibilidade.",
-      icon: "PenTool",
-    },
-    {
-      title: "Quality Check",
-      description: "Revisa o resultado final buscando erros visuais, timing e consistência.",
-      icon: "ShieldCheck",
-    },
-    {
-      title: "Encoder",
-      description: "Responsável por exportação e ajustes finais de qualidade do vídeo/arquivo.",
-      icon: "Video",
-    },
-    {
-      title: "Cleaner",
-      description: "Remove textos da arte original preparando o material para o typesetting.",
-      icon: "Paintbrush",
-    },
-    {
-      title: "Redrawer",
-      description: "Reconstrói partes da arte removidas pelo cleaning para preservar o visual.",
-      icon: "Layers",
-    },
-    {
-      title: "Timer",
-      description: "Sincroniza falas com o tempo, garantindo leitura confortável e precisa.",
-      icon: "Timer",
-    },
-    {
-      title: "Karaoke/FX",
-      description: "Cria efeitos especiais e animações para openings/endings quando necessário.",
-      icon: "Sparkles",
-    },
-  ] as RecruitmentRole[],
-  ctaTitle: "Pronto para participar?",
-  ctaSubtitle: "Entre no nosso servidor e fale com a equipe.",
-  ctaButtonLabel: "Entrar no Discord",
-};
 
 const Recruitment = () => {
   const { settings } = useSiteSettings();
@@ -119,22 +51,10 @@ const Recruitment = () => {
   const { data: bootstrapData } = usePublicBootstrap();
   const bootstrap = windowBootstrap || bootstrapData;
   const hasFullBootstrap = Boolean(bootstrap && bootstrap.payloadMode !== "critical-home");
-  const recruitment = useMemo(() => {
-    const incoming = hasFullBootstrap ? bootstrap?.pages.recruitment : null;
-    if (!incoming) {
-      return defaultRecruitment;
-    }
-    const roles = (incoming.roles || defaultRecruitment.roles).map((role: RecruitmentPageRole) => ({
-      title: role.title,
-      description: role.description,
-      icon: isRecruitmentIconKey(role.icon) ? role.icon : "Sparkles",
-    }));
-    return {
-      ...defaultRecruitment,
-      ...incoming,
-      roles,
-    };
-  }, [bootstrap, hasFullBootstrap]);
+  const recruitment = useMemo(
+    () => normalizeRecruitmentPublicPage(hasFullBootstrap ? bootstrap?.pages.recruitment : null),
+    [bootstrap, hasFullBootstrap],
+  );
   const pageBootstrap = hasFullBootstrap ? bootstrap : null;
   const pageMediaVariants = pageBootstrap?.mediaVariants || {};
   usePageMeta({

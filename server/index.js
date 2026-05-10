@@ -1020,6 +1020,8 @@ registerRuntimeMiddleware({
   pwaManifestCacheControl: PWA_MANIFEST_CACHE_CONTROL,
   pwaThemeColorDark: PWA_THEME_COLOR_DARK,
   pwaThemeColorLight: PWA_THEME_COLOR_LIGHT,
+  primaryAppHost: PRIMARY_APP_HOST,
+  primaryAppOrigin: PRIMARY_APP_ORIGIN,
   sessionCookieConfig,
   sessionStore,
   setStaticCacheHeaders,

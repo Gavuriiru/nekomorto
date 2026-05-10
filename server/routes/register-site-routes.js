@@ -1,3 +1,5 @@
+import { resolvePublicPathIndexability } from "../lib/public-indexability.js";
+
 export const registerSiteRoutes = ({
   app,
   PRIMARY_APP_ORIGIN,
@@ -63,7 +65,10 @@ export const registerSiteRoutes = ({
       try {
         const settings = loadSiteSettings();
         const translations = loadTagTranslations();
-        const pages = loadPages();
+        const pages = resolvePublicPathIndexability({
+          pathname: req.path,
+          pages: loadPages(),
+        }).pages;
         const isReadingRoute = /^\/projeto(?:s)?\/.+\/leitura\/.+/.test(String(req.path || ""));
         const canonicalPath = req.path.replace(/^\/projetos\//, "/projeto/");
         const canonicalUrl = `${PRIMARY_APP_ORIGIN}${canonicalPath}`;
@@ -72,8 +77,12 @@ export const registerSiteRoutes = ({
           const slug = String(req.params.slug || "");
           const post = normalizePosts(loadPosts()).find((item) => item.slug === slug);
           const meta = post ? buildPostMeta(post) : buildSiteMetaWithSettings(settings);
-          const shouldNoIndexPost = !post;
-          const structuredData = shouldNoIndexPost
+          const indexability = resolvePublicPathIndexability({
+            pathname: req.path,
+            pages,
+            post,
+          });
+          const structuredData = !indexability.shouldIndex
             ? []
             : buildSchemaOrgPayload({
                 origin: PRIMARY_APP_ORIGIN,
@@ -87,7 +96,7 @@ export const registerSiteRoutes = ({
             html: renderMetaHtml({
               ...meta,
               url: canonicalUrl,
-              robots: shouldNoIndexPost ? "noindex, nofollow" : meta.robots,
+              robots: indexability.robots,
               structuredData,
               themeColor,
             }),
@@ -101,7 +110,6 @@ export const registerSiteRoutes = ({
         if (req.path.startsWith("/projeto/") || req.path.startsWith("/projetos/")) {
           const id = String(req.params.id || "");
           const project = normalizeProjects(loadProjects()).find((item) => String(item.id) === id);
-          const shouldNoIndexProject = !project || isReadingRoute;
           const chapterNumber = Number(req.params.chapter);
           const routeVolume = Number(req.query?.volume);
           const meta = project
@@ -121,7 +129,13 @@ export const registerSiteRoutes = ({
                   translations,
                 })
             : buildSiteMetaWithSettings(settings);
-          const structuredData = shouldNoIndexProject
+          const indexability = resolvePublicPathIndexability({
+            pathname: req.path,
+            pages,
+            project,
+            isReadingRoute,
+          });
+          const structuredData = !indexability.shouldIndex
             ? []
             : buildSchemaOrgPayload({
                 origin: PRIMARY_APP_ORIGIN,
@@ -135,7 +149,7 @@ export const registerSiteRoutes = ({
             html: renderMetaHtml({
               ...meta,
               url: canonicalUrl,
-              robots: shouldNoIndexProject ? "noindex, nofollow" : meta.robots,
+              robots: indexability.robots,
               structuredData,
               themeColor,
             }),
@@ -147,17 +161,24 @@ export const registerSiteRoutes = ({
           return await sendHtml(req, res, html);
         }
         const meta = buildSiteMetaWithSettings(settings);
-        const structuredData = buildSchemaOrgPayload({
-          origin: PRIMARY_APP_ORIGIN,
+        const indexability = resolvePublicPathIndexability({
           pathname: req.path,
-          canonicalUrl,
-          settings,
           pages,
         });
+        const structuredData = indexability.shouldIndex
+          ? buildSchemaOrgPayload({
+              origin: PRIMARY_APP_ORIGIN,
+              pathname: req.path,
+              canonicalUrl,
+              settings,
+              pages,
+            })
+          : [];
         const html = injectPublicBootstrapHtml({
           html: renderMetaHtml({
             ...meta,
             url: canonicalUrl,
+            robots: indexability.robots,
             structuredData,
             themeColor,
           }),

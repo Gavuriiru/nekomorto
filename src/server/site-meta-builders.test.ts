@@ -49,10 +49,15 @@ describe("site meta builders", () => {
 
     expect(
       buildSiteMetaWithSettings({
-        site: { name: "Nekomata", description: "Descrição", faviconUrl: "/favicon.ico" },
+        site: {
+          name: "Nekomata",
+          description: "Descrição",
+          faviconUrl: "/favicon.ico",
+          titleSeparator: " | ",
+        },
       }),
     ).toEqual({
-      title: "Nekomata",
+      title: "Início | Nekomata",
       description: "Descrição",
       image: "",
       imageAlt: "",

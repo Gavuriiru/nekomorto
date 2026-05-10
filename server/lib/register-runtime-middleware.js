@@ -123,6 +123,8 @@ export const registerRuntimeMiddleware = ({
   pwaManifestCacheControl,
   pwaThemeColorDark,
   pwaThemeColorLight,
+  primaryAppHost,
+  primaryAppOrigin,
   sessionCookieConfig,
   sessionStore,
   setStaticCacheHeaders,
@@ -293,6 +295,24 @@ export const registerRuntimeMiddleware = ({
   app.use("/auth", apiCorsMiddleware);
 
   app.set("trust proxy", trustProxy);
+
+  app.use((req, res, next) => {
+    if (!isProduction) {
+      return next();
+    }
+    const method = String(req.method || "").toUpperCase();
+    if (method !== "GET" && method !== "HEAD") {
+      return next();
+    }
+    const canonicalHost = String(primaryAppHost || "").trim().toLowerCase();
+    const canonicalOrigin = String(primaryAppOrigin || "").trim();
+    const hostname = String(req.hostname || "").trim().toLowerCase();
+    if (!canonicalHost || !canonicalOrigin || hostname !== `www.${canonicalHost}`) {
+      return next();
+    }
+    const location = `${canonicalOrigin}${String(req.originalUrl || req.url || "/")}`;
+    return res.redirect(301, location);
+  });
 
   const requireSameOrigin = (req, res, next) => {
     if (!isProduction) {

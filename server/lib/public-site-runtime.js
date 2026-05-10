@@ -1,3 +1,6 @@
+import { resolvePublicPathIndexability } from "./public-indexability.js";
+import { buildPublicSeoSnapshot } from "./public-seo-snapshot.js";
+
 export const PUBLIC_BOOTSTRAP_MODE_FULL = "full";
 export const PUBLIC_BOOTSTRAP_MODE_CRITICAL_HOME = "critical-home";
 
@@ -92,14 +95,25 @@ export const createPublicSiteRuntime = (dependencies = {}) => {
 
   const buildPublicSitemapEntries = () => {
     const settings = loadSiteSettings();
+    const pages = resolvePublicPathIndexability({
+      pathname: "/",
+      pages: loadPages(),
+    }).pages;
     const siteUpdatedAt = String(settings?.updatedAt || "").trim();
     const entries = [
-      ...sitemapStaticPublicPaths.map((pathname) => ({
-        loc: `${primaryAppOrigin}${pathname}`,
-        lastmod: siteUpdatedAt || null,
-        changefreq: pathname === "/" ? "daily" : pathname === "/projetos" ? "weekly" : "monthly",
-        priority: pathname === "/" ? 1 : pathname === "/projetos" ? 0.9 : 0.7,
-      })),
+      ...sitemapStaticPublicPaths
+        .filter((pathname) =>
+          resolvePublicPathIndexability({
+            pathname,
+            pages,
+          }).shouldIndex,
+        )
+        .map((pathname) => ({
+          loc: `${primaryAppOrigin}${pathname}`,
+          lastmod: siteUpdatedAt || null,
+          changefreq: pathname === "/" ? "daily" : pathname === "/projetos" ? "weekly" : "monthly",
+          priority: pathname === "/" ? 1 : pathname === "/projetos" ? 0.9 : 0.7,
+        })),
       ...getPublicVisibleProjects().map((project) => ({
         loc: `${primaryAppOrigin}/projeto/${project.id}`,
         lastmod: project.updatedAt || project.createdAt || null,
@@ -434,6 +448,10 @@ export const createPublicSiteRuntime = (dependencies = {}) => {
     payloadMode = PUBLIC_BOOTSTRAP_MODE_FULL,
     currentPostDetail = null,
   } = {}) => {
+    const normalizedPages = resolvePublicPathIndexability({
+      pathname: "/",
+      pages,
+    }).pages;
     const projects = getPublicVisibleProjects();
     const inProgressItems = getPublicInProgressItems();
     const posts = getPublicVisiblePosts().map((post) => {
@@ -472,7 +490,7 @@ export const createPublicSiteRuntime = (dependencies = {}) => {
     const teamLinkTypes = loadLinkTypes();
     const payload = buildPublicBootstrapPayload({
       settings,
-      pages,
+      pages: normalizedPages,
       projects,
       inProgressItems,
       posts,
@@ -500,6 +518,15 @@ export const createPublicSiteRuntime = (dependencies = {}) => {
     );
     payload.homeHero = buildPublicHomeHeroPayload(payload.projects, payload.updates);
     return payload;
+  };
+
+  const injectSeoSnapshotMarkup = ({ html, snapshotHtml }) => {
+    const snippet = String(snapshotHtml || "").trim();
+    const source = String(html || "");
+    if (!snippet || source.includes('id="seo-snapshot"')) {
+      return source;
+    }
+    return source.replace('<div id="root"></div>', `${snippet}\n<div id="root"></div>`);
   };
 
   const resolveHomeHeroPreload = (publicBootstrap) => {
@@ -784,6 +811,10 @@ export const createPublicSiteRuntime = (dependencies = {}) => {
     bootstrapMode = PUBLIC_BOOTSTRAP_MODE_FULL,
     includeHomeHeroShell = false,
   }) => {
+    const normalizedPages = resolvePublicPathIndexability({
+      pathname: req?.path,
+      pages,
+    }).pages;
     const routeCurrentPostDetail =
       req?.path?.startsWith("/postagem/") && bootstrapMode === PUBLIC_BOOTSTRAP_MODE_FULL
         ? (() => {
@@ -799,9 +830,26 @@ export const createPublicSiteRuntime = (dependencies = {}) => {
         : null;
     const publicBootstrap = buildPublicBootstrapResponsePayload({
       settings,
-      pages,
+      pages: normalizedPages,
       payloadMode: bootstrapMode,
       currentPostDetail: routeCurrentPostDetail,
+    });
+    const bootstrapProject =
+      req?.path?.startsWith("/projeto/") || req?.path?.startsWith("/projetos/")
+        ? findBootstrapProjectByRouteSlug(publicBootstrap?.projects, req?.params?.id)
+        : null;
+    const routePost =
+      req?.path?.startsWith("/postagem/") && routeCurrentPostDetail
+        ? getPublicVisiblePosts().find(
+            (candidate) => String(candidate?.slug || "").trim() === String(req?.params?.slug || ""),
+          ) || null
+        : null;
+    const indexability = resolvePublicPathIndexability({
+      pathname: req?.path,
+      pages: normalizedPages,
+      project: bootstrapProject,
+      post: routePost,
+      isReadingRoute: /^\/projeto(?:s)?\/.+\/leitura\/.+/.test(String(req?.path || "")),
     });
     const publicMe = req?.session?.user ? buildUserPayload(req.session.user) : null;
     let nextHtml = injectBootstrapGlobals({
@@ -811,6 +859,20 @@ export const createPublicSiteRuntime = (dependencies = {}) => {
       publicMe,
       pwaEnabled: false,
     });
+    if (indexability.shouldRenderSeoSnapshot) {
+      nextHtml = injectSeoSnapshotMarkup({
+        html: nextHtml,
+        snapshotHtml: buildPublicSeoSnapshot({
+          pathname: req?.path,
+          pages: indexability.pages,
+          settings,
+          publicBootstrap,
+          project: bootstrapProject,
+          post: routePost,
+          stripHtml,
+        }),
+      });
+    }
     const preloads = extractLocalStylesheetHrefs(nextHtml).map((href) => ({
       href,
       as: "style",

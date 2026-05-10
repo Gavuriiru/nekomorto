@@ -250,6 +250,69 @@ describe("public-site-runtime", () => {
     expect(dashboardHtml).toContain("skip:yes");
   });
 
+  it("injects a crawlable seo snapshot for indexable public pages", () => {
+    const runtime = createPublicSiteRuntime(
+      createDeps({
+        loadPages: () => ({
+          about: {
+            heroTitle: "",
+            heroSubtitle: "",
+            highlights: [],
+            manifestoParagraphs: [],
+            pillars: [],
+            values: [],
+          },
+          faq: {
+            heroTitle: "",
+            heroSubtitle: "",
+            introCards: [],
+            groups: [],
+          },
+          recruitment: {
+            heroTitle: "",
+            heroSubtitle: "",
+            roles: [],
+            ctaTitle: "",
+            ctaSubtitle: "",
+            ctaButtonLabel: "",
+          },
+        }),
+      }),
+    );
+
+    const html = runtime.injectPublicBootstrapHtml({
+      html: "<html><body><div id=\"root\"></div></body></html>",
+      req: {
+        path: "/faq",
+      },
+      settings: {},
+      pages: {},
+      bootstrapMode: PUBLIC_BOOTSTRAP_MODE_FULL,
+    });
+
+    expect(html).toContain('id="seo-snapshot"');
+    expect(html).toContain("<main>");
+    expect(html).toContain("<h1>Perguntas frequentes</h1>");
+    expect(html).toContain('href="/sobre"');
+  });
+
+  it("does not inject an seo snapshot for noindex reading routes", () => {
+    const runtime = createPublicSiteRuntime(createDeps());
+
+    const html = runtime.injectPublicBootstrapHtml({
+      html: "<html><body><div id=\"root\"></div></body></html>",
+      req: {
+        path: "/projeto/project-1/leitura/5",
+        params: { id: "project-1", chapter: "5" },
+      },
+      settings: {},
+      pages: {},
+      bootstrapMode: PUBLIC_BOOTSTRAP_MODE_FULL,
+    });
+
+    expect(html).not.toContain('id="seo-snapshot"');
+  });
+
   it("inclui currentPostDetail apenas na rota pública de post", () => {
     let capturedPublicBootstrap: { currentPostDetail?: unknown } | null = null;
     const runtime = createPublicSiteRuntime(

@@ -156,6 +156,7 @@ const createResponse = () => ({
   body: null as unknown,
   ended: false,
   headers: new Map<string, string>(),
+  redirectedTo: "",
   statusCode: 200,
   end() {
     this.ended = true;
@@ -171,6 +172,13 @@ const createResponse = () => ({
   },
   status(code: number) {
     this.statusCode = Number(code);
+    return this;
+  },
+  redirect(code: number, location: string) {
+    this.statusCode = Number(code);
+    this.redirectedTo = String(location || "");
+    this.setHeader("location", this.redirectedTo);
+    this.ended = true;
     return this;
   },
 });
@@ -228,6 +236,8 @@ const createRuntimeDependencies = (overrides: Record<string, unknown> = {}) => {
     pwaManifestCacheControl: "public, max-age=60",
     pwaThemeColorDark: "#111111",
     pwaThemeColorLight: "#fafafa",
+    primaryAppHost: "nekomata.moe",
+    primaryAppOrigin: "https://nekomata.moe",
     sessionCookieConfig: {
       cookie: {
         httpOnly: true,
@@ -439,5 +449,60 @@ describe("registerRuntimeMiddleware public asset throttling", () => {
 
     expect(result.next).toHaveBeenCalledTimes(1);
     expect(canReadPublicAsset).not.toHaveBeenCalled();
+  });
+});
+
+describe("registerRuntimeMiddleware canonical host redirects", () => {
+  it("redirects www requests to the canonical origin in one hop", async () => {
+    const { entries } = createRuntimeDependencies();
+    const redirectEntry = entries.find(
+      (entry) =>
+        entry.method === "use" &&
+        entry.args.some(
+          (arg) => typeof arg === "function" && String(arg).includes("canonicalHost"),
+        ),
+    );
+
+    expect(redirectEntry).toBeTruthy();
+    if (!redirectEntry) {
+      throw new Error("missing canonical redirect middleware");
+    }
+
+    const result = await invokeMiddlewareStack([redirectEntry.args[0]], {
+      method: "GET",
+      hostname: "www.nekomata.moe",
+      originalUrl: "/faq?tab=seo",
+      url: "/faq?tab=seo",
+    });
+
+    expect(result.next).not.toHaveBeenCalled();
+    expect(result.res.statusCode).toBe(301);
+    expect(result.res.redirectedTo).toBe("https://nekomata.moe/faq?tab=seo");
+  });
+
+  it("keeps canonical host requests on the normal middleware chain", async () => {
+    const { entries } = createRuntimeDependencies();
+    const redirectEntry = entries.find(
+      (entry) =>
+        entry.method === "use" &&
+        entry.args.some(
+          (arg) => typeof arg === "function" && String(arg).includes("canonicalHost"),
+        ),
+    );
+
+    expect(redirectEntry).toBeTruthy();
+    if (!redirectEntry) {
+      throw new Error("missing canonical redirect middleware");
+    }
+
+    const result = await invokeMiddlewareStack([redirectEntry.args[0]], {
+      method: "GET",
+      hostname: "nekomata.moe",
+      originalUrl: "/faq?tab=seo",
+      url: "/faq?tab=seo",
+    });
+
+    expect(result.next).toHaveBeenCalledTimes(1);
+    expect(result.res.redirectedTo).toBe("");
   });
 });

@@ -29,6 +29,7 @@ import {
   buildVersionedInstitutionalOgImagePath,
   resolveInstitutionalOgSupportText,
 } from "../../shared/institutional-og-seo.js";
+import { normalizeAboutPublicPage } from "../../shared/public-page-content.js";
 
 const iconMap: Record<string, typeof Heart> = {
   Heart,
@@ -50,109 +51,10 @@ const iconMap: Record<string, typeof Heart> = {
 const resolveAboutIcon = (iconName: string | undefined, fallback: typeof Heart) =>
   (iconName ? iconMap[iconName] : undefined) || fallback;
 
-const defaultAbout = {
-  shareImage: "",
-  shareImageAlt: "",
-  heroBadge: "Sobre",
-  heroTitle: "Uma fansub com identidade própria",
-  heroSubtitle:
-    "A Nekomata nasceu para entregar traduções naturais, visual marcante e um fluxo de trabalho que respeita a obra e o público. Cada etapa é feita com cuidado editorial e atenção aos detalhes.",
-  heroBadges: ["Legendado com carinho", "Sem propaganda", "Gratuito"],
-  highlights: [
-    {
-      label: "Somos movidos por histórias",
-      icon: "Sparkles",
-      text: "Trabalhamos em equipe para traduzir, adaptar e manter a identidade de cada obra com cuidado editorial.",
-    },
-    {
-      label: "Processo claro e constante",
-      icon: "Sparkles",
-      text: "Fluxo colaborativo, revisão dupla e ajustes finos fazem parte da nossa rotina.",
-    },
-    {
-      label: "Respeito à obra",
-      icon: "Sparkles",
-      text: "Apoiamos o consumo legal e preservamos a experiência original, com o toque da comunidade.",
-    },
-  ],
-  manifestoTitle: "Manifesto",
-  manifestoIcon: "Flame",
-  manifestoParagraphs: [
-    "Fazemos tudo por paixão, sem fins lucrativos, priorizando qualidade e uma entrega que dê orgulho à comunidade. Cada projeto é um convite para sentir a obra como ela merece.",
-    "Nossas escolhas são orientadas por clareza, estilo e consistência. O resultado precisa ser bonito, legível e fiel ao tom da história.",
-  ],
-  pillars: [
-    {
-      title: "Pipeline",
-      description: "Tradução → Revisão → Timing → Typesetting → Qualidade → Encode.",
-      icon: "Zap",
-    },
-    {
-      title: "Comunidade",
-      description: "Feedbacks ajudam a evoluir o padrão e manter a identidade da equipe.",
-      icon: "Users",
-    },
-    {
-      title: "Estilo",
-      description: "Tipografia, ritmo e efeitos visuais criam uma experiência memorável.",
-      icon: "Sparkles",
-    },
-  ],
-  values: [
-    {
-      title: "Paixão pelo que fazemos",
-      description:
-        "Cada projeto é tratado com carinho e respeito à obra original, sempre buscando a melhor experiência possível.",
-      icon: "Heart",
-    },
-    {
-      title: "Qualidade em cada etapa",
-      description:
-        "Do timing ao encode, mantemos um fluxo cuidadoso para entregar consistência e leitura confortável.",
-      icon: "Sparkles",
-    },
-    {
-      title: "Comunidade em primeiro lugar",
-      description:
-        "A equipe cresce junto da comunidade. Feedbacks ajudam a lapidar escolhas e manter a identidade do grupo.",
-      icon: "Users",
-    },
-    {
-      title: "Criatividade e estilo",
-      description:
-        "Tipografia, efeitos e ritmo contam história. O typesetting é parte essencial da narrativa visual.",
-      icon: "Wand2",
-    },
-  ],
-};
-
-type HighlightItem = {
-  label: string;
-  text: string;
-  icon?: string;
-};
-
 const About = () => {
   const bootstrap = readWindowPublicBootstrap();
   const pageMediaVariants = bootstrap?.mediaVariants || {};
-  const about = useMemo(() => {
-    const incoming = bootstrap?.pages.about;
-    if (!incoming) {
-      return defaultAbout;
-    }
-    const highlights = (incoming.highlights || defaultAbout.highlights).map(
-      (item: HighlightItem) => ({
-        icon: "Sparkles",
-        ...item,
-      }),
-    );
-    return {
-      ...defaultAbout,
-      ...incoming,
-      manifestoIcon: incoming.manifestoIcon || defaultAbout.manifestoIcon,
-      highlights,
-    };
-  }, [bootstrap]);
+  const about = useMemo(() => normalizeAboutPublicPage(bootstrap?.pages.about), [bootstrap]);
   usePageMeta({
     title: "Sobre",
     description: resolveInstitutionalOgSupportText({
