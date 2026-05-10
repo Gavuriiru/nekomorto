@@ -206,9 +206,7 @@ describe("DashboardProjectsEditor card layout", () => {
     const synopsis = card.querySelector('[data-slot="project-card-synopsis"]');
     const meta = card.querySelector('[data-slot="project-card-meta"]');
 
-    expect(classTokens(card)).toEqual(
-      expect.arrayContaining(["bg-card", "animate-fade-in"]),
-    );
+    expect(classTokens(card)).toEqual(expect.arrayContaining(["bg-card", "animate-fade-in"]));
     expect(classTokens(card)).not.toContain("lift-hover");
     expect(layout).not.toBeNull();
     expect(classTokens(layout)).toEqual(

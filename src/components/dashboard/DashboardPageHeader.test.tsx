@@ -30,11 +30,11 @@ describe("DashboardPageHeader", () => {
 
     expect(description).toHaveStyle({
       "--tw-enter-delay": `${dashboardMotionDelays.headerDescriptionMs}ms`,
-    } as CSSStyleDeclaration);
+    });
 
     expect(actionWrapper).not.toBeNull();
     expect(actionWrapper).toHaveStyle({
       "--tw-enter-delay": `${dashboardMotionDelays.headerActionsMs}ms`,
-    } as CSSStyleDeclaration);
+    });
   });
 });

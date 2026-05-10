@@ -186,8 +186,10 @@ describe("DashboardPosts publish draft", () => {
     await screen.findByRole("heading", { name: "Gerenciar posts" });
     fireEvent.click(await screen.findByText("Post published"));
 
-    const dialog = await screen.findByRole("dialog");
-    const viewLink = document.querySelector('a[href="/postagem/post-published"]') as HTMLAnchorElement;
+    await screen.findByRole("dialog");
+    const viewLink = document.querySelector(
+      'a[href="/postagem/post-published"]',
+    ) as HTMLAnchorElement;
 
     expect(viewLink).not.toBeNull();
   });

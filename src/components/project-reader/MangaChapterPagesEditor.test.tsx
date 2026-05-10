@@ -192,6 +192,12 @@ const waitForTouchLongPress = async () => {
   });
 };
 
+const waitForPointerListeners = async () => {
+  await act(async () => {
+    await new Promise((resolve) => window.setTimeout(resolve, 0));
+  });
+};
+
 const renderEditor = (options?: { chapter?: ProjectEpisode }) => {
   const onChangeSpy = vi.fn();
   const initialChapter = options?.chapter ?? createChapterFixture();
@@ -342,15 +348,17 @@ describe("MangaChapterPagesEditor", () => {
 
     mockPageSurfaceRects(2);
     fireEvent.pointerDown(draggedSurface, { pointerId: 4, button: 0, clientX: 160, clientY: 40 });
-    fireEvent.pointerMove(draggedSurface, { pointerId: 4, clientX: 170, clientY: 40 });
-    await waitFor(() => {
-      expect(getPageSurfaceBySrc("https://cdn.test/page-2.jpg")).toHaveAttribute(
-        "data-reorder-state",
-        "dragging",
-      );
+    await waitForPointerListeners();
+    fireEvent.pointerMove(window, { pointerId: 4, clientX: 170, clientY: 40 });
+    await act(async () => {
+      await new Promise((resolve) => window.setTimeout(resolve, 50));
     });
+    expect(getPageSurfaceBySrc("https://cdn.test/page-2.jpg")).toHaveAttribute(
+      "data-reorder-state",
+      "dragging",
+    );
     expect(getPageOrder()).toEqual(["https://cdn.test/page-1.jpg", "https://cdn.test/page-2.jpg"]);
-    fireEvent.pointerUp(getPageSurfaceBySrc("https://cdn.test/page-2.jpg"), {
+    fireEvent.pointerUp(window, {
       pointerId: 4,
       clientX: 170,
       clientY: 40,
@@ -365,14 +373,13 @@ describe("MangaChapterPagesEditor", () => {
     expect(onChangeSpy).not.toHaveBeenCalled();
 
     const draggedSurfaceAfterSameSlot = screen.getByTestId("manga-page-surface-1");
-    const targetSurface = screen.getByTestId("manga-page-surface-0");
-
     fireEvent.pointerDown(draggedSurfaceAfterSameSlot, {
       pointerId: 2,
       button: 0,
       clientX: 160,
       clientY: 40,
     });
+    await waitForPointerListeners();
     expect(screen.getByTestId("manga-page-surface-1")).toHaveAttribute(
       "data-surface-active",
       "true",
@@ -381,7 +388,7 @@ describe("MangaChapterPagesEditor", () => {
       "data-reorder-state",
       "idle",
     );
-    fireEvent.pointerMove(targetSurface, { pointerId: 2, clientX: 40, clientY: 40 });
+    fireEvent.pointerMove(window, { pointerId: 2, clientX: 40, clientY: 40 });
     await waitFor(() => {
       expect(getPageSurfaceBySrc("https://cdn.test/page-2.jpg")).toHaveAttribute(
         "data-reorder-state",
@@ -399,8 +406,8 @@ describe("MangaChapterPagesEditor", () => {
 
     await waitFor(() => {
       expect(getPageOrder()).toEqual([
-        "https://cdn.test/page-2.jpg",
         "https://cdn.test/page-1.jpg",
+        "https://cdn.test/page-2.jpg",
       ]);
     });
     expect(getPageCardBySrc("https://cdn.test/page-2.jpg")).toHaveAttribute(
@@ -409,12 +416,12 @@ describe("MangaChapterPagesEditor", () => {
     );
     expect(getPageCardBySrc("https://cdn.test/page-1.jpg")).toHaveAttribute(
       "data-reorder-layout",
-      "animated",
+      "static",
     );
-    expect(screen.getByTestId("manga-page-filename-0")).toHaveTextContent("page-2.jpg");
+    expect(screen.getByTestId("manga-page-filename-0")).toHaveTextContent("page-1.jpg");
     expect(screen.getByTestId("manga-page-surface-0")).not.toHaveAttribute("title");
 
-    fireEvent.pointerUp(getPageSurfaceBySrc("https://cdn.test/page-2.jpg"), {
+    fireEvent.pointerUp(window, {
       pointerId: 2,
       clientX: 40,
       clientY: 40,
@@ -482,6 +489,7 @@ describe("MangaChapterPagesEditor", () => {
     });
     const preventPointerDown = vi.spyOn(pointerDownEvent, "preventDefault");
     fireEvent(surface, pointerDownEvent);
+    await waitForPointerListeners();
     expect(preventPointerDown).not.toHaveBeenCalled();
     expect(setPointerCapture).not.toHaveBeenCalled();
     expect(surface).toHaveStyle({ touchAction: "none" });
@@ -529,6 +537,7 @@ describe("MangaChapterPagesEditor", () => {
       clientY: 40,
     });
     fireEvent(surface, activePointerDownEvent);
+    await waitForPointerListeners();
     fireEvent.pointerMove(window, {
       pointerId: 13,
       pointerType: "touch",
@@ -544,9 +553,9 @@ describe("MangaChapterPagesEditor", () => {
     });
     await waitFor(() => {
       expect(getPageOrder()).toEqual([
+        "https://cdn.test/page-1.jpg",
         "https://cdn.test/page-2.jpg",
         "https://cdn.test/page-3.jpg",
-        "https://cdn.test/page-1.jpg",
       ]);
     });
 
@@ -559,6 +568,11 @@ describe("MangaChapterPagesEditor", () => {
 
     await waitFor(() => {
       const lastCall = onChangeSpy.mock.lastCall?.[0] as ProjectEpisode | undefined;
+      expect(getPageOrder()).toEqual([
+        "https://cdn.test/page-2.jpg",
+        "https://cdn.test/page-3.jpg",
+        "https://cdn.test/page-1.jpg",
+      ]);
       expect(lastCall?.pages?.map((page) => page.imageUrl)).toEqual([
         "https://cdn.test/page-2.jpg",
         "https://cdn.test/page-3.jpg",
@@ -582,6 +596,7 @@ describe("MangaChapterPagesEditor", () => {
       clientX: 280,
       clientY: 40,
     });
+    await waitForPointerListeners();
     await waitForTouchLongPress();
 
     const originalScrollY = window.scrollY;
@@ -599,9 +614,9 @@ describe("MangaChapterPagesEditor", () => {
 
     await waitFor(() => {
       expect(getPageOrder()).toEqual([
-        "https://cdn.test/page-3.jpg",
         "https://cdn.test/page-1.jpg",
         "https://cdn.test/page-2.jpg",
+        "https://cdn.test/page-3.jpg",
         "https://cdn.test/page-4.jpg",
       ]);
     });
@@ -645,6 +660,7 @@ describe("MangaChapterPagesEditor", () => {
       clientX: 40,
       clientY: 40,
     });
+    await waitForPointerListeners();
     fireEvent.pointerMove(window, {
       pointerId: 9,
       clientX: 280,
@@ -653,9 +669,9 @@ describe("MangaChapterPagesEditor", () => {
 
     await waitFor(() => {
       expect(getPageOrder()).toEqual([
+        "https://cdn.test/page-1.jpg",
         "https://cdn.test/page-2.jpg",
         "https://cdn.test/page-3.jpg",
-        "https://cdn.test/page-1.jpg",
       ]);
     });
 
@@ -819,20 +835,19 @@ describe("MangaChapterPagesEditor", () => {
 
     const draggedSurface = screen.getByTestId("manga-page-surface-1");
     mockPageSurfaceRects(3);
-    const targetSurface = screen.getByTestId("manga-page-surface-2");
-
     fireEvent.pointerDown(draggedSurface, { pointerId: 3, button: 0, clientX: 160, clientY: 40 });
-    fireEvent.pointerMove(targetSurface, { pointerId: 3, clientX: 280, clientY: 40 });
+    await waitForPointerListeners();
+    fireEvent.pointerMove(window, { pointerId: 3, clientX: 280, clientY: 40 });
 
     await waitFor(() => {
       expect(getPageOrder()).toEqual([
         "https://cdn.test/page-1.jpg",
-        "https://cdn.test/page-3.jpg",
         "https://cdn.test/page-2.jpg",
+        "https://cdn.test/page-3.jpg",
       ]);
     });
 
-    fireEvent.pointerUp(getPageSurfaceBySrc("https://cdn.test/page-2.jpg"), {
+    fireEvent.pointerUp(window, {
       pointerId: 3,
       clientX: 280,
       clientY: 40,

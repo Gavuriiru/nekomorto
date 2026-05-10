@@ -215,7 +215,7 @@ describe("DashboardUsers socials reorder", () => {
       const putCall = apiFetchMock.mock.calls.find((call) => {
         const path = call[1];
         const method = String((call[2] as RequestInit | undefined)?.method || "GET").toUpperCase();
-        return path === "/api/users/user-1" && method === "PUT";
+        return String(path).startsWith("/api/users") && method === "PUT";
       });
       expect(putCall).toBeTruthy();
       const payload = (

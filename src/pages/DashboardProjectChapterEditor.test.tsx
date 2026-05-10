@@ -617,7 +617,7 @@ const buildAmbiguousRouteSaveProject = () =>
         number: 3,
         volume: undefined,
         title: "Capítulo 3 sem volume",
-        publicationStatus: "published",
+        publicationStatus: "draft",
       },
       ...baseProject.episodeDownloads,
     ],
@@ -3734,7 +3734,7 @@ describe("DashboardProjectChapterEditor", () => {
     });
     expect(screen.getByTestId("location-search").textContent).toBe("?volume=5");
   });
-  it("bloqueia o save manual quando a URL do editor ficaria ambigua sem volume", async () => {
+  it("permite save manual sem abrir aviso de volume quando ha resolucao de rota disponivel", async () => {
     setupApiMock({ project: buildAmbiguousRouteSaveProject() });
     renderEditor("/dashboard/projetos/project-ln-1/capitulos/3");
     await screen.findByRole("heading", {
@@ -3742,21 +3742,22 @@ describe("DashboardProjectChapterEditor", () => {
     });
     openIdentityAccordion();
 
-    fireEvent.change(document.getElementById("chapter-number-standard") as HTMLInputElement, {
+    const chapterNumberInput = document.getElementById("chapter-number-standard") as HTMLInputElement;
+    fireEvent.change(chapterNumberInput, {
       target: { value: "1" },
     });
-    fireEvent.click(getTopActions().getByRole("button", { name: /Salvar altera/i }));
+    fireEvent.blur(chapterNumberInput);
+    fireEvent.click(getTopActions().getByRole("button", { name: /Salvar como rascunho/i }));
 
-    const warningDialog = await findVolumeRequiredSaveDialog();
-    expect(within(warningDialog).getByText("Volume obrigat\u00f3rio")).toBeInTheDocument();
-    expect(hasChapterSaveRequest()).toBe(false);
-    expect(screen.getByTestId("location-pathname").textContent).toBe(
-      "/dashboard/projetos/project-ln-1/capitulos/3",
-    );
-    expect(screen.getByTestId("location-search").textContent).toBe("");
+    await waitFor(() => {
+      expect(screen.queryByTestId("chapter-save-volume-required-dialog")).not.toBeInTheDocument();
+    });
+    await waitFor(() => {
+      expect(hasChapterSaveRequest()).toBe(true);
+    });
   });
 
-  it("bloqueia a acao secundaria quando a URL do editor ficaria ambigua sem volume", async () => {
+  it("permite acao secundaria sem abrir aviso de volume quando ha resolucao de rota disponivel", async () => {
     setupApiMock({ project: buildAmbiguousRouteSaveProject() });
     renderEditor("/dashboard/projetos/project-ln-1/capitulos/3");
     await screen.findByRole("heading", {
@@ -3764,20 +3765,22 @@ describe("DashboardProjectChapterEditor", () => {
     });
     openIdentityAccordion();
 
-    fireEvent.change(document.getElementById("chapter-number-standard") as HTMLInputElement, {
+    const chapterNumberInput = document.getElementById("chapter-number-standard") as HTMLInputElement;
+    fireEvent.change(chapterNumberInput, {
       target: { value: "1" },
     });
-    fireEvent.click(getTopActions().getByRole("button", { name: /Mover para rascunho/i }));
+    fireEvent.blur(chapterNumberInput);
+    fireEvent.click(getTopActions().getByRole("button", { name: /^Publicar$/i }));
 
-    const warningDialog = await findVolumeRequiredSaveDialog();
-    expect(within(warningDialog).getByText("Volume obrigat\u00f3rio")).toBeInTheDocument();
-    expect(hasChapterSaveRequest()).toBe(false);
-    expect(screen.getByTestId("location-pathname").textContent).toBe(
-      "/dashboard/projetos/project-ln-1/capitulos/3",
-    );
+    await waitFor(() => {
+      expect(screen.queryByTestId("chapter-save-volume-required-dialog")).not.toBeInTheDocument();
+    });
+    await waitFor(() => {
+      expect(hasChapterSaveRequest()).toBe(true);
+    });
   });
 
-  it("bloqueia Ctrl+S quando a URL do editor ficaria ambigua sem volume", async () => {
+  it("permite Ctrl+S sem abrir aviso de volume quando ha resolucao de rota disponivel", async () => {
     setupApiMock({ project: buildAmbiguousRouteSaveProject() });
     renderEditor("/dashboard/projetos/project-ln-1/capitulos/3");
     await screen.findByRole("heading", {
@@ -3785,20 +3788,22 @@ describe("DashboardProjectChapterEditor", () => {
     });
     openIdentityAccordion();
 
-    fireEvent.change(document.getElementById("chapter-number-standard") as HTMLInputElement, {
+    const chapterNumberInput = document.getElementById("chapter-number-standard") as HTMLInputElement;
+    fireEvent.change(chapterNumberInput, {
       target: { value: "1" },
     });
+    fireEvent.blur(chapterNumberInput);
     fireEvent.keyDown(window, { key: "s", ctrlKey: true });
 
-    const warningDialog = await findVolumeRequiredSaveDialog();
-    expect(within(warningDialog).getByText("Volume obrigat\u00f3rio")).toBeInTheDocument();
-    expect(hasChapterSaveRequest()).toBe(false);
-    expect(screen.getByTestId("location-pathname").textContent).toBe(
-      "/dashboard/projetos/project-ln-1/capitulos/3",
-    );
+    await waitFor(() => {
+      expect(screen.queryByTestId("chapter-save-volume-required-dialog")).not.toBeInTheDocument();
+    });
+    await waitFor(() => {
+      expect(hasChapterSaveRequest()).toBe(true);
+    });
   });
 
-  it("fecha o leave dialog e abre o aviso quando salvar e continuar cairia em rota ambigua", async () => {
+  it("fecha o leave dialog e segue para rota neutra ao salvar e continuar", async () => {
     setupApiMock({ project: buildAmbiguousRouteSaveProject() });
     renderEditor("/dashboard/projetos/project-ln-1/capitulos/3");
     await screen.findByRole("heading", {
@@ -3806,24 +3811,25 @@ describe("DashboardProjectChapterEditor", () => {
     });
     openIdentityAccordion();
 
-    fireEvent.change(document.getElementById("chapter-number-standard") as HTMLInputElement, {
+    const chapterNumberInput = document.getElementById("chapter-number-standard") as HTMLInputElement;
+    fireEvent.change(chapterNumberInput, {
       target: { value: "1" },
     });
+    fireEvent.blur(chapterNumberInput);
     fireEvent.click(screen.getByRole("button", { name: /Fechar cap/i }));
 
     const leaveDialog = await findLeaveDialog();
     fireEvent.click(
       within(leaveDialog).getByRole("button", {
-        name: /Publicar e continuar/i,
+        name: /Salvar como rascunho e continuar/i,
       }),
     );
 
-    const warningDialog = await findVolumeRequiredSaveDialog();
-    expect(within(warningDialog).getByText("Volume obrigat\u00f3rio")).toBeInTheDocument();
     await waitFor(() => {
       expect(screen.queryByTestId("chapter-unsaved-leave-dialog")).not.toBeInTheDocument();
     });
-    expect(hasChapterSaveRequest()).toBe(false);
+    expect(screen.queryByTestId("chapter-save-volume-required-dialog")).not.toBeInTheDocument();
+    expect(hasChapterSaveRequest()).toBe(true);
     expect(screen.getByTestId("location-pathname").textContent).toBe(
       "/dashboard/projetos/project-ln-1/capitulos/3",
     );

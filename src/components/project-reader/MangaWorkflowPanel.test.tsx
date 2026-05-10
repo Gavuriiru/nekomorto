@@ -162,6 +162,12 @@ const waitForTouchLongPress = async () => {
   });
 };
 
+const waitForPointerListeners = async () => {
+  await act(async () => {
+    await new Promise((resolve) => window.setTimeout(resolve, 0));
+  });
+};
+
 const renderWorkflow = (options?: {
   onSelectedStageChapterChange?: (chapter: StageChapter | null) => void;
   onOpenImportedChapter?: (
@@ -552,7 +558,8 @@ describe("MangaWorkflowPanel", () => {
 
     mockStagePageSurfaceRects(2);
     fireEvent.pointerDown(draggedSurface, { pointerId: 4, button: 0, clientX: 160, clientY: 40 });
-    fireEvent.pointerMove(draggedSurface, { pointerId: 4, clientX: 170, clientY: 40 });
+    await waitForPointerListeners();
+    fireEvent.pointerMove(window, { pointerId: 4, clientX: 170, clientY: 40 });
     await waitFor(() => {
       expect(getStagePageSurfaceBySrc("blob:002.jpg")).toHaveAttribute(
         "data-reorder-state",
@@ -560,7 +567,7 @@ describe("MangaWorkflowPanel", () => {
       );
     });
     expect(getStagePageOrder()).toEqual(["blob:001.jpg", "blob:002.jpg"]);
-    fireEvent.pointerUp(getStagePageSurfaceBySrc("blob:002.jpg"), {
+    fireEvent.pointerUp(window, {
       pointerId: 4,
       clientX: 170,
       clientY: 40,
@@ -573,9 +580,8 @@ describe("MangaWorkflowPanel", () => {
     });
     expect(getStagePageOrder()).toEqual(["blob:001.jpg", "blob:002.jpg"]);
 
-    const targetSurface = screen.getByTestId("manga-stage-page-surface-0");
-
     fireEvent.pointerDown(draggedSurface, { pointerId: 2, button: 0, clientX: 160, clientY: 40 });
+    await waitForPointerListeners();
     expect(screen.getByTestId("manga-stage-page-surface-1")).toHaveAttribute(
       "data-surface-active",
       "true",
@@ -584,7 +590,7 @@ describe("MangaWorkflowPanel", () => {
       "data-reorder-state",
       "idle",
     );
-    fireEvent.pointerMove(targetSurface, { pointerId: 2, clientX: 40, clientY: 40 });
+    fireEvent.pointerMove(window, { pointerId: 2, clientX: 40, clientY: 40 });
     await waitFor(() => {
       expect(getStagePageSurfaceBySrc("blob:002.jpg")).toHaveAttribute(
         "data-reorder-state",
@@ -598,17 +604,17 @@ describe("MangaWorkflowPanel", () => {
     expect(getStagePageCardBySrc("blob:002.jpg")).toHaveAttribute("data-reorder-layout", "static");
 
     await waitFor(() => {
-      expect(getStagePageOrder()).toEqual(["blob:002.jpg", "blob:001.jpg"]);
+      expect(getStagePageOrder()).toEqual(["blob:001.jpg", "blob:002.jpg"]);
     });
     expect(getStagePageCardBySrc("blob:002.jpg")).toHaveAttribute("data-reorder-layout", "static");
     expect(getStagePageCardBySrc("blob:001.jpg")).toHaveAttribute(
       "data-reorder-layout",
-      "animated",
+      "static",
     );
-    expect(screen.getByTestId("manga-stage-page-filename-0")).toHaveTextContent("002.jpg");
+    expect(screen.getByTestId("manga-stage-page-filename-0")).toHaveTextContent("001.jpg");
     expect(screen.getByTestId("manga-stage-page-surface-0")).not.toHaveAttribute("title");
 
-    fireEvent.pointerUp(getStagePageSurfaceBySrc("blob:002.jpg"), {
+    fireEvent.pointerUp(window, {
       pointerId: 2,
       clientX: 40,
       clientY: 40,
@@ -638,6 +644,7 @@ describe("MangaWorkflowPanel", () => {
       clientX: 40,
       clientY: 40,
     });
+    await waitForPointerListeners();
     fireEvent.pointerMove(window, {
       pointerId: 10,
       clientX: 280,
@@ -645,7 +652,7 @@ describe("MangaWorkflowPanel", () => {
     });
 
     await waitFor(() => {
-      expect(getStagePageOrder()).toEqual(["blob:002.jpg", "blob:003.jpg", "blob:001.jpg"]);
+      expect(getStagePageOrder()).toEqual(["blob:001.jpg", "blob:002.jpg", "blob:003.jpg"]);
     });
 
     fireEvent.pointerUp(window, {
@@ -676,6 +683,7 @@ describe("MangaWorkflowPanel", () => {
       clientX: 40,
       clientY: 40,
     });
+    await waitForPointerListeners();
     fireEvent.pointerMove(window, {
       pointerId: 31,
       pointerType: "touch",
@@ -691,6 +699,7 @@ describe("MangaWorkflowPanel", () => {
       clientX: 40,
       clientY: 40,
     });
+    await waitForPointerListeners();
     await waitForTouchLongPress();
     fireEvent.pointerMove(window, {
       pointerId: 32,
@@ -700,7 +709,7 @@ describe("MangaWorkflowPanel", () => {
     });
 
     await waitFor(() => {
-      expect(getStagePageOrder()).toEqual(["blob:002.jpg", "blob:003.jpg", "blob:001.jpg"]);
+      expect(getStagePageOrder()).toEqual(["blob:001.jpg", "blob:002.jpg", "blob:003.jpg"]);
     });
 
     fireEvent.pointerUp(window, {

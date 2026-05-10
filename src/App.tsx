@@ -148,19 +148,19 @@ const App = ({
   }, []);
 
   return (
-  <SiteSettingsProvider initialSettings={initialSettings} initiallyLoaded={initiallyLoaded}>
-    <ThemeModeProvider>
-      <AccessibilityAnnouncerProvider>
-        <DeferredToaster />
-        <BrowserRouter>
-          <GlobalShortcutsProvider>
-            <ScrollToTop />
-            <RouterShell />
-          </GlobalShortcutsProvider>
-        </BrowserRouter>
-      </AccessibilityAnnouncerProvider>
-    </ThemeModeProvider>
-  </SiteSettingsProvider>
+    <SiteSettingsProvider initialSettings={initialSettings} initiallyLoaded={initiallyLoaded}>
+      <ThemeModeProvider>
+        <AccessibilityAnnouncerProvider>
+          <DeferredToaster />
+          <BrowserRouter>
+            <GlobalShortcutsProvider>
+              <ScrollToTop />
+              <RouterShell />
+            </GlobalShortcutsProvider>
+          </BrowserRouter>
+        </AccessibilityAnnouncerProvider>
+      </ThemeModeProvider>
+    </SiteSettingsProvider>
   );
 };
 

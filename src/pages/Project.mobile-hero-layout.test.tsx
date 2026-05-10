@@ -101,11 +101,7 @@ const expectContextualSourceButtonTokens = (element: HTMLElement) => {
   const tokens = classTokens(element);
 
   expect(tokens).toEqual(
-    expect.arrayContaining([
-      "rounded-full",
-      "bg-card/70",
-      "hover:bg-(--download-source-hover-bg)",
-    ]),
+    expect.arrayContaining(["rounded-full", "bg-card/70", "hover:bg-(--download-source-hover-bg)"]),
   );
   expect(tokens).not.toContain("hover:bg-primary/10");
   expect(tokens).not.toContain("border-primary/70");

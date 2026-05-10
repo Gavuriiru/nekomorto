@@ -664,7 +664,7 @@ describe("DashboardPosts edit query", () => {
       name: "Cancelar",
     });
     const deleteButton = within(editorDialog).getByRole("button", {
-      name: "Excluir",
+      name: "Excluir postagem",
     });
     const saveButton = within(editorDialog).getByRole("button", {
       name: "Salvar",
@@ -675,7 +675,7 @@ describe("DashboardPosts edit query", () => {
     const mobileActionCluster = saveButton.closest(".project-editor-footer");
     expect(mobileActionCluster).not.toBeNull();
     expect(classTokens(mobileActionCluster as HTMLElement)).toEqual(
-      expect.arrayContaining(["grid", "grid-cols-2", "gap-2", "sm:flex"]),
+      expect.arrayContaining(["flex", "items-center", "justify-end", "gap-2"]),
     );
     expect(deleteButton.closest(".project-editor-footer")).toBe(mobileActionCluster);
     expect(cancelButton.closest(".project-editor-footer")).toBe(mobileActionCluster);
