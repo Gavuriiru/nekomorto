@@ -732,8 +732,6 @@ const expectStructureGroupNotSelected = (groupKey: string) => {
 const getTopActions = () => within(screen.getByTestId("chapter-editor-top-actions"));
 
 const findLeaveDialog = () => screen.findByTestId("chapter-unsaved-leave-dialog");
-const findVolumeRequiredSaveDialog = () =>
-  screen.findByTestId("chapter-save-volume-required-dialog");
 const hasChapterSaveRequest = () =>
   apiFetchMock.mock.calls.some(
     ([, path, options]) =>
