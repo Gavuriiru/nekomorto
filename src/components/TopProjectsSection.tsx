@@ -72,7 +72,9 @@ const TopProjectsSection = () => {
     "--top-gap": `${TOP_PROJECTS_GAP_PX}px`,
   } as CSSProperties;
 
-  const topProjects = useMemo(() => {
+  // Performance Optimization: Split complex useMemo into two stages.
+  // Stage 1: Expensive O(N) data transformation dependent only on raw data.
+  const mappedProjects = useMemo(() => {
     const dayKeys7d = buildRecentUtcDayKeys(TOP_PROJECTS_LAST_7_DAYS);
     const dayKeys30d = buildRecentUtcDayKeys(TOP_PROJECTS_LAST_30_DAYS);
     return projects
@@ -105,7 +107,12 @@ const TopProjectsSection = () => {
           views30d,
         };
       })
-      .filter((item) => item.id && item.title)
+      .filter((item) => item.id && item.title);
+  }, [projects]);
+
+  // Stage 2: Lightweight sort/slice dependent on UI state and mapped data.
+  const topProjects = useMemo(() => {
+    return [...mappedProjects]
       .sort((left, right) => {
         const leftMetric =
           mode === "30d" ? left.views30d : mode === "7d" ? left.views7d : left.viewsAll;
@@ -120,7 +127,7 @@ const TopProjectsSection = () => {
         return left.title.localeCompare(right.title, "pt-BR");
       })
       .slice(0, TOP_PROJECTS_LIMIT);
-  }, [mode, projects]);
+  }, [mode, mappedProjects]);
 
   const synopsisKeys = useMemo(() => topProjects.map((item) => item.id), [topProjects]);
   const resolveSidebarSynopsisMaxLines = useCallback(
