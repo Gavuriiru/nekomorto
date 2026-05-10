@@ -1407,6 +1407,7 @@ const Dashboard = () => {
                     <DashboardActionButton
                       type="button"
                       size="icon"
+                      aria-label="Mover widget para cima"
                       onClick={() => moveDraftWidget(widgetId, -1)}
                       disabled={!isSelected || index <= 0}
                     >
@@ -1415,6 +1416,7 @@ const Dashboard = () => {
                     <DashboardActionButton
                       type="button"
                       size="icon"
+                      aria-label="Mover widget para baixo"
                       onClick={() => moveDraftWidget(widgetId, 1)}
                       disabled={!isSelected || index < 0 || index >= customDraftWidgets.length - 1}
                     >
