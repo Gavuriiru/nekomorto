@@ -1,7 +1,9 @@
 import HeroSection from "@/components/HeroSection";
-import ReleasesSection from "@/components/ReleasesSection";
 import { usePageMeta } from "@/hooks/use-page-meta";
 import { readWindowPublicBootstrap } from "@/lib/public-bootstrap-global";
+import { lazy, Suspense } from "react";
+
+const ReleasesSection = lazy(() => import("@/components/ReleasesSection"));
 
 const Index = () => {
   const bootstrap = readWindowPublicBootstrap();
@@ -20,7 +22,9 @@ const Index = () => {
   return (
     <div className="min-h-screen bg-background">
       <HeroSection />
-      <ReleasesSection />
+      <Suspense fallback={null}>
+        <ReleasesSection />
+      </Suspense>
     </div>
   );
 };
