@@ -11,3 +11,6 @@
 ## 2025-05-01 - Avoid precomputing timestamps unconditionally
 **Learning:** Precomputing timestamps for sorting avoids O(N log N) date parsing, but precomputing them unconditionally when the array might be sorted by non-date keys (e.g., alphabetically or by views) introduces unnecessary O(N) date parsing overhead.
 **Action:** Only precompute timestamps inside `useMemo` hooks if the selected `sortMode` actually utilizes those timestamps for sorting.
+## 2024-05-14 - Two-Stage useMemo for Large Collections
+**Learning:** In React UI components with dropdown filters (like `TopProjectsSection`), combining heavy data transformation (O(N) mapping, filtering, object property accesses) and sorting into a single `useMemo` dependent on UI state causes unnecessary, lag-inducing recalculations on every UI interaction.
+**Action:** When a UI interaction only changes sorting or slicing but relies on expensive, static underlying data transforms, split the `useMemo` into two stages: Stage 1 caches the transformed data and depends only on the raw input, Stage 2 copies the cached data (`[...cached]`), sorts, slices, and depends on the UI state.
