@@ -11,3 +11,7 @@
 ## 2025-05-01 - Avoid precomputing timestamps unconditionally
 **Learning:** Precomputing timestamps for sorting avoids O(N log N) date parsing, but precomputing them unconditionally when the array might be sorted by non-date keys (e.g., alphabetically or by views) introduces unnecessary O(N) date parsing overhead.
 **Action:** Only precompute timestamps inside `useMemo` hooks if the selected `sortMode` actually utilizes those timestamps for sorting.
+
+## 2025-05-11 - Precomputing Derived Keys in Sort Operations
+**Learning:** When sorting collections based on a derived string key (like concatenating multiple tag arrays), computing that derived key directly inside the `.sort()` comparator can cause severe performance issues on large lists, because `.sort()` is O(N log N) and will execute the expensive derivation multiple times per item.
+**Action:** Use a Schwartzian Transform (map-sort-map). Map the array first to precompute the derived key (O(N)), sort the mapped array based on the precomputed key (O(N log N)), and then map it back to the original objects (O(N)). This is especially crucial for string joining or array spreading operations.
