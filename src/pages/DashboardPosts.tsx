@@ -1006,20 +1006,26 @@ const DashboardPosts = () => {
     }
 
     const next = [...filteredPosts];
+
+    if (sortMode === "tags") {
+      // Performance Optimization: Schwartzian Transform (Map-Sort-Map)
+      // Pre-compute the expensive 'tagsKey' derived string for each post exactly once O(N)
+      // to avoid redundant array creation and string joining during the O(N log N) sorting phase.
+      const mapped = next.map((post) => {
+        const projectTags = post.projectId ? projectMap.get(post.projectId)?.tags || [] : [];
+        const postTags = Array.isArray(post.tags) ? post.tags : [];
+        return {
+          post,
+          tagsKey: [...projectTags, ...postTags].join(","),
+        };
+      });
+      mapped.sort((a, b) => a.tagsKey.localeCompare(b.tagsKey, "pt-BR"));
+      return mapped.map((w) => w.post);
+    }
+
     next.sort((a, b) => {
       if (sortMode === "alpha") {
         return a.title.localeCompare(b.title, "pt-BR");
-      }
-      if (sortMode === "tags") {
-        const tagsA = [
-          ...(a.projectId ? projectMap.get(a.projectId)?.tags || [] : []),
-          ...(Array.isArray(a.tags) ? a.tags : []),
-        ];
-        const tagsB = [
-          ...(b.projectId ? projectMap.get(b.projectId)?.tags || [] : []),
-          ...(Array.isArray(b.tags) ? b.tags : []),
-        ];
-        return tagsA.join(",").localeCompare(tagsB.join(","), "pt-BR");
       }
       if (sortMode === "status") {
         return a.status.localeCompare(b.status, "pt-BR");
