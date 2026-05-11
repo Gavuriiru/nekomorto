@@ -1423,6 +1423,7 @@ const DashboardPagesContent = ({ currentUser }: DashboardPagesContentProps) => {
                                     <Button
                                       variant="ghost"
                                       size="icon"
+                                      aria-label={`Remover badge ${index + 1}`}
                                       onClick={() => {
                                         const next = pages.about.heroBadges.filter(
                                           (_, i) => i !== index,
@@ -1516,6 +1517,7 @@ const DashboardPagesContent = ({ currentUser }: DashboardPagesContentProps) => {
                                       <Button
                                         variant="ghost"
                                         size="icon"
+                                        aria-label={`Remover destaque ${index + 1}`}
                                         onClick={() =>
                                           updateAbout({
                                             highlights: pages.about.highlights.filter(
@@ -1611,6 +1613,7 @@ const DashboardPagesContent = ({ currentUser }: DashboardPagesContentProps) => {
                                   <Button
                                     variant="ghost"
                                     size="icon"
+                                    aria-label={`Remover parágrafo ${index + 1}`}
                                     onClick={() => {
                                       const next = pages.about.manifestoParagraphs.filter(
                                         (_, i) => i !== index,
@@ -1705,6 +1708,7 @@ const DashboardPagesContent = ({ currentUser }: DashboardPagesContentProps) => {
                                       <Button
                                         variant="ghost"
                                         size="icon"
+                                        aria-label={`Remover pilar ${index + 1}`}
                                         onClick={() =>
                                           updateAbout({
                                             pillars: pages.about.pillars.filter(
@@ -1826,6 +1830,7 @@ const DashboardPagesContent = ({ currentUser }: DashboardPagesContentProps) => {
                                       <Button
                                         variant="ghost"
                                         size="icon"
+                                        aria-label={`Remover valor ${index + 1}`}
                                         onClick={() =>
                                           updateAbout({
                                             values: pages.about.values.filter(
@@ -1979,6 +1984,7 @@ const DashboardPagesContent = ({ currentUser }: DashboardPagesContentProps) => {
                                       <Button
                                         variant="ghost"
                                         size="icon"
+                                        aria-label={`Remover custo ${index + 1}`}
                                         onClick={() =>
                                           updateDonations({
                                             costs: pages.donations.costs.filter(
@@ -2574,6 +2580,7 @@ const DashboardPagesContent = ({ currentUser }: DashboardPagesContentProps) => {
                                       <Button
                                         variant="ghost"
                                         size="icon"
+                                        aria-label={`Remover doador ${index + 1}`}
                                         onClick={() =>
                                           updateDonations({
                                             donors: pages.donations.donors.filter(
@@ -2733,6 +2740,7 @@ const DashboardPagesContent = ({ currentUser }: DashboardPagesContentProps) => {
                                       <Button
                                         variant="ghost"
                                         size="icon"
+                                        aria-label={`Remover cartão de introdução ${index + 1}`}
                                         onClick={() =>
                                           updateFaq({
                                             introCards: pages.faq.introCards.filter(
@@ -2862,6 +2870,7 @@ const DashboardPagesContent = ({ currentUser }: DashboardPagesContentProps) => {
                                       <Button
                                         variant="ghost"
                                         size="icon"
+                                        aria-label={`Remover grupo de dúvidas ${groupIndex + 1}`}
                                         onClick={() =>
                                           updateFaq({
                                             groups: pages.faq.groups.filter(
@@ -2982,6 +2991,7 @@ const DashboardPagesContent = ({ currentUser }: DashboardPagesContentProps) => {
                                               <Button
                                                 variant="ghost"
                                                 size="icon"
+                                                aria-label={`Remover pergunta ${itemIndex + 1}`}
                                                 onClick={() => {
                                                   const next = [...pages.faq.groups];
                                                   const items = group.items.filter(
@@ -3205,6 +3215,7 @@ const DashboardPagesContent = ({ currentUser }: DashboardPagesContentProps) => {
                                       <Button
                                         variant="ghost"
                                         size="icon"
+                                        aria-label={`Remover cargo ${index + 1}`}
                                         onClick={() =>
                                           updateRecruitment({
                                             roles: pages.recruitment.roles.filter(
