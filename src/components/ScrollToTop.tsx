@@ -1,16 +1,27 @@
-import { useEffect, useLayoutEffect } from "react";
-import { useLocation } from "react-router-dom";
+import { useEffect, useLayoutEffect, useRef } from "react";
+import { useLocation, useNavigationType } from "react-router-dom";
 
 export const ScrollToTop = () => {
   const location = useLocation();
+  const navigationType = useNavigationType();
+  const hasMountedRef = useRef(false);
+  const shouldPreserveBrowserHistoryScroll = navigationType === "POP" && hasMountedRef.current;
 
   useLayoutEffect(() => {
     if ("scrollRestoration" in window.history) {
-      window.history.scrollRestoration = "manual";
+      const previousScrollRestoration = window.history.scrollRestoration;
+      window.history.scrollRestoration = "auto";
+      return () => {
+        window.history.scrollRestoration = previousScrollRestoration;
+      };
     }
   }, []);
 
   useLayoutEffect(() => {
+    if (shouldPreserveBrowserHistoryScroll) {
+      return;
+    }
+
     const locationState =
       typeof location.state === "object" && location.state !== null
         ? (location.state as { preserveScroll?: boolean })
@@ -58,9 +69,19 @@ export const ScrollToTop = () => {
       }
     });
     return () => window.cancelAnimationFrame(frameId);
-  }, [location.hash, location.pathname, location.search, location.state]);
+  }, [
+    location.hash,
+    location.pathname,
+    location.search,
+    location.state,
+    shouldPreserveBrowserHistoryScroll,
+  ]);
 
   useEffect(() => {
+    if (shouldPreserveBrowserHistoryScroll) {
+      return;
+    }
+
     const locationState =
       typeof location.state === "object" && location.state !== null
         ? (location.state as { preserveScroll?: boolean })
@@ -77,7 +98,17 @@ export const ScrollToTop = () => {
       });
     });
     return () => window.cancelAnimationFrame(raf);
-  }, [location.hash, location.pathname, location.search, location.state]);
+  }, [
+    location.hash,
+    location.pathname,
+    location.search,
+    location.state,
+    shouldPreserveBrowserHistoryScroll,
+  ]);
+
+  useEffect(() => {
+    hasMountedRef.current = true;
+  }, []);
 
   return null;
 };

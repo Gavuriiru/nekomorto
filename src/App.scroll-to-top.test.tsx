@@ -38,6 +38,9 @@ const NavigationProbe = () => {
       <button type="button" onClick={() => navigate("/capitulo")}>
         Abrir capitulo
       </button>
+      <button type="button" onClick={() => navigate(-1)}>
+        Voltar no historico
+      </button>
     </div>
   );
 };
@@ -129,5 +132,26 @@ describe("ScrollToTop", () => {
         value: originalScrollIntoView,
       });
     }
+  });
+
+  it("nao reseta o scroll ao voltar pelo historico do navegador", async () => {
+    render(
+      <MemoryRouter initialEntries={["/inicial", "/capitulo"]} initialIndex={1}>
+        <ScrollToTop />
+        <Routes>
+          <Route path="*" element={<NavigationProbe />} />
+        </Routes>
+      </MemoryRouter>,
+    );
+
+    const scrollToMock = vi.mocked(window.scrollTo);
+    expect(scrollToMock).toHaveBeenCalledTimes(1);
+    scrollToMock.mockClear();
+
+    fireEvent.click(screen.getByRole("button", { name: "Voltar no historico" }));
+    await waitFor(() => {
+      expect(screen.getByTestId("pathname")).toHaveTextContent("/inicial");
+    });
+    expect(scrollToMock).not.toHaveBeenCalled();
   });
 });
