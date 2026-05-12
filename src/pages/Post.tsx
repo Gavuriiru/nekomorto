@@ -1,17 +1,20 @@
 import { CalendarDays, Clock, User } from "lucide-react";
-import { lazy, Suspense, useEffect, useMemo, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { Link, useLocation, useParams } from "react-router-dom";
 
 import CommentsSection from "@/components/CommentsSection";
+import PublicPostLegacyContent from "@/components/PublicPostLegacyContent";
 import ProjectEmbedCard from "@/components/ProjectEmbedCard";
 import PublicUserProfileCard from "@/components/PublicUserProfileCard";
 import UploadPicture from "@/components/UploadPicture";
+import LexicalViewer from "@/components/lexical/LexicalViewer";
 import { publicPageLayoutTokens } from "@/components/public-page-tokens";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { useDeferredVisibility } from "@/hooks/use-deferred-visibility";
 import { usePageMeta } from "@/hooks/use-page-meta";
+import { useResolvedPublicBootstrap } from "@/hooks/public-bootstrap-provider";
 import { usePublicCurrentUser } from "@/hooks/use-public-current-user";
 import { useSiteSettings } from "@/hooks/use-site-settings";
 import { getApiBase } from "@/lib/api-base";
@@ -20,7 +23,6 @@ import { normalizeAssetUrl } from "@/lib/asset-url";
 import { formatDateTime } from "@/lib/date";
 import { estimateReadTime } from "@/lib/post-content";
 import { extractFirstImageFromPostContent } from "@/lib/post-cover";
-import { readWindowPublicBootstrap } from "@/lib/public-bootstrap-global";
 import type { UploadMediaVariantsMap } from "@/lib/upload-variants";
 import type {
   PublicBootstrapPayload,
@@ -33,8 +35,6 @@ import {
   buildPostOgRevision,
   buildVersionedPostOgImagePath,
 } from "../../shared/post-og-seo.js";
-
-const LexicalViewer = lazy(() => import("@/components/lexical/LexicalViewer"));
 
 const LexicalViewerFallback = () => (
   <div className="min-h-80 w-full rounded-xl border border-border/60 bg-background/60 p-6 text-sm text-muted-foreground">
@@ -51,7 +51,7 @@ type PostRecord = {
   seoImageUrl?: string | null;
   excerpt: string;
   content: string;
-  contentFormat?: "lexical";
+  contentFormat?: "lexical" | "html" | "markdown";
   author: string;
   publishedAt: string;
   views: number;
@@ -179,9 +179,8 @@ const Post = () => {
   const { slug } = useParams();
   const location = useLocation();
   const apiBase = getApiBase();
-  const [bootstrapData] = useState<PublicBootstrapPayload | null>(() =>
-    readWindowPublicBootstrap(),
-  );
+  const resolvedBootstrap = useResolvedPublicBootstrap();
+  const [bootstrapData] = useState<PublicBootstrapPayload | null>(() => resolvedBootstrap);
   const { currentUser } = usePublicCurrentUser();
   const bootstrapPost = useMemo(
     () => resolveBootstrapPost(bootstrapData, slug),
@@ -214,16 +213,13 @@ const Post = () => {
     setHasLoaded(Boolean(bootstrapPostRecord));
     setLoadError(false);
     setMediaVariants(bootstrapData?.mediaVariants || {});
-  }, [bootstrapData, bootstrapPostRecord]);
-
-  useEffect(() => {
-    if (!post?.content) {
-      return;
-    }
-    void import("@/components/lexical/LexicalViewer");
-  }, [post?.content]);
+  }, [bootstrapData?.mediaVariants, bootstrapPostRecord]);
 
   const shouldHydratePostFromApi = Boolean(slug);
+  const shouldRenderLexicalContent =
+    !post?.contentFormat || post.contentFormat === "lexical";
+  const shouldRenderLegacyContent =
+    post?.contentFormat === "html" || post?.contentFormat === "markdown";
 
   useEffect(() => {
     let isActive = true;
@@ -491,15 +487,23 @@ const Post = () => {
                   <div className="relative">
                     <Card className="border-border/60 bg-card/85 shadow-post-card">
                       <CardContent className="min-w-0 space-y-7 p-6 text-sm leading-relaxed text-muted-foreground md:p-8">
-                        {post.content ? (
-                          <Suspense fallback={<LexicalViewerFallback />}>
-                            <LexicalViewer
-                              value={post.content}
-                              ariaLabel={`Conteúdo da postagem ${post.title}`}
-                              className="post-content reader-content min-w-0 w-full text-muted-foreground"
-                              pollTarget={post.slug ? { type: "post", slug: post.slug } : undefined}
-                            />
-                          </Suspense>
+                        {post.content && shouldRenderLexicalContent ? (
+                          <LexicalViewer
+                            value={post.content}
+                            ariaLabel={`Conteúdo da postagem ${post.title}`}
+                            className="post-content reader-content min-w-0 w-full text-muted-foreground"
+                            pollTarget={post.slug ? { type: "post", slug: post.slug } : undefined}
+                          />
+                        ) : post.content && shouldRenderLegacyContent ? (
+                          <PublicPostLegacyContent
+                            content={post.content}
+                            format={post.contentFormat === "html" ? "html" : "markdown"}
+                            ariaLabel={`Conteúdo da postagem ${post.title}`}
+                            className="post-content reader-content min-w-0 w-full text-muted-foreground"
+                            fallback={<LexicalViewerFallback />}
+                          />
+                        ) : post.content ? (
+                          <LexicalViewerFallback />
                         ) : !hasLoaded ? (
                           <LexicalViewerFallback />
                         ) : loadError ? (

@@ -11,6 +11,7 @@ import { Progress } from "@/components/ui/progress";
 import { Separator } from "@/components/ui/separator";
 import { usePageMeta } from "@/hooks/use-page-meta";
 import { usePixQrCode } from "@/hooks/use-pix-qr-code";
+import { useResolvedPublicBootstrap } from "@/hooks/public-bootstrap-provider";
 import { usePublicBootstrap } from "@/hooks/use-public-bootstrap";
 import { useSiteSettings } from "@/hooks/use-site-settings";
 import { useTextQrCode } from "@/hooks/use-text-qr-code";
@@ -24,7 +25,6 @@ import {
   normalizeDonationsCryptoServices,
 } from "@/lib/donations-crypto";
 import { buildMonthlyGoalSummary } from "@/lib/donations-monthly-goal";
-import { readWindowPublicBootstrap } from "@/lib/public-bootstrap-global";
 import type { DonationsCryptoService } from "@/types/public-pages";
 import {
   BadgeDollarSign,
@@ -253,7 +253,7 @@ const CryptoDonationPanel = ({
 
 const Donations = () => {
   const { settings } = useSiteSettings();
-  const windowBootstrap = readWindowPublicBootstrap();
+  const windowBootstrap = useResolvedPublicBootstrap();
   const { data: bootstrapData, status: bootstrapStatus } = usePublicBootstrap();
   const bootstrap = windowBootstrap || bootstrapData;
   const hasFullBootstrap = Boolean(bootstrap && bootstrap.payloadMode !== "critical-home");

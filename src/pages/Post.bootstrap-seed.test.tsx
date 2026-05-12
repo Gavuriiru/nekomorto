@@ -55,6 +55,38 @@ const mockJsonResponse = (ok: boolean, payload: unknown, status = ok ? 200 : 500
     json: async () => payload,
   }) as Response;
 
+const bootstrapLexicalContent = JSON.stringify({
+  root: {
+    children: [
+      {
+        children: [
+          {
+            detail: 0,
+            format: 0,
+            mode: "normal",
+            style: "",
+            text: "Conteúdo completo do bootstrap",
+            type: "text",
+            version: 1,
+          },
+        ],
+        direction: "ltr",
+        format: "",
+        indent: 0,
+        type: "paragraph",
+        version: 1,
+        textFormat: 0,
+        textStyle: "",
+      },
+    ],
+    direction: "ltr",
+    format: "",
+    indent: 0,
+    type: "root",
+    version: 1,
+  },
+});
+
 const originalIntersectionObserver = window.IntersectionObserver;
 
 describe("Post bootstrap-first", () => {
@@ -101,7 +133,7 @@ describe("Post bootstrap-first", () => {
         slug: "post-teste",
         title: "Post Bootstrap",
         excerpt: "Resumo inicial",
-        content: "<p>Conteúdo completo do bootstrap</p>",
+        content: bootstrapLexicalContent,
         contentFormat: "lexical",
         author: "Admin",
         publishedAt: "2026-02-10T12:00:00.000Z",
@@ -160,7 +192,7 @@ describe("Post bootstrap-first", () => {
   });
 
   it("renderiza conteudo completo do bootstrap no first paint e revalida em background", async () => {
-    render(
+    const { container } = render(
       <MemoryRouter>
         <Post />
       </MemoryRouter>,
@@ -172,6 +204,7 @@ describe("Post bootstrap-first", () => {
       "/dashboard/posts?edit=post-1",
     );
     expect(await screen.findByTestId("lexical-viewer")).toBeInTheDocument();
+    expect(container.querySelector('[data-testid="lexical-viewer"]')).toBeTruthy();
 
     const calledEndpoints = apiFetchMock.mock.calls.map((call) => String(call[1] || ""));
     expect(calledEndpoints).toContain("/api/public/posts/post-teste");
@@ -181,6 +214,59 @@ describe("Post bootstrap-first", () => {
     expect(calledEndpoints).not.toContain("/api/link-types");
     expect(screen.queryByTestId("project-embed-card")).not.toBeInTheDocument();
     expect(screen.queryByTestId("comments-section")).not.toBeInTheDocument();
+  });
+
+  it("renderiza post legado em html sem depender do viewer lexical", async () => {
+    apiFetchMock.mockImplementation(
+      async (_apiBase: string, endpoint: string, options?: RequestInit) => {
+        const method = String(options?.method || "GET").toUpperCase();
+        if (endpoint === "/api/public/posts/post-teste/view" && method === "POST") {
+          return mockJsonResponse(true, { views: 11 });
+        }
+        if (endpoint === "/api/public/posts/post-teste" && method === "GET") {
+          return mockJsonResponse(true, {
+            post: {
+              id: "post-1",
+              slug: "post-teste",
+              title: "Post Bootstrap",
+              excerpt: "Resumo inicial",
+              content:
+                '<blockquote class="twitter-tweet"><p>Embed legado</p></blockquote><script>alert(1)</script><p>Texto legado em HTML</p>',
+              contentFormat: "html",
+              author: "Admin",
+              publishedAt: "2026-02-10T12:00:00.000Z",
+              coverImageUrl: "/uploads/post-cover.jpg",
+              coverAlt: "Capa inicial",
+              projectId: "project-1",
+              tags: [],
+              views: 10,
+              commentsCount: 2,
+            },
+            mediaVariants: {},
+          });
+        }
+        return mockJsonResponse(false, { error: "not_found" }, 404);
+      },
+    );
+
+    (
+      window as Window & {
+        __BOOTSTRAP_PUBLIC__?: unknown;
+      }
+    ).__BOOTSTRAP_PUBLIC__ = {
+      ...(window as Window & { __BOOTSTRAP_PUBLIC__?: Record<string, unknown> }).__BOOTSTRAP_PUBLIC__,
+      currentPostDetail: null,
+    };
+
+    const { container } = render(
+      <MemoryRouter>
+        <Post />
+      </MemoryRouter>,
+    );
+
+    expect(await screen.findByText("Texto legado em HTML")).toBeInTheDocument();
+    expect(screen.queryByTestId("lexical-viewer")).not.toBeInTheDocument();
+    expect(container.querySelector("script")).toBeNull();
   });
 
   it("corrige o estado de permissao quando o bootstrap inicial vem anonimo", async () => {

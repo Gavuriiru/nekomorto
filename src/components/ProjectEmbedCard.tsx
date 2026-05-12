@@ -8,10 +8,10 @@ import PublicProjectCard, {
 } from "@/components/project/PublicProjectCard";
 import type { Project } from "@/data/projects";
 import { useDynamicSynopsisClamp } from "@/hooks/use-dynamic-synopsis-clamp";
+import { useResolvedPublicBootstrap } from "@/hooks/public-bootstrap-provider";
 import { getApiBase } from "@/lib/api-base";
 import { apiFetch } from "@/lib/api-client";
 import { buildTranslationMap, sortByTranslatedLabel, translateTag } from "@/lib/project-taxonomy";
-import { readWindowPublicBootstrap } from "@/lib/public-bootstrap-global";
 import type { UploadMediaVariantsMap } from "@/lib/upload-variants";
 import "@/styles/project-embed-card.css";
 import type { PublicBootstrapPayload } from "@/types/public-bootstrap";
@@ -63,9 +63,8 @@ const mergeMediaVariants = (base: UploadMediaVariantsMap, nextValue: unknown) =>
 
 const ProjectEmbedCard = ({ projectId }: ProjectEmbedCardProps) => {
   const apiBase = getApiBase();
-  const [bootstrapData] = useState<PublicBootstrapPayload | null>(() =>
-    readWindowPublicBootstrap(),
-  );
+  const resolvedBootstrap = useResolvedPublicBootstrap();
+  const [bootstrapData] = useState<PublicBootstrapPayload | null>(() => resolvedBootstrap);
   const bootstrapProject = useMemo(
     () => resolveBootstrapProject(bootstrapData, projectId),
     [bootstrapData, projectId],

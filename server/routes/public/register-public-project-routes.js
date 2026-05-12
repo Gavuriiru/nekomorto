@@ -241,6 +241,26 @@ export const registerPublicProjectRoutes = ({
     const translations = loadTagTranslations();
     return res.json({
       project: projectPayload,
+      translations: {
+        tags:
+          translations?.tags &&
+          typeof translations.tags === "object" &&
+          !Array.isArray(translations.tags)
+            ? translations.tags
+            : {},
+        genres:
+          translations?.genres &&
+          typeof translations.genres === "object" &&
+          !Array.isArray(translations.genres)
+            ? translations.genres
+            : {},
+        staffRoles:
+          translations?.staffRoles &&
+          typeof translations.staffRoles === "object" &&
+          !Array.isArray(translations.staffRoles)
+            ? translations.staffRoles
+            : {},
+      },
       revision: buildProjectOgRevision({
         project: projectPayload,
         settings,

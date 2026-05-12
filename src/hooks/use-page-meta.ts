@@ -1,10 +1,11 @@
 import { useSiteSettings } from "@/hooks/use-site-settings";
+import { useResolvedPublicBootstrap } from "@/hooks/public-bootstrap-provider";
 import { normalizeAssetUrl } from "@/lib/asset-url";
 import { getCanonicalPageUrl } from "@/lib/canonical-url";
 import { truncateMetaDescription } from "@/lib/meta-description";
 import { resolveThemeColor } from "@/lib/theme-color";
 import { resolveUploadVariantUrl, type UploadMediaVariantsMap } from "@/lib/upload-variants";
-import { useLayoutEffect, useMemo } from "react";
+import { useEffect, useLayoutEffect, useMemo } from "react";
 
 type PageMetaOptions = {
   title?: string;
@@ -41,6 +42,8 @@ const ensureLink = (selector: string, attrs: Record<string, string>) => {
   return el;
 };
 
+const useDocumentEffect = typeof window === "undefined" ? useEffect : useLayoutEffect;
+
 export const usePageMeta = ({
   title,
   description,
@@ -52,6 +55,7 @@ export const usePageMeta = ({
   separator,
 }: PageMetaOptions) => {
   const { settings, isLoading } = useSiteSettings();
+  const bootstrap = useResolvedPublicBootstrap();
   const siteName = settings.site.name || "Nekomata";
   const resolveSeparator = (value: unknown) => {
     const normalized = typeof value === "string" ? value : "";
@@ -65,17 +69,13 @@ export const usePageMeta = ({
     return `${title}${effectiveSeparator}${siteName}`;
   }, [effectiveSeparator, siteName, title]);
   const pageDescription = truncateMetaDescription(description ?? settings.site.description ?? "");
-  const bootstrapMediaVariants = useMemo<UploadMediaVariantsMap>(() => {
-    if (typeof window === "undefined") {
-      return {};
-    }
-    const globalWindow = window as Window &
-      typeof globalThis & {
-        __BOOTSTRAP_PUBLIC__?: { mediaVariants?: unknown } | null;
-      };
-    const value = globalWindow.__BOOTSTRAP_PUBLIC__?.mediaVariants;
-    return value && typeof value === "object" ? (value as UploadMediaVariantsMap) : {};
-  }, []);
+  const bootstrapMediaVariants = useMemo<UploadMediaVariantsMap>(
+    () =>
+      bootstrap?.mediaVariants && typeof bootstrap.mediaVariants === "object"
+        ? bootstrap.mediaVariants
+        : {},
+    [bootstrap],
+  );
   const effectiveMediaVariants = useMemo<UploadMediaVariantsMap>(
     () => ({
       ...bootstrapMediaVariants,
@@ -98,7 +98,7 @@ export const usePageMeta = ({
   const canonicalUrl = currentHref ? getCanonicalPageUrl(currentHref) || currentHref : "";
   const themeColor = resolveThemeColor(settings.theme?.accent);
 
-  useLayoutEffect(() => {
+  useDocumentEffect(() => {
     if (isLoading) {
       return;
     }

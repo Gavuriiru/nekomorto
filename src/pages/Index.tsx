@@ -1,12 +1,10 @@
 import HeroSection from "@/components/HeroSection";
+import ReleasesSection from "@/components/ReleasesSection";
 import { usePageMeta } from "@/hooks/use-page-meta";
-import { readWindowPublicBootstrap } from "@/lib/public-bootstrap-global";
-import { lazy, Suspense } from "react";
-
-const ReleasesSection = lazy(() => import("@/components/ReleasesSection"));
+import { useResolvedPublicBootstrap } from "@/hooks/public-bootstrap-provider";
 
 const Index = () => {
-  const bootstrap = readWindowPublicBootstrap();
+  const bootstrap = useResolvedPublicBootstrap();
   const shareImage = bootstrap?.pages.home.shareImage || "";
   const shareImageAlt = bootstrap?.pages.home.shareImageAlt || "";
   const pageMediaVariants = bootstrap?.mediaVariants || {};
@@ -22,9 +20,7 @@ const Index = () => {
   return (
     <div className="min-h-screen bg-background">
       <HeroSection />
-      <Suspense fallback={null}>
-        <ReleasesSection />
-      </Suspense>
+      <ReleasesSection />
     </div>
   );
 };

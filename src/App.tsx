@@ -1,111 +1,61 @@
 import AppLoadingFallback from "@/components/AppLoadingFallback";
-import { AccessibilityAnnouncerProvider } from "@/hooks/accessibility-announcer";
+import { AppProviders } from "@/components/AppProviders";
+import ScrollToTop from "@/components/ScrollToTop";
 import { GlobalShortcutsProvider } from "@/hooks/global-shortcuts-provider";
-import { SiteSettingsProvider } from "@/hooks/site-settings-provider";
-import { ThemeModeProvider } from "@/hooks/theme-mode-provider";
 import { useReveal } from "@/hooks/use-reveal";
 import { scheduleOnBrowserLoadIdle } from "@/lib/browser-idle";
 import { initRouteMotion } from "@/lib/route-motion";
-import { lazy, Suspense, useEffect, useLayoutEffect, useState } from "react";
+import type { SiteSettings } from "@/types/site-settings";
+import type { ComponentType } from "react";
+import { lazy, Suspense, useEffect, useState } from "react";
 import { BrowserRouter, Route, Routes, useLocation } from "react-router-dom";
 
 import PublicRoutes from "./routes/PublicRoutes";
 
-const DashboardRoutes = lazy(() => import("./routes/DashboardRoutes"));
 const DeferredSonner = lazy(() =>
   import("@/components/ui/sonner").then((module) => ({ default: module.Toaster })),
 );
+const loadDashboardRoutes = () => import("./routes/DashboardRoutes");
 
 const RouteLoadingFallback = () => <AppLoadingFallback label="Carregando..." />;
+export { default as ScrollToTop } from "@/components/ScrollToTop";
 
-export const ScrollToTop = () => {
-  const location = useLocation();
-
-  useLayoutEffect(() => {
-    if ("scrollRestoration" in window.history) {
-      window.history.scrollRestoration = "manual";
-    }
-  }, []);
-
-  useLayoutEffect(() => {
-    const locationState =
-      typeof location.state === "object" && location.state !== null
-        ? (location.state as { preserveScroll?: boolean })
-        : null;
-    const shouldPreserveScroll = locationState?.preserveScroll === true;
-    const normalizedHash = String(location.hash || "")
-      .replace(/^#/, "")
-      .trim();
-    if (!normalizedHash) {
-      if (!shouldPreserveScroll) {
-        window.scrollTo({ top: 0, left: 0, behavior: "auto" });
-      }
-      return;
-    }
-
-    const findTarget = () => {
-      if (!normalizedHash) {
-        return null;
-      }
-      const byId = document.getElementById(normalizedHash);
-      if (byId) {
-        return byId;
-      }
-      const decoded = decodeURIComponent(normalizedHash);
-      return document.getElementById(decoded);
-    };
-
-    const scrollToHash = () => {
-      const target = findTarget();
-      if (!target) {
-        return false;
-      }
-      const scrollBlock =
-        target.getAttribute("data-scroll-block") === "center" ? "center" : "start";
-      target.scrollIntoView({ behavior: "auto", block: scrollBlock });
-      return true;
-    };
-
-    if (scrollToHash()) {
-      return;
-    }
-    const frameId = window.requestAnimationFrame(() => {
-      if (!scrollToHash()) {
-        window.scrollTo({ top: 0, left: 0, behavior: "auto" });
-      }
-    });
-    return () => window.cancelAnimationFrame(frameId);
-  }, [location.hash, location.pathname, location.search, location.state]);
+const DashboardRoutesLoader = () => {
+  const [DashboardRoutesComponent, setDashboardRoutesComponent] = useState<ComponentType | null>(
+    null,
+  );
 
   useEffect(() => {
-    const locationState =
-      typeof location.state === "object" && location.state !== null
-        ? (location.state as { preserveScroll?: boolean })
-        : null;
-    const shouldPreserveScroll = locationState?.preserveScroll === true;
-    if (shouldPreserveScroll || location.hash) {
-      return;
-    }
-    let raf = window.requestAnimationFrame(() => {
-      raf = window.requestAnimationFrame(() => {
-        if (window.scrollY > 0) {
-          window.scrollTo({ top: 0, left: 0, behavior: "auto" });
-        }
-      });
+    let active = true;
+    void loadDashboardRoutes().then((module) => {
+      if (!active) {
+        return;
+      }
+      setDashboardRoutesComponent(() => module.default);
     });
-    return () => window.cancelAnimationFrame(raf);
-  }, [location.hash, location.pathname, location.search, location.state]);
+    return () => {
+      active = false;
+    };
+  }, []);
 
-  return null;
+  if (!DashboardRoutesComponent) {
+    return <RouteLoadingFallback />;
+  }
+
+  return <DashboardRoutesComponent />;
 };
 
 const RouterShell = () => {
   const location = useLocation();
   useReveal();
+  const isDashboardRoute = location.pathname.startsWith("/dashboard");
+
   return (
     <Suspense fallback={<RouteLoadingFallback />}>
       <Routes location={location}>
-        <Route path="/dashboard/*" element={<DashboardRoutes />} />
+        {isDashboardRoute ? (
+          <Route path="/dashboard/*" element={<DashboardRoutesLoader />} />
+        ) : null}
         <Route path="*" element={<PublicRoutes />} />
       </Routes>
     </Suspense>
@@ -140,7 +90,7 @@ const App = ({
   initialSettings,
   initiallyLoaded,
 }: {
-  initialSettings?: Parameters<typeof SiteSettingsProvider>[0]["initialSettings"];
+  initialSettings?: SiteSettings;
   initiallyLoaded?: boolean;
 }) => {
   useEffect(() => {
@@ -148,19 +98,15 @@ const App = ({
   }, []);
 
   return (
-    <SiteSettingsProvider initialSettings={initialSettings} initiallyLoaded={initiallyLoaded}>
-      <ThemeModeProvider>
-        <AccessibilityAnnouncerProvider>
-          <DeferredToaster />
-          <BrowserRouter>
-            <GlobalShortcutsProvider>
-              <ScrollToTop />
-              <RouterShell />
-            </GlobalShortcutsProvider>
-          </BrowserRouter>
-        </AccessibilityAnnouncerProvider>
-      </ThemeModeProvider>
-    </SiteSettingsProvider>
+    <AppProviders initialSettings={initialSettings} initiallyLoaded={initiallyLoaded}>
+      <DeferredToaster />
+      <BrowserRouter>
+        <GlobalShortcutsProvider>
+          <ScrollToTop />
+          <RouterShell />
+        </GlobalShortcutsProvider>
+      </BrowserRouter>
+    </AppProviders>
   );
 };
 

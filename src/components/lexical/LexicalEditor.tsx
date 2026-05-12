@@ -9,15 +9,19 @@ import { ToolbarContext } from "@/components/lexical/editor/context/ToolbarConte
 import { TableContext } from "@/components/lexical/editor/plugins/TablePlugin";
 import PlaygroundEditorTheme from "@/components/lexical/editor/themes/PlaygroundEditorTheme";
 import { EMPTY_LEXICAL_JSON, normalizeLexicalJson } from "@/lib/lexical/serialize";
+import { ensureStyleAssetLoaded } from "@/lib/style-asset-loader";
 import { LexicalComposer } from "@lexical/react/LexicalComposer";
 import { useLexicalComposerContext } from "@lexical/react/LexicalComposerContext";
 import { OnChangePlugin } from "@lexical/react/LexicalOnChangePlugin";
 import { $setSelection } from "lexical";
 import * as React from "react";
+import lexicalEditorCssHref from "@/components/lexical/editor/lexical-editor.css?url";
+import playgroundCssHref from "@/components/lexical/editor/playground.css?url";
+import playgroundOverridesCssHref from "@/components/lexical/editor/playground-overrides.css?url";
 
-import "@/components/lexical/editor/playground.css";
-import "@/components/lexical/editor/playground-overrides.css";
-import "@/components/lexical/editor/lexical-editor.css";
+ensureStyleAssetLoaded(playgroundCssHref);
+ensureStyleAssetLoaded(playgroundOverridesCssHref);
+ensureStyleAssetLoaded(lexicalEditorCssHref);
 
 export type LexicalEditorHandle = {
   focus: () => void;

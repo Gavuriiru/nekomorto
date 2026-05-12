@@ -1,7 +1,5 @@
 import { ChevronLeft, ChevronRight, PencilLine } from "lucide-react";
 import {
-  lazy,
-  Suspense,
   useCallback,
   useEffect,
   useLayoutEffect,
@@ -14,6 +12,7 @@ import { Link, useLocation, useNavigate, useParams, useSearchParams } from "reac
 import CommentsSection from "@/components/CommentsSection";
 import Footer from "@/components/Footer";
 import Header from "@/components/Header";
+import LexicalViewer from "@/components/lexical/LexicalViewer";
 import LightNovelReadingHeader, {
   type LightNovelReadingHeaderChapterLink,
 } from "@/components/project-reader/LightNovelReadingHeader";
@@ -25,6 +24,7 @@ import { Card, CardContent } from "@/components/ui/card";
 import type { Project } from "@/data/projects";
 import { useDeferredVisibility } from "@/hooks/use-deferred-visibility";
 import { usePageMeta } from "@/hooks/use-page-meta";
+import { useResolvedPublicBootstrap } from "@/hooks/public-bootstrap-provider";
 import { usePublicCurrentUser } from "@/hooks/use-public-current-user";
 import { useSiteSettings } from "@/hooks/use-site-settings";
 import { canManageProjectsAccess } from "@/lib/access-control";
@@ -42,7 +42,6 @@ import { isLightNovelType, isMangaType } from "@/lib/project-utils";
 import { findVolumeCoverByVolume } from "@/lib/project-volume-cover-key";
 import { normalizeProjectVolumeEntries } from "@/lib/project-volume-entries";
 import { PUBLIC_ANALYTICS_INGEST_PATH } from "@/lib/public-analytics";
-import { readWindowPublicBootstrap } from "@/lib/public-bootstrap-global";
 import { hasPublicEpisodeReadableContent } from "@/lib/public-project-episodes";
 import type { UploadMediaVariantsMap } from "@/lib/upload-variants";
 import { cn } from "@/lib/utils";
@@ -59,8 +58,6 @@ import {
   resolveProjectReadingOgSnapshot,
 } from "../../shared/project-reading-og-seo.js";
 import NotFound from "./NotFound";
-
-const LexicalViewer = lazy(() => import("@/components/lexical/LexicalViewer"));
 
 const LexicalViewerFallback = () => (
   <div className="min-h-80 w-full rounded-xl border border-border/60 bg-background/60 p-6 text-sm text-muted-foreground">
@@ -206,9 +203,8 @@ const ProjectReading = () => {
   const [searchParams] = useSearchParams();
   const apiBase = getApiBase();
   const { settings } = useSiteSettings();
-  const [bootstrapData] = useState<PublicBootstrapPayload | null>(() =>
-    readWindowPublicBootstrap(),
-  );
+  const resolvedBootstrap = useResolvedPublicBootstrap();
+  const [bootstrapData] = useState<PublicBootstrapPayload | null>(() => resolvedBootstrap);
   const { currentUser } = usePublicCurrentUser();
   const bootstrapProject = useMemo(
     () => resolveBootstrapProject(bootstrapData, slug),
@@ -756,20 +752,6 @@ const ProjectReading = () => {
   }, [bootstrapChapterContent, bootstrapHasChapterContent, project?.readerConfig]);
 
   useEffect(() => {
-    if (!bootstrapHasChapterContent || !bootstrapChapterContent?.content) {
-      return;
-    }
-    void import("@/components/lexical/LexicalViewer");
-  }, [bootstrapChapterContent, bootstrapHasChapterContent]);
-
-  useEffect(() => {
-    if (!chapterContent?.content) {
-      return;
-    }
-    void import("@/components/lexical/LexicalViewer");
-  }, [chapterContent?.content]);
-
-  useEffect(() => {
     const currentChapterContent = chapterContent;
     if (!project?.id || !currentChapterContent || !Number.isFinite(currentChapterContent.number)) {
       return;
@@ -1023,27 +1005,25 @@ const ProjectReading = () => {
             <section className="project-reading-first-fold mx-auto mt-3 w-full max-w-6xl px-6 pb-16 md:mt-4 md:px-10">
               <section>
                 <article className="min-w-0 space-y-6">
-                  <Card className="project-reading-reader-shell">
-                    <CardContent className="project-reading-reader-shell__content min-w-0 space-y-6 p-6">
+                    <Card className="project-reading-reader-shell">
+                      <CardContent className="project-reading-reader-shell__content min-w-0 space-y-6 p-6">
                       {chapterContent?.content ? (
-                        <Suspense fallback={<LexicalViewerFallback />}>
-                          <LexicalViewer
-                            value={chapterLexical}
-                            ariaLabel={`Conte\u00fado de leitura de ${pageTitle}`}
-                            className="post-content reader-content min-w-0 w-full text-muted-foreground"
-                            onInternalLinkNavigate={handleInternalChapterLinkNavigate}
-                            pollTarget={
-                              project.id && Number.isFinite(chapterNumber)
-                                ? {
-                                    type: "chapter",
-                                    projectId: project.id,
-                                    chapterNumber: chapterData?.number ?? chapterNumber,
-                                    volume: chapterData?.volume ?? volumeParam,
-                                  }
-                                : undefined
-                            }
-                          />
-                        </Suspense>
+                        <LexicalViewer
+                          value={chapterLexical}
+                          ariaLabel={`Conte\u00fado de leitura de ${pageTitle}`}
+                          className="post-content reader-content min-w-0 w-full text-muted-foreground"
+                          onInternalLinkNavigate={handleInternalChapterLinkNavigate}
+                          pollTarget={
+                            project.id && Number.isFinite(chapterNumber)
+                              ? {
+                                  type: "chapter",
+                                  projectId: project.id,
+                                  chapterNumber: chapterData?.number ?? chapterNumber,
+                                  volume: chapterData?.volume ?? volumeParam,
+                                }
+                              : undefined
+                          }
+                        />
                       ) : !hasLoadedChapter ? (
                         <LexicalViewerFallback />
                       ) : chapterLoadError ? (
@@ -1144,24 +1124,22 @@ const ProjectReading = () => {
               <div className="overflow-hidden rounded-3xl border border-border/60 bg-card/40 shadow-xl">
                 <div className="p-5 md:p-8" style={{ minHeight: "calc(100svh - 18rem)" }}>
                   {chapterContent?.content ? (
-                    <Suspense fallback={<LexicalViewerFallback />}>
-                      <LexicalViewer
-                        value={chapterLexical}
-                        ariaLabel={`Conteúdo de leitura de ${pageTitle}`}
-                        className="post-content reader-content min-w-0 w-full text-muted-foreground"
-                        onInternalLinkNavigate={handleInternalChapterLinkNavigate}
-                        pollTarget={
-                          project.id && Number.isFinite(chapterNumber)
-                            ? {
-                                type: "chapter",
-                                projectId: project.id,
-                                chapterNumber: chapterData?.number ?? chapterNumber,
-                                volume: chapterData?.volume ?? volumeParam,
-                              }
-                            : undefined
-                        }
-                      />
-                    </Suspense>
+                    <LexicalViewer
+                      value={chapterLexical}
+                      ariaLabel={`Conteúdo de leitura de ${pageTitle}`}
+                      className="post-content reader-content min-w-0 w-full text-muted-foreground"
+                      onInternalLinkNavigate={handleInternalChapterLinkNavigate}
+                      pollTarget={
+                        project.id && Number.isFinite(chapterNumber)
+                          ? {
+                              type: "chapter",
+                              projectId: project.id,
+                              chapterNumber: chapterData?.number ?? chapterNumber,
+                              volume: chapterData?.volume ?? volumeParam,
+                            }
+                          : undefined
+                      }
+                    />
                   ) : !hasLoadedChapter ? (
                     <LexicalViewerFallback />
                   ) : chapterLoadError ? (

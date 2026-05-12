@@ -41,10 +41,19 @@ describe("injectNonceIntoHtmlScripts", () => {
     expect(result).toContain(`<script type="module" src="/src/main.tsx" nonce="abc123"></script>`);
   });
 
-  it("nao duplica nonce quando script ja possui nonce", () => {
+  it("substitui nonce existente pelo nonce atual da resposta", () => {
     const html = `<script nonce="existente">window.a=1;</script>`;
     const result = injectNonceIntoHtmlScripts(html, "novo");
-    expect(result).toBe(html);
+    expect(result).toBe(`<script nonce="novo">window.a=1;</script>`);
+    expect(result).not.toContain(`nonce="existente"`);
+  });
+
+  it("substitui nonce existente sem duplicar atributo em scripts externos", () => {
+    const html = `<script type="module" src="/assets/index.js" nonce='antigo'></script>`;
+    const result = injectNonceIntoHtmlScripts(html, "atual");
+
+    expect(result).toBe(`<script type="module" src="/assets/index.js" nonce="atual"></script>`);
+    expect(result.match(/\snonce=/g)).toHaveLength(1);
   });
 });
 

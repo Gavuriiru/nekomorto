@@ -55,4 +55,56 @@ describe("vite preload recovery", () => {
     expect(secondEvent.defaultPrevented).toBe(false);
     expect(reload).toHaveBeenCalledTimes(1);
   });
+
+  it("reloads once when a dynamic import rejection matches a stale chunk failure", () => {
+    const eventTarget = new EventTarget();
+    const storage = createMemoryStorage();
+    const reload = vi.fn();
+    const cleanup = installVitePreloadRecovery({
+      eventTarget,
+      storage,
+      location: {
+        pathname: "/",
+        search: "",
+        reload,
+      },
+    });
+
+    const rejectionEvent = new Event("unhandledrejection", { cancelable: true });
+    Object.assign(rejectionEvent, {
+      reason: new TypeError("Failed to fetch dynamically imported module"),
+    });
+    eventTarget.dispatchEvent(rejectionEvent);
+
+    cleanup();
+
+    expect(rejectionEvent.defaultPrevented).toBe(true);
+    expect(reload).toHaveBeenCalledTimes(1);
+  });
+
+  it("ignores unrelated global errors", () => {
+    const eventTarget = new EventTarget();
+    const storage = createMemoryStorage();
+    const reload = vi.fn();
+    const cleanup = installVitePreloadRecovery({
+      eventTarget,
+      storage,
+      location: {
+        pathname: "/projetos",
+        search: "",
+        reload,
+      },
+    });
+
+    const errorEvent = new Event("error", { cancelable: true });
+    Object.assign(errorEvent, {
+      message: "Cannot read properties of undefined",
+    });
+    eventTarget.dispatchEvent(errorEvent);
+
+    cleanup();
+
+    expect(errorEvent.defaultPrevented).toBe(false);
+    expect(reload).not.toHaveBeenCalled();
+  });
 });

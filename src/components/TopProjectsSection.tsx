@@ -49,6 +49,14 @@ const buildRecentUtcDayKeys = (days: number, now = new Date()) => {
   return keys;
 };
 
+const resolveReferenceDate = (value: string | undefined) => {
+  const parsedTime = Date.parse(String(value || ""));
+  if (!Number.isFinite(parsedTime)) {
+    return new Date();
+  }
+  return new Date(parsedTime);
+};
+
 const sumViewsByDayKeys = (viewsDaily: Record<string, number>, dayKeys: string[]) => {
   if (!viewsDaily || typeof viewsDaily !== "object") {
     return 0;
@@ -67,14 +75,18 @@ const TopProjectsSection = () => {
   const mediaVariants = bootstrapData?.mediaVariants || {};
   const isLoadingProjects = isLoading && !bootstrapData;
   const numberFormatter = useMemo(() => new Intl.NumberFormat("pt-BR"), []);
+  const referenceDate = useMemo(
+    () => resolveReferenceDate(bootstrapData?.generatedAt),
+    [bootstrapData?.generatedAt],
+  );
   const listLayoutStyle = {
     "--top-card-h": `${TOP_PROJECTS_CARD_HEIGHT_PX}px`,
     "--top-gap": `${TOP_PROJECTS_GAP_PX}px`,
   } as CSSProperties;
 
   const topProjects = useMemo(() => {
-    const dayKeys7d = buildRecentUtcDayKeys(TOP_PROJECTS_LAST_7_DAYS);
-    const dayKeys30d = buildRecentUtcDayKeys(TOP_PROJECTS_LAST_30_DAYS);
+    const dayKeys7d = buildRecentUtcDayKeys(TOP_PROJECTS_LAST_7_DAYS, referenceDate);
+    const dayKeys30d = buildRecentUtcDayKeys(TOP_PROJECTS_LAST_30_DAYS, referenceDate);
     return projects
       .map((project) => {
         const id = String(project?.id || "").trim();
@@ -120,7 +132,7 @@ const TopProjectsSection = () => {
         return left.title.localeCompare(right.title, "pt-BR");
       })
       .slice(0, TOP_PROJECTS_LIMIT);
-  }, [mode, projects]);
+  }, [mode, projects, referenceDate]);
 
   const synopsisKeys = useMemo(() => topProjects.map((item) => item.id), [topProjects]);
   const resolveSidebarSynopsisMaxLines = useCallback(

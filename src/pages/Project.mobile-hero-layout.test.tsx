@@ -205,9 +205,15 @@ type TaxonomyTranslationsPayload = {
   staffRoles?: Record<string, string>;
 };
 
+type SetupApiMockOptions = {
+  includeDetailTranslations?: boolean;
+  stallTagTranslations?: boolean;
+};
+
 const setupApiMock = (
   project: Project = projectFixture,
   translations: TaxonomyTranslationsPayload = {},
+  mockOptions: SetupApiMockOptions = {},
 ) => {
   apiFetchMock.mockReset();
   apiFetchMock.mockImplementation(
@@ -269,12 +275,27 @@ const setupApiMock = (
       };
 
       if (endpoint === "/api/public/projects/project-1" && method === "GET") {
-        return mockJsonResponse(true, { project, mediaVariants });
+        return mockJsonResponse(true, {
+          project,
+          mediaVariants,
+          ...(mockOptions.includeDetailTranslations
+            ? {
+                translations: {
+                  tags: translations.tags || {},
+                  genres: translations.genres || {},
+                  staffRoles: translations.staffRoles || {},
+                },
+              }
+            : {}),
+        });
       }
       if (endpoint === "/api/public/projects" && method === "GET") {
         return mockJsonResponse(true, { projects: [project] });
       }
       if (endpoint === "/api/public/tag-translations" && method === "GET") {
+        if (mockOptions.stallTagTranslations) {
+          return new Promise<Response>(() => undefined);
+        }
         return mockJsonResponse(true, {
           tags: translations.tags || {},
           genres: translations.genres || {},
@@ -462,6 +483,46 @@ describe("Project mobile hero layout", () => {
     expect(classTokens(genreLink)).toContain("focus-visible:border-accent/60");
     expect(classTokens(genreLink)).toContain("focus-visible:bg-accent/15");
     expect(classTokens(genreLink)).toContain("focus-visible:text-foreground");
+  });
+
+  it("usa as traducoes vindas do detalhe do projeto sem esperar o fetch posterior de taxonomy", async () => {
+    setupApiMock(
+      {
+        ...projectFixture,
+        tags: ["acao"],
+        genres: ["drama"],
+        animeStaff: [{ role: "director", members: ["Taro Sato"] }],
+      },
+      {
+        tags: { acao: "Ação traduzida" },
+        genres: { drama: "Drama traduzido" },
+        staffRoles: { director: "Direção" },
+      },
+      {
+        includeDetailTranslations: true,
+        stallTagTranslations: true,
+      },
+    );
+
+    render(
+      <MemoryRouter>
+        <ProjectPage />
+      </MemoryRouter>,
+    );
+
+    const tagLink = await screen.findByRole("link", { name: "Ação traduzida" });
+    expect(tagLink).toHaveAttribute("href", "/projetos?tag=acao");
+
+    const aboutSection = findAncestor(screen.getByText("Sobre o projeto"), (candidate) =>
+      classTokens(candidate).includes("bg-card/80"),
+    );
+    expect(aboutSection).not.toBeNull();
+    expect(
+      within(aboutSection as HTMLElement).getByRole("link", {
+        name: "Drama traduzido",
+      }),
+    ).toHaveAttribute("href", "/projetos?genero=drama");
+    expect(await screen.findByText("Direção")).toBeInTheDocument();
   });
 
   it("usa fallback de banner com heroImageUrl e depois cover", async () => {

@@ -5,7 +5,7 @@ export const formatDateTime = (value?: string | null, locale = "pt-BR") => {
 
 export const formatDate = (value?: string | null, locale = "pt-BR") => {
   if (!value) return "";
-  return new Date(value).toLocaleDateString(locale, { dateStyle: "short" });
+  return new Date(value).toLocaleDateString(locale, { dateStyle: "short", timeZone: "UTC" });
 };
 
 export const formatDateTimeShort = (value?: string | null, locale = "pt-BR") => {

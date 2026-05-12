@@ -59,6 +59,8 @@ export const buildServerBootConfig = ({ env = process.env, repoRootDir = process
     IDEMPOTENCY_TTL_MS: IDEMPOTENCY_TTL_MS_ENV = "",
     PUBLIC_READ_CACHE_TTL_MS: PUBLIC_READ_CACHE_TTL_MS_ENV = "",
     PUBLIC_READ_CACHE_MAX_ENTRIES: PUBLIC_READ_CACHE_MAX_ENTRIES_ENV = "",
+    PUBLIC_PRERENDER_ENABLED: PUBLIC_PRERENDER_ENABLED_ENV = "",
+    PUBLIC_PRERENDER_DIR: PUBLIC_PRERENDER_DIR_ENV = "",
     ANALYTICS_COMPACTION_INTERVAL_MS: ANALYTICS_COMPACTION_INTERVAL_MS_ENV = "",
     VITE_PWA_DEV_ENABLED: VITE_PWA_DEV_ENABLED_ENV = "false",
     HOME_HERO_SHELL_ENABLED: HOME_HERO_SHELL_ENABLED_ENV = "true",
@@ -82,6 +84,7 @@ export const buildServerBootConfig = ({ env = process.env, repoRootDir = process
   const isMetricsEnabled = isTruthyEnv(METRICS_ENABLED_ENV, false);
   const isPwaDevEnabled = VITE_PWA_DEV_ENABLED_ENV === "true";
   const isHomeHeroShellEnabled = isTruthyEnv(HOME_HERO_SHELL_ENABLED_ENV, true);
+  const isPublicPrerenderEnabled = isTruthyEnv(PUBLIC_PRERENDER_ENABLED_ENV, isProduction);
   const MFA_ENROLLMENT_TTL_MS = Number.isFinite(Number(MFA_ENROLLMENT_TTL_MS_ENV))
     ? Math.min(Math.max(Math.floor(Number(MFA_ENROLLMENT_TTL_MS_ENV)), 60_000), 24 * 60 * 60 * 1000)
     : 10 * 60 * 1000;
@@ -116,6 +119,10 @@ export const buildServerBootConfig = ({ env = process.env, repoRootDir = process
   const adminExportsDir = path.resolve(
     repoRootDir,
     String(ADMIN_EXPORTS_DIR || "").trim() || path.join("backups", "admin-exports"),
+  );
+  const publicPrerenderDir = path.resolve(
+    repoRootDir,
+    String(PUBLIC_PRERENDER_DIR_ENV || "").trim() || path.join("backups", "public-prerender"),
   );
   const epubImportJobsDir = path.resolve(repoRootDir, path.join("backups", "epub-import-jobs"));
   const projectImageImportJobsDir = path.resolve(
@@ -226,6 +233,7 @@ export const buildServerBootConfig = ({ env = process.env, repoRootDir = process
     PORT,
     PRIMARY_APP_HOST,
     PRIMARY_APP_ORIGIN,
+    publicPrerenderDir,
     PUBLIC_READ_CACHE_MAX_ENTRIES,
     PUBLIC_READ_CACHE_TTL_MS,
     RATE_LIMIT_PREFIX,
@@ -242,6 +250,7 @@ export const buildServerBootConfig = ({ env = process.env, repoRootDir = process
     isMetricsEnabled,
     isOpsAlertsWebhookEnabled,
     isProduction,
+    isPublicPrerenderEnabled,
     isPwaDevEnabled,
     isRbacV2AcceptLegacyStar,
     isRbacV2Enabled,

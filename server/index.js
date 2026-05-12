@@ -207,6 +207,8 @@ import {
 import { findDuplicateVolumeCover } from "./lib/project-volume-covers.js";
 import { normalizeLegacyUpdateRecord } from "./lib/pt-legacy-normalization.js";
 import { buildPublicBootstrapPayload } from "./lib/public-bootstrap.js";
+import { createPublicPrerenderRuntime } from "./lib/public-prerender-runtime.js";
+import { buildPublicPrerenderBuildFingerprint } from "./lib/public-prerender-build-fingerprint.js";
 import {
   resolveExistingPublicVariantUrl,
   resolveHomeHeroPreloadFromSlide,
@@ -722,6 +724,7 @@ const {
   PORT,
   PRIMARY_APP_HOST,
   PRIMARY_APP_ORIGIN,
+  publicPrerenderDir,
   PUBLIC_READ_CACHE_MAX_ENTRIES,
   PUBLIC_READ_CACHE_TTL_MS,
   SESSION_SECRET,
@@ -737,6 +740,7 @@ const {
   isMetricsEnabled,
   isOpsAlertsWebhookEnabled,
   isProduction,
+  isPublicPrerenderEnabled,
   isPwaDevEnabled,
   isRbacV2AcceptLegacyStar,
   isRbacV2Enabled,
@@ -1300,6 +1304,64 @@ const {
   renderMetaHtml,
   sendHtml,
 } = siteRenderingRuntime;
+const publicPrerenderRendererPath = path.join(
+  REPO_ROOT_DIR,
+  "dist-ssr",
+  "public",
+  "renderer.mjs",
+);
+const publicPrerenderBuildFingerprint = buildPublicPrerenderBuildFingerprint({
+  apiContractVersion: API_CONTRACT_VERSION,
+  buildMetadata: getBuildMetadata(),
+  indexHtml: getIndexHtml(),
+});
+const publicPrerenderRuntime = createPublicPrerenderRuntime({
+  baseUrl: `http://127.0.0.1:${Number(PORT)}`,
+  buildFingerprint: publicPrerenderBuildFingerprint,
+  clientDistDir,
+  enabled: isPublicPrerenderEnabled,
+  getPublicVisiblePosts: () => getPublicVisiblePosts(),
+  getPublicVisibleProjects: () => getPublicVisibleProjects(),
+  outputDir: publicPrerenderDir,
+  rendererModulePath: publicPrerenderRendererPath,
+  sendHtml,
+});
+const enqueuePublicPrerenderFullRegeneration = (reason) => {
+  if (!publicPrerenderRuntime.isEnabled) {
+    return;
+  }
+  void publicPrerenderRuntime.enqueueFullRegeneration({ reason }).catch(() => undefined);
+};
+const writePostsWithPublicPrerender = (...args) => {
+  const result = writePosts(...args);
+  enqueuePublicPrerenderFullRegeneration("posts-write");
+  return result;
+};
+const writeProjectsWithPublicPrerender = (...args) => {
+  const result = writeProjects(...args);
+  enqueuePublicPrerenderFullRegeneration("projects-write");
+  return result;
+};
+const writePagesWithPublicPrerender = (...args) => {
+  const result = writePages(...args);
+  enqueuePublicPrerenderFullRegeneration("pages-write");
+  return result;
+};
+const writeSiteSettingsWithPublicPrerender = (...args) => {
+  const result = writeSiteSettings(...args);
+  enqueuePublicPrerenderFullRegeneration("settings-write");
+  return result;
+};
+const writeTagTranslationsWithPublicPrerender = (...args) => {
+  const result = writeTagTranslations(...args);
+  enqueuePublicPrerenderFullRegeneration("tag-translations-write");
+  return result;
+};
+const runAutoUploadReorganizationWithPublicPrerender = async (...args) => {
+  const result = await runAutoUploadReorganization(...args);
+  enqueuePublicPrerenderFullRegeneration("auto-upload-reorganization");
+  return result;
+};
 
 const getActiveProjectTypes = createGetActiveProjectTypes({
   defaultProjectTypeCatalog: DEFAULT_PROJECT_TYPE_CATALOG,
@@ -1662,7 +1724,9 @@ const publicRuntime = createPublicRuntimeBundle(
   }),
 );
 
-const { getPublicVisibleProjects } = publicRuntime;
+const { getPublicVisiblePosts, getPublicVisibleProjects } = publicRuntime;
+
+app.use((req, res, next) => publicPrerenderRuntime.middleware(req, res, next));
 
 const rootRouteRegistrationDependencies = buildRootServerRegistrationSource({
   adminExports,
@@ -1967,12 +2031,12 @@ const rootRouteRegistrationDependencies = buildRootServerRegistrationSource({
   writeAllowedUsers,
   writeLinkTypes,
   writeOwnerIds,
-  writePages,
-  writePosts,
-  writeProjects,
+  writePages: writePagesWithPublicPrerender,
+  writePosts: writePostsWithPublicPrerender,
+  writeProjects: writeProjectsWithPublicPrerender,
   writePublicCachedJson,
-  writeSiteSettings,
-  writeTagTranslations,
+  writeSiteSettings: writeSiteSettingsWithPublicPrerender,
+  writeTagTranslations: writeTagTranslationsWithPublicPrerender,
   writeUpdates,
   writeUploadBufferToStaging,
   writeUploads,
@@ -1995,9 +2059,12 @@ startServerJobs({
   isAutoUploadReorganizationOnStartupEnabled,
   isMaintenanceMode,
   listenPort,
+  onListening: async () => {
+    await publicPrerenderRuntime.seedMissingStaticRoutes().catch(() => []);
+  },
   operationalAlertsWebhookState,
   rateLimiter,
-  runAutoUploadReorganization,
+  runAutoUploadReorganization: runAutoUploadReorganizationWithPublicPrerender,
   runOperationalAlertsSchedulerTick,
   runStartupSecuritySanitization,
   runWebhookDeliveryWorkerTick,

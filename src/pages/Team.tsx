@@ -4,9 +4,9 @@ import PublicPageHero from "@/components/PublicPageHero";
 import PublicUserProfileCard from "@/components/PublicUserProfileCard";
 import { publicPageLayoutTokens } from "@/components/public-page-tokens";
 import { usePageMeta } from "@/hooks/use-page-meta";
+import { useResolvedPublicBootstrap } from "@/hooks/public-bootstrap-provider";
 import { getApiBase } from "@/lib/api-base";
 import { apiFetch } from "@/lib/api-client";
-import { readWindowPublicBootstrap } from "@/lib/public-bootstrap-global";
 import { normalizeUploadVariantUrlKey, type UploadMediaVariantsMap } from "@/lib/upload-variants";
 import type { PublicTeamLinkType, PublicTeamMember } from "@/types/public-team";
 import {
@@ -20,22 +20,14 @@ const TEAM_AVATAR_IMAGE_SIZES = "(max-width: 639px) 224px, (max-width: 767px) 24
 
 const Team = () => {
   const apiBase = getApiBase();
-  const bootstrap = readWindowPublicBootstrap();
+  const bootstrap = useResolvedPublicBootstrap();
   const hasFullBootstrap = Boolean(bootstrap && bootstrap.payloadMode !== "critical-home");
-  const bootstrapHasTeamSnapshot =
-    typeof window !== "undefined" &&
-    (() => {
-      const rawBootstrap = (
-        window as Window & {
-          __BOOTSTRAP_PUBLIC__?: { teamMembers?: unknown; teamLinkTypes?: unknown };
-        }
-      ).__BOOTSTRAP_PUBLIC__;
-      return Boolean(
-        rawBootstrap &&
-          typeof rawBootstrap === "object" &&
-          (Array.isArray(rawBootstrap.teamMembers) || Array.isArray(rawBootstrap.teamLinkTypes)),
-      );
-    })();
+  const bootstrapHasTeamSnapshot = Boolean(
+    bootstrap &&
+      (Array.isArray(bootstrap.teamMembers) ||
+        Array.isArray(bootstrap.teamLinkTypes) ||
+        (bootstrap.mediaVariants && typeof bootstrap.mediaVariants === "object")),
+  );
   const hasTeamBootstrapSnapshot = hasFullBootstrap && bootstrapHasTeamSnapshot;
   const bootstrapMembers = hasTeamBootstrapSnapshot ? bootstrap?.teamMembers || [] : [];
   const bootstrapLinkTypes = hasTeamBootstrapSnapshot ? bootstrap?.teamLinkTypes || [] : [];

@@ -56,8 +56,12 @@ export const injectNonceIntoHtmlScripts = (html, nonce) => {
     return input;
   }
   const escapedNonce = escapeHtmlAttribute(normalizedNonce);
-  return input.replace(/<script\b(?![^>]*\bnonce\s*=)([^>]*)>/gi, (_match, attrs = "") => {
-    return `<script${attrs} nonce="${escapedNonce}">`;
+  return input.replace(/<script\b([^>]*)>/gi, (_match, attrs = "") => {
+    const attrsWithoutNonce = String(attrs).replace(
+      /\snonce\s*=\s*(?:"[^"]*"|'[^']*'|[^\s>]+)/i,
+      "",
+    );
+    return `<script${attrsWithoutNonce} nonce="${escapedNonce}">`;
   });
 };
 

@@ -7,7 +7,7 @@ import {
 import { Card, CardContent } from "@/components/ui/card";
 import { Separator } from "@/components/ui/separator";
 import { usePageMeta } from "@/hooks/use-page-meta";
-import { readWindowPublicBootstrap } from "@/lib/public-bootstrap-global";
+import { useResolvedPublicBootstrap } from "@/hooks/public-bootstrap-provider";
 import { HelpCircle, Info, Rocket, Shield, Sparkles, Users } from "lucide-react";
 import { useMemo } from "react";
 import {
@@ -31,7 +31,7 @@ const resolveFaqIcon = (iconName: string | undefined, fallback: typeof HelpCircl
   (iconName ? iconMap[iconName] : undefined) || fallback;
 
 const FAQ = () => {
-  const bootstrap = readWindowPublicBootstrap();
+  const bootstrap = useResolvedPublicBootstrap();
   const faq = useMemo(() => normalizeFaqPublicPage(bootstrap?.pages.faq), [bootstrap]);
   const pageMediaVariants = bootstrap?.mediaVariants || {};
   usePageMeta({

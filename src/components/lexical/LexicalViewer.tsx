@@ -11,12 +11,15 @@ import { resolveEpubViewerLinkAction } from "@/lib/epub-internal-links";
 import { EMPTY_LEXICAL_JSON } from "@/lib/lexical/empty-state";
 import { prepareLexicalViewerState, readPreparedLexicalViewerState } from "@/lib/lexical/viewer";
 import { createRandomId } from "@/lib/random-id";
+import { ensureStyleAssetLoaded } from "@/lib/style-asset-loader";
 import LexicalViewerNodes from "./LexicalViewerNodes";
 import LexicalViewerTheme from "./LexicalViewerTheme";
 import { type PollTarget, ViewerPollProvider } from "./viewer-nodes/ViewerPollContext";
+import richContentCssHref from "@/styles/rich-content.css?url";
+import lexicalViewerCssHref from "./lexical-viewer.css?url";
 
-import "@/styles/rich-content.css";
-import "./lexical-viewer.css";
+ensureStyleAssetLoaded(richContentCssHref);
+ensureStyleAssetLoaded(lexicalViewerCssHref);
 
 type LexicalViewerProps = {
   value: string;

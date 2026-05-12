@@ -6,9 +6,9 @@ import {
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { usePageMeta } from "@/hooks/use-page-meta";
+import { useResolvedPublicBootstrap } from "@/hooks/public-bootstrap-provider";
 import { usePublicBootstrap } from "@/hooks/use-public-bootstrap";
 import { useSiteSettings } from "@/hooks/use-site-settings";
-import { readWindowPublicBootstrap } from "@/lib/public-bootstrap-global";
 import {
   Languages,
   Layers,
@@ -47,7 +47,7 @@ const isRecruitmentIconKey = (value: string | undefined): value is keyof typeof 
 const Recruitment = () => {
   const { settings } = useSiteSettings();
   const discordUrl = settings.community.discordUrl || "#";
-  const windowBootstrap = readWindowPublicBootstrap();
+  const windowBootstrap = useResolvedPublicBootstrap();
   const { data: bootstrapData } = usePublicBootstrap();
   const bootstrap = windowBootstrap || bootstrapData;
   const hasFullBootstrap = Boolean(bootstrap && bootstrap.payloadMode !== "critical-home");

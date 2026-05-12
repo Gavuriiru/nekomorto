@@ -1,4 +1,5 @@
 import { defaultSettings, mergeSettings, SiteSettingsContext } from "@/hooks/site-settings-context";
+import { useResolvedPublicBootstrap } from "@/hooks/public-bootstrap-provider";
 import {
   refetchPublicBootstrapCache,
   refreshPublicBootstrapCacheIfStale,
@@ -7,7 +8,6 @@ import { getApiBase } from "@/lib/api-base";
 import { apiFetch } from "@/lib/api-client";
 import { normalizeAssetUrl } from "@/lib/asset-url";
 import { truncateMetaDescription } from "@/lib/meta-description";
-import { readWindowPublicBootstrap } from "@/lib/public-bootstrap-global";
 import { applyThemeAccentVariables } from "@/lib/theme-accent";
 import type { SiteSettings } from "@/types/site-settings";
 import type { ReactNode } from "react";
@@ -86,7 +86,7 @@ export const SiteSettingsProvider = ({
   initiallyLoaded?: boolean;
 }) => {
   const apiBase = getApiBase();
-  const bootstrapSettings = readWindowPublicBootstrap()?.settings;
+  const bootstrapSettings = useResolvedPublicBootstrap()?.settings;
   const resolvedInitialSettings = initialSettings || bootstrapSettings;
   const [settings, setSettings] = useState<SiteSettings>(
     mergeSettings(defaultSettings, resolvedInitialSettings || {}),

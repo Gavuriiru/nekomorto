@@ -75,7 +75,7 @@ const createDependencies = ({ app, overrides = {} }) => ({
   incrementProjectViews: vi.fn(() => ({ views: 1 })),
   loadProjects: vi.fn(() => []),
   loadSiteSettings: vi.fn(() => ({ reader: { mode: "default" } })),
-  loadTagTranslations: vi.fn(() => ({ tags: {}, genres: {} })),
+  loadTagTranslations: vi.fn(() => ({ tags: {}, genres: {}, staffRoles: {} })),
   normalizeProjectEpisodeContentFormat: vi.fn((value, fallback = "lexical") => value || fallback),
   normalizeProjectEpisodePages: vi.fn((pages) => (Array.isArray(pages) ? pages : [])),
   normalizeProjects: vi.fn((projects) => projects),
@@ -350,7 +350,7 @@ describe("registerPublicProjectRoutes", () => {
     expect(dependencies.writeProjects).not.toHaveBeenCalled();
   });
 
-  it("keeps project detail payloads free of discordRoleId while preserving revision and media variants", async () => {
+  it("keeps project detail payloads free of discordRoleId while preserving revision, translations and media variants", async () => {
     const { app, routes } = createAppRecorder();
     const dependencies = createDependencies({
       app,
@@ -364,6 +364,11 @@ describe("registerPublicProjectRoutes", () => {
             readerConfig: { mode: "longstrip" },
           },
         ]),
+        loadTagTranslations: vi.fn(() => ({
+          tags: { action: "Acao" },
+          genres: { drama: "Drama" },
+          staffRoles: { director: "Direcao" },
+        })),
       },
     });
 
@@ -383,6 +388,11 @@ describe("registerPublicProjectRoutes", () => {
         readerConfig: {
           mode: "paged",
         },
+      },
+      translations: {
+        tags: { action: "Acao" },
+        genres: { drama: "Drama" },
+        staffRoles: { director: "Direcao" },
       },
       revision: "project-revision",
       mediaVariants: {

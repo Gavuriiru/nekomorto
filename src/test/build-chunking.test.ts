@@ -11,10 +11,10 @@ describe("build chunking classifier", () => {
     expect(classifyManualChunk("/repo/node_modules/react-router-dom/index.js")).toBeUndefined();
   });
 
-  it("classifica arquivo local do editor lexical first-party como lexical-editor", () => {
+  it("nao classifica arquivo local do editor lexical first-party", () => {
     expect(
       classifyManualChunk("/repo/src/components/lexical/editor/plugins/ToolbarPlugin/index.tsx"),
-    ).toBe("lexical-editor");
+    ).toBeUndefined();
   });
 
   it("classifica @lexical/react como lexical", () => {
@@ -23,54 +23,50 @@ describe("build chunking classifier", () => {
     );
   });
 
-  it("classifica viewer lexical publico como lexical-viewer", () => {
-    expect(classifyManualChunk("/repo/src/components/lexical/LexicalViewer.tsx")).toBe(
-      "lexical-viewer",
-    );
+  it("nao classifica viewer lexical publico first-party", () => {
+    expect(classifyManualChunk("/repo/src/components/lexical/LexicalViewer.tsx")).toBeUndefined();
   });
 
-  it("classifica PlaygroundNodes do editor como lexical-editor", () => {
+  it("nao classifica PlaygroundNodes do editor first-party", () => {
     expect(
       classifyManualChunk("/repo/src/components/lexical/editor/nodes/PlaygroundNodes.ts"),
-    ).toBe("lexical-editor");
+    ).toBeUndefined();
   });
 
-  it("classifica shell e perfil first-party do editor como lexical-editor", () => {
+  it("nao classifica shell e registro first-party do editor", () => {
     expect(classifyManualChunk("/repo/src/components/lexical/LexicalEditorShell.tsx")).toBe(
-      "lexical-editor",
+      undefined,
     );
-    expect(classifyManualChunk("/repo/src/components/lexical/editor-nodes.ts")).toBe(
-      "lexical-editor",
-    );
+    expect(classifyManualChunk("/repo/src/components/lexical/editor-nodes.ts")).toBeUndefined();
   });
 
-  it("classifica registro de nodes do viewer como lexical-viewer", () => {
+  it("nao classifica registro de nodes do viewer first-party", () => {
     expect(classifyManualChunk("/repo/src/components/lexical/LexicalViewerNodes.ts")).toBe(
-      "lexical-viewer",
+      undefined,
     );
   });
 
-  it("classifica normalizacao do viewer como lexical-viewer", () => {
-    expect(classifyManualChunk("/repo/src/lib/lexical/viewer.ts")).toBe("lexical-viewer");
+  it("nao classifica normalizacao do viewer first-party", () => {
+    expect(classifyManualChunk("/repo/src/lib/lexical/viewer.ts")).toBeUndefined();
   });
 
-  it("classifica serializacao do editor como lexical-editor", () => {
-    expect(classifyManualChunk("/repo/src/lib/lexical/serialize.ts")).toBe("lexical-editor");
+  it("nao classifica serializacao do editor first-party", () => {
+    expect(classifyManualChunk("/repo/src/lib/lexical/serialize.ts")).toBeUndefined();
   });
 
-  it("classifica node read-only do viewer como lexical-viewer", () => {
+  it("nao classifica node read-only do viewer first-party", () => {
     expect(
       classifyManualChunk("/repo/src/components/lexical/viewer-nodes/ViewerEquationNode.tsx"),
-    ).toBe("lexical-viewer");
+    ).toBeUndefined();
   });
 
-  it("classifica estado vazio compartilhado como lexical", () => {
-    expect(classifyManualChunk("/repo/src/lib/lexical/empty-state.ts")).toBe("lexical");
+  it("nao classifica estado vazio compartilhado first-party", () => {
+    expect(classifyManualChunk("/repo/src/lib/lexical/empty-state.ts")).toBeUndefined();
   });
 
-  it("classifica node puro de epub como lexical", () => {
+  it("nao classifica node puro de epub first-party", () => {
     expect(classifyManualChunk("/repo/src/components/lexical/nodes/EpubImageNode.tsx")).toBe(
-      "lexical",
+      undefined,
     );
   });
 
@@ -96,18 +92,16 @@ describe("build chunking classifier", () => {
     );
   });
 
-  it("classifica DashboardAnalytics local como charts", () => {
-    expect(classifyManualChunk("/repo/src/pages/DashboardAnalytics.tsx")).toBe("charts");
+  it("nao classifica DashboardAnalytics local", () => {
+    expect(classifyManualChunk("/repo/src/pages/DashboardAnalytics.tsx")).toBeUndefined();
   });
 
-  it("classifica wrapper local de chart como charts", () => {
-    expect(classifyManualChunk("/repo/src/components/ui/chart.tsx")).toBe("charts");
+  it("nao classifica wrapper local de chart", () => {
+    expect(classifyManualChunk("/repo/src/components/ui/chart.tsx")).toBeUndefined();
   });
 
-  it("classifica wrapper local de mui date fields como mui-date-time-fields", () => {
-    expect(classifyManualChunk("/repo/src/components/ui/mui-date-time-fields.tsx")).toBe(
-      "mui-date-time-fields",
-    );
+  it("nao classifica wrapper local de mui date fields", () => {
+    expect(classifyManualChunk("/repo/src/components/ui/mui-date-time-fields.tsx")).toBeUndefined();
   });
 
   it("classifica commonjs helper como react-core", () => {
@@ -119,17 +113,17 @@ describe("build chunking classifier", () => {
       classifyManualChunk(
         "D:\\dev\\nekomorto\\src\\components\\lexical\\editor\\plugins\\ToolbarPlugin\\index.tsx",
       ),
-    ).toBe("lexical-editor");
+    ).toBeUndefined();
     expect(
       classifyManualChunk(
         "D:\\dev\\nekomorto\\src\\components\\lexical\\editor\\nodes\\PlaygroundNodes.ts",
       ),
-    ).toBe("lexical-editor");
+    ).toBeUndefined();
     expect(
       classifyManualChunk("D:\\dev\\nekomorto\\src\\components\\lexical\\LexicalViewerNodes.ts"),
-    ).toBe("lexical-viewer");
+    ).toBeUndefined();
     expect(classifyManualChunk("D:\\dev\\nekomorto\\src\\lib\\lexical\\serialize.ts")).toBe(
-      "lexical-editor",
+      undefined,
     );
     expect(
       classifyManualChunk("D:\\dev\\nekomorto\\node_modules\\@mui\\x-date-pickers\\index.js"),

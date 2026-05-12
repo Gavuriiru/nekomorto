@@ -35,6 +35,7 @@ export const startServerJobs = ({
   isAutoUploadReorganizationOnStartupEnabled,
   isMaintenanceMode,
   listenPort,
+  onListening,
   operationalAlertsWebhookState,
   rateLimiter,
   runAutoUploadReorganization,
@@ -55,6 +56,11 @@ export const startServerJobs = ({
         runStartupSecuritySanitization,
       });
     });
+    if (typeof onListening === "function") {
+      setImmediate(() => {
+        void onListening();
+      });
+    }
     analyticsCompactionState.timer = setInterval(() => {
       void enqueueAnalyticsCompactionJob({ trigger: "interval" }).catch(() => undefined);
     }, ANALYTICS_COMPACTION_INTERVAL_MS);

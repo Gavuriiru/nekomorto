@@ -72,6 +72,8 @@ const getUtcDayKeyFromOffset = (offsetDays: number) => {
   return day.toISOString().slice(0, 10);
 };
 
+const FIXED_GENERATED_AT = "2026-05-12T12:00:00.000Z";
+
 const classTokens = (element: HTMLElement) =>
   String(element.className).split(/\s+/).filter(Boolean);
 
@@ -108,6 +110,7 @@ describe("TopProjectsSection", () => {
     usePublicBootstrapMock.mockReturnValue({
       isLoading: false,
       data: {
+        generatedAt: FIXED_GENERATED_AT,
         projects,
         mediaVariants: {},
       },
@@ -303,6 +306,7 @@ describe("TopProjectsSection", () => {
     usePublicBootstrapMock.mockReturnValue({
       isLoading: false,
       data: {
+        generatedAt: FIXED_GENERATED_AT,
         projects: [
           createProject({
             id: "alfa",
@@ -376,6 +380,7 @@ describe("TopProjectsSection", () => {
     usePublicBootstrapMock.mockReturnValue({
       isLoading: false,
       data: {
+        generatedAt: FIXED_GENERATED_AT,
         projects: [],
         mediaVariants: {},
       },

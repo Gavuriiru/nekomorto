@@ -35,6 +35,7 @@ import { PillButton } from "@/components/ui/pill-button";
 import UploadPicture from "@/components/UploadPicture";
 import type { Project } from "@/data/projects";
 import { usePageMeta } from "@/hooks/use-page-meta";
+import { useResolvedPublicBootstrap } from "@/hooks/public-bootstrap-provider";
 import { usePublicCurrentUser } from "@/hooks/use-public-current-user";
 import { useSiteSettings } from "@/hooks/use-site-settings";
 import { toast } from "@/components/ui/use-toast";
@@ -47,7 +48,6 @@ import { formatBytesCompact } from "@/lib/file-size";
 import { PROJECT_COVER_ASPECT_RATIO } from "@/lib/project-card-layout";
 import { buildProjectPublicReadingHref } from "@/lib/project-editor-routes";
 import { buildEpisodeKey } from "@/lib/project-episode-key";
-import { readWindowPublicBootstrap } from "@/lib/public-bootstrap-global";
 import {
   buildTranslationMap,
   sortByTranslatedLabel,
@@ -78,6 +78,12 @@ type ProjectFilterPillLinkProps = {
   label: string;
   to: string;
   tone: ProjectFilterPillTone;
+};
+
+type ProjectTaxonomyTranslations = {
+  tags: Record<string, string>;
+  genres: Record<string, string>;
+  staffRoles: Record<string, string>;
 };
 
 const normalizeProjectStaffEntries = (value: unknown) => {
@@ -199,10 +205,36 @@ const resolveBootstrapProject = (
   );
 };
 
+const normalizeProjectTaxonomyTranslations = (
+  value: unknown,
+): ProjectTaxonomyTranslations | null => {
+  if (!value || typeof value !== "object" || Array.isArray(value)) {
+    return null;
+  }
+
+  const candidate = value as Partial<ProjectTaxonomyTranslations>;
+  return {
+    tags:
+      candidate.tags && typeof candidate.tags === "object" && !Array.isArray(candidate.tags)
+        ? candidate.tags
+        : {},
+    genres:
+      candidate.genres && typeof candidate.genres === "object" && !Array.isArray(candidate.genres)
+        ? candidate.genres
+        : {},
+    staffRoles:
+      candidate.staffRoles &&
+      typeof candidate.staffRoles === "object" &&
+      !Array.isArray(candidate.staffRoles)
+        ? candidate.staffRoles
+        : {},
+  };
+};
+
 const ProjectPage = () => {
   const { slug } = useParams<{ slug: string }>();
   const apiBase = getApiBase();
-  const bootstrapData = readWindowPublicBootstrap();
+  const bootstrapData = useResolvedPublicBootstrap();
   const hasFullBootstrap = Boolean(bootstrapData && bootstrapData.payloadMode !== "critical-home");
   const bootstrapProject = resolveBootstrapProject(bootstrapData, slug);
   const [project, setProject] = useState<Project | null>(
@@ -221,6 +253,9 @@ const ProjectPage = () => {
   );
   const [staffRoleTranslations, setStaffRoleTranslations] = useState<Record<string, string>>(
     () => bootstrapData?.tagTranslations?.staffRoles || {},
+  );
+  const [hasLoadedTaxonomyTranslations, setHasLoadedTaxonomyTranslations] = useState(
+    () => hasFullBootstrap,
   );
   const shouldHydrateProjectFromApi = !bootstrapProject || !hasFullBootstrap;
   const shouldHydrateProjectMetaFromApi = !hasFullBootstrap;
@@ -281,6 +316,13 @@ const ProjectPage = () => {
           setMediaVariants(
             data?.mediaVariants && typeof data.mediaVariants === "object" ? data.mediaVariants : {},
           );
+          const normalizedTranslations = normalizeProjectTaxonomyTranslations(data?.translations);
+          if (normalizedTranslations) {
+            setTagTranslations(normalizedTranslations.tags);
+            setGenreTranslations(normalizedTranslations.genres);
+            setStaffRoleTranslations(normalizedTranslations.staffRoles);
+            setHasLoadedTaxonomyTranslations(true);
+          }
         }
       } catch {
         if (isActive) {
@@ -307,7 +349,20 @@ const ProjectPage = () => {
     setProject(bootstrapProject as Project);
     setHasLoaded(true);
     setMediaVariants(bootstrapData?.mediaVariants || {});
-  }, [bootstrapData?.mediaVariants, bootstrapProject]);
+    if (hasFullBootstrap) {
+      setTagTranslations(bootstrapData?.tagTranslations?.tags || {});
+      setGenreTranslations(bootstrapData?.tagTranslations?.genres || {});
+      setStaffRoleTranslations(bootstrapData?.tagTranslations?.staffRoles || {});
+      setHasLoadedTaxonomyTranslations(true);
+    }
+  }, [
+    bootstrapData?.mediaVariants,
+    bootstrapData?.tagTranslations?.genres,
+    bootstrapData?.tagTranslations?.staffRoles,
+    bootstrapData?.tagTranslations?.tags,
+    bootstrapProject,
+    hasFullBootstrap,
+  ]);
 
   useEffect(() => {
     if (!project && bootstrapProject) {
@@ -333,33 +388,49 @@ const ProjectPage = () => {
     }
     let isActive = true;
     const loadMeta = async () => {
+      const shouldLoadTranslations = !hasLoadedTaxonomyTranslations;
       try {
-        const [projectsRes, tagsRes] = await Promise.all([
+        const [projectsResult, tagsResult] = await Promise.allSettled([
           apiFetch(apiBase, "/api/public/projects"),
-          apiFetch(apiBase, "/api/public/tag-translations", {
-            cache: "no-store",
-          }),
+          shouldLoadTranslations
+            ? apiFetch(apiBase, "/api/public/tag-translations", {
+                cache: "no-store",
+              })
+            : Promise.resolve(null),
         ]);
-        if (projectsRes.ok) {
-          const data = await projectsRes.json();
+        if (projectsResult.status === "fulfilled" && projectsResult.value?.ok) {
+          const data = await projectsResult.value.json();
           if (isActive) {
             setProjectDirectory(Array.isArray(data.projects) ? data.projects : []);
           }
         }
-        if (tagsRes.ok) {
-          const data = await tagsRes.json();
+        if (shouldLoadTranslations) {
+          if (
+            tagsResult.status === "fulfilled" &&
+            tagsResult.value &&
+            "ok" in tagsResult.value &&
+            tagsResult.value.ok
+          ) {
+            const data = await tagsResult.value.json();
+            if (isActive) {
+              setTagTranslations(data.tags || {});
+              setGenreTranslations(data.genres || {});
+              setStaffRoleTranslations(data.staffRoles || {});
+            }
+          }
           if (isActive) {
-            setTagTranslations(data.tags || {});
-            setGenreTranslations(data.genres || {});
-            setStaffRoleTranslations(data.staffRoles || {});
+            setHasLoadedTaxonomyTranslations(true);
           }
         }
       } catch {
         if (isActive) {
           setProjectDirectory([]);
-          setTagTranslations({});
-          setGenreTranslations({});
-          setStaffRoleTranslations({});
+          if (!hasLoadedTaxonomyTranslations) {
+            setTagTranslations({});
+            setGenreTranslations({});
+            setStaffRoleTranslations({});
+            setHasLoadedTaxonomyTranslations(true);
+          }
         }
       }
     };
@@ -368,7 +439,7 @@ const ProjectPage = () => {
     return () => {
       isActive = false;
     };
-  }, [apiBase, shouldHydrateProjectMetaFromApi]);
+  }, [apiBase, hasLoadedTaxonomyTranslations, shouldHydrateProjectMetaFromApi]);
 
   const projectDetails = useMemo(() => {
     if (!project) {
@@ -1241,7 +1312,7 @@ const ProjectPage = () => {
                 >
                   {project.synopsis}
                 </p>
-                {project.tags?.length ? (
+                {project.tags?.length && hasLoadedTaxonomyTranslations ? (
                   <div
                     className="flex w-full flex-wrap justify-center gap-2 animate-slide-up md:justify-start"
                     style={{ animationDelay: "0.3s" }}
@@ -1323,7 +1394,7 @@ const ProjectPage = () => {
                     )}
                     Sobre o projeto
                   </div>
-                  {project.genres?.length ? (
+                  {project.genres?.length && hasLoadedTaxonomyTranslations ? (
                     <div className="flex flex-wrap gap-2">
                       {sortedGenres.map((genre) => (
                         <ProjectFilterPillLink
@@ -1355,7 +1426,7 @@ const ProjectPage = () => {
                 </CardContent>
               </Card>
 
-              {animeStaffEntries.length ? (
+              {animeStaffEntries.length && hasLoadedTaxonomyTranslations ? (
                 <Card className="bg-card/70 shadow-md">
                   <CardContent className="space-y-5 p-6">
                     <div className="flex items-center gap-3 text-sm font-semibold uppercase tracking-widest text-muted-foreground">

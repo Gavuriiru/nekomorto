@@ -248,6 +248,14 @@ npm run build
 npm run start
 ```
 
+O `build` de producao agora faz tres etapas para a superficie publica:
+
+- gera o bundle cliente em `dist/`
+- gera o renderer SSR publico em `dist-ssr/public/renderer.mjs`
+- tenta semear artefatos HTML prerenderizados via `npm run prerender:public`
+
+Se `DATABASE_URL` nao estiver definida durante o build, a etapa `prerender:public` e ignorada de forma segura e o fallback dinamico do Express continua ativo.
+
 Depois valide:
 
 ```bash
@@ -359,6 +367,8 @@ Regra de producao:
 | `ANALYTICS_RETENTION_DAYS` | `dev base`, `prod compose`, `dev deploy` | nunca | `90` | inteiro em dias, clamp `7-3650` | Retencao dos eventos brutos de analytics. |
 | `ANALYTICS_AGG_RETENTION_DAYS` | `dev base`, `prod compose`, `dev deploy` | nunca | `365` | inteiro em dias, clamp `30-3650` | Retencao dos agregados de analytics. |
 | `AUTO_UPLOAD_REORGANIZE_ON_STARTUP` | `dev base`, `prod compose`, `dev deploy` | nunca | `false` | `bool backend` | Executa a reorganizacao automatica de pastas de upload no startup. |
+| `PUBLIC_PRERENDER_ENABLED` | `dev base`, `prod compose`, `dev deploy` | nunca | `true` em `production`, `false` fora de `production` | `bool backend` | Liga o middleware de prerender incremental da superficie publica. Quando desligado, todo o trafego publico cai no fluxo dinamico atual do Express. |
+| `PUBLIC_PRERENDER_DIR` | `dev base`, `prod compose`, `dev deploy` | nunca | `backups/public-prerender` | path relativo ao repo ou absoluto | Diretório usado para armazenar artefatos HTML prerenderizados e o manifesto publico. |
 | `OG_PUBLIC_TARGET_KB` | `dev base` | nunca | `350` | inteiro em KB, faixa valida `150-1024` | Tamanho alvo do primeiro JPEG publico aceitavel para cards OG. Valores fora da faixa voltam ao default. |
 | `OG_PUBLIC_JPEG_QUALITIES` | `dev base` | nunca | `84,80,76,72` | `CSV` de inteiros `60-100` | Escada de qualidades JPEG para OG publico. Entradas invalidas sao ignoradas; a lista final fica unica e em ordem decrescente. |
 

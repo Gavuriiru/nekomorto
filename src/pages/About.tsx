@@ -5,7 +5,7 @@ import {
 } from "@/components/public-page-tokens";
 import { Card, CardContent } from "@/components/ui/card";
 import { usePageMeta } from "@/hooks/use-page-meta";
-import { readWindowPublicBootstrap } from "@/lib/public-bootstrap-global";
+import { useResolvedPublicBootstrap } from "@/hooks/public-bootstrap-provider";
 import {
   Flame,
   Heart,
@@ -52,7 +52,7 @@ const resolveAboutIcon = (iconName: string | undefined, fallback: typeof Heart) 
   (iconName ? iconMap[iconName] : undefined) || fallback;
 
 const About = () => {
-  const bootstrap = readWindowPublicBootstrap();
+  const bootstrap = useResolvedPublicBootstrap();
   const pageMediaVariants = bootstrap?.mediaVariants || {};
   const about = useMemo(() => normalizeAboutPublicPage(bootstrap?.pages.about), [bootstrap]);
   usePageMeta({

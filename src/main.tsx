@@ -6,7 +6,7 @@ import { asPublicBootstrapPayload } from "@/lib/public-bootstrap-global";
 import { startPublicFreshnessCoordinator } from "@/lib/public-freshness";
 import { installPwaCleanupReloadBridge, runPwaCleanup } from "@/lib/pwa-cleanup";
 import { installVitePreloadRecovery } from "@/lib/vite-preload-recovery";
-import { createRoot } from "react-dom/client";
+import { createRoot, hydrateRoot } from "react-dom/client";
 import App from "./App.tsx";
 import "./index.css";
 import "./styles/fonts.css";
@@ -95,12 +95,17 @@ const bootstrap = async () => {
   }
 
   // Mount React immediately — don't wait for the network fetch.
-  createRoot(root).render(
+  const appElement = (
     <App
       initialSettings={initialSettings as Parameters<typeof App>[0]["initialSettings"]}
       initiallyLoaded={!!initialSettings}
-    />,
+    />
   );
+  if (root.hasChildNodes()) {
+    hydrateRoot(root, appElement);
+  } else {
+    createRoot(root).render(appElement);
+  }
 
   startPublicFreshnessCoordinator({
     globalWindow: window,
