@@ -17,6 +17,56 @@
   padding: 6.9rem 1.25rem 4.25rem;
 }
 
+.hero-home__visual-overlay,
+.hero-home__navbar-overlay {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+}
+
+.hero-home__visual-overlay {
+  z-index: 1;
+}
+
+.hero-home__visual-overlay--highlight {
+  background: radial-gradient(circle at 82% 18%, rgba(255, 255, 255, 0.16), transparent 36%);
+}
+
+.hero-home__visual-overlay--directional {
+  background: linear-gradient(
+    112deg,
+    rgba(6, 8, 14, 0.96) 0%,
+    rgba(6, 8, 14, 0.88) 34%,
+    rgba(6, 8, 14, 0.56) 61%,
+    rgba(6, 8, 14, 0.22) 100%
+  );
+}
+
+.hero-home__visual-overlay--bottom {
+  background: linear-gradient(
+    0deg,
+    hsl(var(--background)) 0%,
+    hsl(var(--background) / 0.96) 22%,
+    hsl(var(--background) / 0.74) 44%,
+    hsl(var(--background) / 0.34) 68%,
+    hsl(var(--background) / 0.08) 82%,
+    hsl(var(--background) / 0) 90%
+  );
+}
+
+.hero-home__navbar-overlay {
+  inset: 0 0 auto;
+  z-index: 2;
+  height: 5rem;
+  background: linear-gradient(
+    180deg,
+    hsl(var(--background) / 0.72) 0%,
+    hsl(var(--background) / 0.18) 58%,
+    transparent 100%
+  );
+  opacity: 0;
+}
+
 .hero-home__grid {
   display: flex;
   width: 100%;
@@ -190,6 +240,7 @@
   background: rgb(0 0 0 / 32%);
   padding: 0.5rem 0.625rem;
   color: #fff;
+  box-shadow: 0 10px 28px -14px rgba(0, 0, 0, 0.42);
   backdrop-filter: blur(12px);
 }
 
@@ -257,93 +308,124 @@
   outline-offset: 2px;
 }
 
-.hero-home--light .hero-home__meta {
+:root[data-theme-mode="light"] .hero-home__visual-overlay--highlight {
+  background: radial-gradient(circle at 82% 18%, rgba(255, 255, 255, 0.22), transparent 36%);
+}
+
+:root[data-theme-mode="light"] .hero-home__visual-overlay--directional {
+  background: linear-gradient(
+    112deg,
+    rgba(255, 255, 255, 0.84) 0%,
+    rgba(255, 255, 255, 0.68) 36%,
+    rgba(255, 255, 255, 0.24) 63%,
+    rgba(255, 255, 255, 0.04) 100%
+  );
+}
+
+:root[data-theme-mode="light"] .hero-home__visual-overlay--bottom {
+  background: linear-gradient(
+    0deg,
+    hsl(var(--background)) 0%,
+    hsl(var(--background) / 0.88) 24%,
+    hsl(var(--background) / 0.56) 46%,
+    hsl(var(--background) / 0.2) 70%,
+    hsl(var(--background) / 0.04) 84%,
+    hsl(var(--background) / 0) 91%
+  );
+}
+
+:root[data-theme-mode="light"] .hero-home__navbar-overlay {
+  opacity: 1;
+}
+
+:root[data-theme-mode="light"] .hero-home__meta {
   color: rgb(15 23 42 / 70%);
 }
 
-.hero-home--light .hero-home__meta-pill {
+:root[data-theme-mode="light"] .hero-home__meta-pill {
   border-color: hsl(var(--primary) / 0.24);
   background: hsl(var(--primary) / 0.12);
   color: hsl(var(--primary));
 }
 
-.hero-home--light .hero-home__meta-text {
+:root[data-theme-mode="light"] .hero-home__meta-text {
   color: rgb(15 23 42 / 62%);
 }
 
-.hero-home--light .hero-home__title {
+:root[data-theme-mode="light"] .hero-home__title {
   color: rgb(15 23 42);
 }
 
-.hero-home--light .hero-home__synopsis {
+:root[data-theme-mode="light"] .hero-home__synopsis {
   color: rgb(15 23 42 / 82%);
 }
 
-.hero-home--light .hero-home__primary-action:focus-visible,
-.hero-home--light .hero-home__secondary-action:focus-visible,
-.hero-home--light .hero-home__dock-button:focus-visible,
-.hero-home--light .hero-home__indicator:focus-visible {
+:root[data-theme-mode="light"] .hero-home__primary-action:focus-visible,
+:root[data-theme-mode="light"] .hero-home__secondary-action:focus-visible,
+:root[data-theme-mode="light"] .hero-home__dock-button:focus-visible,
+:root[data-theme-mode="light"] .hero-home__indicator:focus-visible {
   outline-color: hsl(var(--primary) / 0.42);
 }
 
-.hero-home--light .hero-home__primary-action {
+:root[data-theme-mode="light"] .hero-home__primary-action {
   border-color: hsl(var(--primary) / 0.88);
   background: hsl(var(--primary));
   color: hsl(var(--primary-foreground));
 }
 
-.hero-home--light .hero-home__primary-action:hover,
-.hero-home--light .hero-home__primary-action:focus-visible {
+:root[data-theme-mode="light"] .hero-home__primary-action:hover,
+:root[data-theme-mode="light"] .hero-home__primary-action:focus-visible {
   border-color: hsl(var(--primary));
   background: hsl(var(--primary) / 0.9);
   color: hsl(var(--primary-foreground));
 }
 
-.hero-home--light .hero-home__secondary-action {
+:root[data-theme-mode="light"] .hero-home__secondary-action {
   border-color: hsl(var(--primary) / 0.22);
   background: hsl(var(--primary) / 0.08);
   color: hsl(var(--primary) / 0.94);
 }
 
-.hero-home--light .hero-home__secondary-action:hover,
-.hero-home--light .hero-home__secondary-action:focus-visible {
+:root[data-theme-mode="light"] .hero-home__secondary-action:hover,
+:root[data-theme-mode="light"] .hero-home__secondary-action:focus-visible {
   border-color: hsl(var(--primary) / 0.32);
   background: hsl(var(--primary) / 0.14);
   color: hsl(var(--primary));
 }
 
-.hero-home--light .hero-home__dock {
+:root[data-theme-mode="light"] .hero-home__dock {
   border-color: rgb(15 23 42 / 12%);
   background: rgb(255 255 255 / 68%);
   color: rgb(15 23 42);
+  box-shadow: 0 10px 24px -16px rgba(15, 23, 42, 0.18);
 }
 
-.hero-home--light .hero-home__dock-button {
+:root[data-theme-mode="light"] .hero-home__dock-button {
   border-color: rgb(15 23 42 / 12%);
   background: rgb(255 255 255 / 55%);
   color: rgb(15 23 42 / 88%);
 }
 
-.hero-home--light .hero-home__dock-button:hover,
-.hero-home--light .hero-home__dock-button:focus-visible {
+:root[data-theme-mode="light"] .hero-home__dock-button:hover,
+:root[data-theme-mode="light"] .hero-home__dock-button:focus-visible {
   border-color: hsl(var(--primary) / 0.24);
   background: hsl(var(--primary) / 0.14);
   color: hsl(var(--primary));
 }
 
-.hero-home--light .hero-home__indicator {
+:root[data-theme-mode="light"] .hero-home__indicator {
   background: rgb(15 23 42 / 22%);
 }
 
-.hero-home--light .hero-home__indicator:hover {
+:root[data-theme-mode="light"] .hero-home__indicator:hover {
   background: rgb(15 23 42 / 38%);
 }
 
-.hero-home--light .hero-home__indicator--current {
+:root[data-theme-mode="light"] .hero-home__indicator--current {
   background: hsl(var(--primary));
 }
 
-.hero-home--light .hero-home__counter {
+:root[data-theme-mode="light"] .hero-home__counter {
   color: hsl(var(--primary) / 0.68);
 }
 
@@ -355,6 +437,10 @@
 }
 
 @media (min-width: 768px) {
+  .hero-home__navbar-overlay {
+    height: 6rem;
+  }
+
   .hero-home__content {
     padding: 7.25rem 2.5rem 6.5rem;
   }

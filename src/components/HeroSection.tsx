@@ -10,7 +10,6 @@ import {
   CarouselItem,
 } from "@/components/ui/carousel";
 import { usePublicBootstrap } from "@/hooks/use-public-bootstrap";
-import { useThemeMode } from "@/hooks/use-theme-mode";
 import { scheduleOnBrowserIdle } from "@/lib/browser-idle";
 import { HOME_HERO_READY_EVENT, PUBLIC_HOME_HERO_VIEWPORT_CLASS } from "@/lib/home-hero";
 import type { UploadMediaVariantsMap } from "@/lib/upload-variants";
@@ -306,34 +305,6 @@ const resolveHeroBrandFallback = (slide: HeroSlide) => {
   return "Projeto em destaque";
 };
 
-const heroHighlightOverlayStyle = {
-  background: "radial-gradient(circle at 82% 18%, rgba(255,255,255,0.16), transparent 36%)",
-} as const satisfies React.CSSProperties;
-
-const heroHighlightOverlayStyleLight = {
-  background: "radial-gradient(circle at 82% 18%, rgba(255,255,255,0.22), transparent 36%)",
-} as const satisfies React.CSSProperties;
-
-const heroDirectionalOverlayStyle = {
-  background:
-    "linear-gradient(112deg, rgba(6,8,14,0.96) 0%, rgba(6,8,14,0.88) 34%, rgba(6,8,14,0.56) 61%, rgba(6,8,14,0.22) 100%)",
-} as const satisfies React.CSSProperties;
-
-const heroDirectionalOverlayStyleLight = {
-  background:
-    "linear-gradient(112deg, rgba(255,255,255,0.84) 0%, rgba(255,255,255,0.68) 36%, rgba(255,255,255,0.24) 63%, rgba(255,255,255,0.04) 100%)",
-} as const satisfies React.CSSProperties;
-
-const heroBottomOverlayStyle = {
-  background:
-    "linear-gradient(0deg, hsl(var(--background)) 0%, hsl(var(--background) / 0.96) 22%, hsl(var(--background) / 0.74) 44%, hsl(var(--background) / 0.34) 68%, hsl(var(--background) / 0.08) 82%, hsl(var(--background) / 0) 90%)",
-} as const satisfies React.CSSProperties;
-
-const heroBottomOverlayStyleLight = {
-  background:
-    "linear-gradient(0deg, hsl(var(--background)) 0%, hsl(var(--background) / 0.88) 24%, hsl(var(--background) / 0.56) 46%, hsl(var(--background) / 0.2) 70%, hsl(var(--background) / 0.04) 84%, hsl(var(--background) / 0) 91%)",
-} as const satisfies React.CSSProperties;
-
 const heroLogoWrapStyle = {
   maxWidth: "30rem",
 } as const satisfies React.CSSProperties;
@@ -342,21 +313,12 @@ const heroLogoImageStyle = {
   filter: "drop-shadow(0 20px 44px rgba(0,0,0,0.42))",
 } as const satisfies React.CSSProperties;
 
-const heroDockStyle = {
-  boxShadow: "0 18px 55px rgba(0,0,0,0.35)",
-} as const satisfies React.CSSProperties;
-
-const heroDockStyleLight = {
-  boxShadow: "0 18px 40px rgba(15,23,42,0.12)",
-} as const satisfies React.CSSProperties;
-
 type HeroCarouselDockProps = {
   activeIndex: number;
   slideCount: number;
   onPreviousSlide: () => void;
   onNextSlide: () => void;
   onSelectSlide: (index: number) => void;
-  isLightTheme: boolean;
   className?: string;
   testIdSuffix: "mobile" | "desktop";
 };
@@ -367,62 +329,58 @@ const HeroCarouselDock = ({
   onPreviousSlide,
   onNextSlide,
   onSelectSlide,
-  isLightTheme,
   className,
   testIdSuffix,
 }: HeroCarouselDockProps) => (
-  <div className={isLightTheme ? "hero-home--light" : undefined}>
-    <div
-      data-testid={`hero-carousel-dock-${testIdSuffix}`}
-      className={`hero-home__dock pointer-events-auto ${className || ""}`.trim()}
-      style={isLightTheme ? heroDockStyleLight : heroDockStyle}
-      role="group"
-      aria-label="Navegação do carrossel da home"
+  <div
+    data-testid={`hero-carousel-dock-${testIdSuffix}`}
+    className={`hero-home__dock pointer-events-auto ${className || ""}`.trim()}
+    role="group"
+    aria-label="Navegação do carrossel da home"
+  >
+    <button
+      type="button"
+      aria-label="Slide anterior"
+      className={heroDockButtonClassName}
+      onClick={onPreviousSlide}
     >
-      <button
-        type="button"
-        aria-label="Slide anterior"
-        className={heroDockButtonClassName}
-        onClick={onPreviousSlide}
-      >
-        <ChevronLeft className="h-4 w-4" />
-      </button>
-      <div className="hero-home__indicators">
-        {Array.from({ length: slideCount }, (_item, dotIndex) => {
-          const isCurrent = dotIndex === activeIndex;
-          return (
-            <button
-              key={`hero-dot-${testIdSuffix}-${dotIndex + 1}`}
-              type="button"
-              data-testid={`hero-carousel-indicator-${testIdSuffix}-${dotIndex}`}
-              aria-label={`Ir para slide ${dotIndex + 1} de ${slideCount}`}
-              aria-pressed={isCurrent}
-              className={
-                isCurrent
-                  ? "hero-home__indicator hero-home__indicator--current"
-                  : "hero-home__indicator"
-              }
-              onClick={() => onSelectSlide(dotIndex)}
-            />
-          );
-        })}
-      </div>
-      <span
-        data-testid={`hero-carousel-counter-${testIdSuffix}`}
-        aria-live="polite"
-        className="hero-home__counter"
-      >
-        {formatDockCounter(activeIndex + 1)}/{formatDockCounter(slideCount)}
-      </span>
-      <button
-        type="button"
-        aria-label="Próximo slide"
-        className={heroDockButtonClassName}
-        onClick={onNextSlide}
-      >
-        <ChevronRight className="h-4 w-4" />
-      </button>
+      <ChevronLeft className="h-4 w-4" />
+    </button>
+    <div className="hero-home__indicators">
+      {Array.from({ length: slideCount }, (_item, dotIndex) => {
+        const isCurrent = dotIndex === activeIndex;
+        return (
+          <button
+            key={`hero-dot-${testIdSuffix}-${dotIndex + 1}`}
+            type="button"
+            data-testid={`hero-carousel-indicator-${testIdSuffix}-${dotIndex}`}
+            aria-label={`Ir para slide ${dotIndex + 1} de ${slideCount}`}
+            aria-pressed={isCurrent}
+            className={
+              isCurrent
+                ? "hero-home__indicator hero-home__indicator--current"
+                : "hero-home__indicator"
+            }
+            onClick={() => onSelectSlide(dotIndex)}
+          />
+        );
+      })}
     </div>
+    <span
+      data-testid={`hero-carousel-counter-${testIdSuffix}`}
+      aria-live="polite"
+      className="hero-home__counter"
+    >
+      {formatDockCounter(activeIndex + 1)}/{formatDockCounter(slideCount)}
+    </span>
+    <button
+      type="button"
+      aria-label="Próximo slide"
+      className={heroDockButtonClassName}
+      onClick={onNextSlide}
+    >
+      <ChevronRight className="h-4 w-4" />
+    </button>
   </div>
 );
 
@@ -434,9 +392,6 @@ type HeroSlideFrameProps = {
   loadedSlideIds: Set<string>;
   mediaVariants: UploadMediaVariantsMap;
   heroViewportClass: string;
-  isLightTheme: boolean;
-  shouldRenderNavbarOverlay: boolean;
-  navbarOverlayClass: string;
   clampSynopsis: (text: string, limit?: number) => string;
   shouldAnimateEntry?: boolean;
   isReadyCandidate?: boolean;
@@ -457,9 +412,6 @@ const HeroSlideFrame = ({
   loadedSlideIds,
   mediaVariants,
   heroViewportClass,
-  isLightTheme,
-  shouldRenderNavbarOverlay,
-  navbarOverlayClass,
   clampSynopsis,
   shouldAnimateEntry = true,
   isReadyCandidate = false,
@@ -530,24 +482,12 @@ const HeroSlideFrame = ({
         )}
       </div>
 
-      <div
-        className="absolute inset-0"
-        style={isLightTheme ? heroHighlightOverlayStyleLight : heroHighlightOverlayStyle}
-      />
-      <div
-        className="absolute inset-0"
-        style={isLightTheme ? heroDirectionalOverlayStyleLight : heroDirectionalOverlayStyle}
-      />
-      <div
-        className="absolute inset-0"
-        style={isLightTheme ? heroBottomOverlayStyleLight : heroBottomOverlayStyle}
-      />
+      <div className="hero-home__visual-overlay hero-home__visual-overlay--highlight" />
+      <div className="hero-home__visual-overlay hero-home__visual-overlay--directional" />
+      <div className="hero-home__visual-overlay hero-home__visual-overlay--bottom" />
+      <div data-testid="hero-navbar-overlay" className="hero-home__navbar-overlay" />
 
-      {shouldRenderNavbarOverlay ? (
-        <div data-testid="hero-navbar-overlay" className={navbarOverlayClass} />
-      ) : null}
-
-      <div className={`hero-home__content${isLightTheme ? " hero-home--light" : ""}`}>
+      <div className="hero-home__content">
         <div className="hero-home__grid">
           <div className="hero-home__copy">
             {hasBrandLogo ? (
@@ -640,7 +580,6 @@ const HeroSlideFrame = ({
                 onPreviousSlide={onPreviousSlide}
                 onNextSlide={onNextSlide}
                 onSelectSlide={onSelectSlide}
-                isLightTheme={isLightTheme}
                 className="hero-home__dock-mobile"
                 testIdSuffix="mobile"
               />
@@ -670,7 +609,6 @@ const HeroSection = () => {
       document.getElementById("home-hero-shell") !== null,
   );
   const { data: bootstrapData, isFetched } = usePublicBootstrap();
-  const { effectiveMode } = useThemeMode();
   const prefersReducedMotion = usePrefersReducedMotion();
   const mediaVariants = bootstrapData?.mediaVariants || {};
 
@@ -923,10 +861,6 @@ const HeroSection = () => {
   );
 
   const heroViewportClass = PUBLIC_HOME_HERO_VIEWPORT_CLASS;
-  const isLightTheme = effectiveMode === "light";
-  const shouldRenderNavbarOverlay = effectiveMode === "light";
-  const navbarOverlayClass =
-    "pointer-events-none absolute inset-x-0 top-0 h-20 bg-linear-to-b from-background/72 via-background/18 to-transparent md:h-24";
   const shouldRenderCarousel = visibleSlides.length > 1;
   const slideCount = visibleSlides.length;
   const hasInitialHomeShellSnapshot = initialHomeShellSnapshotRef.current;
@@ -944,7 +878,7 @@ const HeroSection = () => {
 
   return (
     <section
-      className={`relative w-screen overflow-hidden ${heroViewportClass}`}
+      className={`relative w-full overflow-hidden ${heroViewportClass}`}
       style={heroSectionStyle}
     >
       {shouldRenderCarousel ? (
@@ -960,9 +894,6 @@ const HeroSection = () => {
                   loadedSlideIds={loadedSlideIds}
                   mediaVariants={mediaVariants}
                   heroViewportClass={heroViewportClass}
-                  isLightTheme={isLightTheme}
-                  shouldRenderNavbarOverlay={shouldRenderNavbarOverlay}
-                  navbarOverlayClass={navbarOverlayClass}
                   clampSynopsis={clampSynopsis}
                   shouldAnimateEntry={
                     !(hasInitialHomeShellSnapshot && index === 0) && !prefersReducedMotion
@@ -981,59 +912,15 @@ const HeroSection = () => {
           </CarouselContent>
           <div className="pointer-events-none absolute inset-x-0 bottom-6 z-20 hidden px-5 md:px-10 lg:block lg:px-14">
             <div className="flex justify-end">
-              <div className={isLightTheme ? "hero-home--light" : undefined}>
-                <div
-                  data-testid="hero-carousel-dock-desktop"
-                  className="hero-home__dock hero-home__dock-desktop pointer-events-auto"
-                  style={isLightTheme ? heroDockStyleLight : heroDockStyle}
-                  role="group"
-                  aria-label="Navegação do carrossel da home"
-                >
-                  <button
-                    type="button"
-                    aria-label="Slide anterior"
-                    className={heroDockButtonClassName}
-                    onClick={handlePreviousSlide}
-                  >
-                    <ChevronLeft className="h-4 w-4" />
-                  </button>
-                  <div className="hero-home__indicators">
-                    {Array.from({ length: slideCount }, (_item, dotIndex) => {
-                      const isCurrent = dotIndex === activeIndex;
-                      return (
-                        <button
-                          key={`hero-dot-${dotIndex + 1}`}
-                          type="button"
-                          data-testid={`hero-carousel-indicator-desktop-${dotIndex}`}
-                          aria-label={`Ir para slide ${dotIndex + 1} de ${slideCount}`}
-                          aria-pressed={isCurrent}
-                          className={
-                            isCurrent
-                              ? "hero-home__indicator hero-home__indicator--current"
-                              : "hero-home__indicator"
-                          }
-                          onClick={() => handleSelectSlide(dotIndex)}
-                        />
-                      );
-                    })}
-                  </div>
-                  <span
-                    data-testid="hero-carousel-counter-desktop"
-                    aria-live="polite"
-                    className="hero-home__counter"
-                  >
-                    {formatDockCounter(activeIndex + 1)}/{formatDockCounter(slideCount)}
-                  </span>
-                  <button
-                    type="button"
-                    aria-label="Próximo slide"
-                    className={heroDockButtonClassName}
-                    onClick={handleNextSlide}
-                  >
-                    <ChevronRight className="h-4 w-4" />
-                  </button>
-                </div>
-              </div>
+              <HeroCarouselDock
+                activeIndex={activeIndex}
+                slideCount={slideCount}
+                onPreviousSlide={handlePreviousSlide}
+                onNextSlide={handleNextSlide}
+                onSelectSlide={handleSelectSlide}
+                className="hero-home__dock-desktop"
+                testIdSuffix="desktop"
+              />
             </div>
           </div>
         </Carousel>
@@ -1046,9 +933,6 @@ const HeroSection = () => {
           loadedSlideIds={loadedSlideIds}
           mediaVariants={mediaVariants}
           heroViewportClass={heroViewportClass}
-          isLightTheme={isLightTheme}
-          shouldRenderNavbarOverlay={shouldRenderNavbarOverlay}
-          navbarOverlayClass={navbarOverlayClass}
           clampSynopsis={clampSynopsis}
           shouldAnimateEntry={!hasInitialHomeShellSnapshot && !prefersReducedMotion}
           isReadyCandidate

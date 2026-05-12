@@ -21,6 +21,28 @@
     <meta name="twitter:card" content="summary_large_image" />
     <meta name="twitter:image" content="/placeholder.svg" />
     <link rel="icon" href="/favicon.ico" />
+    <script>
+      (() => {
+        if (window.location.pathname !== "/") {
+          return;
+        }
+
+        const homeScrollbarGutterClass = "public-home-scrollbar-gutter-stable";
+        document.documentElement.classList.add(homeScrollbarGutterClass);
+
+        const applyBodyClass = () => {
+          if (!document.body) {
+            return;
+          }
+          document.body.classList.add(homeScrollbarGutterClass);
+        };
+
+        applyBodyClass();
+        if (!document.body) {
+          document.addEventListener("DOMContentLoaded", applyBodyClass, { once: true });
+        }
+      })();
+    </script>
     <link
       rel="preload"
       href="/fonts/inter/InterLatin.woff2"

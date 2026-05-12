@@ -7,7 +7,7 @@ import { scheduleOnBrowserLoadIdle } from "@/lib/browser-idle";
 import { initRouteMotion } from "@/lib/route-motion";
 import type { SiteSettings } from "@/types/site-settings";
 import type { ComponentType } from "react";
-import { lazy, Suspense, useEffect, useState } from "react";
+import { lazy, Suspense, useEffect, useLayoutEffect, useState } from "react";
 import { BrowserRouter, Route, Routes, useLocation } from "react-router-dom";
 
 import PublicRoutes from "./routes/PublicRoutes";
@@ -16,6 +16,7 @@ const DeferredSonner = lazy(() =>
   import("@/components/ui/sonner").then((module) => ({ default: module.Toaster })),
 );
 const loadDashboardRoutes = () => import("./routes/DashboardRoutes");
+const PUBLIC_HOME_SCROLLBAR_GUTTER_CLASS = "public-home-scrollbar-gutter-stable";
 
 const RouteLoadingFallback = () => <AppLoadingFallback label="Carregando..." />;
 export { default as ScrollToTop } from "@/components/ScrollToTop";
@@ -49,6 +50,31 @@ const RouterShell = () => {
   const location = useLocation();
   useReveal();
   const isDashboardRoute = location.pathname.startsWith("/dashboard");
+  const isHomeRoute = location.pathname === "/";
+
+  useLayoutEffect(() => {
+    if (typeof document === "undefined" || typeof window === "undefined") {
+      return;
+    }
+
+    const targets = [document.documentElement, document.body];
+
+    targets.forEach((target) => {
+      if (!target) {
+        return;
+      }
+      target.classList.toggle(PUBLIC_HOME_SCROLLBAR_GUTTER_CLASS, isHomeRoute);
+    });
+
+    return () => {
+      targets.forEach((target) => {
+        if (!target) {
+          return;
+        }
+        target.classList.remove(PUBLIC_HOME_SCROLLBAR_GUTTER_CLASS);
+      });
+    };
+  }, [isHomeRoute]);
 
   return (
     <Suspense fallback={<RouteLoadingFallback />}>

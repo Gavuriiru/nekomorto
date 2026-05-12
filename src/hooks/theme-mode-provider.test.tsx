@@ -9,7 +9,9 @@ import { ThemeModeProvider } from "@/hooks/theme-mode-provider";
 import { useThemeMode } from "@/hooks/use-theme-mode";
 import { resolveThemeColor } from "@/lib/theme-color";
 import type { SiteSettings } from "@/types/site-settings";
-import { fireEvent, render, screen, waitFor } from "@testing-library/react";
+import { act, fireEvent, render, screen, waitFor } from "@testing-library/react";
+import { hydrateRoot } from "react-dom/client";
+import { renderToString } from "react-dom/server";
 import type { ReactNode } from "react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
@@ -50,6 +52,18 @@ const renderWithSettings = (settings: SiteSettings, children: ReactNode = <Theme
       <ThemeModeProvider>{children}</ThemeModeProvider>
     </SiteSettingsContext.Provider>,
   );
+
+const buildThemeProviderTree = (settings: SiteSettings, children: ReactNode = <ThemeProbe />) => (
+  <SiteSettingsContext.Provider
+    value={{
+      settings,
+      isLoading: false,
+      refresh: async () => undefined,
+    }}
+  >
+    <ThemeModeProvider>{children}</ThemeModeProvider>
+  </SiteSettingsContext.Provider>
+);
 
 const assertDocumentTheme = (mode: "light" | "dark") => {
   expect(document.documentElement.dataset.themeMode).toBe(mode);
@@ -128,8 +142,10 @@ describe("ThemeModeProvider", () => {
     window.localStorage.setItem(THEME_MODE_STORAGE_KEY, "dark");
     renderWithSettings(createSettings({ theme: { accent: "#9667e0", mode: "light" } }));
 
+    await waitFor(() => {
+      expect(screen.getByTestId("effective-mode")).toHaveTextContent("dark");
+    });
     expect(screen.getByTestId("global-mode")).toHaveTextContent("light");
-    expect(screen.getByTestId("effective-mode")).toHaveTextContent("dark");
     expect(screen.getByTestId("preference")).toHaveTextContent("dark");
     assertDocumentTheme("dark");
     assertThemeColor("#9667e0");
@@ -158,11 +174,38 @@ describe("ThemeModeProvider", () => {
     window.localStorage.setItem(THEME_MODE_STORAGE_KEY, "unknown" as ThemeModePreference);
     renderWithSettings(createSettings({ theme: { accent: "#9667e0", mode: "dark" } }));
 
-    expect(screen.getByTestId("preference")).toHaveTextContent("global");
+    await waitFor(() => {
+      expect(screen.getByTestId("preference")).toHaveTextContent("global");
+    });
     expect(screen.getByTestId("effective-mode")).toHaveTextContent("dark");
     expect(window.localStorage.getItem(THEME_MODE_STORAGE_KEY)).toBeNull();
     assertDocumentTheme("dark");
     assertThemeColor("#9667e0");
+  });
+
+  it("hydrates without mismatch when a stored preference diverges from the global theme", async () => {
+    window.localStorage.setItem(THEME_MODE_STORAGE_KEY, "dark");
+    const settings = createSettings({ theme: { accent: "#9667e0", mode: "light" } });
+    const tree = buildThemeProviderTree(settings);
+    const container = document.createElement("div");
+    container.innerHTML = renderToString(tree);
+    document.body.appendChild(container);
+    const consoleErrorSpy = vi.spyOn(console, "error").mockImplementation(() => undefined);
+    const root = hydrateRoot(container, tree);
+
+    try {
+      await waitFor(() => {
+        expect(container.querySelector('[data-testid="effective-mode"]')).toHaveTextContent("dark");
+      });
+
+      expect(consoleErrorSpy).not.toHaveBeenCalled();
+    } finally {
+      await act(async () => {
+        root.unmount();
+      });
+      consoleErrorSpy.mockRestore();
+      container.remove();
+    }
   });
 
   it("updates theme-color when the accent changes", async () => {

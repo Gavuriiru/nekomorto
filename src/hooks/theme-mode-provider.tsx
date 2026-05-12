@@ -18,7 +18,7 @@ const normalizePreference = (value: unknown): ThemeModePreference => {
   return "global";
 };
 
-const readInitialPreference = (): ThemeModePreference => {
+const readStoredPreference = (): ThemeModePreference => {
   if (typeof window === "undefined") {
     return "global";
   }
@@ -103,9 +103,8 @@ const disableThemeTransitionsTemporarily = () => {
 
 export const ThemeModeProvider = ({ children }: { children: ReactNode }) => {
   const { settings } = useSiteSettings();
-  const [preference, setPreferenceState] = useState<ThemeModePreference>(() =>
-    readInitialPreference(),
-  );
+  const [preference, setPreferenceState] = useState<ThemeModePreference>("global");
+  const [hasSyncedStoredPreference, setHasSyncedStoredPreference] = useState(false);
   const previousModeRef = useRef<ThemeMode | null>(null);
   const transitionCleanupRef = useRef<(() => void) | null>(null);
 
@@ -119,7 +118,15 @@ export const ThemeModeProvider = ({ children }: { children: ReactNode }) => {
   }, []);
 
   useEffect(() => {
-    if (typeof window === "undefined") {
+    const storedPreference = readStoredPreference();
+    setPreferenceState((current) =>
+      current === storedPreference ? current : storedPreference,
+    );
+    setHasSyncedStoredPreference(true);
+  }, []);
+
+  useEffect(() => {
+    if (typeof window === "undefined" || !hasSyncedStoredPreference) {
       return;
     }
     try {
@@ -131,9 +138,12 @@ export const ThemeModeProvider = ({ children }: { children: ReactNode }) => {
     } catch {
       // ignore localStorage failures
     }
-  }, [preference]);
+  }, [hasSyncedStoredPreference, preference]);
 
   useEffect(() => {
+    if (typeof window !== "undefined" && !hasSyncedStoredPreference) {
+      return;
+    }
     const isFirstModeApplication = previousModeRef.current === null;
     const modeChanged = previousModeRef.current !== effectiveMode;
     previousModeRef.current = effectiveMode;
@@ -147,7 +157,7 @@ export const ThemeModeProvider = ({ children }: { children: ReactNode }) => {
     }
 
     applyThemeToDocument(effectiveMode, themeAccent);
-  }, [effectiveMode, themeAccent]);
+  }, [effectiveMode, hasSyncedStoredPreference, themeAccent]);
 
   useEffect(
     () => () => {

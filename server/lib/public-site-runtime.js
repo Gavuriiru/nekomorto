@@ -604,36 +604,29 @@ export const createPublicSiteRuntime = (dependencies = {}) => {
       .replace(/>/g, "&gt;");
 
   const buildHomeHeroShellCriticalCss = ({ focalObjectPosition } = {}) => `
+:root {
+  --public-home-hero-height: 100vh;
+}
 @supports (height: 1svh) {
   :root {
-    --public-home-hero-height: 78svh;
+    --public-home-hero-height: 100svh;
   }
 }
-@supports not (height: 1svh) {
+@supports (height: 1dvh) {
   :root {
-    --public-home-hero-height: 78vh;
-  }
-}
-@media (min-width: 768px) {
-  @supports (height: 1svh) {
-    :root {
-      --public-home-hero-height: 100svh;
-    }
-  }
-  @supports not (height: 1svh) {
-    :root {
-      --public-home-hero-height: 100vh;
-    }
+    --public-home-hero-height: 100dvh;
   }
 }
 .public-home-hero-shell.public-home-hero-viewport {
+  height: var(--public-home-hero-height);
   min-height: var(--public-home-hero-height);
+  max-height: var(--public-home-hero-height);
 }
 .public-home-hero-shell {
   position: fixed;
   top: 0;
+  right: 0;
   left: 0;
-  width: 100vw;
   height: var(--public-home-hero-height);
   min-height: var(--public-home-hero-height);
   overflow: hidden;
@@ -660,44 +653,81 @@ export const createPublicSiteRuntime = (dependencies = {}) => {
   object-fit: cover;
   object-position: ${focalObjectPosition || "center"};
   z-index: 1;
+  opacity: 0;
 }
-.public-home-hero-shell__veil {
+.public-home-hero-shell__overlay {
   position: absolute;
   inset: 0;
   pointer-events: none;
   z-index: 2;
 }
-.public-home-hero-shell__veil--primary {
+.public-home-hero-shell__overlay--highlight {
+  background: radial-gradient(circle at 82% 18%, rgba(255,255,255,0.16), transparent 36%);
+}
+.public-home-hero-shell__overlay--directional {
   background: linear-gradient(
-    90deg,
-    hsl(220 12% 7%) 0%,
-    hsl(220 12% 7% / 0.8) 55%,
-    transparent 100%
+    112deg,
+    rgba(6,8,14,0.96) 0%,
+    rgba(6,8,14,0.88) 34%,
+    rgba(6,8,14,0.56) 61%,
+    rgba(6,8,14,0.22) 100%
   );
 }
-.public-home-hero-shell__veil--secondary {
+.public-home-hero-shell__overlay--bottom {
   background: linear-gradient(
     0deg,
     hsl(220 12% 7%) 0%,
-    hsl(220 12% 7% / 0.3) 52%,
-    transparent 100%
+    hsl(220 12% 7% / 0.96) 22%,
+    hsl(220 12% 7% / 0.74) 44%,
+    hsl(220 12% 7% / 0.34) 68%,
+    hsl(220 12% 7% / 0.08) 82%,
+    hsl(220 12% 7% / 0) 90%
   );
 }
-:root[data-theme-mode="light"] .public-home-hero-shell__veil--primary {
+.public-home-hero-shell__navbar-overlay {
+  position: absolute;
+  inset: 0 0 auto;
+  height: 5rem;
+  pointer-events: none;
   background: linear-gradient(
-    90deg,
-    hsl(210 33% 98%) 0%,
-    hsl(210 33% 98% / 0.8) 55%,
+    180deg,
+    hsl(210 33% 98% / 0.72) 0%,
+    hsl(210 33% 98% / 0.18) 58%,
     transparent 100%
   );
+  opacity: 0;
+  z-index: 3;
 }
-:root[data-theme-mode="light"] .public-home-hero-shell__veil--secondary {
+@media (min-width: 768px) {
+  .public-home-hero-shell__navbar-overlay {
+    height: 6rem;
+  }
+}
+:root[data-theme-mode="light"] .public-home-hero-shell__overlay--highlight {
+  background: radial-gradient(circle at 82% 18%, rgba(255,255,255,0.22), transparent 36%);
+}
+:root[data-theme-mode="light"] .public-home-hero-shell__overlay--directional {
+  background: linear-gradient(
+    112deg,
+    rgba(255,255,255,0.84) 0%,
+    rgba(255,255,255,0.68) 36%,
+    rgba(255,255,255,0.24) 63%,
+    rgba(255,255,255,0.04) 100%
+  );
+}
+:root[data-theme-mode="light"] .public-home-hero-shell__overlay--bottom {
   background: linear-gradient(
     0deg,
     hsl(210 33% 98%) 0%,
-    hsl(210 33% 98% / 0.3) 52%,
-    transparent 100%
+    hsl(210 33% 98% / 0.88) 24%,
+    hsl(210 33% 98% / 0.56) 46%,
+    hsl(210 33% 98% / 0.2) 70%,
+    hsl(210 33% 98% / 0.04) 84%,
+    hsl(210 33% 98% / 0) 91%
   );
+}
+:root[data-theme-mode="light"] .public-home-hero-shell__navbar-overlay {
+  opacity: 1;
 }
 `;
 
@@ -788,8 +818,10 @@ export const createPublicSiteRuntime = (dependencies = {}) => {
     const shellMarkup = [
       '<div id="home-hero-shell" class="public-home-hero-shell public-home-hero-viewport" aria-hidden="true">',
       `  <img class="public-home-hero-shell__image" ${attrs.join(" ")} />`,
-      '  <div class="public-home-hero-shell__veil public-home-hero-shell__veil--primary"></div>',
-      '  <div class="public-home-hero-shell__veil public-home-hero-shell__veil--secondary"></div>',
+      '  <div class="public-home-hero-shell__overlay public-home-hero-shell__overlay--highlight"></div>',
+      '  <div class="public-home-hero-shell__overlay public-home-hero-shell__overlay--directional"></div>',
+      '  <div class="public-home-hero-shell__overlay public-home-hero-shell__overlay--bottom"></div>',
+      '  <div class="public-home-hero-shell__navbar-overlay"></div>',
       "</div>",
     ]
       .filter(Boolean)

@@ -454,12 +454,22 @@ describe("public-site-runtime", () => {
       'class="public-home-hero-shell public-home-hero-viewport"',
     );
     expect(capturedShellMarkup).toContain('class="public-home-hero-shell__image"');
+    expect(capturedShellMarkup).toContain("public-home-hero-shell__overlay--highlight");
+    expect(capturedShellMarkup).toContain("public-home-hero-shell__overlay--directional");
+    expect(capturedShellMarkup).toContain("public-home-hero-shell__overlay--bottom");
+    expect(capturedShellMarkup).toContain('class="public-home-hero-shell__navbar-overlay"');
     expect(capturedShellMarkup).toContain("/uploads/project-hero.jpg");
+    expect(capturedShellMarkup).not.toContain("public-home-hero-shell__veil");
     expect(capturedShellMarkup).not.toContain("public-home-hero-shell__header");
     expect(capturedShellMarkup).not.toContain("public-home-hero-shell__content-wrap");
     expect(capturedShellMarkup).not.toContain("public-home-hero-shell__controls");
     expect(capturedCriticalCss).toContain(".public-home-hero-shell");
     expect(capturedCriticalCss).toContain(".public-home-hero-shell__image");
+    expect(capturedCriticalCss).toContain("opacity: 0;");
+    expect(capturedCriticalCss).toContain(".public-home-hero-shell__overlay--directional");
+    expect(capturedCriticalCss).toContain(".public-home-hero-shell__overlay--bottom");
+    expect(capturedCriticalCss).toContain(".public-home-hero-shell__navbar-overlay");
+    expect(capturedCriticalCss).not.toContain("78svh");
     expect(capturedCriticalCss).not.toContain("@font-face");
     expect(capturedCriticalCss).not.toContain("public-home-hero-shell__header");
   });
@@ -495,6 +505,7 @@ describe("public-site-runtime", () => {
     });
 
     expect(capturedShellMarkup).toContain('class="public-home-hero-shell__image"');
+    expect(capturedShellMarkup).toContain("public-home-hero-shell__overlay--directional");
     expect(capturedShellMarkup).toContain("/uploads/project-hero.jpg");
     expect(capturedShellMarkup).not.toContain("José Gabriel");
     expect(capturedShellMarkup).not.toContain("public-home-hero-shell__user-button");

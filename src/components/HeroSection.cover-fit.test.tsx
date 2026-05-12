@@ -6,9 +6,6 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import HeroSection from "@/components/HeroSection";
 
-const themeModeState = vi.hoisted(() => ({
-  effectiveMode: "dark" as "light" | "dark",
-}));
 const usePublicBootstrapMock = vi.hoisted(() => vi.fn());
 const browserIdleState = vi.hoisted(() => ({
   autoRun: true,
@@ -29,16 +26,6 @@ const carouselState = vi.hoisted(() => ({
 
 vi.mock("@/hooks/use-public-bootstrap", () => ({
   usePublicBootstrap: () => usePublicBootstrapMock(),
-}));
-
-vi.mock("@/hooks/use-theme-mode", () => ({
-  useThemeMode: () => ({
-    globalMode: "dark",
-    effectiveMode: themeModeState.effectiveMode,
-    preference: "global",
-    isOverridden: false,
-    setPreference: vi.fn(),
-  }),
 }));
 
 vi.mock("@/lib/browser-idle", () => ({
@@ -278,7 +265,6 @@ const expectHeroPrimaryButtonTokens = (element: HTMLElement) => {
 describe("HeroSection cover fit", () => {
   beforeEach(() => {
     usePublicBootstrapMock.mockReset();
-    themeModeState.effectiveMode = "dark";
     browserIdleState.autoRun = true;
     browserIdleState.callbacks.splice(0, browserIdleState.callbacks.length);
     carouselState.api = null;
@@ -556,8 +542,7 @@ describe("HeroSection cover fit", () => {
     expect(screen.getByTestId("hero-carousel-counter-mobile")).toHaveTextContent("02/02");
   });
 
-  it("renderiza overlay superior para contraste da navbar no tema claro", async () => {
-    themeModeState.effectiveMode = "light";
+  it("mantem o overlay superior montado para o CSS alinhar a navbar sem divergir na hidratacao", async () => {
     setupBootstrapMock();
 
     render(
@@ -568,20 +553,6 @@ describe("HeroSection cover fit", () => {
 
     await screen.findByRole("heading", { name: "Projeto com Hero" });
     expect(screen.getByTestId("hero-navbar-overlay")).toBeInTheDocument();
-  });
-
-  it("nao renderiza overlay superior no tema escuro", async () => {
-    themeModeState.effectiveMode = "dark";
-    setupBootstrapMock();
-
-    render(
-      <MemoryRouter>
-        <HeroSection />
-      </MemoryRouter>,
-    );
-
-    await screen.findByRole("heading", { name: "Projeto com Hero" });
-    expect(screen.queryByTestId("hero-navbar-overlay")).not.toBeInTheDocument();
   });
 
   it("prioriza o ultimo lancamento de manga quando o bootstrap publico o inclui nos updates", async () => {
