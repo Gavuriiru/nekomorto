@@ -39,6 +39,7 @@ import {
   useResolvedPublicBootstrap,
   useResolvedPublicRoutePayload,
 } from "@/hooks/public-bootstrap-provider";
+import { usePublicBootstrap } from "@/hooks/use-public-bootstrap";
 import { usePublicCurrentUser } from "@/hooks/use-public-current-user";
 import { useSiteSettings } from "@/hooks/use-site-settings";
 import { toast } from "@/components/ui/use-toast";
@@ -322,6 +323,9 @@ const ProjectPage = () => {
   );
   const shouldHydrateProjectFromApi = !routeProject && (!bootstrapProject || !hasFullBootstrap);
   const shouldHydrateProjectMetaFromApi = !projectRoutePayload && !hasFullBootstrap;
+  const { status: bootstrapStatus } = usePublicBootstrap();
+  const isHydratingProject = !project && !hasLoaded;
+  const hasHydrationError = isHydratingProject && bootstrapStatus === "error";
   const { currentUser } = usePublicCurrentUser();
   const [episodePage, setEpisodePage] = useState(1);
   const [mediaVariants, setMediaVariants] = useState<UploadMediaVariantsMap>(
@@ -1302,7 +1306,22 @@ const ProjectPage = () => {
   }
 
   if (!project) {
-    return null;
+    return (
+      <div className="min-h-screen bg-background text-foreground">
+        <main>
+          <section
+            className={`${publicPageLayoutTokens.sectionBase} max-w-6xl pb-24 pt-24 reveal`}
+            data-reveal
+          >
+            <div className="rounded-2xl border border-dashed border-border/60 bg-card/60 px-6 py-16 text-center text-sm text-muted-foreground">
+              {hasHydrationError
+                ? "Não foi possível carregar o projeto agora."
+                : "Carregando projeto..."}
+            </div>
+          </section>
+        </main>
+      </div>
+    );
   }
 
   const heroBannerSrc =
@@ -1379,19 +1398,27 @@ const ProjectPage = () => {
                 >
                   {project.synopsis}
                 </p>
-                {project.tags?.length && hasLoadedTaxonomyTranslations ? (
+                {project.tags?.length ? (
                   <div
                     className="flex w-full flex-wrap justify-center gap-2 animate-slide-up md:justify-start"
                     style={{ animationDelay: "0.3s" }}
                   >
-                    {sortedTags.map((tag) => (
-                      <ProjectFilterPillLink
-                        key={tag}
-                        tone="secondary"
-                        to={`/projetos?tag=${encodeURIComponent(tag)}`}
-                        label={translateTag(tag, tagTranslationMap)}
-                      />
-                    ))}
+                    {hasLoadedTaxonomyTranslations
+                      ? sortedTags.map((tag) => (
+                          <ProjectFilterPillLink
+                            key={tag}
+                            tone="secondary"
+                            to={`/projetos?tag=${encodeURIComponent(tag)}`}
+                            label={translateTag(tag, tagTranslationMap)}
+                          />
+                        ))
+                      : Array.from({ length: Math.min(project.tags.length, 4) }).map((_, i) => (
+                          <div
+                            key={i}
+                            className="h-6 w-16 animate-pulse rounded-full bg-muted"
+                            aria-hidden="true"
+                          />
+                        ))}
                   </div>
                 ) : null}
                 <div
@@ -1461,16 +1488,26 @@ const ProjectPage = () => {
                     )}
                     Sobre o projeto
                   </div>
-                  {project.genres?.length && hasLoadedTaxonomyTranslations ? (
+                  {project.genres?.length ? (
                     <div className="flex flex-wrap gap-2">
-                      {sortedGenres.map((genre) => (
-                        <ProjectFilterPillLink
-                          key={genre}
-                          tone="outline"
-                          to={`/projetos?genero=${encodeURIComponent(genre)}`}
-                          label={translateGenre(genre, genreTranslationMap)}
-                        />
-                      ))}
+                      {hasLoadedTaxonomyTranslations
+                        ? sortedGenres.map((genre) => (
+                            <ProjectFilterPillLink
+                              key={genre}
+                              tone="outline"
+                              to={`/projetos?genero=${encodeURIComponent(genre)}`}
+                              label={translateGenre(genre, genreTranslationMap)}
+                            />
+                          ))
+                        : Array.from({ length: Math.min(project.genres.length, 3) }).map(
+                            (_, i) => (
+                              <div
+                                key={i}
+                                className="h-6 w-14 animate-pulse rounded-full bg-muted"
+                                aria-hidden="true"
+                              />
+                            ),
+                          )}
                     </div>
                   ) : null}
                   {projectDetails.length ? (
@@ -1493,28 +1530,50 @@ const ProjectPage = () => {
                 </CardContent>
               </Card>
 
-              {animeStaffEntries.length && hasLoadedTaxonomyTranslations ? (
+              {animeStaffEntries.length ? (
                 <Card className="bg-card/70 shadow-md">
                   <CardContent className="space-y-5 p-6">
                     <div className="flex items-center gap-3 text-sm font-semibold uppercase tracking-widest text-muted-foreground">
                       <Users className="h-4 w-4 text-primary" />
                       Staff do anime
                     </div>
-                    <div className="grid gap-3 md:grid-cols-2">
-                      {animeStaffEntries.map((staff, index) => (
-                        <div
-                          key={`${staff.role}-${index}`}
-                          className={`rounded-xl border border-border/50 bg-background/60 px-4 py-3 transition-[border-color] duration-200 hover:border-primary/60 ${
-                            animeStaffEntryColumnSpans.has(index) ? "md:col-span-2" : ""
-                          }`}
-                        >
-                          <p className="block text-xs font-semibold uppercase tracking-widest text-primary/80">
-                            {translateAnilistRole(staff.role, staffRoleTranslationMap)}
-                          </p>
-                          <p className="mt-1 text-sm text-foreground">{staff.members.join(", ")}</p>
-                        </div>
-                      ))}
-                    </div>
+                    {hasLoadedTaxonomyTranslations ? (
+                      <div className="grid gap-3 md:grid-cols-2">
+                        {animeStaffEntries.map((staff, index) => (
+                          <div
+                            key={`${staff.role}-${index}`}
+                            className={`rounded-xl border border-border/50 bg-background/60 px-4 py-3 transition-[border-color] duration-200 hover:border-primary/60 ${
+                              animeStaffEntryColumnSpans.has(index) ? "md:col-span-2" : ""
+                            }`}
+                          >
+                            <p className="block text-xs font-semibold uppercase tracking-widest text-primary/80">
+                              {translateAnilistRole(staff.role, staffRoleTranslationMap)}
+                            </p>
+                            <p className="mt-1 text-sm text-foreground">
+                              {staff.members.join(", ")}
+                            </p>
+                          </div>
+                        ))}
+                      </div>
+                    ) : (
+                      <div className="grid gap-3 md:grid-cols-2">
+                        {animeStaffEntries.map((staff, index) => (
+                          <div
+                            key={`${staff.role}-${index}`}
+                            className="rounded-xl border border-border/50 bg-background/60 px-4 py-3"
+                          >
+                            <div
+                              className="h-3 w-24 animate-pulse rounded bg-muted"
+                              aria-hidden="true"
+                            />
+                            <div
+                              className="mt-2 h-3 w-36 animate-pulse rounded bg-muted"
+                              aria-hidden="true"
+                            />
+                          </div>
+                        ))}
+                      </div>
+                    )}
                   </CardContent>
                 </Card>
               ) : null}
