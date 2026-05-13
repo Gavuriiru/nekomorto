@@ -2,6 +2,19 @@ export const HOME_HERO_READY_EVENT = "nekomata:hero-ready";
 export const PUBLIC_HOME_HERO_VIEWPORT_CLASS = "public-home-hero-viewport";
 export const PUBLIC_HOME_HERO_SHELL_EXIT_CLASS = "public-home-hero-shell--exiting";
 
+const ORPHAN_OVERLAY_SELECTOR = [
+  "body > .public-home-hero-shell__overlay",
+  "body > .public-home-hero-shell__navbar-overlay",
+].join(",");
+
+const removeOrphanShellElements = (globalWindow: Window) => {
+  const doc = globalWindow.document;
+  const orphans = doc.querySelectorAll(ORPHAN_OVERLAY_SELECTOR);
+  for (const el of orphans) {
+    el.remove();
+  }
+};
+
 type HomeHeroShellCleanupOptions = {
   globalWindow?: Window;
   shellId?: string;
@@ -17,6 +30,8 @@ export const armHomeHeroShellCleanup = ({
   safetyTimeoutMs = 7000,
   exitTransitionFallbackMs = 260,
 }: HomeHeroShellCleanupOptions = {}) => {
+  removeOrphanShellElements(globalWindow);
+
   const shell = globalWindow.document.getElementById(shellId);
   if (!shell) {
     return () => undefined;
@@ -54,6 +69,7 @@ export const armHomeHeroShellCleanup = ({
     shell.removeEventListener("transitionend", handleTransitionEnd);
     globalWindow.removeEventListener(readyEvent, startShellExit);
     shell.remove();
+    removeOrphanShellElements(globalWindow);
   };
 
   const startShellExit = () => {
