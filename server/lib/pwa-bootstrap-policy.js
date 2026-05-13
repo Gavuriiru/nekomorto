@@ -19,15 +19,15 @@ export const isLoopbackHostname = (value) => {
 };
 
 export const resolveBootstrapPwaRequestHostname = (req) => {
+  // Rely securely on Express's req.hostname which respects the 'trust proxy' configuration
+  // instead of manually parsing the user-controlled 'x-forwarded-host' header.
+  // This mitigates potential Host Header Injection vulnerabilities.
   const requestHostname = normalizeHostname(req?.hostname);
   if (requestHostname) {
     return requestHostname;
   }
 
-  const rawForwardedHost = String(req?.headers?.["x-forwarded-host"] || "")
-    .split(",")[0]
-    .trim();
-  const rawHost = rawForwardedHost || String(req?.headers?.host || "").trim();
+  const rawHost = String(req?.headers?.host || "").trim();
   if (!rawHost) {
     return "";
   }
