@@ -1409,16 +1409,18 @@ const Dashboard = () => {
                       size="icon"
                       onClick={() => moveDraftWidget(widgetId, -1)}
                       disabled={!isSelected || index <= 0}
+                      aria-label="Mover widget para cima"
                     >
-                      <ArrowUp className="h-4 w-4" />
+                      <ArrowUp className="h-4 w-4" aria-hidden="true" />
                     </DashboardActionButton>
                     <DashboardActionButton
                       type="button"
                       size="icon"
                       onClick={() => moveDraftWidget(widgetId, 1)}
                       disabled={!isSelected || index < 0 || index >= customDraftWidgets.length - 1}
+                      aria-label="Mover widget para baixo"
                     >
-                      <ArrowDown className="h-4 w-4" />
+                      <ArrowDown className="h-4 w-4" aria-hidden="true" />
                     </DashboardActionButton>
                     <DashboardActionButton
                       type="button"

@@ -1,3 +1,6 @@
 ## $(date +%Y-%m-%d) - Added ARIA labels to Settings Dashboard Trash Buttons
 **Learning:** Found several icon-only action buttons (e.g. Delete/Trash) in the dashboard settings layout missing `aria-label`s, indicating this might be a pattern across internal dashboard components where functionality is prioritized over a11y.
 **Action:** Always verify icon-only buttons (`DashboardActionButton` using Lucide icons) have appropriate `aria-label`s, especially in complex list/array configuration forms. Keep them in Portuguese to match the app's language context.
+## 2026-05-13 - Adding ARIA Labels to Icon-Only Buttons
+**Learning:** Icon-only buttons (like `DashboardActionButton` wrapping `Lucide` icons) throughout the app lack accessible names. Additionally, the dashboard is entirely in Portuguese, so even if the underlying code is English, ARIA labels must be added in Portuguese to match the user's expected language profile. Also, using `pnpm i` in the sandbox alters thousands of lines in `pnpm-lock.yaml`, requiring a `git restore` to avoid breaking the < 50 line boundary rule.
+**Action:** Always manually add `aria-label` in Portuguese to icon-only buttons, add `aria-hidden="true"` to the nested SVG icon, and be mindful of restoring `pnpm-lock.yaml` after environment setups.

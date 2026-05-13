@@ -2124,7 +2124,12 @@ const DashboardPosts = () => {
                             </DashboardActionButton>
                           ) : null}
                           {editorPublicHref ? (
-                            <DashboardActionButton type="button" size="icon" asChild>
+                            <DashboardActionButton
+                              type="button"
+                              size="icon"
+                              asChild
+                              aria-label="Visualizar postagem"
+                            >
                               <Link target="_blank" rel="noreferrer" to={editorPublicHref}>
                                 <Eye className="h-4 w-4" aria-hidden="true" />
                               </Link>
