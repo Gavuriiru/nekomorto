@@ -23,6 +23,7 @@ export default defineConfig(({ mode }) => {
       },
     },
     build: {
+      manifest: true,
       // Large lazy editor/tooling bundles are validated by custom build guards,
       // so we raise Vite's generic warning threshold to reduce false-positive noise.
       chunkSizeWarningLimit: 1250,

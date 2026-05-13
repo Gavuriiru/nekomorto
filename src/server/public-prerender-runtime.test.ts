@@ -99,6 +99,7 @@ describe("public-prerender-runtime", () => {
             '<div id="root"></div>',
             "<script>",
             'window.__BOOTSTRAP_PUBLIC__ = {"settings":{"site":{"name":"Nekomata Shell"}},"pages":{},"projects":[],"inProgressItems":[],"posts":[],"updates":[],"teamMembers":[],"teamLinkTypes":[],"mediaVariants":{},"tagTranslations":{"tags":{},"genres":{},"staffRoles":{}},"homeHero":null,"currentPostDetail":null,"generatedAt":"2026-05-10T11:00:00.000Z","payloadMode":"critical-home"};',
+            "window.__BOOTSTRAP_ROUTE__ = null;",
             'window.__BOOTSTRAP_SETTINGS__ = {"site":{"name":"Nekomata Shell"}};',
             "window.__BOOTSTRAP_PUBLIC_ME__ = null;",
             "window.__BOOTSTRAP_PWA_ENABLED__ = false;",

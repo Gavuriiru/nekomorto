@@ -1,6 +1,8 @@
 export const buildPublicRuntimeDependencies = (dependencies = {}) => ({
   bootstrapPwaEnabled: dependencies.bootstrapPwaEnabled ?? dependencies.BOOTSTRAP_PWA_ENABLED,
+  buildProjectOgRevision: dependencies.buildProjectOgRevision,
   buildPublicBootstrapPayload: dependencies.buildPublicBootstrapPayload,
+  buildPublicRoutePayload: dependencies.buildPublicRoutePayload,
   buildPublicMediaVariants: dependencies.buildPublicMediaVariants,
   buildPublicPostDetail: dependencies.buildPublicPostDetail,
   buildPublicReadableProjects: dependencies.buildPublicReadableProjects,
@@ -30,6 +32,8 @@ export const buildPublicRuntimeDependencies = (dependencies = {}) => ({
   resolveBootstrapPwaEnabled: dependencies.resolveBootstrapPwaEnabled,
   resolveHomeHeroPreloadFromSlide: dependencies.resolveHomeHeroPreloadFromSlide,
   resolveMetaImageVariantUrl: dependencies.resolveMetaImageVariantUrl,
+  resolvePublicDonationsRoutePayload: dependencies.resolvePublicDonationsRoutePayload,
+  resolvePublicRouteModulePreloads: dependencies.resolvePublicRouteModulePreloads,
   resolvePostCover: dependencies.resolvePostCover,
   resolvePublicPostCoverPreload: dependencies.resolvePublicPostCoverPreload,
   resolvePublicProjectsListPreloads: dependencies.resolvePublicProjectsListPreloads,

@@ -44,6 +44,7 @@ describe("html bootstrap injection", () => {
     });
 
     expect(result).toContain("window.__BOOTSTRAP_PUBLIC__ = ");
+    expect(result).toContain("window.__BOOTSTRAP_ROUTE__ = null");
     expect(result).toContain("window.__BOOTSTRAP_SETTINGS__ = ");
     expect(result).toContain("window.__BOOTSTRAP_PUBLIC_ME__ = ");
     expect(result).toContain("window.__BOOTSTRAP_PWA_ENABLED__ = false");
@@ -126,6 +127,12 @@ describe("html bootstrap injection", () => {
     const result = injectBootstrapGlobals({
       html: "<!doctype html><html><head><!-- APP_BOOTSTRAP --></head><body></body></html>",
       publicBootstrap: null,
+      publicRoutePayload: {
+        kind: "donations",
+        generatedAt: "2026-05-12T12:00:00.000Z",
+        pixQrCodeUrl: "data:image/png;base64,pix",
+        cryptoQrCodeUrls: {},
+      },
       settings: { site: { name: "Nekomata" } },
       publicMe: { id: "user-1", name: "Admin" },
       pwaEnabled: true,
@@ -133,6 +140,7 @@ describe("html bootstrap injection", () => {
     });
 
     expect(result).toContain("window.__BOOTSTRAP_PUBLIC__ = null");
+    expect(result).toContain('window.__BOOTSTRAP_ROUTE__ = {"kind":"donations"');
     expect(result).toContain("window.__BOOTSTRAP_SETTINGS__ = ");
     expect(result).toContain("window.__BOOTSTRAP_PUBLIC_ME__ = ");
     expect(result).toContain("window.__BOOTSTRAP_PWA_ENABLED__ = true");
@@ -149,13 +157,43 @@ describe("html bootstrap injection", () => {
         projects: [{ title: "</script><script>alert(1)</script>" }],
         posts: [],
       },
+      publicRoutePayload: {
+        kind: "projects-list",
+        generatedAt: "2026-05-12T12:00:00.000Z",
+        projects: [{ title: "</script><script>alert(3)</script>" }],
+        tagTranslations: {
+          tags: {},
+          genres: {},
+          staffRoles: {},
+        },
+        mediaVariants: {},
+      },
       settings: {},
       publicMe: { id: "user-1", name: "</script><script>alert(2)</script>" },
     });
 
     expect(result).not.toContain("</script><script>alert(1)</script>");
     expect(result).not.toContain("</script><script>alert(2)</script>");
+    expect(result).not.toContain("</script><script>alert(3)</script>");
     expect(result).toContain("\\u003C/script\\u003E");
+  });
+
+  it("suporta rel modulepreload sem atributo as", () => {
+    const result = injectPreloadLinks({
+      html: "<html><head><!-- APP_PRELOADS --></head></html>",
+      preloads: [
+        {
+          rel: "modulepreload",
+          href: "/assets/projects-route.js",
+          crossorigin: "anonymous",
+        },
+      ],
+    });
+
+    expect(result).toContain('rel="modulepreload"');
+    expect(result).toContain('href="/assets/projects-route.js"');
+    expect(result).toContain('crossorigin="anonymous"');
+    expect(result).not.toContain('as="fetch"');
   });
 
   it("injeta shell estatico da home no marcador dedicado", () => {

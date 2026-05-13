@@ -2,21 +2,22 @@ import { lazy } from "react";
 
 import Index from "@/pages/Index";
 
+import { publicRouteLoaders } from "./public-route-registry";
 import { renderPublicRouteTree } from "./public-route-tree";
 
-const About = lazy(() => import("@/pages/About"));
-const Donations = lazy(() => import("@/pages/Donations"));
-const FAQ = lazy(() => import("@/pages/FAQ"));
-const Login = lazy(() => import("@/pages/Login"));
-const NotFound = lazy(() => import("@/pages/NotFound"));
-const Post = lazy(() => import("@/pages/Post"));
-const PrivacyPolicy = lazy(() => import("@/pages/PrivacyPolicy"));
-const Project = lazy(() => import("@/pages/Project"));
-const ProjectReading = lazy(() => import("@/pages/ProjectReading"));
-const Projects = lazy(() => import("@/pages/Projects"));
-const Recruitment = lazy(() => import("@/pages/Recruitment"));
-const Team = lazy(() => import("@/pages/Team"));
-const TermsOfService = lazy(() => import("@/pages/TermsOfService"));
+const About = lazy(publicRouteLoaders.about);
+const Donations = lazy(publicRouteLoaders.donations);
+const FAQ = lazy(publicRouteLoaders.faq);
+const Login = lazy(publicRouteLoaders.login);
+const NotFound = lazy(publicRouteLoaders["not-found"]);
+const Post = lazy(publicRouteLoaders.post);
+const PrivacyPolicy = lazy(publicRouteLoaders.privacy);
+const Project = lazy(publicRouteLoaders["project-detail"]);
+const ProjectReading = lazy(publicRouteLoaders["project-reading"]);
+const Projects = lazy(publicRouteLoaders["projects-list"]);
+const Recruitment = lazy(publicRouteLoaders.recruitment);
+const Team = lazy(publicRouteLoaders.team);
+const TermsOfService = lazy(publicRouteLoaders.terms);
 
 const PublicRoutes = () =>
   renderPublicRouteTree({

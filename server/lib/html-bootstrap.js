@@ -239,6 +239,7 @@ const buildInlineBootstrapInitScript = () =>
 export const injectBootstrapGlobals = ({
   html,
   publicBootstrap,
+  publicRoutePayload = null,
   settings,
   publicMe = null,
   pwaEnabled = false,
@@ -247,6 +248,7 @@ export const injectBootstrapGlobals = ({
   const bootstrapScript = [
     "<script>",
     `window.__BOOTSTRAP_PUBLIC__ = ${serializeInlineJson(publicBootstrap)};`,
+    `window.__BOOTSTRAP_ROUTE__ = ${serializeInlineJson(publicRoutePayload)};`,
     `window.__BOOTSTRAP_SETTINGS__ = ${serializeInlineJson(settings)};`,
     `window.__BOOTSTRAP_PUBLIC_ME__ = ${serializeInlineJson(publicMe)};`,
     `window.__BOOTSTRAP_PWA_ENABLED__ = ${pwaEnabled ? "true" : "false"};`,
@@ -264,26 +266,28 @@ export const injectPreloadLinks = ({ html, preloads = [] }) => {
     .filter((entry) => entry && entry.href)
     .forEach((entry) => {
       const href = String(entry.href || "").trim();
+      const rel = String(entry.rel || "preload").trim() || "preload";
       const as = String(entry.as || "fetch").trim() || "fetch";
       const media = String(entry.media || "").trim();
-      const key = `${as}::${href}::${media}`;
+      const key = `${rel}::${as}::${href}::${media}`;
       if (!href || seen.has(key)) {
         return;
       }
       seen.add(key);
       uniquePreloads.push({
         ...entry,
+        rel,
         href,
         as,
       });
     });
 
   const tags = uniquePreloads.map((entry) => {
-    const parts = [
-      '  <link rel="preload"',
-      `href="${escapeHtmlAttribute(entry.href)}"`,
-      `as="${escapeHtmlAttribute(entry.as || "fetch")}"`,
-    ];
+    const rel = String(entry.rel || "preload").trim() || "preload";
+    const parts = ['  <link', `rel="${escapeHtmlAttribute(rel)}"`, `href="${escapeHtmlAttribute(entry.href)}"`];
+    if (rel === "preload") {
+      parts.push(`as="${escapeHtmlAttribute(entry.as || "fetch")}"`);
+    }
     if (entry.crossorigin) {
       parts.push(`crossorigin="${escapeHtmlAttribute(entry.crossorigin)}"`);
     }

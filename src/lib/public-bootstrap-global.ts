@@ -7,6 +7,12 @@ import {
   type PublicBootstrapPayload,
   type PublicBootstrapPayloadMode,
   type PublicBootstrapPostDetail,
+  type PublicRouteDonationsPayload,
+  type PublicRoutePayload,
+  type PublicRoutePayloadProjectLookup,
+  type PublicRouteProjectDetailPayload,
+  type PublicRouteProjectsListPayload,
+  type PublicRouteTeamPayload,
 } from "@/types/public-bootstrap";
 import type { PublicTeamLinkType, PublicTeamMember } from "@/types/public-team";
 
@@ -25,7 +31,33 @@ export type PublicBootstrapCurrentUser = {
 };
 
 const normalizePublicBootstrapPayloadMode = (value: unknown): PublicBootstrapPayloadMode =>
-  String(value || "").trim() === "critical-home" ? "critical-home" : "full";
+  String(value || "").trim() === "critical-home"
+    ? "critical-home"
+    : String(value || "").trim() === "shell"
+      ? "shell"
+      : "full";
+
+const normalizePublicTagTranslations = (value: unknown): PublicBootstrapPayload["tagTranslations"] => {
+  const candidate =
+    value && typeof value === "object" && !Array.isArray(value)
+      ? (value as Partial<PublicBootstrapPayload["tagTranslations"]>)
+      : {};
+  return {
+    tags: candidate.tags && typeof candidate.tags === "object" && !Array.isArray(candidate.tags)
+      ? candidate.tags
+      : {},
+    genres:
+      candidate.genres && typeof candidate.genres === "object" && !Array.isArray(candidate.genres)
+        ? candidate.genres
+        : {},
+    staffRoles:
+      candidate.staffRoles &&
+      typeof candidate.staffRoles === "object" &&
+      !Array.isArray(candidate.staffRoles)
+        ? candidate.staffRoles
+        : {},
+  };
+};
 
 const normalizePublicBootstrapPostDetail = (value: unknown): PublicBootstrapPostDetail | null => {
   if (!value || typeof value !== "object") {
@@ -138,16 +170,121 @@ export const asPublicBootstrapPayload = (value: unknown): PublicBootstrapPayload
       candidate.mediaVariants && typeof candidate.mediaVariants === "object"
         ? (candidate.mediaVariants as UploadMediaVariantsMap)
         : {},
-    tagTranslations: {
-      tags: candidate.tagTranslations?.tags || {},
-      genres: candidate.tagTranslations?.genres || {},
-      staffRoles: candidate.tagTranslations?.staffRoles || {},
-    },
+    tagTranslations: normalizePublicTagTranslations(candidate.tagTranslations),
     homeHero: normalizePublicBootstrapHomeHero(candidate.homeHero),
     currentPostDetail: normalizePublicBootstrapPostDetail(candidate.currentPostDetail),
     generatedAt: String(candidate.generatedAt || ""),
     payloadMode: normalizePublicBootstrapPayloadMode(candidate.payloadMode),
   };
+};
+
+const normalizeRouteProjectLookup = (value: unknown): PublicRoutePayloadProjectLookup => {
+  if (!value || typeof value !== "object" || Array.isArray(value)) {
+    return {};
+  }
+  return Object.entries(value).reduce<PublicRoutePayloadProjectLookup>((result, [key, rawValue]) => {
+    const normalizedKey = String(key || "").trim();
+    const normalizedValue = String(rawValue || "").trim();
+    if (!normalizedKey || !normalizedValue) {
+      return result;
+    }
+    result[normalizedKey] = normalizedValue;
+    return result;
+  }, {});
+};
+
+const normalizePublicRouteProjectsListPayload = (
+  candidate: Partial<PublicRouteProjectsListPayload>,
+): PublicRouteProjectsListPayload => ({
+  kind: "projects-list",
+  generatedAt: String(candidate.generatedAt || ""),
+  projects: Array.isArray(candidate.projects) ? candidate.projects : [],
+  mediaVariants:
+    candidate.mediaVariants && typeof candidate.mediaVariants === "object"
+      ? (candidate.mediaVariants as UploadMediaVariantsMap)
+      : {},
+  tagTranslations: normalizePublicTagTranslations(candidate.tagTranslations),
+});
+
+const normalizePublicRouteProjectDetailPayload = (
+  candidate: Partial<PublicRouteProjectDetailPayload>,
+): PublicRouteProjectDetailPayload => ({
+  kind: "project-detail",
+  generatedAt: String(candidate.generatedAt || ""),
+  project:
+    candidate.project && typeof candidate.project === "object"
+      ? (candidate.project as PublicRouteProjectDetailPayload["project"])
+      : null,
+  revision: String(candidate.revision || ""),
+  mediaVariants:
+    candidate.mediaVariants && typeof candidate.mediaVariants === "object"
+      ? (candidate.mediaVariants as UploadMediaVariantsMap)
+      : {},
+  relationProjectLookup: normalizeRouteProjectLookup(candidate.relationProjectLookup),
+  tagTranslations: normalizePublicTagTranslations(candidate.tagTranslations),
+});
+
+const normalizePublicRouteTeamPayload = (
+  candidate: Partial<PublicRouteTeamPayload>,
+): PublicRouteTeamPayload => ({
+  kind: "team",
+  generatedAt: String(candidate.generatedAt || ""),
+  teamMembers: Array.isArray(candidate.teamMembers)
+    ? (candidate.teamMembers as PublicTeamMember[])
+    : [],
+  teamLinkTypes: Array.isArray(candidate.teamLinkTypes)
+    ? (candidate.teamLinkTypes as PublicTeamLinkType[])
+    : [],
+  mediaVariants:
+    candidate.mediaVariants && typeof candidate.mediaVariants === "object"
+      ? (candidate.mediaVariants as UploadMediaVariantsMap)
+      : {},
+});
+
+const normalizePublicRouteDonationsPayload = (
+  candidate: Partial<PublicRouteDonationsPayload>,
+): PublicRouteDonationsPayload => ({
+  kind: "donations",
+  generatedAt: String(candidate.generatedAt || ""),
+  pixQrCodeUrl: String(candidate.pixQrCodeUrl || ""),
+  cryptoQrCodeUrls:
+    candidate.cryptoQrCodeUrls &&
+    typeof candidate.cryptoQrCodeUrls === "object" &&
+    !Array.isArray(candidate.cryptoQrCodeUrls)
+      ? Object.entries(candidate.cryptoQrCodeUrls).reduce<Record<string, string>>(
+          (result, [key, value]) => {
+            const normalizedKey = String(key || "").trim();
+            const normalizedValue = String(value || "").trim();
+            if (!normalizedKey || !normalizedValue) {
+              return result;
+            }
+            result[normalizedKey] = normalizedValue;
+            return result;
+          },
+          {},
+        )
+      : {},
+});
+
+export const asPublicRoutePayload = (value: unknown): PublicRoutePayload | null => {
+  if (!value || typeof value !== "object" || Array.isArray(value)) {
+    return null;
+  }
+  const candidate = value as Partial<PublicRoutePayload> & { kind?: unknown };
+  switch (String(candidate.kind || "").trim()) {
+    case "projects-list":
+      return normalizePublicRouteProjectsListPayload(candidate as Partial<PublicRouteProjectsListPayload>);
+    case "project-detail":
+      return normalizePublicRouteProjectDetailPayload(
+        candidate as Partial<PublicRouteProjectDetailPayload>,
+      );
+    case "team":
+      return normalizePublicRouteTeamPayload(candidate as Partial<PublicRouteTeamPayload>);
+    case "donations":
+      return normalizePublicRouteDonationsPayload(candidate as Partial<PublicRouteDonationsPayload>);
+    default:
+      return null;
+  }
 };
 
 export const asPublicBootstrapCurrentUser = (value: unknown): PublicBootstrapCurrentUser | null => {
@@ -201,4 +338,14 @@ export const readWindowPublicBootstrapCurrentUser = () => {
     __BOOTSTRAP_PUBLIC_ME__?: unknown;
   };
   return asPublicBootstrapCurrentUser(globalWindow.__BOOTSTRAP_PUBLIC_ME__);
+};
+
+export const readWindowPublicRoutePayload = () => {
+  if (typeof window === "undefined") {
+    return null;
+  }
+  const globalWindow = window as Window & {
+    __BOOTSTRAP_ROUTE__?: unknown;
+  };
+  return asPublicRoutePayload(globalWindow.__BOOTSTRAP_ROUTE__);
 };

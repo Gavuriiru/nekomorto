@@ -239,7 +239,8 @@ describe("DashboardUsers edit query", () => {
       </MemoryRouter>,
     );
 
-    await screen.findByRole("heading", { name: /editar usu.rio/i });
+    await screen.findByRole("dialog");
+    await screen.findByText(/editar usu.rio/i);
 
     const editorDialog = document.querySelector(".project-editor-dialog") as HTMLElement | null;
     const editorFrame = document.querySelector(".project-editor-modal-frame") as HTMLElement | null;
@@ -307,7 +308,8 @@ describe("DashboardUsers edit query", () => {
       </MemoryRouter>,
     );
 
-    await screen.findByRole("heading", { name: /editar usu.rio/i });
+    await screen.findByRole("dialog");
+    await screen.findByText(/editar usu.rio/i);
 
     const editorDialog = document.querySelector(".project-editor-dialog") as HTMLElement | null;
 

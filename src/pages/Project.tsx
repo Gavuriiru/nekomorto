@@ -35,7 +35,10 @@ import { PillButton } from "@/components/ui/pill-button";
 import UploadPicture from "@/components/UploadPicture";
 import type { Project } from "@/data/projects";
 import { usePageMeta } from "@/hooks/use-page-meta";
-import { useResolvedPublicBootstrap } from "@/hooks/public-bootstrap-provider";
+import {
+  useResolvedPublicBootstrap,
+  useResolvedPublicRoutePayload,
+} from "@/hooks/public-bootstrap-provider";
 import { usePublicCurrentUser } from "@/hooks/use-public-current-user";
 import { useSiteSettings } from "@/hooks/use-site-settings";
 import { toast } from "@/components/ui/use-toast";
@@ -65,7 +68,11 @@ import {
   hasPublicEpisodeReadableContent,
 } from "@/lib/public-project-episodes";
 import type { UploadMediaVariantsMap } from "@/lib/upload-variants";
-import type { PublicBootstrapPayload, PublicBootstrapProject } from "@/types/public-bootstrap";
+import type {
+  PublicBootstrapPayload,
+  PublicBootstrapProject,
+  PublicRoutePayloadProjectLookup,
+} from "@/types/public-bootstrap";
 import NotFound from "./NotFound";
 
 type ProjectFilterPillTone = "secondary" | "outline";
@@ -205,6 +212,40 @@ const resolveBootstrapProject = (
   );
 };
 
+const buildRelationProjectLookup = ({
+  project,
+  projects,
+}: {
+  project: PublicBootstrapProject | null;
+  projects: Array<Pick<Project, "id" | "anilistId">>;
+}): PublicRoutePayloadProjectLookup => {
+  if (!project?.relations?.length) {
+    return {};
+  }
+  const relationKeys = new Set<string>();
+  project.relations.forEach((relation) => {
+    const relationProjectId = String(relation.projectId || "").trim();
+    const relationAniListId = String(relation.anilistId || "").trim();
+    if (relationProjectId) {
+      relationKeys.add(relationProjectId);
+    }
+    if (relationAniListId) {
+      relationKeys.add(relationAniListId);
+    }
+  });
+  return projects.reduce<PublicRoutePayloadProjectLookup>((result, entry) => {
+    const projectId = String(entry.id || "").trim();
+    const anilistId = String(entry.anilistId || "").trim();
+    if (projectId && relationKeys.has(projectId)) {
+      result[projectId] = projectId;
+    }
+    if (anilistId && relationKeys.has(anilistId)) {
+      result[anilistId] = projectId;
+    }
+    return result;
+  }, {});
+};
+
 const normalizeProjectTaxonomyTranslations = (
   value: unknown,
 ): ProjectTaxonomyTranslations | null => {
@@ -235,33 +276,57 @@ const ProjectPage = () => {
   const { slug } = useParams<{ slug: string }>();
   const apiBase = getApiBase();
   const bootstrapData = useResolvedPublicBootstrap();
+  const routePayload = useResolvedPublicRoutePayload();
   const hasFullBootstrap = Boolean(bootstrapData && bootstrapData.payloadMode !== "critical-home");
+  const rawProjectRoutePayload = routePayload?.kind === "project-detail" ? routePayload : null;
   const bootstrapProject = resolveBootstrapProject(bootstrapData, slug);
-  const [project, setProject] = useState<Project | null>(
-    () => (bootstrapProject as Project | null) || null,
-  );
-  const [projectRevision, setProjectRevision] = useState("");
-  const [hasLoaded, setHasLoaded] = useState(Boolean(bootstrapProject));
-  const [projectDirectory, setProjectDirectory] = useState<Project[]>(() =>
-    hasFullBootstrap ? ((bootstrapData?.projects || []) as Project[]) : [],
+  const routeProject = useMemo(() => {
+    if (!rawProjectRoutePayload?.project) {
+      return null;
+    }
+    const projectListBootstrap = {
+      ...bootstrapData,
+      projects: [rawProjectRoutePayload.project],
+    } as PublicBootstrapPayload;
+    return resolveBootstrapProject(projectListBootstrap, slug)
+      ? (rawProjectRoutePayload.project as Project)
+      : null;
+  }, [bootstrapData, rawProjectRoutePayload?.project, slug]);
+  const projectRoutePayload = routeProject ? rawProjectRoutePayload : null;
+  const initialProject = routeProject || (bootstrapProject as Project | null) || null;
+  const [project, setProject] = useState<Project | null>(() => initialProject);
+  const [projectRevision, setProjectRevision] = useState(() => projectRoutePayload?.revision || "");
+  const [hasLoaded, setHasLoaded] = useState(Boolean(initialProject));
+  const [relationProjectLookup, setRelationProjectLookup] = useState<PublicRoutePayloadProjectLookup>(() =>
+    projectRoutePayload?.relationProjectLookup ||
+    buildRelationProjectLookup({
+      project: bootstrapProject,
+      projects: hasFullBootstrap ? ((bootstrapData?.projects || []) as Project[]) : [],
+    }),
   );
   const [tagTranslations, setTagTranslations] = useState<Record<string, string>>(
-    () => bootstrapData?.tagTranslations?.tags || {},
+    () => projectRoutePayload?.tagTranslations?.tags || bootstrapData?.tagTranslations?.tags || {},
   );
   const [genreTranslations, setGenreTranslations] = useState<Record<string, string>>(
-    () => bootstrapData?.tagTranslations?.genres || {},
+    () =>
+      projectRoutePayload?.tagTranslations?.genres || bootstrapData?.tagTranslations?.genres || {},
   );
   const [staffRoleTranslations, setStaffRoleTranslations] = useState<Record<string, string>>(
-    () => bootstrapData?.tagTranslations?.staffRoles || {},
+    () =>
+      projectRoutePayload?.tagTranslations?.staffRoles ||
+      bootstrapData?.tagTranslations?.staffRoles ||
+      {},
   );
   const [hasLoadedTaxonomyTranslations, setHasLoadedTaxonomyTranslations] = useState(
-    () => hasFullBootstrap,
+    () => Boolean(projectRoutePayload) || hasFullBootstrap,
   );
-  const shouldHydrateProjectFromApi = !bootstrapProject || !hasFullBootstrap;
-  const shouldHydrateProjectMetaFromApi = !hasFullBootstrap;
+  const shouldHydrateProjectFromApi = !routeProject && (!bootstrapProject || !hasFullBootstrap);
+  const shouldHydrateProjectMetaFromApi = !projectRoutePayload && !hasFullBootstrap;
   const { currentUser } = usePublicCurrentUser();
   const [episodePage, setEpisodePage] = useState(1);
-  const [mediaVariants, setMediaVariants] = useState<UploadMediaVariantsMap>({});
+  const [mediaVariants, setMediaVariants] = useState<UploadMediaVariantsMap>(
+    () => projectRoutePayload?.mediaVariants || bootstrapData?.mediaVariants || {},
+  );
   const { settings } = useSiteSettings();
   const trackedViewsRef = useRef<Set<string>>(new Set());
   const projectOgImageAlt = project?.title
@@ -343,6 +408,18 @@ const ProjectPage = () => {
   }, [apiBase, shouldHydrateProjectFromApi, slug]);
 
   useEffect(() => {
+    if (projectRoutePayload) {
+      setProject((projectRoutePayload.project as Project | null) || null);
+      setProjectRevision(projectRoutePayload.revision || "");
+      setMediaVariants(projectRoutePayload.mediaVariants || {});
+      setRelationProjectLookup(projectRoutePayload.relationProjectLookup || {});
+      setTagTranslations(projectRoutePayload.tagTranslations?.tags || {});
+      setGenreTranslations(projectRoutePayload.tagTranslations?.genres || {});
+      setStaffRoleTranslations(projectRoutePayload.tagTranslations?.staffRoles || {});
+      setHasLoadedTaxonomyTranslations(true);
+      setHasLoaded(Boolean(projectRoutePayload.project));
+      return;
+    }
     if (!bootstrapProject) {
       return;
     }
@@ -350,6 +427,12 @@ const ProjectPage = () => {
     setHasLoaded(true);
     setMediaVariants(bootstrapData?.mediaVariants || {});
     if (hasFullBootstrap) {
+      setRelationProjectLookup(
+        buildRelationProjectLookup({
+          project: bootstrapProject,
+          projects: (bootstrapData?.projects || []) as Project[],
+        }),
+      );
       setTagTranslations(bootstrapData?.tagTranslations?.tags || {});
       setGenreTranslations(bootstrapData?.tagTranslations?.genres || {});
       setStaffRoleTranslations(bootstrapData?.tagTranslations?.staffRoles || {});
@@ -357,11 +440,13 @@ const ProjectPage = () => {
     }
   }, [
     bootstrapData?.mediaVariants,
+    bootstrapData?.projects,
     bootstrapData?.tagTranslations?.genres,
     bootstrapData?.tagTranslations?.staffRoles,
     bootstrapData?.tagTranslations?.tags,
     bootstrapProject,
     hasFullBootstrap,
+    projectRoutePayload,
   ]);
 
   useEffect(() => {
@@ -390,28 +475,14 @@ const ProjectPage = () => {
     const loadMeta = async () => {
       const shouldLoadTranslations = !hasLoadedTaxonomyTranslations;
       try {
-        const [projectsResult, tagsResult] = await Promise.allSettled([
-          apiFetch(apiBase, "/api/public/projects"),
-          shouldLoadTranslations
-            ? apiFetch(apiBase, "/api/public/tag-translations", {
-                cache: "no-store",
-              })
-            : Promise.resolve(null),
-        ]);
-        if (projectsResult.status === "fulfilled" && projectsResult.value?.ok) {
-          const data = await projectsResult.value.json();
-          if (isActive) {
-            setProjectDirectory(Array.isArray(data.projects) ? data.projects : []);
-          }
-        }
+        const tagsResult = shouldLoadTranslations
+          ? await apiFetch(apiBase, "/api/public/tag-translations", {
+              cache: "no-store",
+            })
+          : null;
         if (shouldLoadTranslations) {
-          if (
-            tagsResult.status === "fulfilled" &&
-            tagsResult.value &&
-            "ok" in tagsResult.value &&
-            tagsResult.value.ok
-          ) {
-            const data = await tagsResult.value.json();
+          if (tagsResult?.ok) {
+            const data = await tagsResult.json();
             if (isActive) {
               setTagTranslations(data.tags || {});
               setGenreTranslations(data.genres || {});
@@ -424,7 +495,6 @@ const ProjectPage = () => {
         }
       } catch {
         if (isActive) {
-          setProjectDirectory([]);
           if (!hasLoadedTaxonomyTranslations) {
             setTagTranslations({});
             setGenreTranslations({});
@@ -667,13 +737,14 @@ const ProjectPage = () => {
     if (!project?.relations?.length) {
       return [];
     }
-    const ids = new Set(projectDirectory.map((item) => String(item.id)));
     return project.relations.filter((relation) => {
-      const relationId =
-        relation.projectId || (relation.anilistId ? String(relation.anilistId) : "");
-      return relationId && ids.has(relationId);
+      const relationProjectId = String(relation.projectId || "").trim();
+      const relationAniListId = String(relation.anilistId || "").trim();
+      return Boolean(
+        relationProjectId || (relationAniListId && relationProjectLookup[relationAniListId]),
+      );
     });
-  }, [project?.relations, projectDirectory]);
+  }, [project?.relations, relationProjectLookup]);
 
   const projectType = project?.type || "";
   const projectId = project?.id || "";
@@ -1204,16 +1275,10 @@ const ProjectPage = () => {
     episodePageStart + episodesPerPage,
   );
 
-  const relationProjectIds = useMemo(() => {
-    const map = new Map<string, string>();
-    projectDirectory.forEach((item) => {
-      if (item.anilistId) {
-        map.set(String(item.anilistId), item.id);
-      }
-      map.set(String(item.id), item.id);
-    });
-    return map;
-  }, [projectDirectory]);
+  const relationProjectIds = useMemo(
+    () => new Map(Object.entries(relationProjectLookup)),
+    [relationProjectLookup],
+  );
 
   const handleCopyLink = async () => {
     if (!project) {
@@ -1243,7 +1308,6 @@ const ProjectPage = () => {
   const heroBannerSrc =
     project.banner || project.heroImageUrl || project.cover || "/placeholder.svg";
   const heroCoverSrc = project.cover || project.banner || "/placeholder.svg";
-  const heroCoverDisplaySrc = normalizeAssetUrl(heroCoverSrc) || "/placeholder.svg";
   const heroBannerAlt = `Banner do projeto ${project.title}`;
 
   return (
@@ -1284,10 +1348,13 @@ const ProjectPage = () => {
                   className="overflow-hidden rounded-2xl border border-border/70 bg-secondary/90 shadow-project-cover-card animate-slide-up"
                   style={{ aspectRatio: PROJECT_COVER_ASPECT_RATIO }}
                 >
-                  <img
-                    src={heroCoverDisplaySrc}
+                  <UploadPicture
+                    src={heroCoverSrc}
                     alt={project.title || "Capa do projeto"}
-                    className="block h-full w-full object-cover object-center"
+                    preset="poster"
+                    mediaVariants={mediaVariants}
+                    className="block h-full w-full"
+                    imgClassName="block h-full w-full object-cover object-center"
                     loading="eager"
                     decoding="async"
                     fetchPriority="high"

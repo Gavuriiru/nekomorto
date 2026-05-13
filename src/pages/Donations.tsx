@@ -11,7 +11,10 @@ import { Progress } from "@/components/ui/progress";
 import { Separator } from "@/components/ui/separator";
 import { usePageMeta } from "@/hooks/use-page-meta";
 import { usePixQrCode } from "@/hooks/use-pix-qr-code";
-import { useResolvedPublicBootstrap } from "@/hooks/public-bootstrap-provider";
+import {
+  useResolvedPublicBootstrap,
+  useResolvedPublicRoutePayload,
+} from "@/hooks/public-bootstrap-provider";
 import { usePublicBootstrap } from "@/hooks/use-public-bootstrap";
 import { useSiteSettings } from "@/hooks/use-site-settings";
 import { useTextQrCode } from "@/hooks/use-text-qr-code";
@@ -139,17 +142,16 @@ const donationsPixKeyClassName =
 const CryptoDonationPanel = ({
   service,
   index,
+  qrUrl,
   copiedKey,
   onCopy,
 }: {
   service: DonationsCryptoService;
   index: number;
+  qrUrl: string;
   copiedKey: string | null;
   onCopy: (value: string, key: string) => Promise<void>;
 }) => {
-  const qrUrl = useTextQrCode({
-    value: getDonationsCryptoQrValue(service),
-  });
   const metaLabel = getDonationsCryptoMeta(service);
   const actionUrl = String(service.actionUrl || "").trim();
   const actionLabel = getDonationsCryptoActionLabel(service);
@@ -254,14 +256,16 @@ const CryptoDonationPanel = ({
 const Donations = () => {
   const { settings } = useSiteSettings();
   const windowBootstrap = useResolvedPublicBootstrap();
+  const routePayload = useResolvedPublicRoutePayload();
   const { data: bootstrapData, status: bootstrapStatus } = usePublicBootstrap();
-  const bootstrap = windowBootstrap || bootstrapData;
-  const hasFullBootstrap = Boolean(bootstrap && bootstrap.payloadMode !== "critical-home");
+  const bootstrap = bootstrapData || windowBootstrap;
+  const donationsRoutePayload = routePayload?.kind === "donations" ? routePayload : null;
+  const hasDonationsBootstrap = Boolean(bootstrap && bootstrap.payloadMode !== "critical-home");
   const [copiedKey, setCopiedKey] = useState<string | null>(null);
   const [activeCryptoIndex, setActiveCryptoIndex] = useState(0);
   const copyResetTimeoutRef = useRef<number | null>(null);
   const donations = useMemo(() => {
-    const incoming = hasFullBootstrap ? bootstrap?.pages.donations : null;
+    const incoming = hasDonationsBootstrap ? bootstrap?.pages?.donations || null : null;
     if (!incoming) {
       return defaultDonations;
     }
@@ -273,10 +277,10 @@ const Donations = () => {
       donorsIcon: incoming.donorsIcon || defaultDonations.donorsIcon,
       cryptoServices: normalizeDonationsCryptoServices(incoming.cryptoServices),
     };
-  }, [bootstrap, hasFullBootstrap]);
-  const pageBootstrap = hasFullBootstrap ? bootstrap : null;
+  }, [bootstrap, hasDonationsBootstrap]);
+  const pageBootstrap = hasDonationsBootstrap ? bootstrap || null : null;
   const pageMediaVariants = pageBootstrap?.mediaVariants || {};
-  const shouldShowHydrationState = !hasFullBootstrap;
+  const shouldShowHydrationState = !pageBootstrap;
   const hasHydrationError = shouldShowHydrationState && bootstrapStatus === "error";
   const merchantName =
     String(settings.site.name || settings.footer.brandName || "NEKOMATA").trim() || "NEKOMATA";
@@ -350,13 +354,24 @@ const Donations = () => {
     }
   };
 
-  const qrUrl = usePixQrCode({
-    pixKey: donations.pixKey,
-    pixNote: donations.pixNote,
-    pixCity: donations.pixCity?.trim() || "CIDADE",
-    qrCustomUrl: donations.qrCustomUrl,
-    merchantName,
-  });
+  const fallbackPixQrUrl = usePixQrCode(
+    donationsRoutePayload?.pixQrCodeUrl
+      ? {
+          pixKey: "",
+          pixNote: "",
+          pixCity: "CIDADE",
+          qrCustomUrl: "",
+          merchantName: "",
+        }
+      : {
+          pixKey: donations.pixKey,
+          pixNote: donations.pixNote,
+          pixCity: donations.pixCity?.trim() || "CIDADE",
+          qrCustomUrl: donations.qrCustomUrl,
+          merchantName,
+        },
+  );
+  const pixQrUrl = donationsRoutePayload?.pixQrCodeUrl || fallbackPixQrUrl;
   const monthlyGoal = useMemo(
     () =>
       buildMonthlyGoalSummary({
@@ -383,6 +398,16 @@ const Donations = () => {
   const hasMultipleCryptoServices = visibleCryptoServices.length > 1;
   const activeCryptoService =
     visibleCryptoServices[activeCryptoIndex] || visibleCryptoServices[0] || null;
+  const activeCryptoRouteQrUrl =
+    (donationsRoutePayload?.cryptoQrCodeUrls || {})[String(activeCryptoIndex)] || "";
+  const fallbackActiveCryptoQrUrl = useTextQrCode({
+    value:
+      activeCryptoRouteQrUrl || !activeCryptoService
+        ? ""
+        : getDonationsCryptoQrValue(activeCryptoService),
+  });
+  const activeCryptoQrUrl =
+    activeCryptoRouteQrUrl || fallbackActiveCryptoQrUrl;
 
   useEffect(() => {
     if (visibleCryptoServices.length === 0) {
@@ -592,7 +617,7 @@ const Donations = () => {
                           <div className={donationsPixQrShellClassName}>
                             <div className={donationsQrFrameClassName}>
                               <img
-                                src={qrUrl}
+                                src={pixQrUrl}
                                 alt="QR Code PIX"
                                 className="aspect-square w-full rounded-lg object-cover"
                               />
@@ -709,6 +734,7 @@ const Donations = () => {
                           <CryptoDonationPanel
                             service={normalizeDonationsCryptoService(activeCryptoService)}
                             index={activeCryptoIndex}
+                            qrUrl={activeCryptoQrUrl}
                             copiedKey={copiedKey}
                             onCopy={handleCopy}
                           />

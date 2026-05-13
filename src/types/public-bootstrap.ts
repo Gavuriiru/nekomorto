@@ -62,8 +62,19 @@ export type PublicBootstrapProjectStaff = {
   members: string[];
 };
 
+export type PublicBootstrapProjectRelation = {
+  relation: string;
+  title: string;
+  format: string;
+  status: string;
+  image: string;
+  anilistId?: number;
+  projectId?: string;
+};
+
 export type PublicBootstrapProject = {
   id: string;
+  anilistId?: number | null;
   title: string;
   titleOriginal: string;
   titleEnglish: string;
@@ -71,12 +82,18 @@ export type PublicBootstrapProject = {
   description: string;
   type: string;
   status: string;
+  year?: string;
   tags: string[];
   genres: string[];
   cover: string;
   coverAlt: string;
   banner: string;
   bannerAlt: string;
+  season?: string;
+  schedule?: string;
+  rating?: string;
+  country?: string;
+  source?: string;
   heroImageUrl: string;
   heroImageAlt: string;
   heroLogoUrl: string;
@@ -87,8 +104,12 @@ export type PublicBootstrapProject = {
   animationStudios: string[];
   episodes: string;
   producers: string[];
+  score?: number | null;
+  startDate?: string;
+  endDate?: string;
   staff: PublicBootstrapProjectStaff[];
   animeStaff: PublicBootstrapProjectStaff[];
+  relations?: PublicBootstrapProjectRelation[];
   readerConfig?: {
     direction?: "rtl" | "ltr";
     layout?: "single" | "double" | "scroll-vertical" | "scroll-horizontal";
@@ -115,6 +136,7 @@ export type PublicBootstrapProject = {
   episodeDownloads: PublicBootstrapEpisode[];
   views: number;
   viewsDaily: Record<string, number>;
+  commentsCount?: number;
 };
 
 export type PublicBootstrapPost = {
@@ -173,7 +195,50 @@ export type PublicBootstrapHomeHero = {
   slides: PublicBootstrapHomeHeroSlide[];
 };
 
-export type PublicBootstrapPayloadMode = "full" | "critical-home";
+export type PublicBootstrapPayloadMode = "full" | "critical-home" | "shell";
+
+export type PublicRoutePayloadKind = "projects-list" | "project-detail" | "team" | "donations";
+
+export type PublicRoutePayloadProjectLookup = Record<string, string>;
+
+export type PublicRouteProjectsListPayload = {
+  kind: "projects-list";
+  generatedAt: string;
+  projects: PublicBootstrapProject[];
+  mediaVariants?: UploadMediaVariantsMap;
+  tagTranslations: PublicBootstrapPayload["tagTranslations"];
+};
+
+export type PublicRouteProjectDetailPayload = {
+  kind: "project-detail";
+  generatedAt: string;
+  project: PublicBootstrapProject | null;
+  revision: string;
+  mediaVariants?: UploadMediaVariantsMap;
+  relationProjectLookup: PublicRoutePayloadProjectLookup;
+  tagTranslations: PublicBootstrapPayload["tagTranslations"];
+};
+
+export type PublicRouteTeamPayload = {
+  kind: "team";
+  generatedAt: string;
+  teamMembers: PublicTeamMember[];
+  teamLinkTypes: PublicTeamLinkType[];
+  mediaVariants?: UploadMediaVariantsMap;
+};
+
+export type PublicRouteDonationsPayload = {
+  kind: "donations";
+  generatedAt: string;
+  pixQrCodeUrl: string;
+  cryptoQrCodeUrls: Record<string, string>;
+};
+
+export type PublicRoutePayload =
+  | PublicRouteProjectsListPayload
+  | PublicRouteProjectDetailPayload
+  | PublicRouteTeamPayload
+  | PublicRouteDonationsPayload;
 
 export type PublicBootstrapPayload = {
   settings: SiteSettings;

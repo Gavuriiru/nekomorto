@@ -23,6 +23,7 @@ export const registerSiteRoutes = ({
   loadProjects,
   PUBLIC_BOOTSTRAP_MODE_FULL,
   PUBLIC_BOOTSTRAP_MODE_CRITICAL_HOME,
+  PUBLIC_BOOTSTRAP_MODE_SHELL,
   isHomeHeroShellEnabled,
 } = {}) => {
   app.use((req, res, next) => {
@@ -92,7 +93,7 @@ export const registerSiteRoutes = ({
                 pages,
                 post,
               });
-          const html = injectPublicBootstrapHtml({
+          const html = await injectPublicBootstrapHtml({
             html: renderMetaHtml({
               ...meta,
               url: canonicalUrl,
@@ -103,7 +104,9 @@ export const registerSiteRoutes = ({
             req,
             settings,
             pages,
-            bootstrapMode: PUBLIC_BOOTSTRAP_MODE_FULL,
+            bootstrapMode: isReadingRoute
+              ? PUBLIC_BOOTSTRAP_MODE_FULL
+              : PUBLIC_BOOTSTRAP_MODE_SHELL,
           });
           return await sendHtml(req, res, html);
         }
@@ -145,7 +148,7 @@ export const registerSiteRoutes = ({
                 pages,
                 project: project || null,
               });
-          const html = injectPublicBootstrapHtml({
+          const html = await injectPublicBootstrapHtml({
             html: renderMetaHtml({
               ...meta,
               url: canonicalUrl,
@@ -174,7 +177,7 @@ export const registerSiteRoutes = ({
               pages,
             })
           : [];
-        const html = injectPublicBootstrapHtml({
+        const html = await injectPublicBootstrapHtml({
           html: renderMetaHtml({
             ...meta,
             url: canonicalUrl,

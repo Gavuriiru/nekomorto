@@ -39,8 +39,18 @@ const setWindowBootstrap = (payload: unknown) => {
     window as Window &
       typeof globalThis & {
         __BOOTSTRAP_PUBLIC__?: unknown;
+        __BOOTSTRAP_ROUTE__?: unknown;
       }
   ).__BOOTSTRAP_PUBLIC__ = payload;
+};
+
+const setWindowRoutePayload = (payload: unknown) => {
+  (
+    window as Window &
+      typeof globalThis & {
+        __BOOTSTRAP_ROUTE__?: unknown;
+      }
+  ).__BOOTSTRAP_ROUTE__ = payload;
 };
 
 const setBootstrapDonationsPage = (donations: Record<string, unknown>) => {
@@ -87,6 +97,7 @@ describe("Donations Pix and crypto QR code", () => {
 
   afterEach(() => {
     vi.useRealTimers();
+    setWindowRoutePayload(undefined);
   });
 
   it("gera um BR Code valido quando nao ha QR customizado", async () => {
@@ -132,9 +143,25 @@ describe("Donations Pix and crypto QR code", () => {
       mediaVariants: {},
       payloadMode: "critical-home",
     });
+    let resolveBootstrapFetch: ((value: Response) => void) | null = null;
     apiFetchMock.mockImplementation(async (_base: string, endpoint: string) => {
       if (endpoint === "/api/public/bootstrap") {
-        return mockJsonResponse(true, {
+        return await new Promise<Response>((resolve) => {
+          resolveBootstrapFetch = resolve;
+        });
+      }
+      return mockJsonResponse(false, { error: "not_found" }, 404);
+    });
+
+    render(<Donations />);
+
+    expect(screen.getByText("Carregando doações...")).toBeInTheDocument();
+    expect(screen.queryByAltText("QR Code PIX")).not.toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: "Copiar chave PIX" })).not.toBeInTheDocument();
+
+    await act(async () => {
+      resolveBootstrapFetch?.(
+        mockJsonResponse(true, {
           settings: {},
           pages: {
             donations: {
@@ -180,18 +207,8 @@ describe("Donations Pix and crypto QR code", () => {
           generatedAt: "2026-04-10T19:01:00.000Z",
           mediaVariants: {},
           payloadMode: "full",
-        });
-      }
-      return mockJsonResponse(false, { error: "not_found" }, 404);
-    });
-
-    render(<Donations />);
-
-    expect(screen.getByText("Carregando doações...")).toBeInTheDocument();
-    expect(screen.queryByAltText("QR Code PIX")).not.toBeInTheDocument();
-    expect(screen.queryByRole("button", { name: "Copiar chave PIX" })).not.toBeInTheDocument();
-
-    await act(async () => {
+        }),
+      );
       await flushMicrotasks();
     });
     await act(async () => {
@@ -220,6 +237,57 @@ describe("Donations Pix and crypto QR code", () => {
     });
 
     expect(qrImage).toHaveAttribute("src", "https://cdn.example.com/pix.png");
+    expect(qrCodeToDataUrlMock).not.toHaveBeenCalled();
+  });
+
+  it("usa os QR codes do payload de rota shell sem gerar QR local na carga inicial", async () => {
+    setWindowBootstrap({
+      settings: {},
+      pages: {
+        donations: {
+          heroTitle: "Doacoes",
+          pixKey: "pix-chave-teste",
+          cryptoServices: [
+            {
+              name: "Bitcoin",
+              ticker: "BTC",
+              network: "Bitcoin",
+              address: "bc1-route",
+            },
+          ],
+        },
+      },
+      projects: [],
+      posts: [],
+      updates: [],
+      tagTranslations: {
+        tags: {},
+        genres: {},
+        staffRoles: {},
+      },
+      generatedAt: "2026-03-03T20:00:00.000Z",
+      mediaVariants: {},
+      payloadMode: "shell",
+    });
+    setWindowRoutePayload({
+      kind: "donations",
+      generatedAt: "2026-03-03T20:00:01.000Z",
+      pixQrCodeUrl: "data:image/png;base64,server-pix",
+      cryptoQrCodeUrls: {
+        "0": "data:image/png;base64,server-btc",
+      },
+    });
+
+    render(<Donations />);
+
+    expect(screen.getByAltText("QR Code PIX")).toHaveAttribute(
+      "src",
+      "data:image/png;base64,server-pix",
+    );
+    expect(screen.getByAltText("QR Code Bitcoin")).toHaveAttribute(
+      "src",
+      "data:image/png;base64,server-btc",
+    );
     expect(qrCodeToDataUrlMock).not.toHaveBeenCalled();
   });
 

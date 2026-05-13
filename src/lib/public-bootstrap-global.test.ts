@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 
-import { asPublicBootstrapPayload } from "@/lib/public-bootstrap-global";
+import { asPublicBootstrapPayload, asPublicRoutePayload } from "@/lib/public-bootstrap-global";
 
 describe("public bootstrap global parser", () => {
   it("preserva payloadMode critical-home quando informado", () => {
@@ -57,6 +57,26 @@ describe("public bootstrap global parser", () => {
     });
 
     expect(parsed?.payloadMode).toBe("full");
+  });
+
+  it("preserva payloadMode shell quando informado", () => {
+    const parsed = asPublicBootstrapPayload({
+      settings: {},
+      pages: {},
+      projects: [],
+      inProgressItems: [],
+      posts: [],
+      updates: [],
+      tagTranslations: {
+        tags: {},
+        genres: {},
+        staffRoles: {},
+      },
+      generatedAt: "2026-03-05T00:00:00.000Z",
+      payloadMode: "shell",
+    });
+
+    expect(parsed?.payloadMode).toBe("shell");
   });
 
   it("preserva e normaliza currentPostDetail quando informado", () => {
@@ -152,6 +172,64 @@ describe("public bootstrap global parser", () => {
           heroLogoAlt: "Marca oficial do projeto",
         }),
       ],
+    });
+  });
+
+  it("normaliza payload de rota project-detail com lookup e mediaVariants", () => {
+    const parsed = asPublicRoutePayload({
+      kind: "project-detail",
+      generatedAt: "2026-03-05T00:00:00.000Z",
+      project: {
+        id: "project-1",
+        title: "Projeto",
+      },
+      revision: "rev-1",
+      relationProjectLookup: {
+        "anilist:20": "project-2",
+        "  ": "",
+      },
+      mediaVariants: {
+        "/uploads/project-1.jpg": {
+          variantsVersion: 1,
+          variants: {},
+        },
+      },
+    });
+
+    expect(parsed).toEqual(
+      expect.objectContaining({
+        kind: "project-detail",
+        revision: "rev-1",
+        relationProjectLookup: {
+          "anilist:20": "project-2",
+        },
+        mediaVariants: {
+          "/uploads/project-1.jpg": expect.objectContaining({
+            variantsVersion: 1,
+          }),
+        },
+      }),
+    );
+  });
+
+  it("normaliza payload de rota donations com qrs do servidor", () => {
+    const parsed = asPublicRoutePayload({
+      kind: "donations",
+      generatedAt: "2026-03-05T00:00:00.000Z",
+      pixQrCodeUrl: "data:image/png;base64,pix",
+      cryptoQrCodeUrls: {
+        0: "data:image/png;base64,btc",
+        empty: "",
+      },
+    });
+
+    expect(parsed).toEqual({
+      kind: "donations",
+      generatedAt: "2026-03-05T00:00:00.000Z",
+      pixQrCodeUrl: "data:image/png;base64,pix",
+      cryptoQrCodeUrls: {
+        "0": "data:image/png;base64,btc",
+      },
     });
   });
 });

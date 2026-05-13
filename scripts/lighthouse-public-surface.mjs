@@ -16,6 +16,10 @@ import {
 const defaultRuns = 3;
 const defaultHomeUrl = process.env.LIGHTHOUSE_HOME_URL || "http://127.0.0.1:4173/";
 const defaultProjectsUrl = process.env.LIGHTHOUSE_PROJECTS_URL || "http://127.0.0.1:4173/projetos";
+const defaultProjectDetailUrl =
+  process.env.LIGHTHOUSE_PROJECT_DETAIL_URL || "http://127.0.0.1:4173/projeto/projeto-teste";
+const defaultTeamUrl = process.env.LIGHTHOUSE_TEAM_URL || "http://127.0.0.1:4173/equipe";
+const defaultDonationsUrl = process.env.LIGHTHOUSE_DONATIONS_URL || "http://127.0.0.1:4173/doacoes";
 const defaultPostUrl =
   process.env.LIGHTHOUSE_READER_POST_URL || "http://127.0.0.1:4173/postagem/post-teste";
 const defaultChapterUrl =
@@ -30,6 +34,9 @@ const parseArgs = (argv) => {
     startPreview: false,
     homeUrl: defaultHomeUrl,
     projectsMobileUrl: defaultProjectsUrl,
+    projectDetailUrl: defaultProjectDetailUrl,
+    teamUrl: defaultTeamUrl,
+    donationsUrl: defaultDonationsUrl,
     projectsDesktopUrl: defaultProjectsUrl,
     postUrl: defaultPostUrl,
     chapterUrl: defaultChapterUrl,
@@ -54,6 +61,18 @@ const parseArgs = (argv) => {
     if (arg.startsWith("--projects-mobile-url=")) {
       args.projectsMobileUrl =
         arg.slice("--projects-mobile-url=".length).trim() || defaultProjectsUrl;
+      continue;
+    }
+    if (arg.startsWith("--project-detail-url=")) {
+      args.projectDetailUrl = arg.slice("--project-detail-url=".length).trim() || defaultProjectDetailUrl;
+      continue;
+    }
+    if (arg.startsWith("--team-url=")) {
+      args.teamUrl = arg.slice("--team-url=".length).trim() || defaultTeamUrl;
+      continue;
+    }
+    if (arg.startsWith("--donations-url=")) {
+      args.donationsUrl = arg.slice("--donations-url=".length).trim() || defaultDonationsUrl;
       continue;
     }
     if (arg.startsWith("--projects-desktop-url=")) {
@@ -172,6 +191,9 @@ const main = async () => {
   const endpoints = [
     resolveUrlEndpoint(args.homeUrl),
     resolveUrlEndpoint(args.projectsMobileUrl),
+    resolveUrlEndpoint(args.projectDetailUrl),
+    resolveUrlEndpoint(args.teamUrl),
+    resolveUrlEndpoint(args.donationsUrl),
     resolveUrlEndpoint(args.projectsDesktopUrl),
     resolveUrlEndpoint(args.postUrl),
     resolveUrlEndpoint(args.chapterUrl),
@@ -200,6 +222,9 @@ const main = async () => {
       previewProcess = startPreviewServer(firstEndpoint);
       await waitForUrl(args.homeUrl, { previewProcess });
       await waitForUrl(args.projectsMobileUrl, { previewProcess });
+      await waitForUrl(args.projectDetailUrl, { previewProcess });
+      await waitForUrl(args.teamUrl, { previewProcess });
+      await waitForUrl(args.donationsUrl, { previewProcess });
       await waitForUrl(args.postUrl, { previewProcess });
       await waitForUrl(args.chapterUrl, { previewProcess });
     }
@@ -212,6 +237,30 @@ const main = async () => {
       "--profile=mobile",
       `--runs=${args.runs}`,
       `--url=${args.projectsMobileUrl}`,
+    ]);
+
+    console.log("[lighthouse-public-surface] running project detail mobile");
+    await runScript("lighthouse-projects.mjs", [
+      "--profile=mobile",
+      "--artifact-name=project-detail-mobile",
+      `--runs=${args.runs}`,
+      `--url=${args.projectDetailUrl}`,
+    ]);
+
+    console.log("[lighthouse-public-surface] running team mobile");
+    await runScript("lighthouse-projects.mjs", [
+      "--profile=mobile",
+      "--artifact-name=team-mobile",
+      `--runs=${args.runs}`,
+      `--url=${args.teamUrl}`,
+    ]);
+
+    console.log("[lighthouse-public-surface] running donations mobile");
+    await runScript("lighthouse-projects.mjs", [
+      "--profile=mobile",
+      "--artifact-name=donations-mobile",
+      `--runs=${args.runs}`,
+      `--url=${args.donationsUrl}`,
     ]);
 
     console.log("[lighthouse-public-surface] running projects desktop");
@@ -231,6 +280,13 @@ const main = async () => {
     const homeSummary = readJsonFile(path.join(LIGHTHOUSE_DIR, "home-mobile-summary.json"));
     const projectsMobileSummary = readJsonFile(
       path.join(LIGHTHOUSE_DIR, "projects-mobile-summary.json"),
+    );
+    const projectDetailSummary = readJsonFile(
+      path.join(LIGHTHOUSE_DIR, "project-detail-mobile-summary.json"),
+    );
+    const teamSummary = readJsonFile(path.join(LIGHTHOUSE_DIR, "team-mobile-summary.json"));
+    const donationsSummary = readJsonFile(
+      path.join(LIGHTHOUSE_DIR, "donations-mobile-summary.json"),
     );
     const projectsDesktopSummary = readJsonFile(
       path.join(LIGHTHOUSE_DIR, "projects-desktop-summary.json"),
@@ -260,6 +316,36 @@ const main = async () => {
           medianMetrics: projectsMobileSummary.medianMetrics,
           categoriesByRun: projectsMobileSummary.categoriesByRun,
           metricsByRun: projectsMobileSummary.metricsByRun,
+        },
+        {
+          key: "project-detail-mobile",
+          label: PUBLIC_SURFACE_ROUTE_LABELS["project-detail-mobile"],
+          url: args.projectDetailUrl,
+          sourceSummaryPath: ".lighthouse/project-detail-mobile-summary.json",
+          medianCategories: projectDetailSummary.medianCategories,
+          medianMetrics: projectDetailSummary.medianMetrics,
+          categoriesByRun: projectDetailSummary.categoriesByRun,
+          metricsByRun: projectDetailSummary.metricsByRun,
+        },
+        {
+          key: "team-mobile",
+          label: PUBLIC_SURFACE_ROUTE_LABELS["team-mobile"],
+          url: args.teamUrl,
+          sourceSummaryPath: ".lighthouse/team-mobile-summary.json",
+          medianCategories: teamSummary.medianCategories,
+          medianMetrics: teamSummary.medianMetrics,
+          categoriesByRun: teamSummary.categoriesByRun,
+          metricsByRun: teamSummary.metricsByRun,
+        },
+        {
+          key: "donations-mobile",
+          label: PUBLIC_SURFACE_ROUTE_LABELS["donations-mobile"],
+          url: args.donationsUrl,
+          sourceSummaryPath: ".lighthouse/donations-mobile-summary.json",
+          medianCategories: donationsSummary.medianCategories,
+          medianMetrics: donationsSummary.medianMetrics,
+          categoriesByRun: donationsSummary.categoriesByRun,
+          metricsByRun: donationsSummary.metricsByRun,
         },
         {
           key: "projects-desktop",

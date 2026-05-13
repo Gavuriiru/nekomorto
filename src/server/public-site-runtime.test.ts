@@ -5,11 +5,14 @@ import {
   createPublicSiteRuntime,
   PUBLIC_BOOTSTRAP_MODE_CRITICAL_HOME,
   PUBLIC_BOOTSTRAP_MODE_FULL,
+  PUBLIC_BOOTSTRAP_MODE_SHELL,
 } from "../../server/lib/public-site-runtime.js";
 
 const createDeps = (overrides = {}) => ({
   bootstrapPwaEnabled: true,
+  buildProjectOgRevision: () => "project-og-rev-1",
   buildPublicBootstrapPayload: (payload) => ({ ...payload }),
+  buildPublicRoutePayload: (payload) => ({ ...payload }),
   buildPublicMediaVariants: () => ({ variants: true }),
   buildPublicPostDetail: ({ post, resolvePostCover }) => ({
     id: post.id,
@@ -114,6 +117,10 @@ const createDeps = (overrides = {}) => ({
   resolveHomeHeroPreloadFromSlide: ({ imageUrl }) =>
     imageUrl ? { href: imageUrl, imagesrcset: `${imageUrl} 1x`, imagesizes: "100vw" } : null,
   resolveMetaImageVariantUrl: (value) => value,
+  resolvePublicDonationsRoutePayload: async () => ({
+    pixQrCodeUrl: "data:image/png;base64,pix",
+    cryptoQrCodeUrls: { 0: "data:image/png;base64,btc" },
+  }),
   resolvePostCover: (post) => ({
     coverImageUrl: post.coverImageUrl || "",
     coverAlt: "cover-alt",
@@ -127,6 +134,10 @@ const createDeps = (overrides = {}) => ({
   resolvePublicReaderHeroPreload: ({ imageUrl }) =>
     imageUrl ? { href: imageUrl, as: "image" } : null,
   resolveBootstrapPwaEnabled: undefined,
+  resolvePublicRouteModulePreloads: (pathname) =>
+    pathname === "/projetos"
+      ? [{ rel: "modulepreload", href: "/assets/projects-route.js", crossorigin: "anonymous" }]
+      : [],
   resolvePublicTeamAvatarPreload: ({ teamMembers }) =>
     Array.isArray(teamMembers) && teamMembers.length
       ? { href: "/uploads/team-1.png", as: "image" }
@@ -170,7 +181,7 @@ describe("public-site-runtime", () => {
     ]);
   });
 
-  it("builds public bootstrap payloads and injects bootstrap HTML", () => {
+  it("builds public bootstrap payloads and injects bootstrap HTML", async () => {
     const runtime = createPublicSiteRuntime(createDeps());
 
     const fullPayload = runtime.buildPublicBootstrapResponsePayload({
@@ -219,8 +230,12 @@ describe("public-site-runtime", () => {
         ],
       }),
     );
+    const shellPayload = runtime.buildPublicBootstrapResponsePayload({
+      payloadMode: PUBLIC_BOOTSTRAP_MODE_SHELL,
+    });
+    expect(shellPayload.payloadMode).toBe("full");
 
-    const publicHtml = runtime.injectPublicBootstrapHtml({
+    const publicHtml = await runtime.injectPublicBootstrapHtml({
       html: "<html></html>",
       req: {
         path: "/",
@@ -250,7 +265,7 @@ describe("public-site-runtime", () => {
     expect(dashboardHtml).toContain("skip:yes");
   });
 
-  it("injects a crawlable seo snapshot for indexable public pages", () => {
+  it("injects a crawlable seo snapshot for indexable public pages", async () => {
     const runtime = createPublicSiteRuntime(
       createDeps({
         loadPages: () => ({
@@ -280,7 +295,7 @@ describe("public-site-runtime", () => {
       }),
     );
 
-    const html = runtime.injectPublicBootstrapHtml({
+    const html = await runtime.injectPublicBootstrapHtml({
       html: "<html><body><div id=\"root\"></div></body></html>",
       req: {
         path: "/faq",
@@ -296,10 +311,10 @@ describe("public-site-runtime", () => {
     expect(html).toContain('href="/sobre"');
   });
 
-  it("does not inject an seo snapshot for noindex reading routes", () => {
+  it("does not inject an seo snapshot for noindex reading routes", async () => {
     const runtime = createPublicSiteRuntime(createDeps());
 
-    const html = runtime.injectPublicBootstrapHtml({
+    const html = await runtime.injectPublicBootstrapHtml({
       html: "<html><body><div id=\"root\"></div></body></html>",
       req: {
         path: "/projeto/project-1/leitura/5",
@@ -313,7 +328,7 @@ describe("public-site-runtime", () => {
     expect(html).not.toContain('id="seo-snapshot"');
   });
 
-  it("inclui currentPostDetail apenas na rota pública de post", () => {
+  it("inclui currentPostDetail apenas na rota pública de post", async () => {
     let capturedPublicBootstrap: { currentPostDetail?: unknown } | null = null;
     const runtime = createPublicSiteRuntime(
       createDeps({
@@ -325,7 +340,7 @@ describe("public-site-runtime", () => {
       }),
     );
 
-    runtime.injectPublicBootstrapHtml({
+    await runtime.injectPublicBootstrapHtml({
       html: "<html></html>",
       req: {
         path: "/postagem/hello-world",
@@ -348,7 +363,7 @@ describe("public-site-runtime", () => {
       }),
     );
 
-    runtime.injectPublicBootstrapHtml({
+    await runtime.injectPublicBootstrapHtml({
       html: "<html></html>",
       req: {
         path: "/projetos",
@@ -365,10 +380,71 @@ describe("public-site-runtime", () => {
     expect(projectsBootstrap.currentPostDetail).toBeNull();
   });
 
-  it("skips home hero preload when the static home hero shell is enabled", () => {
+  it("injeta bootstrap shell, payload de rota e modulepreload nas rotas públicas internas", async () => {
+    let capturedPublicBootstrap: { payloadMode?: string } | null = null;
+    let capturedRoutePayload: { kind?: string; projects?: unknown[] } | null = null;
+    let capturedPreloads: Array<{ href?: string; rel?: string; as?: string }> = [];
+    const runtime = createPublicSiteRuntime(
+      createDeps({
+        injectBootstrapGlobals: ({ html, publicBootstrap, publicRoutePayload }) => {
+          capturedPublicBootstrap =
+            (publicBootstrap as { payloadMode?: string } | null | undefined) || null;
+          capturedRoutePayload =
+            (publicRoutePayload as { kind?: string; projects?: unknown[] } | null | undefined) ||
+            null;
+          return html;
+        },
+        injectPreloadLinks: ({ html, preloads }) => {
+          capturedPreloads = preloads as Array<{ href?: string; rel?: string; as?: string }>;
+          return html;
+        },
+      }),
+    );
+
+    await runtime.injectPublicBootstrapHtml({
+      html: '<html><head><link rel="stylesheet" href="/assets/app.css"></head></html>',
+      req: {
+        path: "/projetos",
+      },
+      settings: {},
+      pages: {},
+      includeProjectsImagePreloads: true,
+      bootstrapMode: PUBLIC_BOOTSTRAP_MODE_SHELL,
+    });
+
+    expect(capturedPublicBootstrap).toEqual(
+      expect.objectContaining({
+        payloadMode: "shell",
+      }),
+    );
+    expect(capturedRoutePayload).toEqual(
+      expect.objectContaining({
+        kind: "projects-list",
+        projects: [expect.objectContaining({ id: "project-1" })],
+      }),
+    );
+    expect(capturedPreloads).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({
+          rel: "modulepreload",
+          href: "/assets/projects-route.js",
+        }),
+        expect.objectContaining({
+          as: "style",
+          href: "/assets/app.css",
+        }),
+        expect.objectContaining({
+          as: "image",
+          href: "/uploads/project-hero.jpg",
+        }),
+      ]),
+    );
+  });
+
+  it("skips home hero preload when the static home hero shell is enabled", async () => {
     const runtime = createPublicSiteRuntime(createDeps());
 
-    const withShell = runtime.injectPublicBootstrapHtml({
+    const withShell = await runtime.injectPublicBootstrapHtml({
       html: "<html></html>",
       req: {
         path: "/",
@@ -380,7 +456,7 @@ describe("public-site-runtime", () => {
       includeHomeHeroShell: true,
       bootstrapMode: PUBLIC_BOOTSTRAP_MODE_CRITICAL_HOME,
     });
-    const withoutShell = runtime.injectPublicBootstrapHtml({
+    const withoutShell = await runtime.injectPublicBootstrapHtml({
       html: "<html></html>",
       req: {
         path: "/",
@@ -397,7 +473,7 @@ describe("public-site-runtime", () => {
     expect(withoutShell).toContain("preloads:2");
   });
 
-  it("keeps the bootstrap pwa flag disabled even when legacy pwa deps are present", () => {
+  it("keeps the bootstrap pwa flag disabled even when legacy pwa deps are present", async () => {
     const runtime = createPublicSiteRuntime(
       createDeps({
         bootstrapPwaEnabled: undefined,
@@ -405,7 +481,7 @@ describe("public-site-runtime", () => {
       }),
     );
 
-    const publicHtml = runtime.injectPublicBootstrapHtml({
+    const publicHtml = await runtime.injectPublicBootstrapHtml({
       html: "<html></html>",
       req: {
         hostname: "dev.nekomata.moe",
@@ -426,7 +502,7 @@ describe("public-site-runtime", () => {
     expect(dashboardHtml).toContain("pwa:no");
   });
 
-  it("builds the home hero shell using only the initial hero image", () => {
+  it("builds the home hero shell using only the initial hero image", async () => {
     let capturedShellMarkup = "";
     let capturedCriticalCss = "";
     const runtime = createPublicSiteRuntime(
@@ -439,7 +515,7 @@ describe("public-site-runtime", () => {
       }),
     );
 
-    runtime.injectPublicBootstrapHtml({
+    await runtime.injectPublicBootstrapHtml({
       html: "<html></html>",
       req: {
         path: "/",
@@ -474,7 +550,7 @@ describe("public-site-runtime", () => {
     expect(capturedCriticalCss).not.toContain("public-home-hero-shell__header");
   });
 
-  it("keeps the image-only shell even when a user session exists", () => {
+  it("keeps the image-only shell even when a user session exists", async () => {
     let capturedShellMarkup = "";
     const runtime = createPublicSiteRuntime(
       createDeps({
@@ -485,7 +561,7 @@ describe("public-site-runtime", () => {
       }),
     );
 
-    runtime.injectPublicBootstrapHtml({
+    await runtime.injectPublicBootstrapHtml({
       html: "<html></html>",
       req: {
         path: "/",

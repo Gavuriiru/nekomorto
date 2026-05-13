@@ -110,6 +110,10 @@ import {
   injectPreloadLinks,
 } from "./lib/html-bootstrap.js";
 import { applyHtmlCachingHeaders } from "./lib/html-cache-control.js";
+import {
+  readClientBuildManifest,
+  resolvePublicRouteModulePreloads,
+} from "./lib/client-build-manifest.js";
 import { createIdempotencyStore } from "./lib/idempotency-store.js";
 import {
   buildInstitutionalOgDeliveryHeaders,
@@ -207,6 +211,8 @@ import {
 import { findDuplicateVolumeCover } from "./lib/project-volume-covers.js";
 import { normalizeLegacyUpdateRecord } from "./lib/pt-legacy-normalization.js";
 import { buildPublicBootstrapPayload } from "./lib/public-bootstrap.js";
+import { buildPublicRoutePayload } from "./lib/public-bootstrap.js";
+import { buildPublicDonationsRoutePayload } from "./lib/public-donations-qr.js";
 import { createPublicPrerenderRuntime } from "./lib/public-prerender-runtime.js";
 import { buildPublicPrerenderBuildFingerprint } from "./lib/public-prerender-build-fingerprint.js";
 import {
@@ -231,6 +237,7 @@ import {
 import {
   PUBLIC_BOOTSTRAP_MODE_CRITICAL_HOME,
   PUBLIC_BOOTSTRAP_MODE_FULL,
+  PUBLIC_BOOTSTRAP_MODE_SHELL,
 } from "./lib/public-site-runtime.js";
 import { resolvePublicTeamAvatarPreload } from "./lib/public-team-preloads.js";
 import { PUBLIC_STATIC_PATHS as SITEMAP_STATIC_PUBLIC_PATHS } from "./lib/public-visibility-runtime.js";
@@ -946,6 +953,11 @@ const {
   configuredGoogleRedirectUri: CONFIGURED_GOOGLE_REDIRECT_URI,
   primaryAppOrigin: PRIMARY_APP_ORIGIN,
   isProduction,
+});
+
+const clientBuildManifest = readClientBuildManifest({
+  clientRootDir,
+  clientDistDir,
 });
 
 const {
@@ -1685,7 +1697,9 @@ const publicRuntime = createPublicRuntimeBundle(
     BOOTSTRAP_PWA_ENABLED: isProduction || isPwaDevEnabled,
     PRIMARY_APP_ORIGIN,
     SITEMAP_STATIC_PUBLIC_PATHS,
+    buildProjectOgRevision,
     buildPublicBootstrapPayload,
+    buildPublicRoutePayload,
     buildPublicMediaVariants,
     buildPublicPostDetail,
     buildPublicReadableProjects,
@@ -1715,10 +1729,16 @@ const publicRuntime = createPublicRuntimeBundle(
     }),
     resolveHomeHeroPreloadFromSlide,
     resolveMetaImageVariantUrl,
+    resolvePublicDonationsRoutePayload: buildPublicDonationsRoutePayload,
     resolvePostCover,
     resolvePublicPostCoverPreload,
     resolvePublicProjectsListPreloads,
     resolvePublicReaderHeroPreload,
+    resolvePublicRouteModulePreloads: (pathname) =>
+      resolvePublicRouteModulePreloads({
+        manifest: clientBuildManifest,
+        pathname,
+      }),
     resolvePublicTeamAvatarPreload,
     stripHtml,
   }),
@@ -1760,6 +1780,7 @@ const rootRouteRegistrationDependencies = buildRootServerRegistrationSource({
   PUBLIC_ANALYTICS_RESOURCE_TYPE_SET,
   PUBLIC_BOOTSTRAP_MODE_CRITICAL_HOME,
   PUBLIC_BOOTSTRAP_MODE_FULL,
+  PUBLIC_BOOTSTRAP_MODE_SHELL,
   PUBLIC_READ_CACHE_TAGS,
   PUBLIC_READ_CACHE_TTL_MS,
   PUBLIC_UPLOADS_DIR,

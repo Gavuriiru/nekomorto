@@ -17,10 +17,11 @@ import { cn } from "@/lib/utils";
 const PT_DIACRITICS_REGEX = /[\u0300-\u036f]/g;
 const RECENT_UPDATES_CARD_HEIGHT_PX = 164;
 const RECENT_UPDATES_THUMB_WIDTH = "calc(var(--card-h) * 9 / 14)";
-const recentUpdateBasePillClassName = cn(
-  buttonVariants({ variant: "ghost", size: "pill" }),
-  "pointer-events-none h-6 min-h-6 min-w-6 shrink-0 gap-0 rounded-full px-2 py-0 text-[10px] leading-none hover:border-current hover:bg-inherit hover:text-inherit focus-visible:border-current focus-visible:bg-inherit focus-visible:text-inherit",
-);
+const recentUpdateBasePillClassName = () =>
+  cn(
+    buttonVariants({ variant: "ghost", size: "pill" }),
+    "pointer-events-none h-6 min-h-6 min-w-6 shrink-0 gap-0 rounded-full px-2 py-0 text-[10px] leading-none hover:border-current hover:bg-inherit hover:text-inherit focus-visible:border-current focus-visible:bg-inherit focus-visible:text-inherit",
+  );
 const recentUpdateNeutralPillClassName = "border-border/70 bg-background text-foreground/70";
 const recentUpdateTypePillClassName = {
   launch: "border-primary/50 bg-primary/10 text-primary",
@@ -218,7 +219,7 @@ const LatestEpisodeCard = () => {
                       <div className="no-scrollbar flex min-w-0 flex-nowrap items-center gap-2 overflow-x-auto md:flex-wrap md:overflow-visible">
                         <span
                           className={cn(
-                            recentUpdateBasePillClassName,
+                            recentUpdateBasePillClassName(),
                             recentUpdateNeutralPillClassName,
                             "hidden md:inline-flex",
                           )}
@@ -228,7 +229,7 @@ const LatestEpisodeCard = () => {
                         {update.volume ? (
                           <span
                             className={cn(
-                              recentUpdateBasePillClassName,
+                              recentUpdateBasePillClassName(),
                               recentUpdateNeutralPillClassName,
                               "hidden md:inline-flex",
                             )}
@@ -238,7 +239,7 @@ const LatestEpisodeCard = () => {
                         ) : null}
                         <span
                           className={cn(
-                            recentUpdateBasePillClassName,
+                            recentUpdateBasePillClassName(),
                             kindLabel === "Lançamento"
                               ? recentUpdateTypePillClassName.launch
                               : kindLabel === "Ajuste"

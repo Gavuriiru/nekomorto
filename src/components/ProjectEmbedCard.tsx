@@ -26,7 +26,7 @@ type ProjectEmbedRecord = Pick<
 >;
 
 const PROJECT_EMBED_IMAGE_SIZES = "124px";
-const embedClampProfile = PUBLIC_PROJECT_CARD_CLAMP_PROFILES.embed;
+const embedClampProfile = () => PUBLIC_PROJECT_CARD_CLAMP_PROFILES.embed;
 
 const resolveBootstrapProject = (
   bootstrapData: PublicBootstrapPayload | null,
@@ -82,7 +82,7 @@ const ProjectEmbedCard = ({ projectId }: ProjectEmbedCardProps) => {
   const resolveEmbedSynopsisMaxLines = useCallback(
     ({ columnWidth, defaultMaxLines }: { columnWidth: number; defaultMaxLines: number }) =>
       resolvePublicProjectCardResponsiveMaxLines({
-        profile: embedClampProfile,
+        profile: embedClampProfile(),
         columnWidth,
         defaultMaxLines,
       }),
@@ -91,7 +91,7 @@ const ProjectEmbedCard = ({ projectId }: ProjectEmbedCardProps) => {
   const { rootRef: synopsisRootRef, lineByKey } = useDynamicSynopsisClamp({
     enabled: Boolean(projectId),
     keys: [synopsisKey],
-    maxLines: embedClampProfile.defaultMaxLines,
+    maxLines: embedClampProfile().defaultMaxLines,
     resolveMaxLines: resolveEmbedSynopsisMaxLines,
   });
   const sortedTags = useMemo(() => {
@@ -128,7 +128,7 @@ const ProjectEmbedCard = ({ projectId }: ProjectEmbedCardProps) => {
     return badges.filter((badge): badge is PublicProjectCardBadge => badge != null);
   }, [project?.episodes, project?.status, project?.studio]);
   const synopsisClampState = resolvePublicProjectCardClampState({
-    profile: embedClampProfile,
+    profile: embedClampProfile(),
     lines: lineByKey[synopsisKey],
   });
 

@@ -3,7 +3,9 @@ import { createPublicVisibilityRuntime } from "../lib/public-visibility-runtime.
 import { assertRequiredDependencies } from "./assert-required-dependencies.js";
 
 const PUBLIC_RUNTIME_DEPENDENCY_KEYS = [
+  "buildProjectOgRevision",
   "buildPublicBootstrapPayload",
+  "buildPublicRoutePayload",
   "buildPublicMediaVariants",
   "buildPublicPostDetail",
   "buildPublicReadableProjects",
@@ -30,10 +32,12 @@ const PUBLIC_RUNTIME_DEPENDENCY_KEYS = [
   "resolveEpisodeLookup",
   "resolveHomeHeroPreloadFromSlide",
   "resolveMetaImageVariantUrl",
+  "resolvePublicDonationsRoutePayload",
   "resolvePostCover",
   "resolvePublicPostCoverPreload",
   "resolvePublicProjectsListPreloads",
   "resolvePublicReaderHeroPreload",
+  "resolvePublicRouteModulePreloads",
   "resolvePublicTeamAvatarPreload",
   "sitemapStaticPublicPaths",
   "stripHtml",
@@ -68,7 +72,9 @@ export const createPublicRuntimeBundle = (dependencies = {}) => {
 
   const publicSiteRuntime = createPublicSiteRuntime({
     bootstrapPwaEnabled: dependencies.bootstrapPwaEnabled,
+    buildProjectOgRevision: dependencies.buildProjectOgRevision,
     buildPublicBootstrapPayload: dependencies.buildPublicBootstrapPayload,
+    buildPublicRoutePayload: dependencies.buildPublicRoutePayload,
     buildPublicMediaVariants: dependencies.buildPublicMediaVariants,
     buildPublicPostDetail: dependencies.buildPublicPostDetail,
     buildPublicTeamMembers: dependencies.buildPublicTeamMembers,
@@ -91,10 +97,12 @@ export const createPublicRuntimeBundle = (dependencies = {}) => {
     resolveBootstrapPwaEnabled: dependencies.resolveBootstrapPwaEnabled,
     resolveHomeHeroPreloadFromSlide: dependencies.resolveHomeHeroPreloadFromSlide,
     resolveMetaImageVariantUrl: dependencies.resolveMetaImageVariantUrl,
+    resolvePublicDonationsRoutePayload: dependencies.resolvePublicDonationsRoutePayload,
     resolvePostCover: dependencies.resolvePostCover,
     resolvePublicPostCoverPreload: dependencies.resolvePublicPostCoverPreload,
     resolvePublicProjectsListPreloads: dependencies.resolvePublicProjectsListPreloads,
     resolvePublicReaderHeroPreload: dependencies.resolvePublicReaderHeroPreload,
+    resolvePublicRouteModulePreloads: dependencies.resolvePublicRouteModulePreloads,
     resolvePublicTeamAvatarPreload: dependencies.resolvePublicTeamAvatarPreload,
     sitemapStaticPublicPaths: dependencies.sitemapStaticPublicPaths,
     stripHtml: dependencies.stripHtml,

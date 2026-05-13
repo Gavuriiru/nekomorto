@@ -6,7 +6,7 @@ import {
 
 const safeString = (value) => String(value || "");
 const DAY_KEY_REGEX = /^\d{4}-\d{2}-\d{2}$/;
-const PUBLIC_BOOTSTRAP_PAYLOAD_MODES = new Set(["full", "critical-home"]);
+const PUBLIC_BOOTSTRAP_PAYLOAD_MODES = new Set(["full", "critical-home", "shell"]);
 
 const normalizePublicBootstrapPayloadMode = (value) => {
   const normalized = String(value || "")
@@ -182,8 +182,26 @@ const sanitizeStaffEntries = (items) => {
     .filter(Boolean);
 };
 
+const sanitizeProjectRelations = (relations) =>
+  Array.isArray(relations)
+    ? relations
+        .map((relation) => ({
+          relation: safeString(relation?.relation),
+          title: safeString(relation?.title),
+          format: safeString(relation?.format),
+          status: safeString(relation?.status),
+          image: safeString(relation?.image),
+          anilistId: Number.isFinite(Number(relation?.anilistId))
+            ? Number(relation.anilistId)
+            : undefined,
+          projectId: safeString(relation?.projectId) || undefined,
+        }))
+        .filter((relation) => relation.title || relation.image || relation.projectId)
+    : [];
+
 export const toPublicBootstrapProject = (project) => ({
   id: safeString(project?.id),
+  anilistId: Number.isFinite(Number(project?.anilistId)) ? Number(project.anilistId) : null,
   title: safeString(project?.title),
   titleOriginal: safeString(project?.titleOriginal),
   titleEnglish: safeString(project?.titleEnglish),
@@ -191,12 +209,18 @@ export const toPublicBootstrapProject = (project) => ({
   description: safeString(project?.description),
   type: safeString(project?.type),
   status: safeString(project?.status),
+  year: safeString(project?.year),
   tags: safeStringArray(project?.tags),
   genres: safeStringArray(project?.genres),
   cover: safeString(project?.cover),
   coverAlt: safeString(project?.coverAlt),
   banner: safeString(project?.banner),
   bannerAlt: safeString(project?.bannerAlt),
+  season: safeString(project?.season),
+  schedule: safeString(project?.schedule),
+  rating: safeString(project?.rating),
+  country: safeString(project?.country),
+  source: safeString(project?.source),
   heroImageUrl: safeString(project?.heroImageUrl),
   heroImageAlt: safeString(project?.heroImageAlt),
   heroLogoUrl: safeString(project?.heroLogoUrl),
@@ -207,13 +231,19 @@ export const toPublicBootstrapProject = (project) => ({
   animationStudios: safeStringArray(project?.animationStudios),
   episodes: safeString(project?.episodes),
   producers: safeStringArray(project?.producers),
+  score: Number.isFinite(Number(project?.score)) ? Number(project.score) : null,
+  startDate: safeString(project?.startDate),
+  endDate: safeString(project?.endDate),
   staff: sanitizeStaffEntries(project?.staff),
   animeStaff: sanitizeStaffEntries(project?.animeStaff),
+  relations: sanitizeProjectRelations(project?.relations),
+  readerConfig: project?.readerConfig,
   volumeEntries: sanitizeVolumeEntries(project?.volumeEntries),
   volumeCovers: sanitizeVolumeCovers(project?.volumeCovers),
   episodeDownloads: sanitizeEpisodeDownloads(project?.episodeDownloads),
   views: toSafeNonNegativeInt(project?.views),
   viewsDaily: sanitizeViewsDaily(project?.viewsDaily),
+  commentsCount: toSafeNonNegativeInt(project?.commentsCount),
 });
 
 export const toPublicBootstrapPost = (post) => ({
@@ -333,3 +363,87 @@ export const buildPublicBootstrapPayload = ({
   generatedAt: safeString(generatedAt || new Date().toISOString()),
   payloadMode: normalizePublicBootstrapPayloadMode(payloadMode),
 });
+
+const sanitizeRouteProjectLookup = (value) => {
+  if (!value || typeof value !== "object" || Array.isArray(value)) {
+    return {};
+  }
+  return Object.entries(value).reduce((result, [rawKey, rawValue]) => {
+    const key = safeString(rawKey).trim();
+    const lookupValue = safeString(rawValue).trim();
+    if (!key || !lookupValue) {
+      return result;
+    }
+    result[key] = lookupValue;
+    return result;
+  }, {});
+};
+
+export const buildPublicRoutePayload = ({ kind, generatedAt, ...payload } = {}) => {
+  const normalizedKind = safeString(kind).trim().toLowerCase();
+  const resolvedGeneratedAt = safeString(generatedAt || new Date().toISOString());
+
+  switch (normalizedKind) {
+    case "projects-list":
+      return {
+        kind: "projects-list",
+        generatedAt: resolvedGeneratedAt,
+        projects: Array.isArray(payload.projects) ? payload.projects.map(toPublicBootstrapProject) : [],
+        mediaVariants:
+          payload.mediaVariants && typeof payload.mediaVariants === "object"
+            ? payload.mediaVariants
+            : {},
+        tagTranslations: normalizePublicTagTranslations(payload.tagTranslations),
+      };
+    case "project-detail":
+      return {
+        kind: "project-detail",
+        generatedAt: resolvedGeneratedAt,
+        project: payload.project ? toPublicBootstrapProject(payload.project) : null,
+        revision: safeString(payload.revision),
+        mediaVariants:
+          payload.mediaVariants && typeof payload.mediaVariants === "object"
+            ? payload.mediaVariants
+            : {},
+        relationProjectLookup: sanitizeRouteProjectLookup(payload.relationProjectLookup),
+        tagTranslations: normalizePublicTagTranslations(payload.tagTranslations),
+      };
+    case "team":
+      return {
+        kind: "team",
+        generatedAt: resolvedGeneratedAt,
+        teamMembers: Array.isArray(payload.teamMembers)
+          ? payload.teamMembers.map(toPublicBootstrapTeamMember)
+          : [],
+        teamLinkTypes: Array.isArray(payload.teamLinkTypes)
+          ? payload.teamLinkTypes.map(toPublicBootstrapTeamLinkType)
+          : [],
+        mediaVariants:
+          payload.mediaVariants && typeof payload.mediaVariants === "object"
+            ? payload.mediaVariants
+            : {},
+      };
+    case "donations":
+      return {
+        kind: "donations",
+        generatedAt: resolvedGeneratedAt,
+        pixQrCodeUrl: safeString(payload.pixQrCodeUrl),
+        cryptoQrCodeUrls:
+          payload.cryptoQrCodeUrls &&
+          typeof payload.cryptoQrCodeUrls === "object" &&
+          !Array.isArray(payload.cryptoQrCodeUrls)
+            ? Object.entries(payload.cryptoQrCodeUrls).reduce((result, [rawKey, rawValue]) => {
+                const key = safeString(rawKey).trim();
+                const value = safeString(rawValue).trim();
+                if (!key || !value) {
+                  return result;
+                }
+                result[key] = value;
+                return result;
+              }, {})
+            : {},
+      };
+    default:
+      return null;
+  }
+};

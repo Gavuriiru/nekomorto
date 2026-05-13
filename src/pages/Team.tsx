@@ -4,7 +4,11 @@ import PublicPageHero from "@/components/PublicPageHero";
 import PublicUserProfileCard from "@/components/PublicUserProfileCard";
 import { publicPageLayoutTokens } from "@/components/public-page-tokens";
 import { usePageMeta } from "@/hooks/use-page-meta";
-import { useResolvedPublicBootstrap } from "@/hooks/public-bootstrap-provider";
+import {
+  useResolvedPublicBootstrap,
+  useResolvedPublicRoutePayload,
+} from "@/hooks/public-bootstrap-provider";
+import { usePublicBootstrap } from "@/hooks/use-public-bootstrap";
 import { getApiBase } from "@/lib/api-base";
 import { apiFetch } from "@/lib/api-client";
 import { normalizeUploadVariantUrlKey, type UploadMediaVariantsMap } from "@/lib/upload-variants";
@@ -20,18 +24,34 @@ const TEAM_AVATAR_IMAGE_SIZES = "(max-width: 639px) 224px, (max-width: 767px) 24
 
 const Team = () => {
   const apiBase = getApiBase();
-  const bootstrap = useResolvedPublicBootstrap();
+  const windowBootstrap = useResolvedPublicBootstrap();
+  const { data: bootstrapData } = usePublicBootstrap();
+  const bootstrap = bootstrapData || windowBootstrap;
+  const routePayload = useResolvedPublicRoutePayload();
   const hasFullBootstrap = Boolean(bootstrap && bootstrap.payloadMode !== "critical-home");
+  const teamRoutePayload = routePayload?.kind === "team" ? routePayload : null;
   const bootstrapHasTeamSnapshot = Boolean(
     bootstrap &&
       (Array.isArray(bootstrap.teamMembers) ||
         Array.isArray(bootstrap.teamLinkTypes) ||
         (bootstrap.mediaVariants && typeof bootstrap.mediaVariants === "object")),
   );
-  const hasTeamBootstrapSnapshot = hasFullBootstrap && bootstrapHasTeamSnapshot;
-  const bootstrapMembers = hasTeamBootstrapSnapshot ? bootstrap?.teamMembers || [] : [];
-  const bootstrapLinkTypes = hasTeamBootstrapSnapshot ? bootstrap?.teamLinkTypes || [] : [];
-  const bootstrapMediaVariants = hasTeamBootstrapSnapshot ? bootstrap?.mediaVariants || {} : {};
+  const hasTeamBootstrapSnapshot = Boolean(teamRoutePayload) || (hasFullBootstrap && bootstrapHasTeamSnapshot);
+  const bootstrapMembers = teamRoutePayload
+    ? teamRoutePayload.teamMembers
+    : hasTeamBootstrapSnapshot
+      ? bootstrap?.teamMembers || []
+      : [];
+  const bootstrapLinkTypes = teamRoutePayload
+    ? teamRoutePayload.teamLinkTypes
+    : hasTeamBootstrapSnapshot
+      ? bootstrap?.teamLinkTypes || []
+      : [];
+  const bootstrapMediaVariants = teamRoutePayload
+    ? teamRoutePayload.mediaVariants || {}
+    : hasTeamBootstrapSnapshot
+      ? bootstrap?.mediaVariants || {}
+      : {};
   const [members, setMembers] = useState<PublicTeamMember[]>(() => bootstrapMembers);
   const [isLoading, setIsLoading] = useState(() => !hasTeamBootstrapSnapshot);
   const [linkTypes, setLinkTypes] = useState<PublicTeamLinkType[]>(() => bootstrapLinkTypes);
@@ -72,6 +92,23 @@ const Team = () => {
     imageAlt: buildInstitutionalOgImageAlt("team"),
     mediaVariants: pageMediaVariants,
   });
+
+  useEffect(() => {
+    if (teamRoutePayload) {
+      setMembers(teamRoutePayload.teamMembers || []);
+      setLinkTypes(teamRoutePayload.teamLinkTypes || []);
+      setMemberMediaVariants(teamRoutePayload.mediaVariants || {});
+      setIsLoading(false);
+      return;
+    }
+    if (hasFullBootstrap && bootstrapHasTeamSnapshot) {
+      setMembers(bootstrap?.teamMembers || []);
+      setLinkTypes(bootstrap?.teamLinkTypes || []);
+      setMemberMediaVariants(bootstrap?.mediaVariants || {});
+      setIsLoading(false);
+      return;
+    }
+  }, [bootstrap, bootstrapHasTeamSnapshot, hasFullBootstrap, teamRoutePayload]);
 
   useEffect(() => {
     if (hasTeamBootstrapSnapshot) {

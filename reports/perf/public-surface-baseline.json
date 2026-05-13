@@ -5,6 +5,9 @@
   "routeOrder": [
     "home-mobile",
     "projects-mobile",
+    "project-detail-mobile",
+    "team-mobile",
+    "donations-mobile",
     "projects-desktop",
     "reader-post-mobile",
     "reader-chapter-mobile"

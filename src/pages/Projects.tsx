@@ -1,7 +1,9 @@
 import {
   memo,
+  startTransition,
   type ReactNode,
   type RefObject,
+  useDeferredValue,
   useCallback,
   useEffect,
   useMemo,
@@ -24,7 +26,10 @@ import type { Project } from "@/data/projects";
 import { useDynamicSynopsisClamp } from "@/hooks/use-dynamic-synopsis-clamp";
 import { useIsMobile } from "@/hooks/use-mobile";
 import { usePageMeta } from "@/hooks/use-page-meta";
-import { useResolvedPublicBootstrap } from "@/hooks/public-bootstrap-provider";
+import {
+  useResolvedPublicBootstrap,
+  useResolvedPublicRoutePayload,
+} from "@/hooks/public-bootstrap-provider";
 import { getApiBase } from "@/lib/api-base";
 import { apiFetch } from "@/lib/api-client";
 import { prepareProjectBadges, type ProjectBadgeItem } from "@/lib/project-card-layout";
@@ -141,7 +146,7 @@ type ProjectsGridProps = {
 };
 
 const EMPTY_FILTER_OPTIONS: FilterOption[] = [];
-const catalogClampProfile = PUBLIC_PROJECT_CARD_CLAMP_PROFILES.catalog;
+const catalogClampProfile = () => PUBLIC_PROJECT_CARD_CLAMP_PROFILES.catalog;
 
 const buildFilterOption = (value: string, label: string): FilterOption => ({
   value,
@@ -601,27 +606,40 @@ const Projects = () => {
   const apiBase = getApiBase();
   const isMobile = useIsMobile();
   const bootstrap = useResolvedPublicBootstrap();
+  const routePayload = useResolvedPublicRoutePayload();
   const hasFullBootstrap = Boolean(bootstrap && bootstrap.payloadMode !== "critical-home");
+  const projectsRoutePayload = routePayload?.kind === "projects-list" ? routePayload : null;
   const bootstrapProjects = hasFullBootstrap ? ((bootstrap?.projects || []) as Project[]) : [];
   const bootstrapTagTranslations = hasFullBootstrap ? bootstrap?.tagTranslations : null;
   const bootstrapMediaVariants = hasFullBootstrap ? bootstrap?.mediaVariants || {} : {};
-  const [projects, setProjects] = useState<Project[]>(() => bootstrapProjects);
-  const [isLoadingProjects, setIsLoadingProjects] = useState(() => !hasFullBootstrap);
+  const initialProjects = projectsRoutePayload
+    ? (projectsRoutePayload.projects as Project[])
+    : bootstrapProjects;
+  const initialTranslations = projectsRoutePayload?.tagTranslations || bootstrapTagTranslations;
+  const initialProjectsMediaVariants = projectsRoutePayload?.mediaVariants || bootstrapMediaVariants;
+  const [projects, setProjects] = useState<Project[]>(() => initialProjects);
+  const [isLoadingProjects, setIsLoadingProjects] = useState(
+    () => !projectsRoutePayload && !hasFullBootstrap,
+  );
   const [hasProjectsLoadError, setHasProjectsLoadError] = useState(false);
   const [projectsLoadVersion, setProjectsLoadVersion] = useState(0);
+  const [hasCatalogSnapshot, setHasCatalogSnapshot] = useState(
+    () => Boolean(projectsRoutePayload || hasFullBootstrap),
+  );
   const [projectsMediaVariants, setProjectsMediaVariants] = useState<UploadMediaVariantsMap>(
-    () => bootstrapMediaVariants,
+    () => initialProjectsMediaVariants,
   );
   const [tagTranslations, setTagTranslations] = useState<Record<string, string>>(
-    () => bootstrapTagTranslations?.tags || {},
+    () => initialTranslations?.tags || {},
   );
   const [genreTranslations, setGenreTranslations] = useState<Record<string, string>>(
-    () => bootstrapTagTranslations?.genres || {},
+    () => initialTranslations?.genres || {},
   );
   const [searchParams, setSearchParams] = useSearchParams();
   const searchParamsRef = useRef(searchParams);
   const [searchInputValue, setSearchInputValue] = useState(() => searchParams.get("q") || "");
   const [isMobileFiltersOpen, setIsMobileFiltersOpen] = useState(false);
+  const [isClampReady, setIsClampReady] = useState(false);
   const navigate = useNavigate();
   const pageMediaVariants = bootstrap?.mediaVariants || {};
   const projectsPerPage = 16;
@@ -668,7 +686,7 @@ const Projects = () => {
   }, []);
 
   useEffect(() => {
-    if (hasFullBootstrap && projectsLoadVersion === 0) {
+    if ((projectsRoutePayload || hasFullBootstrap) && projectsLoadVersion === 0) {
       return;
     }
     let isActive = true;
@@ -690,11 +708,14 @@ const Projects = () => {
         if (!isActive) {
           return;
         }
-        setProjects(Array.isArray(data.projects) ? data.projects : []);
-        setProjectsMediaVariants(
-          data?.mediaVariants && typeof data.mediaVariants === "object" ? data.mediaVariants : {},
-        );
-        setHasProjectsLoadError(false);
+        startTransition(() => {
+          setProjects(Array.isArray(data.projects) ? data.projects : []);
+          setProjectsMediaVariants(
+            data?.mediaVariants && typeof data.mediaVariants === "object" ? data.mediaVariants : {},
+          );
+          setHasProjectsLoadError(false);
+          setHasCatalogSnapshot(true);
+        });
       } catch {
         if (isActive) {
           setHasProjectsLoadError(true);
@@ -710,10 +731,10 @@ const Projects = () => {
     return () => {
       isActive = false;
     };
-  }, [apiBase, hasFullBootstrap, projectsLoadVersion]);
+  }, [apiBase, hasFullBootstrap, projectsLoadVersion, projectsRoutePayload]);
 
   useEffect(() => {
-    if (hasFullBootstrap && projectsLoadVersion === 0) {
+    if ((projectsRoutePayload || hasFullBootstrap) && projectsLoadVersion === 0) {
       return;
     }
     let isActive = true;
@@ -730,8 +751,10 @@ const Projects = () => {
         if (!isActive) {
           return;
         }
-        setTagTranslations(data.tags || {});
-        setGenreTranslations(data.genres || {});
+        startTransition(() => {
+          setTagTranslations(data.tags || {});
+          setGenreTranslations(data.genres || {});
+        });
       } catch {
         if (isActive) {
           // Preserve the last successful translation snapshot to avoid UI churn.
@@ -743,7 +766,52 @@ const Projects = () => {
     return () => {
       isActive = false;
     };
-  }, [apiBase, hasFullBootstrap, projectsLoadVersion]);
+  }, [apiBase, hasFullBootstrap, projectsLoadVersion, projectsRoutePayload]);
+
+  useEffect(() => {
+    if (!projectsRoutePayload) {
+      return;
+    }
+    setProjects(projectsRoutePayload.projects as Project[]);
+    setProjectsMediaVariants(projectsRoutePayload.mediaVariants || {});
+    setTagTranslations(projectsRoutePayload.tagTranslations?.tags || {});
+    setGenreTranslations(projectsRoutePayload.tagTranslations?.genres || {});
+    setIsLoadingProjects(false);
+    setHasProjectsLoadError(false);
+    setHasCatalogSnapshot(true);
+  }, [projectsRoutePayload]);
+
+  useEffect(() => {
+    if (!hasFullBootstrap || projectsRoutePayload) {
+      return;
+    }
+    setProjects(bootstrapProjects);
+    setProjectsMediaVariants(bootstrapMediaVariants);
+    setTagTranslations(bootstrapTagTranslations?.tags || {});
+    setGenreTranslations(bootstrapTagTranslations?.genres || {});
+    setIsLoadingProjects(false);
+    setHasProjectsLoadError(false);
+    setHasCatalogSnapshot(true);
+  }, [
+    bootstrapMediaVariants,
+    bootstrapProjects,
+    bootstrapTagTranslations?.genres,
+    bootstrapTagTranslations?.tags,
+    hasFullBootstrap,
+    projectsRoutePayload,
+  ]);
+
+  useEffect(() => {
+    if (typeof window === "undefined") {
+      return;
+    }
+    const animationFrameId = window.requestAnimationFrame(() => {
+      setIsClampReady(true);
+    });
+    return () => {
+      window.cancelAnimationFrame(animationFrameId);
+    };
+  }, []);
 
   useEffect(() => {
     const legacyGenre = searchParams.get("genre");
@@ -777,14 +845,21 @@ const Projects = () => {
     [setSearchParams],
   );
 
+  const deferredProjects = useDeferredValue(projects);
+  const deferredTagTranslations = useDeferredValue(tagTranslations);
+  const deferredGenreTranslations = useDeferredValue(genreTranslations);
+  const isDeferredCatalogPending =
+    deferredProjects !== projects ||
+    deferredTagTranslations !== tagTranslations ||
+    deferredGenreTranslations !== genreTranslations;
   const indexedProjects = useMemo(
     () =>
       buildIndexedPublicProjects({
-        projects,
-        tagTranslations,
-        genreTranslations,
+        projects: deferredProjects,
+        tagTranslations: deferredTagTranslations,
+        genreTranslations: deferredGenreTranslations,
       }),
-    [genreTranslations, projects, tagTranslations],
+    [deferredGenreTranslations, deferredProjects, deferredTagTranslations],
   );
   const letterOptions = ALPHABET_FILTER_OPTIONS;
   const tagOptions = indexedProjects.tagOptions;
@@ -836,22 +911,22 @@ const Projects = () => {
   const resolveCatalogSynopsisMaxLines = useCallback(
     ({ columnWidth, defaultMaxLines }: { columnWidth: number; defaultMaxLines: number }) =>
       resolvePublicProjectCardResponsiveMaxLines({
-        profile: catalogClampProfile,
+        profile: catalogClampProfile(),
         columnWidth,
         defaultMaxLines,
       }),
     [],
   );
   const { rootRef: synopsisRootRef, lineByKey } = useDynamicSynopsisClamp({
-    enabled: paginatedProjects.length > 0,
+    enabled: isClampReady && paginatedProjects.length > 0,
     keys: synopsisKeys,
-    maxLines: catalogClampProfile.defaultMaxLines,
+    maxLines: catalogClampProfile().defaultMaxLines,
     resolveMaxLines: resolveCatalogSynopsisMaxLines,
   });
   const getSynopsisClampState = useCallback(
     (projectId: string) =>
       resolvePublicProjectCardClampState({
-        profile: catalogClampProfile,
+        profile: catalogClampProfile(),
         lines: lineByKey[projectId],
       }),
     [lineByKey],
@@ -878,7 +953,7 @@ const Projects = () => {
   }, [commitSearchParams, searchInputValue, selectedQuery]);
 
   useEffect(() => {
-    if (isLoadingProjects || hasProjectsLoadError) {
+    if (!hasCatalogSnapshot || isLoadingProjects || hasProjectsLoadError || isDeferredCatalogPending) {
       return;
     }
     if (selectedType === "Todos" || typeOptionValues.includes(selectedType)) {
@@ -890,10 +965,18 @@ const Projects = () => {
       },
       { replace: true },
     );
-  }, [commitSearchParams, hasProjectsLoadError, isLoadingProjects, selectedType, typeOptionValues]);
+  }, [
+    commitSearchParams,
+    hasCatalogSnapshot,
+    hasProjectsLoadError,
+    isDeferredCatalogPending,
+    isLoadingProjects,
+    selectedType,
+    typeOptionValues,
+  ]);
 
   useEffect(() => {
-    if (isLoadingProjects || hasProjectsLoadError) {
+    if (!hasCatalogSnapshot || isLoadingProjects || hasProjectsLoadError || isDeferredCatalogPending) {
       return;
     }
     if (selectedTag === "Todas" || tagOptions.some((option) => option.value === selectedTag)) {
@@ -905,10 +988,18 @@ const Projects = () => {
       },
       { replace: true },
     );
-  }, [commitSearchParams, hasProjectsLoadError, isLoadingProjects, selectedTag, tagOptions]);
+  }, [
+    commitSearchParams,
+    hasCatalogSnapshot,
+    hasProjectsLoadError,
+    isDeferredCatalogPending,
+    isLoadingProjects,
+    selectedTag,
+    tagOptions,
+  ]);
 
   useEffect(() => {
-    if (isLoadingProjects || hasProjectsLoadError) {
+    if (!hasCatalogSnapshot || isLoadingProjects || hasProjectsLoadError || isDeferredCatalogPending) {
       return;
     }
     if (
@@ -924,10 +1015,18 @@ const Projects = () => {
       },
       { replace: true },
     );
-  }, [commitSearchParams, genreOptions, hasProjectsLoadError, isLoadingProjects, selectedGenre]);
+  }, [
+    commitSearchParams,
+    genreOptions,
+    hasCatalogSnapshot,
+    hasProjectsLoadError,
+    isDeferredCatalogPending,
+    isLoadingProjects,
+    selectedGenre,
+  ]);
 
   useEffect(() => {
-    if (isLoadingProjects || hasProjectsLoadError) {
+    if (!hasCatalogSnapshot || isLoadingProjects || hasProjectsLoadError || isDeferredCatalogPending) {
       return;
     }
     if (currentPage <= totalPages) {
@@ -943,7 +1042,15 @@ const Projects = () => {
       },
       { replace: true },
     );
-  }, [commitSearchParams, currentPage, hasProjectsLoadError, isLoadingProjects, totalPages]);
+  }, [
+    commitSearchParams,
+    currentPage,
+    hasCatalogSnapshot,
+    hasProjectsLoadError,
+    isDeferredCatalogPending,
+    isLoadingProjects,
+    totalPages,
+  ]);
 
   const handleFilterChange = useCallback(
     (key: "letter" | "tag" | "genero" | "type", value: string, emptyValue: "Todas" | "Todos") => {

@@ -247,6 +247,11 @@ export const generatePublicPrerenderArtifact = async ({
   let publicBootstrap = extractInlineJsonBlock({
     html,
     startMarker: "window.__BOOTSTRAP_PUBLIC__ =",
+    endMarker: "window.__BOOTSTRAP_ROUTE__ =",
+  });
+  const publicRoutePayload = extractInlineJsonBlock({
+    html,
+    startMarker: "window.__BOOTSTRAP_ROUTE__ =",
     endMarker: "window.__BOOTSTRAP_SETTINGS__ =",
   });
   const currentUser = extractInlineJsonBlock({
@@ -265,7 +270,7 @@ export const generatePublicPrerenderArtifact = async ({
       html = replaceInlineJsonBlock({
         html,
         startMarker: "window.__BOOTSTRAP_PUBLIC__ =",
-        endMarker: "window.__BOOTSTRAP_SETTINGS__ =",
+        endMarker: "window.__BOOTSTRAP_ROUTE__ =",
         value: publicBootstrap,
       });
     }
@@ -278,6 +283,7 @@ export const generatePublicPrerenderArtifact = async ({
   const appHtml = await renderRouteToString({
     initialCurrentUser: currentUser,
     initialPublicBootstrap: publicBootstrap,
+    initialPublicRoutePayload: publicRoutePayload,
     pathname: normalizedPathname,
   });
   const documentHtml = injectPrerenderedRootHtml(stripHomeHeroShellArtifacts(html), appHtml);

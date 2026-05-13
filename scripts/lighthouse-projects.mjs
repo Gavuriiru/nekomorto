@@ -34,6 +34,7 @@ const parseArgs = (argv) => {
     url: defaultUrl,
     runs: defaultRuns,
     strict: false,
+    artifactName: null,
   };
 
   argv.forEach((arg) => {
@@ -57,6 +58,11 @@ const parseArgs = (argv) => {
       if (Number.isFinite(parsed) && parsed > 0) {
         args.runs = parsed;
       }
+      return;
+    }
+    if (arg.startsWith("--artifact-name=")) {
+      const artifactName = arg.slice("--artifact-name=".length).trim();
+      args.artifactName = artifactName || null;
     }
   });
 
@@ -115,8 +121,8 @@ const waitForUrl = async (url, timeoutMs = 60_000) => {
   throw new Error(`Timed out waiting for ${url}`);
 };
 
-const runLighthouse = async ({ url, profile, runIndex }) => {
-  const reportPath = path.join(outputDir, `projects-${profile}-run-${runIndex}.json`);
+const runLighthouse = async ({ url, profile, runIndex, artifactName }) => {
+  const reportPath = path.join(outputDir, `${artifactName}-run-${runIndex}.json`);
   const configPath = profileConfigs[profile];
   fs.rmSync(reportPath, { force: true });
   const chromeFlags = "--headless=new --no-sandbox --disable-dev-shm-usage";
@@ -207,7 +213,7 @@ const assertStrictThresholds = (summary) => {
   }
 };
 
-const writeSummary = ({ url, runs, strict, profile, summary }) => {
+const writeSummary = ({ url, runs, strict, profile, artifactName, summary }) => {
   const payload = {
     generatedAt: new Date().toISOString(),
     profile,
@@ -227,7 +233,7 @@ const writeSummary = ({ url, runs, strict, profile, summary }) => {
       reportedMetrics: reportedMetricAuditIds,
     },
   };
-  const summaryPath = path.join(outputDir, `projects-${profile}-summary.json`);
+  const summaryPath = path.join(outputDir, `${artifactName}-summary.json`);
   fs.mkdirSync(outputDir, { recursive: true });
   fs.writeFileSync(summaryPath, JSON.stringify(payload, null, 2));
   return summaryPath;
@@ -235,6 +241,7 @@ const writeSummary = ({ url, runs, strict, profile, summary }) => {
 
 const main = async () => {
   const args = parseArgs(process.argv.slice(2));
+  const artifactName = args.artifactName || `projects-${args.profile}`;
 
   try {
     fs.mkdirSync(outputDir, { recursive: true });
@@ -248,6 +255,7 @@ const main = async () => {
         url: args.url,
         profile: args.profile,
         runIndex: index,
+        artifactName,
       });
       reports.push(report);
     }
@@ -258,6 +266,7 @@ const main = async () => {
       runs: args.runs,
       strict: args.strict,
       profile: args.profile,
+      artifactName,
       summary,
     });
 

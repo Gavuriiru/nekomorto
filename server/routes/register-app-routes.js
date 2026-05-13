@@ -19,6 +19,7 @@ export const registerAppRoutes = ({
   getIndexHtml,
   PUBLIC_BOOTSTRAP_MODE_FULL,
   PUBLIC_BOOTSTRAP_MODE_CRITICAL_HOME,
+  PUBLIC_BOOTSTRAP_MODE_SHELL,
   isHomeHeroShellEnabled,
 } = {}) => {
   app.get("/{*path}", async (req, res) => {
@@ -78,7 +79,7 @@ export const registerAppRoutes = ({
         themeColor,
       });
       const html = shouldInjectPublicBootstrap
-        ? injectPublicBootstrapHtml({
+        ? await injectPublicBootstrapHtml({
             html: renderedHtml,
             req,
             settings,
@@ -86,7 +87,9 @@ export const registerAppRoutes = ({
             includeHeroImagePreload: req.path === "/",
             includeProjectsImagePreloads: req.path === "/projetos",
             bootstrapMode:
-              req.path === "/" ? PUBLIC_BOOTSTRAP_MODE_CRITICAL_HOME : PUBLIC_BOOTSTRAP_MODE_FULL,
+              req.path === "/"
+                ? PUBLIC_BOOTSTRAP_MODE_CRITICAL_HOME
+                : PUBLIC_BOOTSTRAP_MODE_SHELL,
             includeHomeHeroShell: req.path === "/" && isHomeHeroShellEnabled,
           })
         : injectDashboardBootstrapHtml({

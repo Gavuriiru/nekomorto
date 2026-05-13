@@ -10,6 +10,9 @@ The public-surface audit always covers these routes:
 
 - `home-mobile`: `/`
 - `projects-mobile`: `/projetos`
+- `project-detail-mobile`: `/projeto/projeto-teste`
+- `team-mobile`: `/equipe`
+- `donations-mobile`: `/doacoes`
 - `projects-desktop`: `/projetos`
 - `reader-post-mobile`: `/postagem/post-teste`
 - `reader-chapter-mobile`: `/projeto/projeto-teste/leitura/1?volume=2`
@@ -60,9 +63,12 @@ Use a production build and capture one export per flow:
 
 1. Home initial load on `/`
 2. Projects load on `/projetos`
-3. Projects interaction on `/projetos`
-4. Post load on `/postagem/post-teste`
-5. Reader load and chapter navigation on `/projeto/projeto-teste/leitura/1?volume=2`
+3. Project detail load on `/projeto/projeto-teste`
+4. Team load on `/equipe`
+5. Donations load on `/doacoes`
+6. Projects interaction on `/projetos`
+7. Post load on `/postagem/post-teste`
+8. Reader load and chapter navigation on `/projeto/projeto-teste/leitura/1?volume=2`
 
 For the `Projects` interaction flow, include:
 

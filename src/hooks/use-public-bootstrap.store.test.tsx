@@ -249,6 +249,58 @@ describe("usePublicBootstrap store", () => {
     expect(apiFetchMock).toHaveBeenCalledTimes(1);
   });
 
+  it("revalida imediatamente quando o bootstrap inicial vem em modo shell", async () => {
+    (window as Window & { __BOOTSTRAP_PUBLIC__?: unknown }).__BOOTSTRAP_PUBLIC__ = {
+      settings: {},
+      pages: { donations: {} },
+      projects: [],
+      posts: [],
+      updates: [],
+      mediaVariants: {},
+      tagTranslations: { tags: {}, genres: {}, staffRoles: {} },
+      generatedAt: "2026-03-05T00:00:00.000Z",
+      payloadMode: "shell",
+    };
+
+    apiFetchMock.mockResolvedValueOnce(
+      createJsonResponse(true, {
+        settings: {},
+        pages: { donations: { heroTitle: "Doacoes completas" } },
+        projects: [{ id: "project-full", title: "Projeto Completo" }],
+        posts: [],
+        updates: [],
+        mediaVariants: {},
+        tagTranslations: { tags: {}, genres: {}, staffRoles: {} },
+        generatedAt: "2026-03-05T00:01:00.000Z",
+        payloadMode: "full",
+      }),
+    );
+
+    const { usePublicBootstrap } = await loadHookModule();
+
+    const Harness = () => {
+      const { data, isHydratingFullPayload } = usePublicBootstrap();
+      return (
+        <div data-testid="hook">
+          {data?.pages?.donations?.heroTitle || "none"}|{isHydratingFullPayload ? "hydrating" : "full"}
+        </div>
+      );
+    };
+
+    render(<Harness />);
+
+    await waitFor(() => {
+      expect(screen.getByTestId("hook")).toHaveTextContent("Doacoes completas|full");
+    });
+
+    const windowBootstrap = (window as Window & { __BOOTSTRAP_PUBLIC__?: unknown })
+      .__BOOTSTRAP_PUBLIC__ as { pages?: { donations?: { heroTitle?: string } }; payloadMode?: string };
+
+    expect(windowBootstrap?.payloadMode).toBe("full");
+    expect(windowBootstrap?.pages?.donations?.heroTitle).toBe("Doacoes completas");
+    expect(apiFetchMock).toHaveBeenCalledTimes(1);
+  });
+
   it("preserva inProgressItems ao normalizar o payload buscado", async () => {
     apiFetchMock.mockResolvedValueOnce(
       createJsonResponse(true, {

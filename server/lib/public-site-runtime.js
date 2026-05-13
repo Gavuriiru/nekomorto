@@ -1,11 +1,23 @@
+import {
+  PUBLIC_ROUTE_KIND_DONATIONS,
+  PUBLIC_ROUTE_KIND_POST,
+  PUBLIC_ROUTE_KIND_PROJECT_DETAIL,
+  PUBLIC_ROUTE_KIND_PROJECT_READING,
+  PUBLIC_ROUTE_KIND_PROJECTS_LIST,
+  PUBLIC_ROUTE_KIND_TEAM,
+  resolvePublicRouteKind,
+} from "../../shared/public-route-registry.js";
 import { resolvePublicPathIndexability } from "./public-indexability.js";
 import { buildPublicSeoSnapshot } from "./public-seo-snapshot.js";
 
 export const PUBLIC_BOOTSTRAP_MODE_FULL = "full";
 export const PUBLIC_BOOTSTRAP_MODE_CRITICAL_HOME = "critical-home";
+export const PUBLIC_BOOTSTRAP_MODE_SHELL = "shell";
 
 const REQUIRED_DEPENDENCY_KEYS = [
+  "buildProjectOgRevision",
   "buildPublicBootstrapPayload",
+  "buildPublicRoutePayload",
   "buildPublicMediaVariants",
   "buildPublicPostDetail",
   "buildPublicTeamMembers",
@@ -27,6 +39,8 @@ const REQUIRED_DEPENDENCY_KEYS = [
   "primaryAppOrigin",
   "resolveHomeHeroPreloadFromSlide",
   "resolveMetaImageVariantUrl",
+  "resolvePublicDonationsRoutePayload",
+  "resolvePublicRouteModulePreloads",
   "resolvePostCover",
   "resolvePublicPostCoverPreload",
   "resolvePublicProjectsListPreloads",
@@ -50,6 +64,8 @@ export const createPublicSiteRuntime = (dependencies = {}) => {
 
   const {
     buildPublicBootstrapPayload,
+    buildProjectOgRevision,
+    buildPublicRoutePayload,
     buildPublicMediaVariants,
     buildPublicPostDetail,
     buildPublicTeamMembers,
@@ -71,6 +87,8 @@ export const createPublicSiteRuntime = (dependencies = {}) => {
     primaryAppOrigin,
     resolveHomeHeroPreloadFromSlide,
     resolveMetaImageVariantUrl,
+    resolvePublicDonationsRoutePayload,
+    resolvePublicRouteModulePreloads,
     resolvePostCover,
     resolvePublicPostCoverPreload,
     resolvePublicProjectsListPreloads,
@@ -520,6 +538,151 @@ export const createPublicSiteRuntime = (dependencies = {}) => {
     return payload;
   };
 
+  const buildShellPublicBootstrapPayload = ({
+    settings = loadSiteSettings(),
+    pages = loadPages(),
+    generatedAt = new Date().toISOString(),
+  } = {}) => {
+    const normalizedPages = resolvePublicPathIndexability({
+      pathname: "/",
+      pages,
+    }).pages;
+    const payload = buildPublicBootstrapPayload({
+      settings,
+      pages: normalizedPages,
+      projects: [],
+      inProgressItems: [],
+      posts: [],
+      updates: [],
+      teamMembers: [],
+      teamLinkTypes: [],
+      tagTranslations: {
+        tags: {},
+        genres: {},
+        staffRoles: {},
+      },
+      generatedAt,
+      payloadMode: PUBLIC_BOOTSTRAP_MODE_SHELL,
+    });
+    payload.mediaVariants = buildPublicMediaVariants([
+      payload.pages,
+      { image: settings?.site?.defaultShareImage || "" },
+    ]);
+    payload.homeHero = null;
+    return payload;
+  };
+
+  const buildRelationProjectLookup = (projects, relations) => {
+    const relationKeys = new Set();
+    (Array.isArray(relations) ? relations : []).forEach((relation) => {
+      const projectId = String(relation?.projectId || "").trim();
+      const anilistId = String(relation?.anilistId || "").trim();
+      if (projectId) {
+        relationKeys.add(projectId);
+      }
+      if (anilistId) {
+        relationKeys.add(anilistId);
+      }
+    });
+    if (relationKeys.size === 0) {
+      return {};
+    }
+    return (Array.isArray(projects) ? projects : []).reduce((result, project) => {
+      const projectId = String(project?.id || "").trim();
+      const anilistId = String(project?.anilistId || "").trim();
+      if (projectId && relationKeys.has(projectId)) {
+        result[projectId] = projectId;
+      }
+      if (anilistId && relationKeys.has(anilistId)) {
+        result[anilistId] = projectId;
+      }
+      return result;
+    }, {});
+  };
+
+  const buildPublicRouteResponsePayload = async ({
+    generatedAt = new Date().toISOString(),
+    pages = loadPages(),
+    routeKind,
+    routeParams = {},
+    settings = loadSiteSettings(),
+  } = {}) => {
+    switch (routeKind) {
+      case PUBLIC_ROUTE_KIND_PROJECTS_LIST: {
+        const projects = getPublicVisibleProjects();
+        const tagTranslations = loadTagTranslations();
+        return buildPublicRoutePayload({
+          kind: "projects-list",
+          generatedAt,
+          projects,
+          tagTranslations,
+          mediaVariants: buildPublicMediaVariants([projects]),
+        });
+      }
+      case PUBLIC_ROUTE_KIND_PROJECT_DETAIL: {
+        const projects = getPublicVisibleProjects();
+        const project = findBootstrapProjectByRouteSlug(projects, routeParams?.id);
+        if (!project) {
+          return null;
+        }
+        const tagTranslations = loadTagTranslations();
+        const projectPayload = { ...project };
+        return buildPublicRoutePayload({
+          kind: "project-detail",
+          generatedAt,
+          project: projectPayload,
+          revision: buildProjectOgRevision({
+            project: projectPayload,
+            settings,
+            translations: tagTranslations,
+            origin: primaryAppOrigin,
+            resolveVariantUrl: resolveMetaImageVariantUrl,
+          }),
+          relationProjectLookup: buildRelationProjectLookup(projects, project?.relations),
+          tagTranslations,
+          mediaVariants: buildPublicMediaVariants([projectPayload, projectPayload?.relations || []]),
+        });
+      }
+      case PUBLIC_ROUTE_KIND_TEAM: {
+        const teamMembers = buildPublicTeamMembers();
+        const teamLinkTypes = loadLinkTypes();
+        return buildPublicRoutePayload({
+          kind: "team",
+          generatedAt,
+          teamMembers,
+          teamLinkTypes,
+          mediaVariants: buildPublicMediaVariants(
+            [teamMembers, teamLinkTypes],
+            {
+              allowPrivateUrls: teamMembers.map((member) => member?.avatarUrl).filter(Boolean),
+            },
+          ),
+        });
+      }
+      case PUBLIC_ROUTE_KIND_DONATIONS: {
+        const normalizedPages = resolvePublicPathIndexability({
+          pathname: "/doacoes",
+          pages,
+        }).pages;
+        const merchantName =
+          String(settings?.site?.name || settings?.footer?.brandName || "NEKOMATA").trim() ||
+          "NEKOMATA";
+        const donationsRoutePayload = await resolvePublicDonationsRoutePayload({
+          donationsPage: normalizedPages?.donations,
+          merchantName,
+        });
+        return buildPublicRoutePayload({
+          kind: "donations",
+          generatedAt,
+          pixQrCodeUrl: donationsRoutePayload?.pixQrCodeUrl || "",
+          cryptoQrCodeUrls: donationsRoutePayload?.cryptoQrCodeUrls || {},
+        });
+      }
+      default:
+        return null;
+    }
+  };
+
   const injectSeoSnapshotMarkup = ({ html, snapshotHtml }) => {
     const snippet = String(snapshotHtml || "").trim();
     const source = String(html || "");
@@ -833,7 +996,7 @@ export const createPublicSiteRuntime = (dependencies = {}) => {
     };
   };
 
-  const injectPublicBootstrapHtml = ({
+  const injectPublicBootstrapHtml = async ({
     html,
     req,
     settings,
@@ -847,8 +1010,9 @@ export const createPublicSiteRuntime = (dependencies = {}) => {
       pathname: req?.path,
       pages,
     }).pages;
+    const routeKind = resolvePublicRouteKind(req?.path);
     const routeCurrentPostDetail =
-      req?.path?.startsWith("/postagem/") && bootstrapMode === PUBLIC_BOOTSTRAP_MODE_FULL
+      routeKind === PUBLIC_ROUTE_KIND_POST && bootstrapMode === PUBLIC_BOOTSTRAP_MODE_FULL
         ? (() => {
             const routeSlug = String(req?.params?.slug || "").trim();
             if (!routeSlug) {
@@ -860,18 +1024,35 @@ export const createPublicSiteRuntime = (dependencies = {}) => {
             return routePost ? buildPublicPostDetail({ post: routePost, resolvePostCover }) : null;
           })()
         : null;
-    const publicBootstrap = buildPublicBootstrapResponsePayload({
-      settings,
-      pages: normalizedPages,
-      payloadMode: bootstrapMode,
-      currentPostDetail: routeCurrentPostDetail,
-    });
-    const bootstrapProject =
-      req?.path?.startsWith("/projeto/") || req?.path?.startsWith("/projetos/")
-        ? findBootstrapProjectByRouteSlug(publicBootstrap?.projects, req?.params?.id)
+    const publicBootstrap =
+      bootstrapMode === PUBLIC_BOOTSTRAP_MODE_SHELL
+        ? buildShellPublicBootstrapPayload({
+            settings,
+            pages: normalizedPages,
+          })
+        : buildPublicBootstrapResponsePayload({
+            settings,
+            pages: normalizedPages,
+            payloadMode: bootstrapMode,
+            currentPostDetail: routeCurrentPostDetail,
+          });
+    const publicRoutePayload =
+      bootstrapMode === PUBLIC_BOOTSTRAP_MODE_SHELL
+        ? await buildPublicRouteResponsePayload({
+            settings,
+            pages: normalizedPages,
+            routeKind,
+            routeParams: req?.params,
+          })
+        : null;
+    const routeProject =
+      routeKind === PUBLIC_ROUTE_KIND_PROJECT_DETAIL ||
+      routeKind === PUBLIC_ROUTE_KIND_PROJECT_READING ||
+      req?.path?.startsWith("/projetos/")
+        ? findBootstrapProjectByRouteSlug(getPublicVisibleProjects(), req?.params?.id)
         : null;
     const routePost =
-      req?.path?.startsWith("/postagem/") && routeCurrentPostDetail
+      routeKind === PUBLIC_ROUTE_KIND_POST && routeCurrentPostDetail
         ? getPublicVisiblePosts().find(
             (candidate) => String(candidate?.slug || "").trim() === String(req?.params?.slug || ""),
           ) || null
@@ -879,7 +1060,7 @@ export const createPublicSiteRuntime = (dependencies = {}) => {
     const indexability = resolvePublicPathIndexability({
       pathname: req?.path,
       pages: normalizedPages,
-      project: bootstrapProject,
+      project: routeProject,
       post: routePost,
       isReadingRoute: /^\/projeto(?:s)?\/.+\/leitura\/.+/.test(String(req?.path || "")),
     });
@@ -887,6 +1068,7 @@ export const createPublicSiteRuntime = (dependencies = {}) => {
     let nextHtml = injectBootstrapGlobals({
       html,
       publicBootstrap,
+      publicRoutePayload,
       settings,
       publicMe,
       pwaEnabled: false,
@@ -898,8 +1080,22 @@ export const createPublicSiteRuntime = (dependencies = {}) => {
           pathname: req?.path,
           pages: indexability.pages,
           settings,
-          publicBootstrap,
-          project: bootstrapProject,
+          publicBootstrap:
+            publicRoutePayload?.kind === "project-detail" && publicRoutePayload.project
+              ? {
+                  ...publicBootstrap,
+                  projects: [publicRoutePayload.project],
+                  mediaVariants: publicRoutePayload.mediaVariants || publicBootstrap?.mediaVariants,
+                }
+              : publicRoutePayload?.kind === "team"
+                ? {
+                    ...publicBootstrap,
+                    teamMembers: publicRoutePayload.teamMembers,
+                    mediaVariants:
+                      publicRoutePayload.mediaVariants || publicBootstrap?.mediaVariants,
+                  }
+                : publicBootstrap,
+          project: routeProject,
           post: routePost,
           stripHtml,
         }),
@@ -916,19 +1112,34 @@ export const createPublicSiteRuntime = (dependencies = {}) => {
         preloads.push(heroPreload);
       }
     }
+    preloads.push(...resolvePublicRouteModulePreloads(req?.path));
     if (includeProjectsImagePreloads) {
+      const routeProjects =
+        publicRoutePayload?.kind === "projects-list"
+          ? publicRoutePayload.projects
+          : publicBootstrap?.projects;
+      const routeMediaVariants =
+        publicRoutePayload?.kind === "projects-list"
+          ? publicRoutePayload.mediaVariants
+          : publicBootstrap?.mediaVariants;
       preloads.push(
         ...resolvePublicProjectsListPreloads({
-          projects: publicBootstrap?.projects,
-          mediaVariants: publicBootstrap?.mediaVariants,
+          projects: routeProjects,
+          mediaVariants: routeMediaVariants,
           resolveVariantUrl: resolveMetaImageVariantUrl,
         }),
       );
     }
     if (req?.path === "/equipe") {
       const teamAvatarPreload = resolvePublicTeamAvatarPreload({
-        teamMembers: publicBootstrap?.teamMembers,
-        mediaVariants: publicBootstrap?.mediaVariants,
+        teamMembers:
+          publicRoutePayload?.kind === "team"
+            ? publicRoutePayload.teamMembers
+            : publicBootstrap?.teamMembers,
+        mediaVariants:
+          publicRoutePayload?.kind === "team"
+            ? publicRoutePayload.mediaVariants
+            : publicBootstrap?.mediaVariants,
         resolveVariantUrl: resolveMetaImageVariantUrl,
       });
       if (teamAvatarPreload) {
@@ -954,12 +1165,10 @@ export const createPublicSiteRuntime = (dependencies = {}) => {
       const routeProjectId = String(req?.params?.id || "").trim();
       const chapterNumber = Number(req?.params?.chapter);
       const routeVolume = Number(req?.query?.volume);
-      const bootstrapProject = findBootstrapProjectByRouteSlug(
-        publicBootstrap?.projects,
-        routeProjectId,
-      );
       const readingHeroImageUrl = resolveBootstrapReadingHeroImageUrl({
-        project: bootstrapProject,
+        project:
+          routeProject ||
+          findBootstrapProjectByRouteSlug(publicBootstrap?.projects, routeProjectId),
         chapterNumber,
         volume: Number.isFinite(routeVolume) ? routeVolume : undefined,
       });

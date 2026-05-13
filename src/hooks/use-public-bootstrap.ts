@@ -63,6 +63,12 @@ const listeners = new Set<() => void>();
 export const isCriticalHomePayload = (value: PublicBootstrapPayload | null | undefined) =>
   value?.payloadMode === "critical-home";
 
+export const isShellPublicBootstrapPayload = (value: PublicBootstrapPayload | null | undefined) =>
+  value?.payloadMode === "shell";
+
+export const isPartialPublicBootstrapPayload = (value: PublicBootstrapPayload | null | undefined) =>
+  isCriticalHomePayload(value) || isShellPublicBootstrapPayload(value);
+
 const toError = (value: unknown) =>
   value instanceof Error ? value : new Error(String(value || "public_bootstrap_error"));
 
@@ -148,7 +154,7 @@ const buildSnapshot = (): PublicBootstrapSnapshot => ({
   isLoading: publicBootstrapCache.status === "loading" && !publicBootstrapCache.data,
   isFetched: publicBootstrapCache.hasFetched,
   status: publicBootstrapCache.status,
-  isHydratingFullPayload: isCriticalHomePayload(publicBootstrapCache.data),
+  isHydratingFullPayload: isPartialPublicBootstrapPayload(publicBootstrapCache.data),
   lastFetchedAt: publicBootstrapCache.lastFetchedAt,
 });
 
@@ -190,8 +196,13 @@ const normalizePublicBootstrapPayload = (value: unknown): PublicBootstrapPayload
     homeHero: normalizePublicBootstrapHomeHero(data?.homeHero),
     currentPostDetail: data?.currentPostDetail || null,
     generatedAt: String(data?.generatedAt || ""),
-    payloadMode: data?.payloadMode === "critical-home" ? "critical-home" : "full",
-  };
+  payloadMode:
+    data?.payloadMode === "critical-home"
+      ? "critical-home"
+      : data?.payloadMode === "shell"
+        ? "shell"
+        : "full",
+};
 };
 
 const fetchPublicBootstrap = async (apiBase: string): Promise<PublicBootstrapPayload> => {
@@ -212,7 +223,7 @@ const shouldFetchPublicBootstrap = (force = false) => {
   if (!publicBootstrapCache.data) {
     return true;
   }
-  if (isCriticalHomePayload(publicBootstrapCache.data)) {
+  if (isPartialPublicBootstrapPayload(publicBootstrapCache.data)) {
     return true;
   }
   return Date.now() - publicBootstrapCache.lastFetchedAt > PUBLIC_BOOTSTRAP_STALE_TIME_MS;

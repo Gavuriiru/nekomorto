@@ -1,4 +1,4 @@
-import { isCriticalHomePayload, primePublicBootstrapCache } from "@/hooks/use-public-bootstrap";
+import { isPartialPublicBootstrapPayload, primePublicBootstrapCache } from "@/hooks/use-public-bootstrap";
 import { getApiBase } from "@/lib/api-base";
 import { apiFetch } from "@/lib/api-client";
 import { armHomeHeroShellCleanup } from "@/lib/home-hero";
@@ -6,7 +6,7 @@ import { asPublicBootstrapPayload } from "@/lib/public-bootstrap-global";
 import { startPublicFreshnessCoordinator } from "@/lib/public-freshness";
 import { installPwaCleanupReloadBridge, runPwaCleanup } from "@/lib/pwa-cleanup";
 import { installVitePreloadRecovery } from "@/lib/vite-preload-recovery";
-import { createRoot, hydrateRoot } from "react-dom/client";
+import { createRoot } from "react-dom/client";
 import App from "./App.tsx";
 import "./index.css";
 import "./styles/fonts.css";
@@ -101,11 +101,7 @@ const bootstrap = async () => {
       initiallyLoaded={!!initialSettings}
     />
   );
-  if (root.hasChildNodes()) {
-    hydrateRoot(root, appElement);
-  } else {
-    createRoot(root).render(appElement);
-  }
+  createRoot(root).render(appElement);
 
   startPublicFreshnessCoordinator({
     globalWindow: window,
@@ -113,14 +109,16 @@ const bootstrap = async () => {
   });
 
   const needsFullFetch =
-    !initialBootstrap || isCriticalHomePayload(initialBootstrap) || shouldSkipPublicBootstrapFetch;
+    !initialBootstrap ||
+    isPartialPublicBootstrapPayload(initialBootstrap) ||
+    shouldSkipPublicBootstrapFetch;
   if (needsFullFetch) {
     void (async () => {
       try {
         const fetchTimeoutMs = 4000;
 
         const bootstrapPromise = globalWindow.__BOOTSTRAP_PUBLIC_PROMISE__;
-        if (bootstrapPromise && !isCriticalHomePayload(initialBootstrap)) {
+        if (bootstrapPromise && !isPartialPublicBootstrapPayload(initialBootstrap)) {
           const resolved = asPublicBootstrapPayload(
             await Promise.race([
               bootstrapPromise,

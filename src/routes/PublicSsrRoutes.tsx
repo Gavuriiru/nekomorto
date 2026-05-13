@@ -1,3 +1,6 @@
+import { Suspense } from "react";
+
+import AppLoadingFallback from "@/components/AppLoadingFallback";
 import About from "@/pages/About";
 import Donations from "@/pages/Donations";
 import FAQ from "@/pages/FAQ";
@@ -15,22 +18,27 @@ import TermsOfService from "@/pages/TermsOfService";
 
 import { renderPublicRouteTree } from "./public-route-tree";
 
-const PublicSsrRoutes = () =>
-  renderPublicRouteTree({
-    About,
-    Donations,
-    FAQ,
-    Index,
-    Login,
-    NotFound,
-    Post,
-    PrivacyPolicy,
-    Project,
-    ProjectReading,
-    Projects,
-    Recruitment,
-    Team,
-    TermsOfService,
-  });
+const RouteLoadingFallback = () => <AppLoadingFallback label="Carregando..." />;
+
+const PublicSsrRoutes = () => (
+  <Suspense fallback={<RouteLoadingFallback />}>
+    {renderPublicRouteTree({
+      About,
+      Donations,
+      FAQ,
+      Index,
+      Login,
+      NotFound,
+      Post,
+      PrivacyPolicy,
+      Project,
+      ProjectReading,
+      Projects,
+      Recruitment,
+      Team,
+      TermsOfService,
+    })}
+  </Suspense>
+);
 
 export default PublicSsrRoutes;

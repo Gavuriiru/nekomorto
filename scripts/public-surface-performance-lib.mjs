@@ -42,6 +42,9 @@ export const PUBLIC_SURFACE_METRIC_AUDIT_IDS = Object.freeze([
 export const PUBLIC_SURFACE_ROUTE_ORDER = Object.freeze([
   "home-mobile",
   "projects-mobile",
+  "project-detail-mobile",
+  "team-mobile",
+  "donations-mobile",
   "projects-desktop",
   "reader-post-mobile",
   "reader-chapter-mobile",
@@ -50,6 +53,9 @@ export const PUBLIC_SURFACE_ROUTE_ORDER = Object.freeze([
 export const PUBLIC_SURFACE_ROUTE_LABELS = Object.freeze({
   "home-mobile": "Home mobile",
   "projects-mobile": "Projects mobile",
+  "project-detail-mobile": "Project detail mobile",
+  "team-mobile": "Team mobile",
+  "donations-mobile": "Donations mobile",
   "projects-desktop": "Projects desktop",
   "reader-post-mobile": "Reader post mobile",
   "reader-chapter-mobile": "Reader chapter mobile",

@@ -308,6 +308,9 @@ describe("Projects query sync", () => {
     expect(pageShell).toHaveClass("min-h-screen", "text-foreground");
     expect(pageShell).not.toHaveClass("bg-background", "bg-gradient-surface");
 
+    await waitFor(() => {
+      expect(getRenderedProjectCards(container).length).toBeGreaterThan(0);
+    });
     const firstProjectCard = getRenderedProjectCards(container)[0];
     expect(firstProjectCard).toHaveClass(
       "projects-public-card",
@@ -532,17 +535,19 @@ describe("Projects query sync", () => {
 
     const pagination = await screen.findByRole("navigation");
 
-    expect(within(pagination).getByRole("link", { name: "1" })).toBeInTheDocument();
-    expect(within(pagination).getByRole("link", { name: "4" })).toBeInTheDocument();
-    expect(within(pagination).getByRole("link", { name: "5" })).toHaveAttribute(
-      "aria-current",
-      "page",
-    );
-    expect(within(pagination).getByRole("link", { name: "6" })).toBeInTheDocument();
-    expect(within(pagination).getByRole("link", { name: "10" })).toBeInTheDocument();
-    expect(within(pagination).getAllByText("Mais páginas")).toHaveLength(2);
-    expect(within(pagination).queryByRole("link", { name: "2" })).not.toBeInTheDocument();
-    expect(within(pagination).queryByRole("link", { name: "8" })).not.toBeInTheDocument();
+    await waitFor(() => {
+      expect(within(pagination).getByRole("link", { name: "1" })).toBeInTheDocument();
+      expect(within(pagination).getByRole("link", { name: "4" })).toBeInTheDocument();
+      expect(within(pagination).getByRole("link", { name: "5" })).toHaveAttribute(
+        "aria-current",
+        "page",
+      );
+      expect(within(pagination).getByRole("link", { name: "6" })).toBeInTheDocument();
+      expect(within(pagination).getByRole("link", { name: "10" })).toBeInTheDocument();
+      expect(within(pagination).getAllByText("Mais páginas")).toHaveLength(2);
+      expect(within(pagination).queryByRole("link", { name: "2" })).not.toBeInTheDocument();
+      expect(within(pagination).queryByRole("link", { name: "8" })).not.toBeInTheDocument();
+    });
 
     fireEvent.click(within(pagination).getByRole("link", { name: "10" }));
 
@@ -608,9 +613,11 @@ describe("Projects query sync", () => {
     const trigger = screen.getByRole("button", { name: /^Filtros\b/i });
 
     expect(searchInput).toHaveValue("alpha");
-    expect(trigger).toHaveAttribute("aria-expanded", "false");
-    expect(trigger).toHaveTextContent("21");
-    expect(trigger).toHaveTextContent("2 filtros ativos");
+    await waitFor(() => {
+      expect(trigger).toHaveAttribute("aria-expanded", "false");
+      expect(trigger).toHaveTextContent("21");
+      expect(trigger).toHaveTextContent("2 filtros ativos");
+    });
     expect(screen.queryByRole("combobox", { name: "Filtrar por letra" })).not.toBeInTheDocument();
 
     fireEvent.click(trigger);
