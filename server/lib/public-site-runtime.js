@@ -43,6 +43,7 @@ const REQUIRED_DEPENDENCY_KEYS = [
   "resolvePublicRouteModulePreloads",
   "resolvePostCover",
   "resolvePublicPostCoverPreload",
+  "resolveProjectPosterPreload",
   "resolvePublicProjectsListPreloads",
   "resolvePublicReaderHeroPreload",
   "resolvePublicTeamAvatarPreload",
@@ -91,6 +92,7 @@ export const createPublicSiteRuntime = (dependencies = {}) => {
     resolvePublicRouteModulePreloads,
     resolvePostCover,
     resolvePublicPostCoverPreload,
+    resolveProjectPosterPreload,
     resolvePublicProjectsListPreloads,
     resolvePublicReaderHeroPreload,
     resolvePublicTeamAvatarPreload,
@@ -1159,6 +1161,29 @@ export const createPublicSiteRuntime = (dependencies = {}) => {
       });
       if (postCoverPreload) {
         preloads.push(postCoverPreload);
+      }
+    }
+    if (routeKind === PUBLIC_ROUTE_KIND_PROJECT_DETAIL && routeProject) {
+      const heroSrc = String(
+        routeProject.banner || routeProject.heroImageUrl || routeProject.cover || "",
+      ).trim();
+      const coverSrc = String(routeProject.cover || routeProject.banner || "").trim();
+      const bannerPreload = resolvePublicReaderHeroPreload({
+        imageUrl: heroSrc,
+        mediaVariants: publicBootstrap?.mediaVariants,
+        resolveVariantUrl: resolveMetaImageVariantUrl,
+      });
+      if (bannerPreload) {
+        preloads.push(bannerPreload);
+      }
+      const coverPreload = resolveProjectPosterPreload({
+        coverUrl: coverSrc,
+        mediaVariants: publicBootstrap?.mediaVariants,
+        resolveVariantUrl: resolveMetaImageVariantUrl,
+        imagesizes: "(max-width: 767px) 256px, (max-width: 1023px) 320px, 340px",
+      });
+      if (coverPreload) {
+        preloads.push(coverPreload);
       }
     }
     if (/^\/projeto(?:s)?\/.+\/leitura\/.+/.test(String(req?.path || ""))) {

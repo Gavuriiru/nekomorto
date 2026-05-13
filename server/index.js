@@ -218,6 +218,7 @@ import { buildPublicPrerenderBuildFingerprint } from "./lib/public-prerender-bui
 import {
   resolveExistingPublicVariantUrl,
   resolveHomeHeroPreloadFromSlide,
+  resolveProjectPosterPreload,
   resolvePublicPostCoverPreload,
   resolvePublicReaderHeroPreload,
   sanitizePublicMediaVariantEntry,
@@ -1731,6 +1732,7 @@ const publicRuntime = createPublicRuntimeBundle(
     resolveMetaImageVariantUrl,
     resolvePublicDonationsRoutePayload: buildPublicDonationsRoutePayload,
     resolvePostCover,
+    resolveProjectPosterPreload,
     resolvePublicPostCoverPreload,
     resolvePublicProjectsListPreloads,
     resolvePublicReaderHeroPreload,

@@ -127,6 +127,8 @@ const createDeps = (overrides = {}) => ({
   }),
   resolvePublicPostCoverPreload: ({ coverUrl }) =>
     coverUrl ? { href: coverUrl, as: "image" } : null,
+  resolveProjectPosterPreload: ({ coverUrl, imagesizes }) =>
+    coverUrl ? { href: coverUrl, imagesizes, as: "image" } : null,
   resolvePublicProjectsListPreloads: ({ projects }) =>
     Array.isArray(projects) && projects.length
       ? [{ href: "/uploads/project-hero.jpg", as: "image" }]

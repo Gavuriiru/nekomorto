@@ -35,6 +35,7 @@ export const buildPublicRuntimeDependencies = (dependencies = {}) => ({
   resolvePublicDonationsRoutePayload: dependencies.resolvePublicDonationsRoutePayload,
   resolvePublicRouteModulePreloads: dependencies.resolvePublicRouteModulePreloads,
   resolvePostCover: dependencies.resolvePostCover,
+  resolveProjectPosterPreload: dependencies.resolveProjectPosterPreload,
   resolvePublicPostCoverPreload: dependencies.resolvePublicPostCoverPreload,
   resolvePublicProjectsListPreloads: dependencies.resolvePublicProjectsListPreloads,
   resolvePublicReaderHeroPreload: dependencies.resolvePublicReaderHeroPreload,

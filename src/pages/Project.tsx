@@ -1333,18 +1333,19 @@ const ProjectPage = () => {
     <div className="min-h-screen bg-background text-foreground">
       <main>
         <section data-testid="project-hero" className="relative overflow-hidden">
-          <UploadPicture
-            src={heroBannerSrc}
-            alt={heroBannerAlt}
-            preset="hero"
-            mediaVariants={mediaVariants}
-            applyFocalObjectPosition
-            className="absolute inset-0 h-full w-full"
-            imgClassName="h-full w-full object-cover object-center"
-            loading="eager"
-            decoding="async"
-            fetchPriority="high"
-          />
+                  <UploadPicture
+                    src={heroBannerSrc}
+                    alt={heroBannerAlt}
+                    preset="hero"
+                    mediaVariants={mediaVariants}
+                    applyFocalObjectPosition
+                    className="absolute inset-0 h-full w-full"
+                    imgClassName="h-full w-full object-cover object-center"
+                    loading="eager"
+                    decoding="async"
+                    fetchPriority="high"
+                    sizes="100vw"
+                  />
           <div className="absolute inset-0 bg-background/20 backdrop-blur-[1.5px]" />
           <div className="absolute inset-0 bg-linear-to-r from-background/76 via-background/48 to-background/74 md:from-background/66 md:via-background/44 md:to-background/80" />
           <div className="absolute inset-0 bg-linear-to-t from-background via-background/70 to-transparent" />
@@ -1370,13 +1371,14 @@ const ProjectPage = () => {
                   <UploadPicture
                     src={heroCoverSrc}
                     alt={project.title || "Capa do projeto"}
-                    preset="poster"
+                    preset="posterThumb"
                     mediaVariants={mediaVariants}
                     className="block h-full w-full"
                     imgClassName="block h-full w-full object-cover object-center"
                     loading="eager"
                     decoding="async"
                     fetchPriority="high"
+                    sizes="(max-width: 767px) 256px, (max-width: 1023px) 320px, 340px"
                   />
                 </div>
               </div>
