@@ -132,4 +132,13 @@ export const sortByTranslatedLabel = <T>(
   items: T[],
   translator: (item: T) => string,
   locale = "pt-BR",
-) => [...items].sort((a, b) => translator(a).localeCompare(translator(b), locale));
+) => {
+  // ⚡ Bolt Performance Optimization:
+  // 1. Initialize Intl.Collator once (significantly faster than String.prototype.localeCompare)
+  // 2. Use Schwartzian transform to map values once (O(N)), avoiding repeated translation logic during the sort (O(N log N))
+  const collator = new Intl.Collator(locale);
+  return items
+    .map((item) => ({ item, label: translator(item) }))
+    .sort((a, b) => collator.compare(a.label, b.label))
+    .map(({ item }) => item);
+};
