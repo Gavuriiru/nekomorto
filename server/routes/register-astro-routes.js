@@ -2,6 +2,7 @@ export const ASTRO_PUBLIC_ROUTE_PATHS = Object.freeze([
   "/",
   "/projetos",
   "/projeto/:id",
+  "/projeto/:id/leitura/:chapter",
   "/postagem/:slug",
   "/sobre",
   "/faq",
@@ -29,6 +30,7 @@ export const isAstroPublicRoute = (pathname) => {
   return (
     ASTRO_PUBLIC_ROUTE_PATHS.includes(normalized) ||
     /^\/dashboard(?:\/.*)?$/.test(normalized) ||
+    /^\/projeto\/[^/]+\/leitura\/[^/]+$/.test(normalized) ||
     /^\/projeto\/[^/]+$/.test(normalized) ||
     /^\/postagem\/[^/]+$/.test(normalized)
   );

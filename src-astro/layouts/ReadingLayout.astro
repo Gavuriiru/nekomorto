@@ -1,0 +1,94 @@
+---
+import "../../src/index.css";
+import "../../src/styles/fonts.css";
+
+interface Props {
+  canonicalUrl?: string;
+  description: string;
+  image?: string;
+  imageAlt?: string;
+  robots?: string;
+  title: string;
+}
+
+const {
+  canonicalUrl: _canonicalUrlProp = "",
+  description: _description,
+  image: _image = "",
+  imageAlt: _imageAlt = "",
+  robots: _robots = "noindex, nofollow",
+  title: _title,
+} = Astro.props;
+const locals = Astro.locals.nekomata;
+const siteName = String(locals?.siteSettings?.site?.name || "NEKOMATA").trim() || "NEKOMATA";
+const separator = locals?.siteSettings?.site?.titleSeparator || " | ";
+const pageTitle = _title ? `${_title}${separator}${siteName}` : siteName;
+const canonicalUrl =
+  _canonicalUrlProp ||
+  new URL(
+    `${Astro.url.pathname}${Astro.url.search}`,
+    locals?.primaryAppOrigin || Astro.url.origin || "https://nekomata.moe",
+  ).toString();
+const absoluteImage = _image ? new URL(_image, canonicalUrl).toString() : "";
+const bootstrapPublicJson = JSON.stringify(locals?.publicBootstrap ?? null)
+  .replace(/</g, "\\u003C")
+  .replace(/>/g, "\\u003E")
+  .replace(/&/g, "\\u0026")
+  .replace(/\u2028/g, "\\u2028")
+  .replace(/\u2029/g, "\\u2029");
+const bootstrapRouteJson = JSON.stringify(locals?.routePayload ?? null)
+  .replace(/</g, "\\u003C")
+  .replace(/>/g, "\\u003E")
+  .replace(/&/g, "\\u0026")
+  .replace(/\u2028/g, "\\u2028")
+  .replace(/\u2029/g, "\\u2029");
+const bootstrapSettingsJson = JSON.stringify(locals?.siteSettings ?? null)
+  .replace(/</g, "\\u003C")
+  .replace(/>/g, "\\u003E")
+  .replace(/&/g, "\\u0026")
+  .replace(/\u2028/g, "\\u2028")
+  .replace(/\u2029/g, "\\u2029");
+const bootstrapCurrentUserJson = JSON.stringify(locals?.currentUser ?? null)
+  .replace(/</g, "\\u003C")
+  .replace(/>/g, "\\u003E")
+  .replace(/&/g, "\\u0026")
+  .replace(/\u2028/g, "\\u2028")
+  .replace(/\u2029/g, "\\u2029");
+---
+
+<!doctype html>
+<html lang="pt-BR">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>{pageTitle}</title>
+    <meta name="description" content={_description} />
+    <meta name="robots" content={_robots} />
+    <meta name="theme-color" content="hsl(var(--background))" />
+    <meta property="og:title" content={pageTitle} />
+    <meta property="og:description" content={_description} />
+    <meta property="og:type" content="article" />
+    <meta property="og:url" content={canonicalUrl} />
+    <meta property="og:site_name" content={siteName} />
+    <meta property="og:locale" content="pt_BR" />
+    {absoluteImage ? <meta property="og:image" content={absoluteImage} /> : null}
+    {_imageAlt ? <meta property="og:image:alt" content={_imageAlt} /> : null}
+    <meta name="twitter:title" content={pageTitle} />
+    <meta name="twitter:description" content={_description} />
+    <meta name="twitter:card" content={absoluteImage ? "summary_large_image" : "summary"} />
+    {absoluteImage ? <meta name="twitter:image" content={absoluteImage} /> : null}
+    {_imageAlt ? <meta name="twitter:image:alt" content={_imageAlt} /> : null}
+    <link rel="canonical" href={canonicalUrl} />
+    <script is:inline>
+      {`window.__BOOTSTRAP_PUBLIC__ = ${bootstrapPublicJson};
+window.__BOOTSTRAP_ROUTE__ = ${bootstrapRouteJson};
+window.__BOOTSTRAP_SETTINGS__ = ${bootstrapSettingsJson};
+window.__BOOTSTRAP_PUBLIC_ME__ = ${bootstrapCurrentUserJson};
+window.__BOOTSTRAP_PWA_ENABLED__ = false;
+window.__BOOTSTRAP_SKIP_PUBLIC_FETCH__ = true;`}
+    </script>
+  </head>
+  <body class="min-h-screen bg-background text-foreground">
+    <slot />
+  </body>
+</html>

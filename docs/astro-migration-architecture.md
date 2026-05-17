@@ -44,6 +44,11 @@ Hoje o projeto esta em modo **hibrido**:
 
 Rotas atualmente servidas pelo Astro:
 
+- `/`
+- `/projetos`
+- `/projeto/[slug]`
+- `/postagem/[slug]`
+- `/projeto/[slug]/leitura/[chapter]`
 - `/login`
 - `/dashboard/**`
 - `/sobre`
@@ -65,11 +70,8 @@ Essas rotas usam:
 
 ### 3.2 O que continua legado
 
-- home (`/`)
-- listagem de projetos (`/projetos`)
-- pagina de projeto (`/projeto/[slug]`)
-- pagina de postagem (`/postagem/[slug]`)
-- reader (`/projeto/[slug]/leitura/[chapter]`)
+- island React compartilhada da Fase 3 para home, catalogo e detalhes de conteudo
+- core React do reader (`ProjectReading.tsx`, `PublicProjectReader`, `LexicalViewer`, comments)
 - bootstrap publico global (`window.__BOOTSTRAP_*`)
 - prerender incremental legado (`public-prerender-runtime.js`)
 - renderer SSR publico legado (`build-public-ssr.mjs`)
@@ -273,13 +275,13 @@ Regra: evitar `client:load` fora de reader/login/hero.
 | `/recrutamento` | Astro |
 | `/termos-de-uso` | Astro |
 | `/politica-de-privacidade` | Astro |
-| `/dashboard/**` | React legado |
-| `/login` | React legado |
-| `/` | React legado |
-| `/projetos` | React legado |
-| `/projeto/[slug]` | React legado |
-| `/postagem/[slug]` | React legado |
-| `/projeto/[slug]/leitura/[chapter]` | React legado |
+| `/dashboard/**` | Astro host + app React |
+| `/login` | Astro + island React dedicada |
+| `/` | Astro + island React compartilhada |
+| `/projetos` | Astro + island React compartilhada |
+| `/projeto/[slug]` | Astro + island React compartilhada |
+| `/postagem/[slug]` | Astro + island React compartilhada |
+| `/projeto/[slug]/leitura/[chapter]` | Astro shell + island React |
 
 ### 12.2 Ownership alvo
 
@@ -638,5 +640,5 @@ Se uma sessao futura precisar retomar do ponto atual:
 
 - a infraestrutura Astro base ja existe
 - o Express ja serve `/_astro` e despacha sete rotas publicas para o handler Astro
-- o proximo grupo natural de migracao e o catalogo publico:
-  `/`, `/projetos`, `/projeto/[slug]`, `/postagem/[slug]`
+- o proximo grupo natural de migracao e a limpeza da infraestrutura publica legada:
+  `window.__BOOTSTRAP_*`, `seo-snapshot`, `build-public-ssr.mjs`, `prerender-public.mjs`

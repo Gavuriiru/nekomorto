@@ -58,6 +58,7 @@ describe("registerAstroRoutes", () => {
     "/",
     "/projetos",
     "/projeto/projeto-teste",
+    "/projeto/projeto-teste/leitura/1",
     "/postagem/postagem-teste",
     "/sobre",
     "/faq",
@@ -93,7 +94,7 @@ describe("registerAstroRoutes", () => {
     });
     activeServer = started.server;
 
-    const response = await fetch(`${started.baseUrl}/projeto/teste/leitura/1`);
+    const response = await fetch(`${started.baseUrl}/api/public/bootstrap`);
     const body = await response.text();
 
     expect(response.status).toBe(200);

@@ -1752,11 +1752,12 @@ const publicRuntime = createPublicRuntimeBundle(
 
 const { getPublicVisiblePosts, getPublicVisibleProjects } = publicRuntime;
 
-const isAstroPhase3Pathname = (pathname) => {
+const isAstroPublicBootstrapPathname = (pathname) => {
   const normalizedPathname = String(pathname || "").trim() || "/";
   return (
     normalizedPathname === "/" ||
     normalizedPathname === "/projetos" ||
+    /^\/projeto\/[^/]+\/leitura\/[^/]+$/.test(normalizedPathname) ||
     /^\/projeto\/[^/]+$/.test(normalizedPathname) ||
     /^\/postagem\/[^/]+$/.test(normalizedPathname)
   );
@@ -1787,7 +1788,7 @@ const astroPublicRequestHandler = createAstroPublicRequestHandler({
   fs,
   isProduction,
   loadAstroPublicBootstrap: ({ pathname, pages, req, siteSettings }) => {
-    if (!isAstroPhase3Pathname(pathname)) {
+    if (!isAstroPublicBootstrapPathname(pathname)) {
       return null;
     }
     const routeSlug = String(req?.params?.slug || "").trim();

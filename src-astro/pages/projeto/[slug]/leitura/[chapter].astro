@@ -1,0 +1,41 @@
+---
+import ProjectReadingIslandApp from "../../../../components/react/ProjectReadingIslandApp";
+import ReadingLayout from "../../../../layouts/ReadingLayout.astro";
+import { resolveProjectReadingPageMeta } from "../../../../lib/public-reading-meta";
+
+const locals = Astro.locals.nekomata;
+const projectSlug = String(Astro.params.slug || "").trim();
+const parsedChapterNumber = Number(Astro.params.chapter);
+const chapterNumber = Number.isFinite(parsedChapterNumber) ? parsedChapterNumber : NaN;
+const parsedVolume = Number(Astro.url.searchParams.get("volume"));
+const volume = Number.isFinite(parsedVolume) ? parsedVolume : undefined;
+const publicBootstrap = locals?.publicBootstrap || null;
+const _meta = resolveProjectReadingPageMeta({
+  chapterNumber,
+  fallbackOrigin: locals?.primaryAppOrigin || Astro.url.origin,
+  pathname: Astro.url.pathname,
+  projectSlug,
+  publicBootstrap,
+  siteSettings: locals?.siteSettings || null,
+  volume,
+});
+const _location = `${Astro.url.pathname}${Astro.url.search}`;
+---
+
+<ReadingLayout
+  canonicalUrl={_meta.canonicalUrl}
+  description={_meta.description}
+  image={_meta.image}
+  imageAlt={_meta.imageAlt}
+  robots={_meta.robots}
+  title={_meta.title}
+>
+  <ProjectReadingIslandApp
+    client:load
+    initialCurrentUser={locals?.currentUser || null}
+    initialPublicBootstrap={publicBootstrap}
+    initialPublicRoutePayload={locals?.routePayload || null}
+    initialSettings={locals?.siteSettings || null}
+    location={_location}
+  />
+</ReadingLayout>

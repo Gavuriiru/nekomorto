@@ -14,7 +14,7 @@ sequencia, escopo nem criterios de validacao.
 | Fase 2 | concluida | Paginas institucionais Astro puro |
 | Fase 3 | concluida | Home e catalogo publico em ownership Astro |
 | Fase 4 | concluida | Login, dashboard host e fronteira React |
-| Fase 5 | pendente | Reader e islands pesadas |
+| Fase 5 | concluida | Reader e islands pesadas |
 | Fase 6 | pendente | Limpeza de infraestrutura legada |
 | Fase 7 | pendente | Simplificar styles/deps restantes |
 
@@ -27,7 +27,8 @@ sequencia, escopo nem criterios de validacao.
 - integracao `@astrojs/react` habilitada para islands SSR/hidratadas
 - testes de integracao de roteamento funcionando
 - ownership Astro expandido para login e dashboard host
-- 13 rotas/superficies migradas:
+- shell Astro expandido para a leitura publica com reader React preservado
+- 14 rotas/superficies migradas:
   - `/`
   - `/projetos`
   - `/projeto/[slug]`
@@ -41,11 +42,11 @@ sequencia, escopo nem criterios de validacao.
   - `/recrutamento`
   - `/login`
   - `/dashboard/**`
+  - `/projeto/[slug]/leitura/[chapter]`
 
 ### 1.3 O que falta ser feito
 
 - reduzir a ilha React compartilhada das rotas da Fase 3 e mover mais HTML para Astro puro
-- migrar shell de leitura para Astro com reader como island React (Fase 5)
 - remover bootstrap global, seo-snapshot, prerender legado (Fase 6)
 - limpar deps MUI/Emotion, chunking manual, PWA legado (Fase 7)
 
@@ -252,7 +253,7 @@ npm run test
 
 ### Fase 5. Reader e islands pesadas
 
-Status: **pendente**
+Status: **concluida**
 
 Prioridade: P2
 
@@ -260,23 +261,26 @@ Rotas:
 
 - `/projeto/[slug]/leitura/[chapter]`
 
-Objetivo:
+Objetivo concluido:
 
 - migrar o shell de documento para Astro (`ReadingLayout.astro`)
 - manter o reader como island React principal
 
-#### Subetapas recomendadas
+Entregas realizadas:
 
-1. **Manga/webtoon reader**
-   - criar `src-astro/pages/projeto/[slug]/leitura/[chapter].astro`
-   - shell Astro com meta, canonical, robots
-   - reader React como island `client:load`
-   - preservar `@tokagemushi/manga-viewer`, preferencias localStorage, preload de assets
+- `register-astro-routes.js` expandido para `/projeto/:id/leitura/:chapter`
+- `src-astro/pages/projeto/[slug]/leitura/[chapter].astro` criada como entrada Astro da leitura
+- `ReadingLayout.astro` criado para metadata, canonical, robots e bootstrap do shell
+- `ProjectReadingIslandApp.tsx` criado como host React dedicado da leitura
+- `server/index.js` expandido para fornecer `publicBootstrap` completo nas rotas de leitura
 
-2. **Light novel reader**
-   - avaliar se conteudo pode sair server-rendered (HTML puro)
-   - navegacao, comments, polls como islands separadas
-   - se viavel, reduzir JS significativamente vs manga reader
+Pontos preservados:
+
+- `ProjectReading.tsx` continua sendo a fronteira funcional da leitura
+- manga/webtoon continuam com `PublicProjectReader` e preferencias via localStorage
+- light novel continua com `LexicalViewer`, comments e navegacao atuais
+- a rota continua `noindex, nofollow`
+- rollback segue simples: remover o ownership Astro da rota e deixar o legado reassumir
 
 #### Pontos de atencao
 
@@ -289,10 +293,11 @@ Objetivo:
 #### Validacao
 
 ```bash
+npx vitest run src/server/register-astro-routes.test.ts src/server/astro-public-runtime.test.ts
+npm run astro:check
 npm run lint
 npm run typecheck
 npm run build
-npm run test
 npm run lighthouse:reader-pages:mobile
 ```
 
@@ -362,7 +367,7 @@ Releases planejados:
 | Release 1 | paginas legais/institucionais | Fases 1-2 (feito) |
 | Release 2 | home/projetos/projeto/post | Fase 3 |
 | Release 3 | dashboard host + login | Fase 4 |
-| Release 4 | reader shell | Fase 5 |
+| Release 4 | reader shell | Fase 5 (feito) |
 | Release 5 | limpeza final | Fases 6-7 |
 
 Rollback: preservar entrada React/Vite antiga ate a Fase 4; trocar roteamento de
@@ -387,10 +392,6 @@ Cada sessao deve caber num recorte pequeno e reversivel.
 - Dia B: `/projetos`
 - Dia C: `/projeto/[slug]`
 - Dia D: `/postagem/[slug]`
-- Dia E: `/login`
-- Dia F: `/dashboard/[...slug]`
-- Dia G: reader shell manga
-- Dia H: reader shell light novel
 - Dia I: limpeza bootstrap/seo-snapshot
 - Dia J: limpeza prerender/SSR legado
 - Dia K: limpeza deps/styling
@@ -432,9 +433,9 @@ Atualizar esta tabela ao fim de cada marco:
 | `/projetos` | Astro + island React compartilhada | `astro:check` + vitest + build |
 | `/projeto/[slug]` | Astro + island React compartilhada | `astro:check` + vitest + build |
 | `/postagem/[slug]` | Astro + island React compartilhada | `astro:check` + vitest + build |
-| `/login` | React legado | pendente (Fase 4) |
-| `/dashboard/**` | React legado | pendente (Fase 4) |
-| `/projeto/[slug]/leitura/[chapter]` | React legado | pendente (Fase 5) |
+| `/login` | Astro + island React dedicada | `lint` + `typecheck` + `build` + `test` |
+| `/dashboard/**` | Astro host + app React | `lint` + `typecheck` + `build` + `test` |
+| `/projeto/[slug]/leitura/[chapter]` | Astro shell + island React | `astro:check` + vitest + `lint` + `typecheck` + `build` |
 
 ## 10. Criterio para seguir para a proxima fase
 
@@ -452,10 +453,10 @@ So avancar quando a fase anterior tiver:
 
 Se a implementacao for retomada agora, o proximo marco deve ser:
 
-- **Fase 4: login, dashboard host e fronteira React**
+- **Fase 6: limpeza de infraestrutura legada**
 
 Preparacao recomendada antes dela:
 
-1. rodar Lighthouse da Fase 3 e registrar baseline novo se necessario
-2. decidir se `/login` entra como island React `client:load` ou continua legado por mais um ciclo
-3. desenhar o host de `/dashboard/**` sem quebrar chunks, auth e CSS isolado
+1. confirmar que a rota de leitura em Astro passou smoke e Lighthouse sem regressao
+2. mapear quais trechos de `window.__BOOTSTRAP_*` ainda sao realmente necessarios fora do dashboard
+3. remover primeiro o que ja perdeu ownership publico real, sem tocar no que ainda sustenta o app React interno
