@@ -59,6 +59,7 @@ import { registerRootServerRoutes } from "./bootstrap/register-root-server-route
 import { startServerJobs } from "./bootstrap/start-server-jobs.js";
 import { createAdminExportRuntime } from "./lib/admin-export-runtime.js";
 import * as adminExports from "./lib/admin-exports.js";
+import { createAstroPublicRequestHandler } from "./lib/astro-public-runtime.js";
 import {
   filterByDateRange,
   filterExportEntries,
@@ -405,10 +406,15 @@ import {
   buildWebhookTargetLabel,
   validateWebhookUrlForProvider,
 } from "./lib/webhooks/validation.js";
+import { registerAstroRoutes } from "./routes/register-astro-routes.js";
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 const REPO_ROOT_DIR = path.join(__dirname, "..");
+const ASTRO_DIST_DIR = path.join(REPO_ROOT_DIR, "dist-astro");
+const ASTRO_CLIENT_DIR = path.join(ASTRO_DIST_DIR, "client");
+const ASTRO_CLIENT_ASSETS_DIR = path.join(ASTRO_CLIENT_DIR, "_astro");
+const ASTRO_SERVER_ENTRY_PATH = path.join(ASTRO_DIST_DIR, "server", "entry.mjs");
 const PUBLIC_UPLOADS_DIR = path.join(REPO_ROOT_DIR, "public", "uploads");
 const uploadStorageService = createUploadStorageService({
   uploadsDir: PUBLIC_UPLOADS_DIR,
@@ -1749,6 +1755,33 @@ const publicRuntime = createPublicRuntimeBundle(
 const { getPublicVisiblePosts, getPublicVisibleProjects } = publicRuntime;
 
 app.use((req, res, next) => publicPrerenderRuntime.middleware(req, res, next));
+
+const isAstroPublicRuntimeEnabled = isProduction;
+const astroPublicRequestHandler = createAstroPublicRequestHandler({
+  entryFilePath: ASTRO_SERVER_ENTRY_PATH,
+  fs,
+  isProduction,
+  loadPages: () => loadPages(),
+  loadSiteSettings: () => loadSiteSettings(),
+  primaryAppOrigin: PRIMARY_APP_ORIGIN,
+});
+
+if (isAstroPublicRuntimeEnabled && fs.existsSync(ASTRO_CLIENT_ASSETS_DIR)) {
+  app.use(
+    "/_astro",
+    express.static(ASTRO_CLIENT_ASSETS_DIR, {
+      index: false,
+      setHeaders: setStaticCacheHeaders,
+    }),
+  );
+}
+
+if (isAstroPublicRuntimeEnabled) {
+  registerAstroRoutes({
+    app,
+    handleAstroPublicRequest: astroPublicRequestHandler,
+  });
+}
 
 const rootRouteRegistrationDependencies = buildRootServerRegistrationSource({
   adminExports,

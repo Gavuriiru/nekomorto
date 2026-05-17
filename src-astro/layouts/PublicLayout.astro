@@ -1,0 +1,224 @@
+---
+import "../../src/index.css";
+import "../../src/styles/fonts.css";
+import type { SiteSettings } from "../../src/types/site-settings";
+import { buildPublicChromeModel } from "../lib/public-layout";
+
+interface Props {
+  description: string;
+  title: string;
+}
+
+const { description: _description, title: _title } = Astro.props;
+const locals = Astro.locals.nekomata;
+const fallbackSettings: SiteSettings = {
+  site: {
+    name: "NEKOMATA",
+    logoUrl: "",
+    faviconUrl: "",
+    description: "",
+    defaultShareImage: "/placeholder.svg",
+    defaultShareImageAlt: "",
+    titleSeparator: " | ",
+  },
+  theme: {
+    accent: "#9667e0",
+    mode: "dark",
+  },
+  navbar: { links: [] },
+  community: {
+    discordUrl: "",
+    inviteCard: {
+      title: "",
+      subtitle: "",
+      panelTitle: "",
+      panelDescription: "",
+      ctaLabel: "",
+      ctaUrl: "",
+    },
+  },
+  branding: {
+    assets: { symbolUrl: "", wordmarkUrl: "" },
+    overrides: {
+      navbarSymbolUrl: "",
+      footerSymbolUrl: "",
+      navbarWordmarkUrl: "",
+      footerWordmarkUrl: "",
+    },
+    display: { navbar: "symbol-text", footer: "symbol-text" },
+    wordmarkUrl: "",
+    wordmarkUrlNavbar: "",
+    wordmarkUrlFooter: "",
+    wordmarkPlacement: "both",
+    wordmarkEnabled: false,
+  },
+  downloads: { sources: [] },
+  teamRoles: [],
+  footer: {
+    brandName: "NEKOMATA",
+    brandLogoUrl: "",
+    brandDescription: "",
+    columns: [],
+    socialLinks: [],
+    disclaimer: [],
+    highlightTitle: "",
+    highlightDescription: "",
+    copyright: "",
+  },
+  seo: { redirects: [] },
+  reader: {
+    projectTypes: {
+      manga: null as never,
+      webtoon: null as never,
+    },
+  },
+};
+const chrome = buildPublicChromeModel(
+  locals?.siteSettings ?? fallbackSettings,
+);
+const separator = locals?.siteSettings?.site?.titleSeparator || " | ";
+const _pageTitle = _title ? `${_title}${separator}${chrome.siteName}` : chrome.siteName;
+const _canonicalUrl = new URL(
+  Astro.url.pathname,
+  locals?.primaryAppOrigin || Astro.url.origin || "https://nekomata.moe",
+).toString();
+---
+
+<!doctype html>
+<html lang="pt-BR">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>{_pageTitle}</title>
+    <meta name="description" content={_description} />
+    <meta name="robots" content="index, follow" />
+    <meta name="theme-color" content={chrome.themeColor} />
+    <meta property="og:title" content={_pageTitle} />
+    <meta property="og:description" content={_description} />
+    <meta property="og:type" content="website" />
+    <meta property="og:url" content={_canonicalUrl} />
+    <meta property="og:site_name" content={chrome.siteName} />
+    <meta property="og:locale" content="pt_BR" />
+    <meta name="twitter:title" content={_pageTitle} />
+    <meta name="twitter:description" content={_description} />
+    <meta name="twitter:card" content="summary" />
+    <link rel="canonical" href={_canonicalUrl} />
+    {chrome.siteFaviconUrl ? <link rel="icon" href={chrome.siteFaviconUrl} /> : null}
+  </head>
+  <body class="min-h-screen bg-background text-foreground">
+    <div class="flex min-h-screen flex-col bg-background text-foreground">
+      <header class="sticky top-0 z-40 border-b border-border/60 bg-background/85 backdrop-blur-xl">
+        <div class="mx-auto flex max-w-7xl items-center justify-between gap-6 px-6 py-4 md:px-12">
+          <a href="/" class="flex items-center gap-3 text-lg font-black tracking-[0.22em] text-foreground">
+            {
+              chrome.wordmarkUrl ? (
+                <>
+                  <img
+                    src={chrome.wordmarkUrl}
+                    alt={chrome.wordmarkAlt}
+                    class="h-8 w-auto max-w-[220px] object-contain md:h-10 md:max-w-[280px]"
+                  />
+                  <span class="sr-only">{chrome.siteName}</span>
+                </>
+              ) : (
+                chrome.siteName
+              )
+            }
+          </a>
+
+          <nav aria-label="Navegação principal" class="hidden items-center gap-6 text-sm font-medium text-foreground/80 lg:flex">
+            {
+              chrome.navbarLinks.map((item) => (
+                <a
+                  href={item.href}
+                  class:list={[
+                    "transition-colors hover:text-foreground",
+                    Astro.url.pathname === item.href ||
+                    (item.href !== "/" && Astro.url.pathname.startsWith(`${item.href}/`))
+                      ? "font-semibold text-foreground"
+                      : "text-foreground/80",
+                  ]}
+                  target={item.isExternal ? "_blank" : undefined}
+                  rel={item.isExternal ? "noreferrer noopener" : undefined}
+                >
+                  {item.label}
+                </a>
+              ))
+            }
+          </nav>
+        </div>
+      </header>
+
+      <main id="public-main-content" class="flex-1">
+        <slot />
+      </main>
+
+      <footer class="border-t border-border/60 bg-background">
+        <div class="mx-auto grid max-w-7xl gap-10 px-6 pb-12 pt-14 md:px-12 lg:grid-cols-[1.2fr_1fr_1fr_1fr]">
+          <div class="space-y-4">
+            <div class="flex items-center gap-3">
+              {
+                chrome.wordmarkUrl ? (
+                  <img
+                    src={chrome.wordmarkUrl}
+                    alt={chrome.wordmarkAlt}
+                    class="h-10 w-auto max-w-[240px] object-contain md:h-12 md:max-w-[300px]"
+                  />
+                ) : (
+                  <p class="text-3xl font-black tracking-[0.28em] text-foreground">{chrome.brandName}</p>
+                )
+              }
+            </div>
+            <p class="text-sm leading-relaxed text-muted-foreground">{chrome.footerDescription}</p>
+          </div>
+
+          {
+            chrome.footerLinks.map((section) => (
+              <div class="space-y-4">
+                <p class="text-sm font-semibold uppercase tracking-[0.2em] text-muted-foreground">
+                  {section.title}
+                </p>
+                <ul class="space-y-2 text-sm">
+                  {
+                    section.links.map((item) => (
+                      <li>
+                        <a
+                          href={item.href}
+                          class="text-foreground/80 transition-colors hover:text-primary"
+                          target={item.isExternal ? "_blank" : undefined}
+                          rel={item.isExternal ? "noreferrer noopener" : undefined}
+                        >
+                          {item.label}
+                        </a>
+                      </li>
+                    ))
+                  }
+                </ul>
+              </div>
+            ))
+          }
+
+          <div class="flex flex-col gap-3 rounded-2xl border border-primary/20 bg-gradient-card p-5 text-sm text-foreground">
+            <p class="font-semibold text-primary">{chrome.footerHighlightTitle}</p>
+            <p class="text-muted-foreground">{chrome.footerHighlightDescription}</p>
+          </div>
+        </div>
+
+        <div class="border-t border-border/60 bg-background">
+          <div class="mx-auto flex max-w-7xl flex-col gap-3 px-6 py-6 text-xs text-muted-foreground md:flex-row md:items-center md:justify-between md:px-12">
+            <p>{locals?.siteSettings?.footer?.copyright || ""}</p>
+            <div class="flex flex-wrap gap-x-4 gap-y-2">
+              {
+                chrome.legalLinks.map((item) => (
+                  <a href={item.href} class="transition-colors hover:text-foreground">
+                    {item.label}
+                  </a>
+                ))
+              }
+            </div>
+          </div>
+        </div>
+      </footer>
+    </div>
+  </body>
+</html>

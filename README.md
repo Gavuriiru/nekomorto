@@ -23,13 +23,14 @@ O Nekomorto e uma aplicacao web **DB-only**:
 
 - O PostgreSQL e a fonte unica de verdade dos dados.
 - O backend roda em Node.js/Express (`server/index.js`).
-- O frontend React/Vite e servido pelo backend no runtime principal.
+- A superficie publica esta em migracao para um runtime hibrido: o legado React/Vite continua ativo e o Astro ja atende um primeiro slice de rotas publicas.
 - As sessoes HTTP sao persistidas no PostgreSQL com `connect-pg-simple` (tabela padrao `user_sessions`).
 - Uploads podem ser servidos localmente ou via object storage, preservando o contrato publico em `/uploads/...`.
 
 ### 1.3 Mapa rapido do repositorio
 
 - `src/`: app React, paginas, componentes, hooks, rotas, estilos e testes de frontend.
+- `src-astro/`: paginas, layouts e helpers Astro da superficie publica em migracao incremental.
 - `server/`: servidor Express, rotas de API, auth, uploads, analytics, OG images e integracoes operacionais.
 - `shared/`: utilitarios compartilhados entre runtime do servidor e app cliente.
 - `prisma/`: schema, migrations e configuracao do banco.
@@ -46,9 +47,9 @@ O Nekomorto e uma aplicacao web **DB-only**:
 
 ### Producao (`npm run build` + `npm run start`)
 
-- `npm run build` gera o frontend em `dist/`.
+- `npm run build` gera o slice Astro em `dist-astro/` e o frontend legado em `dist/`.
 - `npm run start` sobe o servidor em modo `production`.
-- Em producao, o servidor exige `dist/index.html`; sem build, a inicializacao falha.
+- Em producao, o servidor exige os artefatos de build do runtime hibrido; sem build, a inicializacao falha.
 
 ### Health check
 
@@ -248,8 +249,9 @@ npm run build
 npm run start
 ```
 
-O `build` de producao agora faz tres etapas para a superficie publica:
+O `build` de producao agora faz quatro etapas para a superficie publica:
 
+- gera o bundle Astro em `dist-astro/`
 - gera o bundle cliente em `dist/`
 - gera o renderer SSR publico em `dist-ssr/public/renderer.mjs`
 - tenta semear artefatos HTML prerenderizados via `npm run prerender:public`
@@ -277,6 +279,11 @@ Fluxo recomendado para quem esta trabalhando no produto no dia a dia:
 3. Use `npm run dev:client:local-api` apenas quando precisar isolar o frontend em `5173` consumindo a API local.
 4. Antes de abrir PR, rode pelo menos `npm run lint`, `npm run typecheck`, `npm run test` e `npm run test:a11y`.
 5. Antes de validar publicacao local em modo producao, rode `npm run build` e `npm run api:smoke -- --base=http://localhost:8080`.
+
+Se estiver trabalhando especificamente na migracao da superficie Astro:
+
+- `npm run astro:check`: valida `src-astro/**`
+- `npm run build:astro`: gera apenas o slice Astro
 
 ### 6.5 Qualidade, acessibilidade e auditoria
 
@@ -1232,6 +1239,8 @@ Arquitetura e dados:
 
 - `docs/SCHEMA.md`
 - `docs/DB_MIGRATION_RUNBOOK.md`
+- `docs/astro-migration-architecture.md`
+- `docs/astro-migration-roadmap.md`
 - `ops/postgres/README.md`
 
 Qualidade, acessibilidade e auditoria:

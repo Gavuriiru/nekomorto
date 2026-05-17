@@ -88,6 +88,7 @@ describe("registerAppRoutes", () => {
 
   it.each([
     "/assets/missing.js",
+    "/_astro/layout.css",
     "/foo.css",
     "/@vite/client",
     "/@vite-plugin-pwa/pwa-entry-point-loaded",

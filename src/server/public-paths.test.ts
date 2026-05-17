@@ -11,6 +11,7 @@ describe("public path classification", () => {
 
   it("marks reserved and asset-like paths as non-SPA routes", () => {
     expect(isReservedPublicPath("/assets/index-abc123.js")).toBe(true);
+    expect(isReservedPublicPath("/_astro/layout.css")).toBe(true);
     expect(isReservedPublicPath("/foo.css")).toBe(true);
     expect(isReservedPublicPath("/manifest.webmanifest")).toBe(true);
     expect(isReservedPublicPath("/workbox-abc123.js")).toBe(true);

@@ -3,6 +3,7 @@ const RESERVED_PUBLIC_PREFIXES = [
   "/auth",
   "/uploads",
   "/assets",
+  "/_astro",
   "/pwa",
   "/src",
   "/@vite",

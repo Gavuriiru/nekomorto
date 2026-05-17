@@ -64,13 +64,14 @@ COPY --from=prod-deps /app/node_modules ./node_modules
 COPY --from=build /app/node_modules/.prisma ./node_modules/.prisma
 
 # Copy application code and built assets
-COPY --from=build /app/package.json ./package.json 
+COPY --from=build /app/package.json ./package.json
 COPY --from=build /app/prisma ./prisma
 COPY --from=build /app/prisma.config.ts ./prisma.config.ts
 COPY --from=build /app/scripts ./scripts
 COPY --from=build /app/server ./server
 COPY --from=build /app/shared ./shared
 COPY --from=build /app/dist ./dist
+COPY --from=build /app/dist-astro ./dist-astro
 
 # Create necessary directories and set permissions
 RUN test ! -e /app/node_modules/next && \
