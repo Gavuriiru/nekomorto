@@ -1,3 +1,16 @@
+import {
+  Clapperboard,
+  Copy,
+  Eye,
+  FileImage,
+  FileText,
+  type LucideIcon,
+  PencilLine,
+  Plus,
+  Trash2,
+} from "lucide-react";
+import { useCallback, useDeferredValue, useEffect, useMemo, useRef, useState } from "react";
+import { Link, useNavigate } from "react-router-dom";
 import DashboardShell from "@/components/DashboardShell";
 import DashboardActionButton, {
   default as Button,
@@ -16,6 +29,11 @@ import {
   dashboardStrongSurfaceHoverClassName,
   dashboardSubtleSurfaceHoverClassName,
 } from "@/components/dashboard/dashboard-page-tokens";
+import type {
+  EditorProjectEpisode,
+  ProjectForm,
+  ProjectRecord,
+} from "@/components/dashboard/project-editor/dashboard-projects-editor-types";
 import ProjectEditorDialogShell from "@/components/dashboard/project-editor/ProjectEditorDialogShell";
 import ProjectEditorImageLibraryDialog from "@/components/dashboard/project-editor/ProjectEditorImageLibraryDialog";
 import ProjectEditorImportSection from "@/components/dashboard/project-editor/ProjectEditorImportSection";
@@ -28,11 +46,6 @@ import {
   ProjectEditorConfirmDialog,
   ProjectEditorDeleteDialog,
 } from "@/components/dashboard/project-editor/ProjectEditorSupportDialogs";
-import type {
-  EditorProjectEpisode,
-  ProjectForm,
-  ProjectRecord,
-} from "@/components/dashboard/project-editor/dashboard-projects-editor-types";
 import { DEFAULT_PROJECT_FORMAT_OPTIONS } from "@/components/dashboard/project-editor/project-editor-constants";
 import {
   buildEmptyProjectForm,
@@ -84,19 +97,6 @@ import { resolveEpisodeLookup } from "@/lib/project-episode-key";
 import { isChapterBasedType, isLightNovelType, isMangaType } from "@/lib/project-utils";
 import { buildVolumeCoverKey } from "@/lib/project-volume-cover-key";
 import { reorderItems } from "@/lib/reorder-items";
-import {
-  Clapperboard,
-  Copy,
-  Eye,
-  FileImage,
-  FileText,
-  type LucideIcon,
-  PencilLine,
-  Plus,
-  Trash2,
-} from "lucide-react";
-import { useCallback, useDeferredValue, useEffect, useMemo, useRef, useState } from "react";
-import { Link, useNavigate } from "react-router-dom";
 
 const getDedicatedEditorCtaIcon = (projectType?: string | null): LucideIcon => {
   const normalizedType = String(projectType || "").trim();
@@ -435,7 +435,8 @@ const DashboardProjectsEditor = () => {
       .map((project) => String(project.type || "").trim())
       .filter(Boolean);
     const unique = Array.from(new Set(types));
-    const sorted = unique.sort((a, b) => a.localeCompare(b, "pt-BR"));
+    const collator = new Intl.Collator("pt-BR");
+    const sorted = unique.sort(collator.compare);
     return ["Todos", ...sorted];
   }, [activeProjects]);
   const formatSelectOptions = useMemo(() => {
@@ -444,7 +445,8 @@ const DashboardProjectsEditor = () => {
     const merged = Array.from(
       new Set([...fromApi, ...defaultFormatOptions, currentType].filter(Boolean)),
     );
-    return merged.sort((a, b) => a.localeCompare(b, "pt-BR"));
+    const collator = new Intl.Collator("pt-BR");
+    return merged.sort(collator.compare);
   }, [formState.type, projectTypeOptions]);
 
   useEffect(() => {
@@ -486,13 +488,14 @@ const DashboardProjectsEditor = () => {
       mapped.sort((a, b) => b.timestamp - a.timestamp);
       return mapped.map((w) => w.project);
     }
+    const collator = new Intl.Collator("pt-BR");
     const next = [...filteredProjects];
     if (sortMode === "alpha") {
-      next.sort((a, b) => a.title.localeCompare(b.title, "pt-BR"));
+      next.sort((a, b) => collator.compare(a.title, b.title));
       return next;
     }
     if (sortMode === "status") {
-      next.sort((a, b) => a.status.localeCompare(b.status, "pt-BR"));
+      next.sort((a, b) => collator.compare(a.status, b.status));
       return next;
     }
     if (sortMode === "views") {
@@ -503,7 +506,7 @@ const DashboardProjectsEditor = () => {
       next.sort((a, b) => (b.commentsCount || 0) - (a.commentsCount || 0));
       return next;
     }
-    next.sort((a, b) => a.title.localeCompare(b.title, "pt-BR"));
+    next.sort((a, b) => collator.compare(a.title, b.title));
     return next;
   }, [filteredProjects, sortMode]);
   const projectsPerPage = 10;
