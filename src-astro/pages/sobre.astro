@@ -1,0 +1,99 @@
+---
+/* biome-ignore-all lint/correctness/noUnusedVariables: Astro template consumes frontmatter bindings. */
+import type { AboutPageConfig } from "../../src/types/public-pages";
+import { normalizeAboutPublicPage } from "../../shared/public-page-content.js";
+import PublicPageHero from "../components/PublicPageHero.astro";
+import { buildInstitutionalPageMeta } from "../lib/public-page-meta";
+import PublicLayout from "../layouts/PublicLayout.astro";
+
+const locals = Astro.locals.nekomata;
+const about = normalizeAboutPublicPage(locals?.pages?.about) as AboutPageConfig;
+const meta = buildInstitutionalPageMeta({
+  pageKey: "about",
+  pages: locals?.pages,
+  siteSettings: locals?.siteSettings,
+});
+---
+
+<PublicLayout title={meta.title || "Sobre"} description={meta.description} image={meta.image} imageAlt={meta.imageAlt}>
+  <div class="min-h-screen bg-background text-foreground">
+    <main>
+      <PublicPageHero
+        badge={about.heroBadge}
+        title={about.heroTitle}
+        subtitle={about.heroSubtitle}
+        badges={about.heroBadges}
+      />
+
+      {about.highlights.length > 0 || about.manifestoTitle || about.manifestoParagraphs.length > 0 ? (
+        <section class="mx-auto grid w-full max-w-6xl gap-6 px-6 pb-16 pt-10 md:px-10 lg:grid-cols-[0.9fr_1.1fr] reveal" data-reveal>
+          {about.highlights.length > 0 ? (
+            <div class="space-y-4">
+              {about.highlights.map((item) => (
+                <article class="stacked-surface stacked-surface--public stacked-surface--interactive group rounded-2xl border border-border/60 bg-background/60 p-5">
+                  <p class="flex items-center gap-3 text-xs font-semibold uppercase tracking-widest text-muted-foreground">
+                    <span class="h-2 w-2 rounded-full bg-primary/80"></span>
+                    {item.label}
+                  </p>
+                  <p class="mt-2 whitespace-pre-wrap text-sm text-muted-foreground transition-colors duration-300 group-hover:text-foreground/80">
+                    {item.text}
+                  </p>
+                </article>
+              ))}
+            </div>
+          ) : null}
+
+          {about.manifestoTitle || about.manifestoParagraphs.length > 0 ? (
+            <article class="stacked-surface stacked-surface--public stacked-surface--interactive group rounded-2xl border border-border/60 bg-card/80 p-6 md:p-8">
+              {about.manifestoTitle ? (
+                <p class="flex items-center gap-3 text-sm font-semibold uppercase tracking-widest text-muted-foreground">
+                  <span class="h-2 w-2 rounded-full bg-primary/80"></span>
+                  {about.manifestoTitle}
+                </p>
+              ) : null}
+              <div class="mt-5 space-y-5">
+                {about.manifestoParagraphs.map((paragraph) => (
+                  <p class="whitespace-pre-wrap text-sm text-muted-foreground transition-colors duration-300 group-hover:text-foreground/80 md:text-base">
+                    {paragraph}
+                  </p>
+                ))}
+              </div>
+            </article>
+          ) : null}
+        </section>
+      ) : null}
+
+      {about.pillars.length > 0 ? (
+        <section class="mx-auto grid w-full max-w-6xl gap-6 px-6 pb-16 pt-2 md:grid-cols-3 md:px-10 reveal" data-reveal>
+          {about.pillars.map((pillar) => (
+            <article class="stacked-surface stacked-surface--public stacked-surface--interactive group rounded-2xl border border-border/60 bg-card/80 p-6">
+              <p class="flex items-center gap-3 text-sm font-semibold uppercase tracking-widest text-muted-foreground">
+                <span class="h-2 w-2 rounded-full bg-primary/80"></span>
+                {pillar.title}
+              </p>
+              <p class="mt-3 whitespace-pre-wrap text-sm text-muted-foreground transition-colors duration-300 group-hover:text-foreground/80">
+                {pillar.description}
+              </p>
+            </article>
+          ))}
+        </section>
+      ) : null}
+
+      {about.values.length > 0 ? (
+        <section class="mx-auto grid w-full max-w-6xl gap-6 px-6 pb-24 pt-4 md:grid-cols-2 md:px-10 reveal" data-reveal>
+          {about.values.map((value) => (
+            <article class="stacked-surface stacked-surface--public stacked-surface--interactive group rounded-2xl border border-border/60 bg-card/80 p-6">
+              <p class="flex items-center gap-3 text-sm font-semibold uppercase tracking-widest text-muted-foreground">
+                <span class="h-2 w-2 rounded-full bg-primary/80"></span>
+                {value.title}
+              </p>
+              <p class="mt-3 whitespace-pre-wrap text-sm text-muted-foreground transition-colors duration-300 group-hover:text-foreground/80">
+                {value.description}
+              </p>
+            </article>
+          ))}
+        </section>
+      ) : null}
+    </main>
+  </div>
+</PublicLayout>

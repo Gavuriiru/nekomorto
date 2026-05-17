@@ -14,6 +14,8 @@ Fase ja concluida neste repositorio:
   - `/politica-de-privacidade`
 
 Isso significa que o projeto ja esta em **Fase 1 concluida / Fase 2 iniciada**.
+Com a migracao das paginas institucionais, o repositorio agora esta em
+**Fase 2 concluida / Fase 3 iniciada**.
 
 ## 2. Ordem oficial de execucao
 
@@ -69,6 +71,10 @@ Prioridade:
 
 - P0
 
+Status:
+
+- concluida
+
 Rotas:
 
 - `/sobre`
@@ -88,6 +94,14 @@ Entregas esperadas:
 - ownership Astro dessas rotas
 - layout publico compartilhado consolidado
 - meta/canonical/OG declarados no Astro
+
+Escopo concluido:
+
+- `/sobre`
+- `/faq`
+- `/equipe`
+- `/doacoes`
+- `/recrutamento`
 
 Validacao:
 
@@ -265,11 +279,11 @@ Atualizar esta tabela ao fim de cada marco:
 | --- | --- | --- |
 | `/termos-de-uso` | Astro | feito |
 | `/politica-de-privacidade` | Astro | feito |
-| `/sobre` | React legado | pendente |
-| `/faq` | React legado | pendente |
-| `/equipe` | React legado | pendente |
-| `/doacoes` | React legado | pendente |
-| `/recrutamento` | React legado | pendente |
+| `/sobre` | Astro | `npm run astro:check` + vitest Astro |
+| `/faq` | Astro | `npm run astro:check` + vitest Astro |
+| `/equipe` | Astro | `npm run astro:check` + vitest Astro |
+| `/doacoes` | Astro | `npm run astro:check` + vitest Astro |
+| `/recrutamento` | Astro | `npm run astro:check` + vitest Astro |
 | `/` | React legado | pendente |
 | `/projetos` | React legado | pendente |
 | `/projeto/[slug]` | React legado | pendente |
@@ -293,13 +307,11 @@ So avancar quando a fase anterior tiver:
 
 Se a implementacao for retomada agora, o proximo marco deve ser:
 
-- **Fase 2: paginas institucionais Astro puro**
+- **Fase 3: home e catalogo publico**
 
 Ordem recomendada dentro dela:
 
-1. `/sobre`
-2. `/faq`
-3. `/equipe`
-4. `/doacoes`
-5. `/recrutamento`
-
+1. `/`
+2. `/projetos`
+3. `/projeto/[slug]`
+4. `/postagem/[slug]`

@@ -26,6 +26,11 @@ Hoje o projeto esta em modo **hibrido**:
 
 Rotas atualmente servidas pelo Astro:
 
+- `/sobre`
+- `/faq`
+- `/equipe`
+- `/doacoes`
+- `/recrutamento`
 - `/termos-de-uso`
 - `/politica-de-privacidade`
 
@@ -44,7 +49,6 @@ Essas rotas usam:
 - pagina de projeto
 - pagina de postagem
 - login
-- paginas institucionais restantes
 - reader
 - dashboard
 - bootstrap publico global
@@ -113,11 +117,20 @@ Responsabilidades futuras na arquitetura final:
 
 | Grupo | Runtime atual |
 | --- | --- |
+| `/sobre` | Astro |
+| `/faq` | Astro |
+| `/equipe` | Astro |
+| `/doacoes` | Astro |
+| `/recrutamento` | Astro |
 | `/termos-de-uso` | Astro |
 | `/politica-de-privacidade` | Astro |
 | `/dashboard/**` | React legado |
 | `/login` | React legado |
-| demais rotas publicas | React legado |
+| `/` | React legado |
+| `/projetos` | React legado |
+| `/projeto/[slug]` | React legado |
+| `/postagem/[slug]` | React legado |
+| `/projeto/[slug]/leitura/[chapter]` | React legado |
 
 ### 5.2 Ownership alvo
 
@@ -313,7 +326,6 @@ npm run build:astro
 Se uma sessao futura precisar retomar do ponto atual:
 
 - a infraestrutura Astro base ja existe
-- o Express ja serve `/_astro` e despacha duas rotas legais para o handler Astro
-- o proximo grupo natural de migracao e o conjunto institucional:
-  `/sobre`, `/faq`, `/equipe`, `/doacoes`, `/recrutamento`
-
+- o Express ja serve `/_astro` e despacha sete rotas publicas para o handler Astro
+- o proximo grupo natural de migracao e o catalogo publico:
+  `/`, `/projetos`, `/projeto/[slug]`, `/postagem/[slug]`

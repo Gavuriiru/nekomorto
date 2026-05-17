@@ -407,7 +407,11 @@ export const normalizeRecruitmentPublicPage = (value) => {
     heroBadge: resolveTextOrFallback(page.heroBadge, RECRUITMENT_PAGE_DEFAULTS.heroBadge),
     heroTitle: resolveTextOrFallback(page.heroTitle, RECRUITMENT_PAGE_DEFAULTS.heroTitle),
     heroSubtitle: resolveTextOrFallback(page.heroSubtitle, RECRUITMENT_PAGE_DEFAULTS.heroSubtitle),
-    roles: normalizeObjectArray(page.roles, normalizeRecruitmentRole, RECRUITMENT_PAGE_DEFAULTS.roles),
+    roles: normalizeObjectArray(
+      page.roles,
+      normalizeRecruitmentRole,
+      RECRUITMENT_PAGE_DEFAULTS.roles,
+    ),
     ctaTitle: resolveTextOrFallback(page.ctaTitle, RECRUITMENT_PAGE_DEFAULTS.ctaTitle),
     ctaSubtitle: resolveTextOrFallback(page.ctaSubtitle, RECRUITMENT_PAGE_DEFAULTS.ctaSubtitle),
     ctaButtonLabel: resolveTextOrFallback(

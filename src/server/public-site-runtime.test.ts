@@ -298,7 +298,7 @@ describe("public-site-runtime", () => {
     );
 
     const html = await runtime.injectPublicBootstrapHtml({
-      html: "<html><body><div id=\"root\"></div></body></html>",
+      html: '<html><body><div id="root"></div></body></html>',
       req: {
         path: "/faq",
       },
@@ -317,7 +317,7 @@ describe("public-site-runtime", () => {
     const runtime = createPublicSiteRuntime(createDeps());
 
     const html = await runtime.injectPublicBootstrapHtml({
-      html: "<html><body><div id=\"root\"></div></body></html>",
+      html: '<html><body><div id="root"></div></body></html>',
       req: {
         path: "/projeto/project-1/leitura/5",
         params: { id: "project-1", chapter: "5" },

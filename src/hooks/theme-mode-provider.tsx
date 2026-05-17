@@ -119,9 +119,7 @@ export const ThemeModeProvider = ({ children }: { children: ReactNode }) => {
 
   useEffect(() => {
     const storedPreference = readStoredPreference();
-    setPreferenceState((current) =>
-      current === storedPreference ? current : storedPreference,
-    );
+    setPreferenceState((current) => (current === storedPreference ? current : storedPreference));
     setHasSyncedStoredPreference(true);
   }, []);
 

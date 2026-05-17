@@ -92,7 +92,7 @@ describe("public-prerender-runtime", () => {
           [
             "<!doctype html>",
             "<html><head>",
-            '<style data-home-hero-shell-critical>.shell{display:block}</style>',
+            "<style data-home-hero-shell-critical>.shell{display:block}</style>",
             "</head><body>",
             '<div id="home-hero-shell" class="shell">shell</div>',
             '<div id="seo-snapshot">snapshot</div>',
@@ -131,7 +131,7 @@ describe("public-prerender-runtime", () => {
     fs.mkdirSync(path.join(outputDir, "postagem", "slug-antigo"), { recursive: true });
     fs.writeFileSync(
       path.join(outputDir, "postagem", "slug-antigo", "index.html"),
-      "<!doctype html><html><body><div id=\"root\">stale</div></body></html>",
+      '<!doctype html><html><body><div id="root">stale</div></body></html>',
       "utf8",
     );
     writePublicPrerenderManifest({
@@ -193,7 +193,7 @@ describe("public-prerender-runtime", () => {
         "<!doctype html>",
         "<html><head>",
         '<script type="module" src="/assets/index-stale.js"></script>',
-        "</head><body><div id=\"root\">stale</div></body></html>",
+        '</head><body><div id="root">stale</div></body></html>',
       ].join(""),
       "utf8",
     );

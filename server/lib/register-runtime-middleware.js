@@ -304,9 +304,13 @@ export const registerRuntimeMiddleware = ({
     if (method !== "GET" && method !== "HEAD") {
       return next();
     }
-    const canonicalHost = String(primaryAppHost || "").trim().toLowerCase();
+    const canonicalHost = String(primaryAppHost || "")
+      .trim()
+      .toLowerCase();
     const canonicalOrigin = String(primaryAppOrigin || "").trim();
-    const hostname = String(req.hostname || "").trim().toLowerCase();
+    const hostname = String(req.hostname || "")
+      .trim()
+      .toLowerCase();
     if (!canonicalHost || !canonicalOrigin || hostname !== `www.${canonicalHost}`) {
       return next();
     }

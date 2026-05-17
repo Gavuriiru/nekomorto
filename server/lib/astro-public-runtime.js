@@ -1,4 +1,5 @@
 import { pathToFileURL } from "node:url";
+import { buildPublicRoutePayload } from "./public-bootstrap.js";
 
 const toAstroModuleSpecifier = (entryFilePath, isProduction) => {
   const baseUrl = pathToFileURL(entryFilePath).href;
@@ -8,10 +9,72 @@ const toAstroModuleSpecifier = (entryFilePath, isProduction) => {
   return `${baseUrl}?t=${Date.now()}`;
 };
 
+const normalizePathname = (value) => {
+  const pathname = String(value || "").trim();
+  if (!pathname) {
+    return "/";
+  }
+  return pathname.replace(/\/+$/, "") || "/";
+};
+
+export const resolveAstroPublicRoutePayload = async ({
+  pathname,
+  pages,
+  siteSettings,
+  buildPublicMediaVariants,
+  buildPublicTeamMembers,
+  loadLinkTypes,
+  resolvePublicDonationsRoutePayload,
+} = {}) => {
+  const normalizedPathname = normalizePathname(pathname);
+
+  switch (normalizedPathname) {
+    case "/equipe": {
+      if (
+        typeof buildPublicMediaVariants !== "function" ||
+        typeof buildPublicTeamMembers !== "function" ||
+        typeof loadLinkTypes !== "function"
+      ) {
+        return null;
+      }
+      const teamMembers = buildPublicTeamMembers();
+      const teamLinkTypes = loadLinkTypes();
+      return buildPublicRoutePayload({
+        kind: "team",
+        teamMembers,
+        teamLinkTypes,
+        mediaVariants: buildPublicMediaVariants([teamMembers, teamLinkTypes], {
+          allowPrivateUrls: teamMembers.map((member) => member?.avatarUrl).filter(Boolean),
+        }),
+      });
+    }
+    case "/doacoes": {
+      if (typeof resolvePublicDonationsRoutePayload !== "function") {
+        return null;
+      }
+      const merchantName =
+        String(siteSettings?.site?.name || siteSettings?.footer?.brandName || "NEKOMATA").trim() ||
+        "NEKOMATA";
+      const donationsRoutePayload = await resolvePublicDonationsRoutePayload({
+        donationsPage: pages?.donations,
+        merchantName,
+      });
+      return buildPublicRoutePayload({
+        kind: "donations",
+        pixQrCodeUrl: donationsRoutePayload?.pixQrCodeUrl || "",
+        cryptoQrCodeUrls: donationsRoutePayload?.cryptoQrCodeUrls || {},
+      });
+    }
+    default:
+      return null;
+  }
+};
+
 export const createAstroPublicRequestHandler = ({
   entryFilePath,
   fs,
   isProduction,
+  loadAstroRoutePayload,
   loadPages,
   loadSiteSettings,
   primaryAppOrigin,
@@ -44,11 +107,23 @@ export const createAstroPublicRequestHandler = ({
     if (!handler) {
       return next();
     }
+    const pages = typeof loadPages === "function" ? loadPages() : null;
+    const siteSettings = typeof loadSiteSettings === "function" ? loadSiteSettings() : null;
+    const routePayload =
+      typeof loadAstroRoutePayload === "function"
+        ? await loadAstroRoutePayload({
+            pages,
+            pathname: req?.path,
+            req,
+            siteSettings,
+          })
+        : null;
     return handler(req, res, next, {
       nekomata: {
-        pages: typeof loadPages === "function" ? loadPages() : null,
+        pages,
         primaryAppOrigin: String(primaryAppOrigin || "").trim(),
-        siteSettings: typeof loadSiteSettings === "function" ? loadSiteSettings() : null,
+        routePayload,
+        siteSettings,
       },
     });
   };

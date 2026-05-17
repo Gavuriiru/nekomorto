@@ -54,24 +54,29 @@ describe("registerAstroRoutes", () => {
     activeServer = null;
   });
 
-  it.each(["/termos-de-uso", "/politica-de-privacidade"])(
-    "serves Astro-owned legal route %s before the legacy fallback",
-    async (pathname) => {
-      const started = await createTestServer({
-        handleAstroPublicRequest: async (_req, res) => {
-          res.type("html").send("<!doctype html><html><body>astro</body></html>");
-        },
-      });
-      activeServer = started.server;
+  it.each([
+    "/sobre",
+    "/faq",
+    "/equipe",
+    "/doacoes",
+    "/recrutamento",
+    "/termos-de-uso",
+    "/politica-de-privacidade",
+  ])("serves Astro-owned route %s before the legacy fallback", async (pathname) => {
+    const started = await createTestServer({
+      handleAstroPublicRequest: async (_req, res) => {
+        res.type("html").send("<!doctype html><html><body>astro</body></html>");
+      },
+    });
+    activeServer = started.server;
 
-      const response = await fetch(`${started.baseUrl}${pathname}`);
-      const body = await response.text();
+    const response = await fetch(`${started.baseUrl}${pathname}`);
+    const body = await response.text();
 
-      expect(response.status).toBe(200);
-      expect(body).toContain("astro");
-      expect(body).not.toContain("legacy");
-    },
-  );
+    expect(response.status).toBe(200);
+    expect(body).toContain("astro");
+    expect(body).not.toContain("legacy");
+  });
 
   it("falls through to the legacy runtime for non-Astro public routes", async () => {
     const started = await createTestServer({
@@ -81,7 +86,7 @@ describe("registerAstroRoutes", () => {
     });
     activeServer = started.server;
 
-    const response = await fetch(`${started.baseUrl}/sobre`);
+    const response = await fetch(`${started.baseUrl}/login`);
     const body = await response.text();
 
     expect(response.status).toBe(200);

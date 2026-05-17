@@ -3740,7 +3740,9 @@ describe("DashboardProjectChapterEditor", () => {
     });
     openIdentityAccordion();
 
-    const chapterNumberInput = document.getElementById("chapter-number-standard") as HTMLInputElement;
+    const chapterNumberInput = document.getElementById(
+      "chapter-number-standard",
+    ) as HTMLInputElement;
     fireEvent.change(chapterNumberInput, {
       target: { value: "1" },
     });
@@ -3763,7 +3765,9 @@ describe("DashboardProjectChapterEditor", () => {
     });
     openIdentityAccordion();
 
-    const chapterNumberInput = document.getElementById("chapter-number-standard") as HTMLInputElement;
+    const chapterNumberInput = document.getElementById(
+      "chapter-number-standard",
+    ) as HTMLInputElement;
     fireEvent.change(chapterNumberInput, {
       target: { value: "1" },
     });
@@ -3786,7 +3790,9 @@ describe("DashboardProjectChapterEditor", () => {
     });
     openIdentityAccordion();
 
-    const chapterNumberInput = document.getElementById("chapter-number-standard") as HTMLInputElement;
+    const chapterNumberInput = document.getElementById(
+      "chapter-number-standard",
+    ) as HTMLInputElement;
     fireEvent.change(chapterNumberInput, {
       target: { value: "1" },
     });
@@ -3809,7 +3815,9 @@ describe("DashboardProjectChapterEditor", () => {
     });
     openIdentityAccordion();
 
-    const chapterNumberInput = document.getElementById("chapter-number-standard") as HTMLInputElement;
+    const chapterNumberInput = document.getElementById(
+      "chapter-number-standard",
+    ) as HTMLInputElement;
     fireEvent.change(chapterNumberInput, {
       target: { value: "1" },
     });

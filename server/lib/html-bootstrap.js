@@ -284,7 +284,11 @@ export const injectPreloadLinks = ({ html, preloads = [] }) => {
 
   const tags = uniquePreloads.map((entry) => {
     const rel = String(entry.rel || "preload").trim() || "preload";
-    const parts = ['  <link', `rel="${escapeHtmlAttribute(rel)}"`, `href="${escapeHtmlAttribute(entry.href)}"`];
+    const parts = [
+      "  <link",
+      `rel="${escapeHtmlAttribute(rel)}"`,
+      `href="${escapeHtmlAttribute(entry.href)}"`,
+    ];
     if (rel === "preload") {
       parts.push(`as="${escapeHtmlAttribute(entry.as || "fetch")}"`);
     }

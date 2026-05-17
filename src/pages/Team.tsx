@@ -36,7 +36,8 @@ const Team = () => {
         Array.isArray(bootstrap.teamLinkTypes) ||
         (bootstrap.mediaVariants && typeof bootstrap.mediaVariants === "object")),
   );
-  const hasTeamBootstrapSnapshot = Boolean(teamRoutePayload) || (hasFullBootstrap && bootstrapHasTeamSnapshot);
+  const hasTeamBootstrapSnapshot =
+    Boolean(teamRoutePayload) || (hasFullBootstrap && bootstrapHasTeamSnapshot);
   const bootstrapMembers = teamRoutePayload
     ? teamRoutePayload.teamMembers
     : hasTeamBootstrapSnapshot

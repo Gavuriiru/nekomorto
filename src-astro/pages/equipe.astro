@@ -1,0 +1,401 @@
+---
+/* biome-ignore-all lint/correctness/noUnusedVariables: Astro template consumes frontmatter bindings. */
+import "../../src/styles/public-user-profile-card.css";
+
+import { resolveDiscordAvatarRenderUrl } from "../../src/lib/discord-avatar";
+import { normalizeUploadVariantUrlKey } from "../../src/lib/upload-variants";
+import { sanitizePublicHref } from "../../src/lib/url-safety";
+import type { PublicRouteTeamPayload } from "../../src/types/public-bootstrap";
+import type { PublicTeamMember } from "../../src/types/public-team";
+import { buildInstitutionalPageMeta } from "../lib/public-page-meta";
+import PublicLayout from "../layouts/PublicLayout.astro";
+
+const locals = Astro.locals.nekomata;
+const meta = buildInstitutionalPageMeta({
+  pageKey: "team",
+  pages: locals?.pages,
+  siteSettings: locals?.siteSettings,
+});
+
+const routePayload =
+  locals?.routePayload && locals.routePayload.kind === "team"
+    ? (locals.routePayload as PublicRouteTeamPayload)
+    : null;
+
+const teamPage = {
+  heroBadge: "Equipe",
+  heroTitle: "Conheca quem faz o projeto acontecer",
+  heroSubtitle:
+    "Os perfis e redes sociais sao gerenciados pela dashboard. Esta pagina ja sai renderizada pelo Astro.",
+  retiredTitle: "Membros aposentados",
+  retiredSubtitle: "Agradecemos por todas as contribuicoes.",
+  ...(locals?.pages?.team || {}),
+};
+
+const mediaVariants = routePayload?.mediaVariants || {};
+const linkTypes = routePayload?.teamLinkTypes || [];
+const teamMembers = routePayload?.teamMembers || [];
+const linkTypeMap = new Map(linkTypes.map((item) => [String(item.id || "").trim(), item]));
+const favoriteCategories = [
+  { key: "manga", label: "Manga" },
+  { key: "anime", label: "Anime" },
+] as const;
+
+type FavoriteCategoryKey = (typeof favoriteCategories)[number]["key"];
+
+interface ResolvedSocialLink {
+  href: string;
+  label: string;
+  shortLabel: string;
+}
+
+const normalizeStatus = (status: string | null | undefined) =>
+  String(status || "")
+    .trim()
+    .toLowerCase();
+
+const activeMembers = teamMembers
+  .filter((member) => !["retired", "aposentado"].includes(normalizeStatus(member.status)))
+  .sort((left, right) => (Number(left.order) || 0) - (Number(right.order) || 0));
+
+const retiredMembers = teamMembers
+  .filter((member) => ["retired", "aposentado"].includes(normalizeStatus(member.status)))
+  .sort((left, right) => (Number(left.order) || 0) - (Number(right.order) || 0));
+
+const getMemberImageSrc = (member: PublicTeamMember) => {
+  const image = String(member?.avatarUrl || "").trim();
+  if (!image || image === "/placeholder.svg") {
+    return "/placeholder.svg";
+  }
+  const normalizedImage = resolveDiscordAvatarRenderUrl(image, 256) || image;
+  const variantKey = normalizeUploadVariantUrlKey(image);
+  const variantsVersion = Number(mediaVariants?.[variantKey]?.variantsVersion);
+  if (!Number.isFinite(variantsVersion) || variantsVersion <= 0) {
+    return normalizedImage;
+  }
+  const normalizedVersion = Math.floor(variantsVersion);
+  return normalizedImage.includes("?")
+    ? `${normalizedImage}&v=${normalizedVersion}`
+    : `${normalizedImage}?v=${normalizedVersion}`;
+};
+
+const getMemberBadges = (member: PublicTeamMember, retired = false) => {
+  const badges: string[] = [];
+  const roles = Array.isArray(member?.roles)
+    ? member.roles.filter((role): role is string => Boolean(role))
+    : [];
+  const nonOwnerRoles = roles.filter((role) => role !== "Dono");
+  if (retired) {
+    badges.push("Aposentado");
+  }
+  if (roles.includes("Dono")) {
+    badges.push("Dono");
+  } else if (member?.isAdmin) {
+    badges.push("Administrador");
+  }
+  if (nonOwnerRoles.length > 0) {
+    badges.push(...nonOwnerRoles);
+  } else if (!retired && !roles.includes("Dono") && !member?.isAdmin) {
+    badges.push("Membro");
+  }
+  return badges;
+};
+
+const getSocialLinks = (member: PublicTeamMember): ResolvedSocialLink[] =>
+  (Array.isArray(member?.socials) ? member.socials : [])
+    .map((social): ResolvedSocialLink | null => {
+      const href = sanitizePublicHref(social?.href);
+      if (!href) {
+        return null;
+      }
+      const resolvedType = linkTypeMap.get(String(social?.label || ""));
+      const label = String(resolvedType?.label || social?.label || "Link").trim() || "Link";
+      return {
+        href,
+        label,
+        shortLabel: label.slice(0, 2).toUpperCase(),
+      };
+    })
+    .filter((social): social is ResolvedSocialLink => Boolean(social));
+
+const getFavoriteWorks = (member: PublicTeamMember, key: FavoriteCategoryKey): string[] => {
+  const rawItems =
+    member?.favoriteWorks && typeof member.favoriteWorks === "object"
+      ? member.favoriteWorks[key]
+      : [];
+  return (Array.isArray(rawItems) ? rawItems : [])
+    .map((item) => String(item || "").trim())
+    .filter(Boolean)
+    .slice(0, 3);
+};
+---
+
+<PublicLayout title={meta.title || "Equipe"} description={meta.description} image={meta.image} imageAlt={meta.imageAlt}>
+  <div class="min-h-screen bg-background text-foreground">
+    <main>
+      <section class="relative overflow-hidden bg-background [background-image:var(--gradient-public-hero)] bg-no-repeat">
+        <div class="relative mx-auto w-full max-w-6xl px-6 pb-8 pt-20 md:px-10 md:pb-10 md:pt-28">
+          <div class="max-w-3xl space-y-4 reveal" data-reveal>
+            <p class="inline-flex rounded-full border border-border/60 bg-secondary px-3 py-1 text-xs font-semibold uppercase tracking-widest text-secondary-foreground animate-fade-in">
+              {teamPage.heroBadge}
+            </p>
+            <h1 class="text-3xl font-semibold text-foreground md:text-5xl animate-slide-up">
+              {teamPage.heroTitle}
+            </h1>
+            <p class="whitespace-pre-wrap text-sm text-muted-foreground md:text-base animate-slide-up" style="animation-delay:0.2s">
+              {teamPage.heroSubtitle}
+            </p>
+          </div>
+        </div>
+      </section>
+
+      <section class="mx-auto w-full max-w-6xl px-6 pb-20 pt-6 md:px-10 reveal" data-reveal>
+        {teamMembers.length === 0 ? (
+          <div class="mt-10 rounded-2xl border border-dashed border-border/60 bg-card/60 px-6 py-10 text-sm text-muted-foreground">
+            Nenhum membro disponivel no momento.
+          </div>
+        ) : (
+          <>
+            {activeMembers.length > 0 ? (
+              <section class="mt-10" aria-labelledby="team-active-members-heading">
+                <h2 id="team-active-members-heading" class="sr-only">Membros ativos</h2>
+                <div class="grid gap-8 md:gap-10">
+                  {activeMembers.map((member) => {
+                    const socialLinks = getSocialLinks(member);
+                    const favoriteLists = favoriteCategories.map((category) =>
+                      getFavoriteWorks(member, category.key),
+                    );
+                    const hasFavoriteWorks = favoriteLists.some((items) => items.length > 0);
+                    return (
+                      <article class="group overflow-hidden rounded-[28px] border border-border/50 bg-card/85 shadow-profile-card transition-colors duration-300 hover:border-primary/60 hover:bg-card/90">
+                        <div class="p-5 sm:p-6">
+                          <div class="flex flex-col gap-5 lg:grid lg:grid-cols-[260px_minmax(0,1fr)] lg:items-stretch">
+                            <div class="relative flex min-h-64 items-center justify-center py-2 sm:min-h-72 lg:min-h-[280px]">
+                              <div class="team-member-avatar-shell relative z-10 h-56 w-56 rounded-full shadow-profile-avatar transition-transform duration-500 group-hover:scale-105 sm:h-60 sm:w-60 md:h-64 md:w-64 lg:h-64 lg:w-64">
+                                <div class="team-member-avatar-frame h-full w-full overflow-hidden rounded-full border border-white/10 bg-background ring-4 ring-background/70">
+                                  <img
+                                    src={getMemberImageSrc(member)}
+                                    alt={member.name}
+                                    class="block h-full w-full object-cover"
+                                    loading="lazy"
+                                    sizes="(max-width: 639px) 224px, (max-width: 767px) 240px, 256px"
+                                  />
+                                </div>
+                              </div>
+                            </div>
+
+                            <div
+                              class:list={[
+                                "team-member-frame flex h-full flex-col gap-4 rounded-2xl border p-5 sm:p-6 lg:p-6",
+                                hasFavoriteWorks ? "team-member-frame--has-favorites" : "",
+                              ]}
+                              data-favorites-open="false"
+                            >
+                              <div class="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
+                                <div class="min-w-0 space-y-3 sm:pr-4">
+                                  <h3 class="break-words text-lg font-semibold text-foreground">{member.name}</h3>
+                                </div>
+                                {socialLinks.length > 0 ? (
+                                  <div class="flex flex-wrap items-center gap-2 sm:justify-end">
+                                    {socialLinks.map((social) => (
+                                      <a
+                                        href={social.href}
+                                        target="_blank"
+                                        rel="noopener noreferrer"
+                                        class="flex min-h-8 min-w-8 items-center justify-center rounded-full border border-primary/15 bg-background/60 px-2 text-[11px] font-semibold uppercase tracking-[0.12em] text-primary/80 transition hover:border-primary/60 hover:text-primary"
+                                        aria-label={social.label}
+                                        title={social.label}
+                                      >
+                                        {social.shortLabel}
+                                      </a>
+                                    ))}
+                                  </div>
+                                ) : null}
+                              </div>
+
+                              {hasFavoriteWorks ? (
+                                <button
+                                  type="button"
+                                  class="team-member-favorites-toggle w-fit rounded-full border border-primary/20 bg-primary/8 px-3 py-1 text-[11px] font-semibold uppercase tracking-[0.12em] text-primary md:hidden"
+                                  data-team-favorites-toggle
+                                  data-open-label="Ver bio"
+                                  data-closed-label="Ver obras favoritas"
+                                  aria-pressed="false"
+                                >
+                                  Ver obras favoritas
+                                </button>
+                              ) : null}
+
+                              <div class="team-member-panel-shell flex flex-col gap-4">
+                                <div class="team-member-panel team-member-panel--bio flex-col gap-4">
+                                  <p class="rounded-2xl border border-primary/10 bg-primary/6 px-3 py-2 text-xs italic leading-6 text-muted-foreground/90">
+                                    {member.phrase ? `"${member.phrase}"` : "-"}
+                                  </p>
+                                  <p class="text-sm leading-7 text-muted-foreground">
+                                    {member.bio || "Sem biografia cadastrada."}
+                                  </p>
+                                  <div class="flex flex-wrap gap-2 pt-1">
+                                    {getMemberBadges(member).map((badge) => (
+                                      <span class="rounded-full border border-border/60 bg-secondary/85 px-2.5 py-1 text-[10px] font-semibold uppercase tracking-[0.14em] text-secondary-foreground">
+                                        {badge}
+                                      </span>
+                                    ))}
+                                  </div>
+                                </div>
+
+                                {hasFavoriteWorks ? (
+                                  <div class="team-member-panel team-member-panel--favorites flex-col gap-3">
+                                    <p class="text-xs font-semibold uppercase tracking-[0.14em] text-primary/90">
+                                      Obras favoritas
+                                    </p>
+                                    <div class="grid gap-3 md:grid-cols-2">
+                                      {favoriteCategories.map((category) => {
+                                        const items = getFavoriteWorks(member, category.key);
+                                        return (
+                                          <div class="space-y-2 rounded-xl border border-primary/15 bg-primary/4 p-3">
+                                            <p class="text-[11px] font-semibold uppercase tracking-[0.12em] text-primary/90">
+                                              {category.label}
+                                            </p>
+                                            {items.length > 0 ? (
+                                              <ul class="space-y-2">
+                                                {items.map((work) => (
+                                                  <li class="rounded-xl border border-primary/15 bg-primary/6 px-3 py-2 text-sm text-foreground/90">
+                                                    {work}
+                                                  </li>
+                                                ))}
+                                              </ul>
+                                            ) : (
+                                              <p class="text-sm text-muted-foreground">Nenhuma obra cadastrada.</p>
+                                            )}
+                                          </div>
+                                        );
+                                      })}
+                                    </div>
+                                  </div>
+                                ) : null}
+
+                                {hasFavoriteWorks ? (
+                                  <p class="team-member-favorites-hint" aria-hidden="true">
+                                    Clique no botao para alternar entre bio e obras favoritas
+                                  </p>
+                                ) : null}
+                              </div>
+                            </div>
+                          </div>
+                        </div>
+                      </article>
+                    );
+                  })}
+                </div>
+              </section>
+            ) : null}
+
+            {retiredMembers.length > 0 ? (
+              <section class="mt-16 space-y-6" aria-labelledby="team-retired-members-heading">
+                <div>
+                  {teamPage.retiredTitle ? (
+                    <h2 id="team-retired-members-heading" class="text-lg font-semibold text-foreground">
+                      {teamPage.retiredTitle}
+                    </h2>
+                  ) : null}
+                  {teamPage.retiredSubtitle ? (
+                    <p class="whitespace-pre-wrap text-sm text-muted-foreground">{teamPage.retiredSubtitle}</p>
+                  ) : null}
+                </div>
+                <div class="mt-8 grid gap-8 md:gap-10">
+                  {retiredMembers.map((member) => {
+                    const socialLinks = getSocialLinks(member);
+                    return (
+                      <article class="group overflow-hidden rounded-[28px] border border-border/35 bg-card/80 shadow-profile-card transition-colors duration-300 hover:border-primary/60 hover:bg-card/85">
+                        <div class="p-5 sm:p-6">
+                          <div class="flex flex-col gap-5 lg:grid lg:grid-cols-[260px_minmax(0,1fr)] lg:items-stretch">
+                            <div class="relative flex min-h-64 items-center justify-center py-2 text-foreground/80 sm:min-h-72 lg:min-h-[280px]">
+                              <div class="team-member-avatar-shell relative z-10 h-56 w-56 rounded-full shadow-profile-avatar transition-transform duration-500 group-hover:scale-105 sm:h-60 sm:w-60 md:h-64 md:w-64 lg:h-64 lg:w-64">
+                                <div class="team-member-avatar-frame h-full w-full overflow-hidden rounded-full border border-white/10 bg-background ring-4 ring-background/70">
+                                  <img
+                                    src={getMemberImageSrc(member)}
+                                    alt={member.name}
+                                    class="block h-full w-full object-cover"
+                                    loading="lazy"
+                                    sizes="(max-width: 639px) 224px, (max-width: 767px) 240px, 256px"
+                                  />
+                                </div>
+                              </div>
+                            </div>
+
+                            <div class="team-member-frame team-member-frame--retired flex h-full flex-col gap-4 rounded-2xl border p-5 sm:p-6 lg:p-6">
+                              <div class="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
+                                <div class="min-w-0 space-y-3 sm:pr-4">
+                                  <h3 class="break-words text-lg font-semibold text-foreground">{member.name}</h3>
+                                </div>
+                                {socialLinks.length > 0 ? (
+                                  <div class="flex flex-wrap items-center gap-2 sm:justify-end">
+                                    {socialLinks.map((social) => (
+                                      <a
+                                        href={social.href}
+                                        target="_blank"
+                                        rel="noopener noreferrer"
+                                        class="flex min-h-8 min-w-8 items-center justify-center rounded-full border border-primary/15 bg-background/60 px-2 text-[11px] font-semibold uppercase tracking-[0.12em] text-primary/80 transition hover:border-primary/60 hover:text-primary"
+                                        aria-label={social.label}
+                                        title={social.label}
+                                      >
+                                        {social.shortLabel}
+                                      </a>
+                                    ))}
+                                  </div>
+                                ) : null}
+                              </div>
+                              <p class="rounded-2xl border border-white/4 bg-white/2 px-3 py-2 text-xs italic leading-6 text-muted-foreground/90">
+                                {member.phrase ? `"${member.phrase}"` : "-"}
+                              </p>
+                              <p class="text-sm leading-7 text-muted-foreground">
+                                {member.bio || "Sem biografia cadastrada."}
+                              </p>
+                              <div class="flex flex-wrap gap-2 pt-1">
+                                {getMemberBadges(member, true).map((badge) => (
+                                  <span class:list={[
+                                    "rounded-full border px-2.5 py-1 text-[10px] font-semibold uppercase tracking-[0.14em]",
+                                    badge === "Aposentado"
+                                      ? "border-primary/25 bg-primary/10 text-primary/90"
+                                      : "border-border/60 bg-secondary/85 text-secondary-foreground",
+                                  ]}>
+                                    {badge}
+                                  </span>
+                                ))}
+                              </div>
+                            </div>
+                          </div>
+                        </div>
+                      </article>
+                    );
+                  })}
+                </div>
+              </section>
+            ) : null}
+          </>
+        )}
+      </section>
+    </main>
+  </div>
+
+  <script is:inline>
+    document.addEventListener("click", (event) => {
+      const button = event.target instanceof Element
+        ? event.target.closest("[data-team-favorites-toggle]")
+        : null;
+      if (!(button instanceof HTMLButtonElement)) {
+        return;
+      }
+      const frame = button.closest(".team-member-frame");
+      if (!(frame instanceof HTMLElement)) {
+        return;
+      }
+      const nextOpen = frame.getAttribute("data-favorites-open") !== "true";
+      frame.setAttribute("data-favorites-open", nextOpen ? "true" : "false");
+      button.setAttribute("aria-pressed", nextOpen ? "true" : "false");
+      button.textContent = nextOpen
+        ? button.getAttribute("data-open-label") || "Ver bio"
+        : button.getAttribute("data-closed-label") || "Ver obras favoritas";
+    });
+  </script>
+</PublicLayout>

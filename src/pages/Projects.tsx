@@ -616,15 +616,16 @@ const Projects = () => {
     ? (projectsRoutePayload.projects as Project[])
     : bootstrapProjects;
   const initialTranslations = projectsRoutePayload?.tagTranslations || bootstrapTagTranslations;
-  const initialProjectsMediaVariants = projectsRoutePayload?.mediaVariants || bootstrapMediaVariants;
+  const initialProjectsMediaVariants =
+    projectsRoutePayload?.mediaVariants || bootstrapMediaVariants;
   const [projects, setProjects] = useState<Project[]>(() => initialProjects);
   const [isLoadingProjects, setIsLoadingProjects] = useState(
     () => !projectsRoutePayload && !hasFullBootstrap,
   );
   const [hasProjectsLoadError, setHasProjectsLoadError] = useState(false);
   const [projectsLoadVersion, setProjectsLoadVersion] = useState(0);
-  const [hasCatalogSnapshot, setHasCatalogSnapshot] = useState(
-    () => Boolean(projectsRoutePayload || hasFullBootstrap),
+  const [hasCatalogSnapshot, setHasCatalogSnapshot] = useState(() =>
+    Boolean(projectsRoutePayload || hasFullBootstrap),
   );
   const [projectsMediaVariants, setProjectsMediaVariants] = useState<UploadMediaVariantsMap>(
     () => initialProjectsMediaVariants,
@@ -953,7 +954,12 @@ const Projects = () => {
   }, [commitSearchParams, searchInputValue, selectedQuery]);
 
   useEffect(() => {
-    if (!hasCatalogSnapshot || isLoadingProjects || hasProjectsLoadError || isDeferredCatalogPending) {
+    if (
+      !hasCatalogSnapshot ||
+      isLoadingProjects ||
+      hasProjectsLoadError ||
+      isDeferredCatalogPending
+    ) {
       return;
     }
     if (selectedType === "Todos" || typeOptionValues.includes(selectedType)) {
@@ -976,7 +982,12 @@ const Projects = () => {
   ]);
 
   useEffect(() => {
-    if (!hasCatalogSnapshot || isLoadingProjects || hasProjectsLoadError || isDeferredCatalogPending) {
+    if (
+      !hasCatalogSnapshot ||
+      isLoadingProjects ||
+      hasProjectsLoadError ||
+      isDeferredCatalogPending
+    ) {
       return;
     }
     if (selectedTag === "Todas" || tagOptions.some((option) => option.value === selectedTag)) {
@@ -999,7 +1010,12 @@ const Projects = () => {
   ]);
 
   useEffect(() => {
-    if (!hasCatalogSnapshot || isLoadingProjects || hasProjectsLoadError || isDeferredCatalogPending) {
+    if (
+      !hasCatalogSnapshot ||
+      isLoadingProjects ||
+      hasProjectsLoadError ||
+      isDeferredCatalogPending
+    ) {
       return;
     }
     if (
@@ -1026,7 +1042,12 @@ const Projects = () => {
   ]);
 
   useEffect(() => {
-    if (!hasCatalogSnapshot || isLoadingProjects || hasProjectsLoadError || isDeferredCatalogPending) {
+    if (
+      !hasCatalogSnapshot ||
+      isLoadingProjects ||
+      hasProjectsLoadError ||
+      isDeferredCatalogPending
+    ) {
       return;
     }
     if (currentPage <= totalPages) {

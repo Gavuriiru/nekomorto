@@ -96,4 +96,3 @@ export const resolvePublicPathIndexability = ({
     robots: shouldIndex ? "index, follow" : "noindex, nofollow",
   };
 };
-

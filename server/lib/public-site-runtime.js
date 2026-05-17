@@ -122,11 +122,12 @@ export const createPublicSiteRuntime = (dependencies = {}) => {
     const siteUpdatedAt = String(settings?.updatedAt || "").trim();
     const entries = [
       ...sitemapStaticPublicPaths
-        .filter((pathname) =>
-          resolvePublicPathIndexability({
-            pathname,
-            pages,
-          }).shouldIndex,
+        .filter(
+          (pathname) =>
+            resolvePublicPathIndexability({
+              pathname,
+              pages,
+            }).shouldIndex,
         )
         .map((pathname) => ({
           loc: `${primaryAppOrigin}${pathname}`,
@@ -642,7 +643,10 @@ export const createPublicSiteRuntime = (dependencies = {}) => {
           }),
           relationProjectLookup: buildRelationProjectLookup(projects, project?.relations),
           tagTranslations,
-          mediaVariants: buildPublicMediaVariants([projectPayload, projectPayload?.relations || []]),
+          mediaVariants: buildPublicMediaVariants([
+            projectPayload,
+            projectPayload?.relations || [],
+          ]),
         });
       }
       case PUBLIC_ROUTE_KIND_TEAM: {
@@ -653,12 +657,9 @@ export const createPublicSiteRuntime = (dependencies = {}) => {
           generatedAt,
           teamMembers,
           teamLinkTypes,
-          mediaVariants: buildPublicMediaVariants(
-            [teamMembers, teamLinkTypes],
-            {
-              allowPrivateUrls: teamMembers.map((member) => member?.avatarUrl).filter(Boolean),
-            },
-          ),
+          mediaVariants: buildPublicMediaVariants([teamMembers, teamLinkTypes], {
+            allowPrivateUrls: teamMembers.map((member) => member?.avatarUrl).filter(Boolean),
+          }),
         });
       }
       case PUBLIC_ROUTE_KIND_DONATIONS: {

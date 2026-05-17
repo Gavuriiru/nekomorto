@@ -607,10 +607,7 @@ describe("MangaWorkflowPanel", () => {
       expect(getStagePageOrder()).toEqual(["blob:001.jpg", "blob:002.jpg"]);
     });
     expect(getStagePageCardBySrc("blob:002.jpg")).toHaveAttribute("data-reorder-layout", "static");
-    expect(getStagePageCardBySrc("blob:001.jpg")).toHaveAttribute(
-      "data-reorder-layout",
-      "static",
-    );
+    expect(getStagePageCardBySrc("blob:001.jpg")).toHaveAttribute("data-reorder-layout", "static");
     expect(screen.getByTestId("manga-stage-page-filename-0")).toHaveTextContent("001.jpg");
     expect(screen.getByTestId("manga-stage-page-surface-0")).not.toHaveAttribute("title");
 

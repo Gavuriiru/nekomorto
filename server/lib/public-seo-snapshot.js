@@ -12,10 +12,7 @@ const escapeHtml = (value) =>
     .replace(/</g, "&lt;")
     .replace(/>/g, "&gt;");
 
-const escapeAttribute = (value) =>
-  escapeHtml(value)
-    .replace(/"/g, "&quot;")
-    .replace(/'/g, "&#39;");
+const escapeAttribute = (value) => escapeHtml(value).replace(/"/g, "&quot;").replace(/'/g, "&#39;");
 
 const truncateText = (value, maxLength = 240) => {
   const normalized = normalizeText(value).replace(/\s+/g, " ");
@@ -100,7 +97,7 @@ const buildPostLinksMarkup = (posts = [], maxItems = 5) => {
 const buildPageShell = ({ title, description, sections = [], links = [] }) => {
   return [
     '<div id="seo-snapshot" data-seo-snapshot="public">',
-    '  <style data-seo-snapshot-style>',
+    "  <style data-seo-snapshot-style>",
     "    #seo-snapshot {",
     "      position: absolute;",
     "      width: 1px;",
@@ -127,14 +124,12 @@ const buildPageShell = ({ title, description, sections = [], links = [] }) => {
       .split("\n")
       .map((line) => (line ? `    ${line}` : line))
       .join("\n"),
-    ...sections
-      .filter(Boolean)
-      .map((section) =>
-        String(section)
-          .split("\n")
-          .map((line) => (line ? `    ${line}` : line))
-          .join("\n"),
-      ),
+    ...sections.filter(Boolean).map((section) =>
+      String(section)
+        .split("\n")
+        .map((line) => (line ? `    ${line}` : line))
+        .join("\n"),
+    ),
     "  </main>",
     "</div>",
   ]
@@ -228,16 +223,18 @@ const buildPostSnapshot = ({ post, publicBootstrap, stripHtml }) => {
   const description =
     truncateText(post?.excerpt || post?.seoDescription || stripHtml(post?.content || ""), 280) ||
     "";
-  const relatedProject = (Array.isArray(publicBootstrap?.projects) ? publicBootstrap.projects : []).find(
-    (candidate) => String(candidate?.id || "") === String(post?.projectId || ""),
-  );
+  const relatedProject = (
+    Array.isArray(publicBootstrap?.projects) ? publicBootstrap.projects : []
+  ).find((candidate) => String(candidate?.id || "") === String(post?.projectId || ""));
   return buildPageShell({
     title,
     description,
     links: [
       { href: "/", label: "Página inicial" },
       { href: "/projetos", label: "Projetos" },
-      ...(relatedProject ? [{ href: `/projeto/${relatedProject.id}`, label: relatedProject.title }] : []),
+      ...(relatedProject
+        ? [{ href: `/projeto/${relatedProject.id}`, label: relatedProject.title }]
+        : []),
     ],
     sections: [buildPostLinksMarkup(publicBootstrap?.posts, 5)],
   });
@@ -300,16 +297,18 @@ const buildFaqSnapshot = ({ pages }) => {
           "<section>",
           `  <h2>${escapeHtml(group.title || "Perguntas")}</h2>`,
           "  <ul>",
-          ...(Array.isArray(group.items) ? group.items : []).slice(0, 8).map((item) =>
-            [
-              "    <li>",
-              `      <h3>${escapeHtml(item.question || "Pergunta")}</h3>`,
-              item.answer ? `      <p>${escapeHtml(item.answer)}</p>` : "",
-              "    </li>",
-            ]
-              .filter(Boolean)
-              .join("\n"),
-          ),
+          ...(Array.isArray(group.items) ? group.items : [])
+            .slice(0, 8)
+            .map((item) =>
+              [
+                "    <li>",
+                `      <h3>${escapeHtml(item.question || "Pergunta")}</h3>`,
+                item.answer ? `      <p>${escapeHtml(item.answer)}</p>` : "",
+                "    </li>",
+              ]
+                .filter(Boolean)
+                .join("\n"),
+            ),
           "  </ul>",
           "</section>",
         ].join("\n"),
@@ -322,8 +321,7 @@ const buildRecruitmentSnapshot = ({ pages, settings }) => {
   const discordUrl = normalizeText(settings?.community?.discordUrl);
   return buildPageShell({
     title: normalizeText(recruitment.heroTitle) || RECRUITMENT_PAGE_DEFAULTS.heroTitle,
-    description:
-      normalizeText(recruitment.heroSubtitle) || RECRUITMENT_PAGE_DEFAULTS.heroSubtitle,
+    description: normalizeText(recruitment.heroSubtitle) || RECRUITMENT_PAGE_DEFAULTS.heroSubtitle,
     links: [
       { href: "/", label: "Página inicial" },
       { href: "/sobre", label: "Sobre" },
@@ -376,7 +374,10 @@ const buildTeamSnapshot = ({ pages, publicBootstrap }) => {
             ...members.map((member) => {
               const memberName = normalizeText(member.displayName || member.name);
               const memberRole = Array.isArray(member.roles)
-                ? member.roles.map((role) => normalizeText(role)).filter(Boolean).join(", ")
+                ? member.roles
+                    .map((role) => normalizeText(role))
+                    .filter(Boolean)
+                    .join(", ")
                 : "";
               return `    <li><strong>${escapeHtml(memberName)}</strong>${memberRole ? `: ${escapeHtml(memberRole)}` : ""}</li>`;
             }),
@@ -475,7 +476,10 @@ export const buildPublicSeoSnapshot = ({
   if (normalizedPathname === "/projetos") {
     return buildProjectsSnapshot({ settings, publicBootstrap });
   }
-  if (/^\/projeto\/[^/]+$/.test(normalizedPathname) || /^\/projetos\/[^/]+$/.test(normalizedPathname)) {
+  if (
+    /^\/projeto\/[^/]+$/.test(normalizedPathname) ||
+    /^\/projetos\/[^/]+$/.test(normalizedPathname)
+  ) {
     return project ? buildProjectSnapshot({ project, publicBootstrap, stripHtml }) : "";
   }
   if (/^\/postagem\/[^/]+$/.test(normalizedPathname)) {

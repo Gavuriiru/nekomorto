@@ -37,15 +37,18 @@ const normalizePublicBootstrapPayloadMode = (value: unknown): PublicBootstrapPay
       ? "shell"
       : "full";
 
-const normalizePublicTagTranslations = (value: unknown): PublicBootstrapPayload["tagTranslations"] => {
+const normalizePublicTagTranslations = (
+  value: unknown,
+): PublicBootstrapPayload["tagTranslations"] => {
   const candidate =
     value && typeof value === "object" && !Array.isArray(value)
       ? (value as Partial<PublicBootstrapPayload["tagTranslations"]>)
       : {};
   return {
-    tags: candidate.tags && typeof candidate.tags === "object" && !Array.isArray(candidate.tags)
-      ? candidate.tags
-      : {},
+    tags:
+      candidate.tags && typeof candidate.tags === "object" && !Array.isArray(candidate.tags)
+        ? candidate.tags
+        : {},
     genres:
       candidate.genres && typeof candidate.genres === "object" && !Array.isArray(candidate.genres)
         ? candidate.genres
@@ -182,15 +185,18 @@ const normalizeRouteProjectLookup = (value: unknown): PublicRoutePayloadProjectL
   if (!value || typeof value !== "object" || Array.isArray(value)) {
     return {};
   }
-  return Object.entries(value).reduce<PublicRoutePayloadProjectLookup>((result, [key, rawValue]) => {
-    const normalizedKey = String(key || "").trim();
-    const normalizedValue = String(rawValue || "").trim();
-    if (!normalizedKey || !normalizedValue) {
+  return Object.entries(value).reduce<PublicRoutePayloadProjectLookup>(
+    (result, [key, rawValue]) => {
+      const normalizedKey = String(key || "").trim();
+      const normalizedValue = String(rawValue || "").trim();
+      if (!normalizedKey || !normalizedValue) {
+        return result;
+      }
+      result[normalizedKey] = normalizedValue;
       return result;
-    }
-    result[normalizedKey] = normalizedValue;
-    return result;
-  }, {});
+    },
+    {},
+  );
 };
 
 const normalizePublicRouteProjectsListPayload = (
@@ -273,7 +279,9 @@ export const asPublicRoutePayload = (value: unknown): PublicRoutePayload | null 
   const candidate = value as Partial<PublicRoutePayload> & { kind?: unknown };
   switch (String(candidate.kind || "").trim()) {
     case "projects-list":
-      return normalizePublicRouteProjectsListPayload(candidate as Partial<PublicRouteProjectsListPayload>);
+      return normalizePublicRouteProjectsListPayload(
+        candidate as Partial<PublicRouteProjectsListPayload>,
+      );
     case "project-detail":
       return normalizePublicRouteProjectDetailPayload(
         candidate as Partial<PublicRouteProjectDetailPayload>,
@@ -281,7 +289,9 @@ export const asPublicRoutePayload = (value: unknown): PublicRoutePayload | null 
     case "team":
       return normalizePublicRouteTeamPayload(candidate as Partial<PublicRouteTeamPayload>);
     case "donations":
-      return normalizePublicRouteDonationsPayload(candidate as Partial<PublicRouteDonationsPayload>);
+      return normalizePublicRouteDonationsPayload(
+        candidate as Partial<PublicRouteDonationsPayload>,
+      );
     default:
       return null;
   }

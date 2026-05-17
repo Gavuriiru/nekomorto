@@ -1,6 +1,9 @@
 import fs from "fs";
 import path from "path";
-import { PUBLIC_ROUTE_MODULE_IDS, resolvePublicRouteKind } from "../../shared/public-route-registry.js";
+import {
+  PUBLIC_ROUTE_MODULE_IDS,
+  resolvePublicRouteKind,
+} from "../../shared/public-route-registry.js";
 
 const readJsonFile = (filePath) => {
   try {

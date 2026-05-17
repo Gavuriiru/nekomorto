@@ -282,7 +282,8 @@ describe("usePublicBootstrap store", () => {
       const { data, isHydratingFullPayload } = usePublicBootstrap();
       return (
         <div data-testid="hook">
-          {data?.pages?.donations?.heroTitle || "none"}|{isHydratingFullPayload ? "hydrating" : "full"}
+          {data?.pages?.donations?.heroTitle || "none"}|
+          {isHydratingFullPayload ? "hydrating" : "full"}
         </div>
       );
     };
@@ -294,7 +295,10 @@ describe("usePublicBootstrap store", () => {
     });
 
     const windowBootstrap = (window as Window & { __BOOTSTRAP_PUBLIC__?: unknown })
-      .__BOOTSTRAP_PUBLIC__ as { pages?: { donations?: { heroTitle?: string } }; payloadMode?: string };
+      .__BOOTSTRAP_PUBLIC__ as {
+      pages?: { donations?: { heroTitle?: string } };
+      payloadMode?: string;
+    };
 
     expect(windowBootstrap?.payloadMode).toBe("full");
     expect(windowBootstrap?.pages?.donations?.heroTitle).toBe("Doacoes completas");

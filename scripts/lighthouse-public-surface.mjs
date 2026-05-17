@@ -64,7 +64,8 @@ const parseArgs = (argv) => {
       continue;
     }
     if (arg.startsWith("--project-detail-url=")) {
-      args.projectDetailUrl = arg.slice("--project-detail-url=".length).trim() || defaultProjectDetailUrl;
+      args.projectDetailUrl =
+        arg.slice("--project-detail-url=".length).trim() || defaultProjectDetailUrl;
       continue;
     }
     if (arg.startsWith("--team-url=")) {

@@ -196,13 +196,13 @@ const normalizePublicBootstrapPayload = (value: unknown): PublicBootstrapPayload
     homeHero: normalizePublicBootstrapHomeHero(data?.homeHero),
     currentPostDetail: data?.currentPostDetail || null,
     generatedAt: String(data?.generatedAt || ""),
-  payloadMode:
-    data?.payloadMode === "critical-home"
-      ? "critical-home"
-      : data?.payloadMode === "shell"
-        ? "shell"
-        : "full",
-};
+    payloadMode:
+      data?.payloadMode === "critical-home"
+        ? "critical-home"
+        : data?.payloadMode === "shell"
+          ? "shell"
+          : "full",
+  };
 };
 
 const fetchPublicBootstrap = async (apiBase: string): Promise<PublicBootstrapPayload> => {

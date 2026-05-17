@@ -42,13 +42,7 @@ const crc16CcittFalse = (value) => {
   return crc.toString(16).toUpperCase().padStart(4, "0");
 };
 
-const buildStaticPixPayload = ({
-  pixKey,
-  merchantName,
-  merchantCity,
-  additionalInfo,
-  txid,
-}) => {
+const buildStaticPixPayload = ({ pixKey, merchantName, merchantCity, additionalInfo, txid }) => {
   const normalizedPixKey = String(pixKey || "").trim();
   const normalizedMerchantName = sanitizeAsciiText(merchantName, 25);
   const normalizedMerchantCity = sanitizeAsciiText(merchantCity, 15);
@@ -126,10 +120,7 @@ const toQrDataUrl = async (value, fallbackUrl = QR_PLACEHOLDER_URL) => {
   }
 };
 
-export const buildPublicDonationsRoutePayload = async ({
-  donationsPage,
-  merchantName,
-} = {}) => {
+export const buildPublicDonationsRoutePayload = async ({ donationsPage, merchantName } = {}) => {
   const donations = donationsPage && typeof donationsPage === "object" ? donationsPage : {};
   const pixQrCodeUrl =
     String(donations.qrCustomUrl || "").trim() ||

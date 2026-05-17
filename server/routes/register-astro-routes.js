@@ -1,4 +1,9 @@
 export const ASTRO_PUBLIC_ROUTE_PATHS = Object.freeze([
+  "/sobre",
+  "/faq",
+  "/equipe",
+  "/doacoes",
+  "/recrutamento",
   "/termos-de-uso",
   "/politica-de-privacidade",
 ]);

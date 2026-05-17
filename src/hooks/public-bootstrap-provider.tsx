@@ -48,7 +48,9 @@ export const PublicBootstrapProvider = ({
     [initialCurrentUser, initialPublicBootstrap, initialPublicRoutePayload],
   );
 
-  return <PublicBootstrapContext.Provider value={value}>{children}</PublicBootstrapContext.Provider>;
+  return (
+    <PublicBootstrapContext.Provider value={value}>{children}</PublicBootstrapContext.Provider>
+  );
 };
 
 export const useResolvedPublicBootstrap = () => {

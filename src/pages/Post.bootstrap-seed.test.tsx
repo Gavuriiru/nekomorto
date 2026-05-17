@@ -254,7 +254,8 @@ describe("Post bootstrap-first", () => {
         __BOOTSTRAP_PUBLIC__?: unknown;
       }
     ).__BOOTSTRAP_PUBLIC__ = {
-      ...(window as Window & { __BOOTSTRAP_PUBLIC__?: Record<string, unknown> }).__BOOTSTRAP_PUBLIC__,
+      ...(window as Window & { __BOOTSTRAP_PUBLIC__?: Record<string, unknown> })
+        .__BOOTSTRAP_PUBLIC__,
       currentPostDetail: null,
     };
 

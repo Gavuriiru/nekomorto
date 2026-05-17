@@ -216,8 +216,7 @@ const Post = () => {
   }, [bootstrapData?.mediaVariants, bootstrapPostRecord]);
 
   const shouldHydratePostFromApi = Boolean(slug);
-  const shouldRenderLexicalContent =
-    !post?.contentFormat || post.contentFormat === "lexical";
+  const shouldRenderLexicalContent = !post?.contentFormat || post.contentFormat === "lexical";
   const shouldRenderLegacyContent =
     post?.contentFormat === "html" || post?.contentFormat === "markdown";
 

@@ -6,10 +6,19 @@ import { buildPublicChromeModel } from "../lib/public-layout";
 
 interface Props {
   description: string;
+  image?: string;
+  imageAlt?: string;
+  robots?: string;
   title: string;
 }
 
-const { description: _description, title: _title } = Astro.props;
+const {
+  description: _description,
+  image: _image = "",
+  imageAlt: _imageAlt = "",
+  robots: _robots = "index, follow",
+  title: _title,
+} = Astro.props;
 const locals = Astro.locals.nekomata;
 const fallbackSettings: SiteSettings = {
   site: {
@@ -73,9 +82,7 @@ const fallbackSettings: SiteSettings = {
     },
   },
 };
-const chrome = buildPublicChromeModel(
-  locals?.siteSettings ?? fallbackSettings,
-);
+const chrome = buildPublicChromeModel(locals?.siteSettings ?? fallbackSettings);
 const separator = locals?.siteSettings?.site?.titleSeparator || " | ";
 const _pageTitle = _title ? `${_title}${separator}${chrome.siteName}` : chrome.siteName;
 const _canonicalUrl = new URL(
@@ -91,7 +98,7 @@ const _canonicalUrl = new URL(
     <meta name="viewport" content="width=device-width, initial-scale=1" />
     <title>{_pageTitle}</title>
     <meta name="description" content={_description} />
-    <meta name="robots" content="index, follow" />
+    <meta name="robots" content={_robots} />
     <meta name="theme-color" content={chrome.themeColor} />
     <meta property="og:title" content={_pageTitle} />
     <meta property="og:description" content={_description} />
@@ -99,9 +106,13 @@ const _canonicalUrl = new URL(
     <meta property="og:url" content={_canonicalUrl} />
     <meta property="og:site_name" content={chrome.siteName} />
     <meta property="og:locale" content="pt_BR" />
+    {_image ? <meta property="og:image" content={_image} /> : null}
+    {_imageAlt ? <meta property="og:image:alt" content={_imageAlt} /> : null}
     <meta name="twitter:title" content={_pageTitle} />
     <meta name="twitter:description" content={_description} />
-    <meta name="twitter:card" content="summary" />
+    <meta name="twitter:card" content={_image ? "summary_large_image" : "summary"} />
+    {_image ? <meta name="twitter:image" content={_image} /> : null}
+    {_imageAlt ? <meta name="twitter:image:alt" content={_imageAlt} /> : null}
     <link rel="canonical" href={_canonicalUrl} />
     {chrome.siteFaviconUrl ? <link rel="icon" href={chrome.siteFaviconUrl} /> : null}
   </head>

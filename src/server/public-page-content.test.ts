@@ -60,4 +60,3 @@ describe("public-page-content normalization", () => {
     });
   });
 });
-

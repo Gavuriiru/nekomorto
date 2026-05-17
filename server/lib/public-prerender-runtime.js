@@ -124,17 +124,24 @@ const stripHomeHeroShellArtifacts = (html) =>
     .replace(/<div id="home-hero-shell"[\s\S]*?<\/div>\s*/i, "");
 
 const injectPrerenderedRootHtml = (html, appHtml) =>
-  String(html || "").replace('<div id="root"></div>', `<div id="root">${String(appHtml || "")}</div>`);
+  String(html || "").replace(
+    '<div id="root"></div>',
+    `<div id="root">${String(appHtml || "")}</div>`,
+  );
 
 const computeArtifactRevision = (value) =>
-  crypto.createHash("sha1").update(String(value || "")).digest("hex");
+  crypto
+    .createHash("sha1")
+    .update(String(value || ""))
+    .digest("hex");
 
 const normalizeBuildFingerprint = (value) => String(value || "").trim();
 
 const extractLocalClientAssetHrefs = (html) => {
   const source = String(html || "");
   const hrefs = new Set();
-  const assetAttributePattern = /<(?:script|link)\b[^>]*\b(?:src|href)\s*=\s*(?:"([^"]*)"|'([^']*)'|([^\s>]+))/gi;
+  const assetAttributePattern =
+    /<(?:script|link)\b[^>]*\b(?:src|href)\s*=\s*(?:"([^"]*)"|'([^']*)'|([^\s>]+))/gi;
   for (const match of source.matchAll(assetAttributePattern)) {
     const rawValue = String(match[1] || match[2] || match[3] || "").trim();
     const href = sanitizeLocalAssetHref(rawValue, {
@@ -215,7 +222,9 @@ export const buildPublicPrerenderPathnames = ({
   getPublicVisibleProjects,
 } = {}) => {
   const staticPaths = [...PUBLIC_STATIC_PATHS];
-  const projectPaths = (typeof getPublicVisibleProjects === "function" ? getPublicVisibleProjects() : [])
+  const projectPaths = (
+    typeof getPublicVisibleProjects === "function" ? getPublicVisibleProjects() : []
+  )
     .map((project) => String(project?.id || "").trim())
     .filter(Boolean)
     .map((id) => `/projeto/${id}`);
@@ -263,7 +272,10 @@ export const generatePublicPrerenderArtifact = async ({
     throw new Error(`public_prerender_bootstrap_missing:${normalizedPathname}`);
   }
 
-  if (normalizedPathname === "/" && String(publicBootstrap?.payloadMode || "") === "critical-home") {
+  if (
+    normalizedPathname === "/" &&
+    String(publicBootstrap?.payloadMode || "") === "critical-home"
+  ) {
     const fullBootstrap = await fetchFullBootstrap({ baseUrl, fetchImpl });
     if (fullBootstrap && typeof fullBootstrap === "object") {
       publicBootstrap = fullBootstrap;

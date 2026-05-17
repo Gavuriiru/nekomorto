@@ -87,9 +87,7 @@ export const registerAppRoutes = ({
             includeHeroImagePreload: req.path === "/",
             includeProjectsImagePreloads: req.path === "/projetos",
             bootstrapMode:
-              req.path === "/"
-                ? PUBLIC_BOOTSTRAP_MODE_CRITICAL_HOME
-                : PUBLIC_BOOTSTRAP_MODE_SHELL,
+              req.path === "/" ? PUBLIC_BOOTSTRAP_MODE_CRITICAL_HOME : PUBLIC_BOOTSTRAP_MODE_SHELL,
             includeHomeHeroShell: req.path === "/" && isHomeHeroShellEnabled,
           })
         : injectDashboardBootstrapHtml({

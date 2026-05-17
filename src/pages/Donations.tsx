@@ -406,8 +406,7 @@ const Donations = () => {
         ? ""
         : getDonationsCryptoQrValue(activeCryptoService),
   });
-  const activeCryptoQrUrl =
-    activeCryptoRouteQrUrl || fallbackActiveCryptoQrUrl;
+  const activeCryptoQrUrl = activeCryptoRouteQrUrl || fallbackActiveCryptoQrUrl;
 
   useEffect(() => {
     if (visibleCryptoServices.length === 0) {

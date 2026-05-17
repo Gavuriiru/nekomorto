@@ -84,7 +84,8 @@ export const buildPublicChromeModel = (settings: SiteSettings): PublicChromeMode
 
   return {
     brandName: footerBrandName,
-    footerDescription: toText(settings.footer.brandDescription) || toText(settings.site.description),
+    footerDescription:
+      toText(settings.footer.brandDescription) || toText(settings.site.description),
     footerHighlightDescription: toText(settings.footer.highlightDescription),
     footerHighlightTitle: toText(settings.footer.highlightTitle),
     footerLinks,

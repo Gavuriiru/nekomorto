@@ -298,13 +298,15 @@ const ProjectPage = () => {
   const [project, setProject] = useState<Project | null>(() => initialProject);
   const [projectRevision, setProjectRevision] = useState(() => projectRoutePayload?.revision || "");
   const [hasLoaded, setHasLoaded] = useState(Boolean(initialProject));
-  const [relationProjectLookup, setRelationProjectLookup] = useState<PublicRoutePayloadProjectLookup>(() =>
-    projectRoutePayload?.relationProjectLookup ||
-    buildRelationProjectLookup({
-      project: bootstrapProject,
-      projects: hasFullBootstrap ? ((bootstrapData?.projects || []) as Project[]) : [],
-    }),
-  );
+  const [relationProjectLookup, setRelationProjectLookup] =
+    useState<PublicRoutePayloadProjectLookup>(
+      () =>
+        projectRoutePayload?.relationProjectLookup ||
+        buildRelationProjectLookup({
+          project: bootstrapProject,
+          projects: hasFullBootstrap ? ((bootstrapData?.projects || []) as Project[]) : [],
+        }),
+    );
   const [tagTranslations, setTagTranslations] = useState<Record<string, string>>(
     () => projectRoutePayload?.tagTranslations?.tags || bootstrapData?.tagTranslations?.tags || {},
   );
@@ -1333,19 +1335,19 @@ const ProjectPage = () => {
     <div className="min-h-screen bg-background text-foreground">
       <main>
         <section data-testid="project-hero" className="relative overflow-hidden">
-                  <UploadPicture
-                    src={heroBannerSrc}
-                    alt={heroBannerAlt}
-                    preset="hero"
-                    mediaVariants={mediaVariants}
-                    applyFocalObjectPosition
-                    className="absolute inset-0 h-full w-full"
-                    imgClassName="h-full w-full object-cover object-center"
-                    loading="eager"
-                    decoding="async"
-                    fetchPriority="high"
-                    sizes="100vw"
-                  />
+          <UploadPicture
+            src={heroBannerSrc}
+            alt={heroBannerAlt}
+            preset="hero"
+            mediaVariants={mediaVariants}
+            applyFocalObjectPosition
+            className="absolute inset-0 h-full w-full"
+            imgClassName="h-full w-full object-cover object-center"
+            loading="eager"
+            decoding="async"
+            fetchPriority="high"
+            sizes="100vw"
+          />
           <div className="absolute inset-0 bg-background/20 backdrop-blur-[1.5px]" />
           <div className="absolute inset-0 bg-linear-to-r from-background/76 via-background/48 to-background/74 md:from-background/66 md:via-background/44 md:to-background/80" />
           <div className="absolute inset-0 bg-linear-to-t from-background via-background/70 to-transparent" />
@@ -1501,15 +1503,13 @@ const ProjectPage = () => {
                               label={translateGenre(genre, genreTranslationMap)}
                             />
                           ))
-                        : Array.from({ length: Math.min(project.genres.length, 3) }).map(
-                            (_, i) => (
-                              <div
-                                key={i}
-                                className="h-6 w-14 animate-pulse rounded-full bg-muted"
-                                aria-hidden="true"
-                              />
-                            ),
-                          )}
+                        : Array.from({ length: Math.min(project.genres.length, 3) }).map((_, i) => (
+                            <div
+                              key={i}
+                              className="h-6 w-14 animate-pulse rounded-full bg-muted"
+                              aria-hidden="true"
+                            />
+                          ))}
                     </div>
                   ) : null}
                   {projectDetails.length ? (

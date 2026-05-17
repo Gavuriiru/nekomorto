@@ -388,7 +388,9 @@ export const buildPublicRoutePayload = ({ kind, generatedAt, ...payload } = {}) 
       return {
         kind: "projects-list",
         generatedAt: resolvedGeneratedAt,
-        projects: Array.isArray(payload.projects) ? payload.projects.map(toPublicBootstrapProject) : [],
+        projects: Array.isArray(payload.projects)
+          ? payload.projects.map(toPublicBootstrapProject)
+          : [],
         mediaVariants:
           payload.mediaVariants && typeof payload.mediaVariants === "object"
             ? payload.mediaVariants

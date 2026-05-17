@@ -59,7 +59,10 @@ import { registerRootServerRoutes } from "./bootstrap/register-root-server-route
 import { startServerJobs } from "./bootstrap/start-server-jobs.js";
 import { createAdminExportRuntime } from "./lib/admin-export-runtime.js";
 import * as adminExports from "./lib/admin-exports.js";
-import { createAstroPublicRequestHandler } from "./lib/astro-public-runtime.js";
+import {
+  createAstroPublicRequestHandler,
+  resolveAstroPublicRoutePayload,
+} from "./lib/astro-public-runtime.js";
 import {
   filterByDateRange,
   filterExportEntries,
@@ -1323,12 +1326,7 @@ const {
   renderMetaHtml,
   sendHtml,
 } = siteRenderingRuntime;
-const publicPrerenderRendererPath = path.join(
-  REPO_ROOT_DIR,
-  "dist-ssr",
-  "public",
-  "renderer.mjs",
-);
+const publicPrerenderRendererPath = path.join(REPO_ROOT_DIR, "dist-ssr", "public", "renderer.mjs");
 const publicPrerenderBuildFingerprint = buildPublicPrerenderBuildFingerprint({
   apiContractVersion: API_CONTRACT_VERSION,
   buildMetadata: getBuildMetadata(),
@@ -1761,6 +1759,16 @@ const astroPublicRequestHandler = createAstroPublicRequestHandler({
   entryFilePath: ASTRO_SERVER_ENTRY_PATH,
   fs,
   isProduction,
+  loadAstroRoutePayload: ({ pathname, pages, siteSettings }) =>
+    resolveAstroPublicRoutePayload({
+      pathname,
+      pages,
+      siteSettings,
+      buildPublicMediaVariants,
+      buildPublicTeamMembers,
+      loadLinkTypes,
+      resolvePublicDonationsRoutePayload: buildPublicDonationsRoutePayload,
+    }),
   loadPages: () => loadPages(),
   loadSiteSettings: () => loadSiteSettings(),
   primaryAppOrigin: PRIMARY_APP_ORIGIN,

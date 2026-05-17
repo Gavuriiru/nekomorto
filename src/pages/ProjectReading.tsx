@@ -1,12 +1,5 @@
 import { ChevronLeft, ChevronRight, PencilLine } from "lucide-react";
-import {
-  useCallback,
-  useEffect,
-  useLayoutEffect,
-  useMemo,
-  useRef,
-  useState,
-} from "react";
+import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 import { Link, useLocation, useNavigate, useParams, useSearchParams } from "react-router-dom";
 
 import CommentsSection from "@/components/CommentsSection";
@@ -1005,8 +998,8 @@ const ProjectReading = () => {
             <section className="project-reading-first-fold mx-auto mt-3 w-full max-w-6xl px-6 pb-16 md:mt-4 md:px-10">
               <section>
                 <article className="min-w-0 space-y-6">
-                    <Card className="project-reading-reader-shell">
-                      <CardContent className="project-reading-reader-shell__content min-w-0 space-y-6 p-6">
+                  <Card className="project-reading-reader-shell">
+                    <CardContent className="project-reading-reader-shell__content min-w-0 space-y-6 p-6">
                       {chapterContent?.content ? (
                         <LexicalViewer
                           value={chapterLexical}

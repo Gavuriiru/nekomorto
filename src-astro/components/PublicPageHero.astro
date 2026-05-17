@@ -1,0 +1,45 @@
+---
+/* biome-ignore-all lint/correctness/noUnusedVariables: Astro template consumes frontmatter bindings. */
+interface Props {
+  badge?: string;
+  badges?: string[];
+  subtitle?: string;
+  title: string;
+}
+
+const { badge = "", badges = [], subtitle = "", title } = Astro.props;
+const badgeLabel = String(badge || "").trim();
+const badgeItems = (Array.isArray(badges) ? badges : [])
+  .map((item) => String(item || "").trim())
+  .filter(Boolean);
+---
+
+<section class="relative overflow-hidden bg-background [background-image:var(--gradient-public-hero)] bg-no-repeat">
+  <div class="relative mx-auto w-full max-w-6xl px-6 pb-8 pt-20 md:px-10 md:pb-10 md:pt-28">
+    <div class="max-w-3xl space-y-4 reveal" data-reveal>
+      {badgeLabel ? (
+        <p class="inline-flex rounded-full border border-border/60 bg-secondary px-3 py-1 text-xs font-semibold uppercase tracking-widest text-secondary-foreground animate-fade-in">
+          {badgeLabel}
+        </p>
+      ) : null}
+      <h1 class="text-3xl font-semibold text-foreground md:text-5xl animate-slide-up">{title}</h1>
+      {subtitle ? (
+        <p
+          class="whitespace-pre-wrap text-sm text-muted-foreground md:text-base animate-slide-up"
+          style="animation-delay:0.2s"
+        >
+          {subtitle}
+        </p>
+      ) : null}
+      {badgeItems.length > 0 ? (
+        <div class="flex flex-wrap gap-3 animate-slide-up" style="animation-delay:0.4s">
+          {badgeItems.map((item) => (
+            <p class="rounded-full border border-border/60 bg-secondary px-3 py-1 text-xs font-semibold uppercase tracking-widest text-secondary-foreground">
+              {item}
+            </p>
+          ))}
+        </div>
+      ) : null}
+    </div>
+  </div>
+</section>
