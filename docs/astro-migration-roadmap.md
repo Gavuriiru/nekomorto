@@ -5,35 +5,72 @@ sequencia, escopo nem criterios de validacao.
 
 ## 1. Estado da linha de base
 
-Fase ja concluida neste repositorio:
+### 1.1 Progresso geral
 
-- infraestrutura Astro adicionada ao build
-- runtime Express preparado para servir um slice Astro
-- rotas legais migradas:
+| Fase | Status | Descricao |
+| --- | --- | --- |
+| Fase 0 | concluida | Baseline e guardrails |
+| Fase 1 | concluida | Infra Astro + rotas legais |
+| Fase 2 | concluida | Paginas institucionais Astro puro |
+| Fase 3 | pendente | Home e catalogo publico |
+| Fase 4 | pendente | Login, dashboard host e fronteira React |
+| Fase 5 | pendente | Reader e islands pesadas |
+| Fase 6 | pendente | Limpeza de infraestrutura legada |
+| Fase 7 | pendente | Simplificar styles/deps restantes |
+
+### 1.2 O que ja foi feito
+
+- infraestrutura Astro adicionada ao build (`astro.config.mjs`, `tsconfig.astro.json`, `src-astro/`)
+- runtime Express preparado para servir slice Astro (`register-astro-routes.js`, `astro-public-runtime.js`)
+- `PublicLayout.astro` e `PublicPageHero.astro` criados e compartilhados
+- helpers `public-layout.ts` e `public-page-meta.ts` para dados server-side
+- testes de integracao de roteamento funcionando
+- 7 rotas publicas migradas:
   - `/termos-de-uso`
   - `/politica-de-privacidade`
+  - `/sobre`
+  - `/faq`
+  - `/equipe`
+  - `/doacoes`
+  - `/recrutamento`
 
-Isso significa que o projeto ja esta em **Fase 1 concluida / Fase 2 iniciada**.
-Com a migracao das paginas institucionais, o repositorio agora esta em
-**Fase 2 concluida / Fase 3 iniciada**.
+### 1.3 O que falta ser feito
+
+- migrar `/`, `/projetos`, `/projeto/[slug]`, `/postagem/[slug]` (Fase 3)
+- isolar dashboard e login na arquitetura Astro (Fase 4)
+- migrar shell de leitura para Astro com reader como island React (Fase 5)
+- remover bootstrap global, seo-snapshot, prerender legado (Fase 6)
+- limpar deps MUI/Emotion, chunking manual, PWA legado (Fase 7)
 
 ## 2. Ordem oficial de execucao
 
 Seguir nesta ordem, salvo decisao explicita em contrario:
 
-1. consolidar a base hibrida
-2. migrar paginas institucionais
+1. consolidar a base hibrida (feito)
+2. migrar paginas institucionais (feito)
 3. migrar home/listagem/detalhes de conteudo
 4. isolar dashboard e reader na arquitetura nova
 5. remover lastro legado que deixar de ser necessario
+6. simplificar styling e dependencias
 
-## 3. Fases
+## 3. Prioridade e esforco por fase
+
+| Fase | Prioridade | Risco | Impacto | Esforco |
+| --- | --- | --- | --- | --- |
+| 0. Baseline e guardrails | P0 | Baixo | Alto | Baixo |
+| 1. Infra Astro + rotas legais | P0 | Medio | Alto | Medio |
+| 2. Paginas institucionais | P0 | Medio | Muito alto | Medio |
+| 3. Home e catalogo publico | P1 | Medio | Muito alto | Alto |
+| 4. Login, dashboard host | P1 | Medio | Alto | Medio |
+| 5. Reader e islands pesadas | P2 | Alto | Alto | Alto |
+| 6. Limpeza de infra legada | P2 | Medio | Alto | Medio |
+| 7. Simplificar styles/deps | P3 | Medio | Medio | Medio |
+
+## 4. Fases
 
 ### Fase 0. Baseline e guardrails
 
-Status:
-
-- concluida
+Status: **concluida**
 
 Objetivo:
 
@@ -46,36 +83,29 @@ Saida minima:
 - `npm run typecheck`
 - `npm run build`
 
+---
+
 ### Fase 1. Infra Astro + rotas legais
 
-Status:
-
-- concluida
+Status: **concluida**
 
 Escopo concluido:
 
-- `astro.config.mjs`
+- `astro.config.mjs` (output: server, adapter: node/middleware, srcDir: src-astro)
 - `tsconfig.astro.json`
 - `src-astro/**`
-- handler Astro no Express
+- handler Astro no Express (`astro-public-runtime.js`)
+- registro de rotas (`register-astro-routes.js`)
 - `/termos-de-uso`
 - `/politica-de-privacidade`
 
-Pendencias remanescentes desta fase:
-
-- nenhuma obrigatoria
+---
 
 ### Fase 2. Paginas institucionais Astro puro
 
-Prioridade:
+Status: **concluida**
 
-- P0
-
-Status:
-
-- concluida
-
-Rotas:
+Rotas concluidas:
 
 - `/sobre`
 - `/faq`
@@ -83,27 +113,20 @@ Rotas:
 - `/doacoes`
 - `/recrutamento`
 
-Objetivo:
-
-- mover essas rotas para Astro com zero-JS por padrao
-- reaproveitar `siteSettings`, `pages` e normalizadores server-side existentes
-- evitar dependencia de `BrowserRouter` e `usePageMeta`
-
-Entregas esperadas:
+Entregas realizadas:
 
 - ownership Astro dessas rotas
-- layout publico compartilhado consolidado
+- layout publico compartilhado consolidado (`PublicLayout.astro`)
 - meta/canonical/OG declarados no Astro
+- dados via `Astro.locals.nekomata` (siteSettings, pages, routePayload)
+- zero-JS por padrao em todas as rotas
 
-Escopo concluido:
+Observacoes:
 
-- `/sobre`
-- `/faq`
-- `/equipe`
-- `/doacoes`
-- `/recrutamento`
+- `Equipe` e `Doacoes` podem exigir pequenas islands se houver interatividade real futura
+- ainda nao mexer em login nem comments
 
-Validacao:
+Validacao executada:
 
 ```bash
 npm run astro:check
@@ -112,16 +135,13 @@ npm run typecheck
 npm run build
 ```
 
-Observacoes:
-
-- `Equipe` e `Doacoes` podem exigir pequenas islands se houver interatividade real
-- ainda nao mexer em login nem comments
+---
 
 ### Fase 3. Home e catalogo publico
 
-Prioridade:
+Status: **pendente** — proximo marco oficial
 
-- P1
+Prioridade: P1
 
 Rotas:
 
@@ -134,36 +154,79 @@ Objetivo:
 
 - sair do shell React global para as rotas publicas mais importantes
 - trocar bootstrap/manual meta por rendering server-first
+- eliminar dependencia de `seo-snapshot` e prerender nessas rotas
 
-Subetapas recomendadas:
+#### Subetapas recomendadas
 
-1. `/sobre` e afins consolidados
-2. migrar `/` primeiro
-3. migrar `/projetos`
-4. migrar `/projeto/[slug]`
-5. migrar `/postagem/[slug]`
+1. **Expandir contrato de dados do Astro.locals**
+   - adicionar `projects`, `posts`, `tagTranslations`, `mediaVariants`, `homeHero`
+     ao payload que o Express injeta em `Astro.locals.nekomata`
+   - expandir `resolveAstroPublicRoutePayload` para as rotas de conteudo
+   - atualizar `register-astro-routes.js` com as novas rotas
 
-Pontos de atencao:
+2. **Migrar `/`**
+   - criar `src-astro/pages/index.astro`
+   - hero section como island React `client:load` (se continuar carousel interativo)
+   - projetos em destaque, posts recentes, updates como Astro puro ou `client:idle`
+   - structured data e canonical server-side
+   - preload de imagens da home
 
-- query params e filtros de `/projetos`
-- preload de imagens da home
-- cards de projeto/post
-- comments e widgets abaixo da dobra
-- structured data e canonical por rota
+3. **Migrar `/projetos`**
+   - criar `src-astro/pages/projetos/index.astro`
+   - grid de projetos como Astro puro
+   - filtros (query params: `q`, `tag`, `genero`, `type`, `page`, `genre`) como island `client:idle`
+   - preservar compatibilidade total de query params
 
-Validacao adicional recomendada:
+4. **Migrar `/projeto/[slug]`**
+   - criar `src-astro/pages/projeto/[slug].astro`
+   - conteudo, sinopse, meta, chapters como Astro puro
+   - comments como island `client:visible`
+   - structured data por projeto
+
+5. **Migrar `/postagem/[slug]`**
+   - criar `src-astro/pages/postagem/[slug].astro`
+   - conteudo do post, excerpt, meta como Astro puro
+   - comments/embed/polls como island `client:visible`
+   - structured data por post
+
+#### Pontos de atencao
+
+- query params e filtros de `/projetos` devem funcionar identicamente
+- preload de imagens da home (hero, thumbnails)
+- cards de projeto/post devem virar componentes Astro reutilizaveis
+- comments e widgets abaixo da dobra como islands `client:visible`
+- structured data e canonical por rota devem sair no HTML final
+- nao depender de `window.__BOOTSTRAP_*` nas novas rotas
+- manter rotas legadas ativas atras de fallback ate estabilizacao
+
+#### Validacao
 
 ```bash
+npm run astro:check
+npm run lint
+npm run typecheck
+npm run build
 npm run lighthouse:home:mobile
 npm run lighthouse:projects:mobile
 npm run lighthouse:public-surface
 ```
 
+#### Criterio de saida
+
+- HTML das 4 rotas sai do Astro
+- head/canonical/robots/OG corretos em cada rota
+- structured data presente e correto
+- query params de `/projetos` preservados
+- Lighthouse nao regride vs baseline atual
+- fallback legado ainda funcional para rollback
+
+---
+
 ### Fase 4. Login, dashboard host e fronteira React
 
-Prioridade:
+Status: **pendente**
 
-- P1
+Prioridade: P1
 
 Rotas:
 
@@ -175,20 +238,43 @@ Objetivo:
 - decidir o host definitivo do dashboard na arquitetura nova
 - manter o app React do dashboard intacto, mas encapsulado de forma previsivel
 
-Abordagem recomendada:
+#### Subetapas recomendadas
 
-- `/login`: avaliar Astro + island React ou manter legado por mais um ciclo
-- `/dashboard/**`: host dedicado, com o app React carregado como superficie isolada
+1. **`/login`**
+   - criar `src-astro/pages/login.astro`
+   - avaliar: Astro shell + island React `client:load` ou manter legado por mais um ciclo
+   - login e noindex, entao SEO nao e prioridade aqui
+   - auth flow deve continuar funcional identicamente
 
-Regra:
+2. **`/dashboard/**`**
+   - criar `src-astro/pages/dashboard/[...slug].astro`
+   - host dedicado com `DashboardHostLayout.astro`
+   - app React carregado como superficie isolada via `client:only`
+   - nao reescrever paginas do dashboard para Astro componente a componente
+   - manter todos os assets, chunks e CSS do dashboard isolados
 
-- nao reescrever paginas do dashboard para Astro componente a componente
+#### Pontos de atencao
+
+- auth/session devem continuar funcionando identicamente
+- CSS do dashboard (incluindo MUI/Emotion) deve ser isolado, sem vazar para publico
+- rotas protegidas devem manter validacao de ownership/permissao
+
+#### Validacao
+
+```bash
+npm run lint
+npm run typecheck
+npm run build
+npm run test
+```
+
+---
 
 ### Fase 5. Reader e islands pesadas
 
-Prioridade:
+Status: **pendente**
 
-- P2
+Prioridade: P2
 
 Rotas:
 
@@ -196,41 +282,113 @@ Rotas:
 
 Objetivo:
 
-- migrar o shell de documento para Astro
+- migrar o shell de documento para Astro (`ReadingLayout.astro`)
 - manter o reader como island React principal
 
-Pontos de atencao:
+#### Subetapas recomendadas
 
-- preferencias do reader
-- localStorage
-- preload de assets
-- manga/webtoon/light novel
-- comments/polls e comportamento de scroll
+1. **Manga/webtoon reader**
+   - criar `src-astro/pages/projeto/[slug]/leitura/[chapter].astro`
+   - shell Astro com meta, canonical, robots
+   - reader React como island `client:load`
+   - preservar `@tokagemushi/manga-viewer`, preferencias localStorage, preload de assets
+
+2. **Light novel reader**
+   - avaliar se conteudo pode sair server-rendered (HTML puro)
+   - navegacao, comments, polls como islands separadas
+   - se viavel, reduzir JS significativamente vs manga reader
+
+#### Pontos de atencao
+
+- preferencias do reader (localStorage): modo de leitura, pagina, scroll
+- preload de assets de capitulos adjacentes
+- manga vs webtoon vs light novel tem comportamentos distintos
+- comments/polls e scroll behavior nao podem quebrar
+- performance do reader e critica para a experiencia
+
+#### Validacao
+
+```bash
+npm run lint
+npm run typecheck
+npm run build
+npm run test
+npm run lighthouse:reader-pages:mobile
+```
+
+---
 
 ### Fase 6. Limpeza de infraestrutura legada
 
-Prioridade:
+Status: **pendente**
 
-- P2
+Prioridade: P2
 
 Objetivo:
 
 - remover apenas o que deixou de ser necessario de verdade
+- cada remocao deve ser por evidencias, nao por desejo arquitetural
 
-Candidados a remocao futura:
+#### Candidatos a remocao
 
-- `window.__BOOTSTRAP_*`
-- `usePageMeta` nas rotas publicas migradas
-- `seo-snapshot`
-- partes do prerender incremental legado
-- trechos de `register-site-routes.js` e `register-app-routes.js` que so existirem para o shell antigo
-- recovery de preload do Vite que nao fizer mais sentido no publico
+| Item | Arquivo(s) | Condicao para remocao |
+| --- | --- | --- |
+| `window.__BOOTSTRAP_*` | `html-bootstrap.js`, `use-public-bootstrap.ts` | todas as rotas publicas migradas |
+| SEO snapshot | `public-seo-snapshot.js` | todas as rotas publicas migradas |
+| Prerender incremental | `public-prerender-runtime.js`, `prerender-public.mjs` | Astro SSR substitui |
+| SSR publico paralelo | `build-public-ssr.mjs`, `src/ssr/public-app.tsx` | Astro SSR substitui |
+| Vite preload recovery (publico) | `vite-preload-recovery.ts` | publico nao usa mais Vite |
+| `usePageMeta` nas rotas migradas | multiplos | Astro head substitui |
+| Trechos de `register-site-routes.js` | `register-site-routes.js` | rotas equivalentes no Astro |
+| Trechos de `register-app-routes.js` | `register-app-routes.js` | rotas equivalentes no Astro |
+| Bootstrap init script | `html-bootstrap.js` (linhas 65-237) | nenhuma rota depende mais |
 
-Regra:
+#### Regra
 
 - limpar por evidencias, nao por desejo arquitetural
+- cada remocao deve ser verificavel com build + testes verdes
+- manter o que ainda for necessario para o dashboard/reader legado
 
-## 4. Modelo de execucao por dia
+---
+
+### Fase 7. Simplificar styles/deps restantes
+
+Status: **pendente**
+
+Prioridade: P3
+
+Objetivo:
+
+- remover dependencias que deixaram de ser usadas
+- simplificar pipeline de CSS
+
+#### Escopo
+
+| Item | Acao | Condicao |
+| --- | --- | --- |
+| MUI/Emotion | remover | date pickers substituidos |
+| Chunking manual | simplificar/remover | lexical/charts/MUI nao vazam mais no publico |
+| PWA cleanup | remover `build-pwa.mjs` | PWA funcional nova ou decisao de nao ter |
+| `src/index.css` | quebrar em modulos | styling migrado para tokens/base/themes |
+| Lexical CSS | isolar | nao vazar para publico |
+| react-router-dom publico | remover | todas as rotas publicas no Astro |
+
+## 5. Deploy incremental
+
+Releases planejados:
+
+| Release | Escopo | Fase |
+| --- | --- | --- |
+| Release 1 | paginas legais/institucionais | Fases 1-2 (feito) |
+| Release 2 | home/projetos/projeto/post | Fase 3 |
+| Release 3 | dashboard host + login | Fase 4 |
+| Release 4 | reader shell | Fase 5 |
+| Release 5 | limpeza final | Fases 6-7 |
+
+Rollback: preservar entrada React/Vite antiga ate a Fase 4; trocar roteamento de
+producao apenas quando as paginas equivalentes passarem smoke + Lighthouse + SEO diff.
+
+## 6. Modelo de execucao por dia
 
 Cada sessao deve caber num recorte pequeno e reversivel.
 
@@ -245,15 +403,19 @@ Cada sessao deve caber num recorte pequeno e reversivel.
 
 ### Exemplos de recortes seguros
 
-- Dia A: `/sobre` + `/faq`
-- Dia B: `/equipe`
-- Dia C: `/doacoes` + `/recrutamento`
-- Dia D: `/`
-- Dia E: `/projetos`
-- Dia F: `/projeto/[slug]`
-- Dia G: `/postagem/[slug]`
+- Dia A: expandir contrato de dados + `/`
+- Dia B: `/projetos`
+- Dia C: `/projeto/[slug]`
+- Dia D: `/postagem/[slug]`
+- Dia E: `/login`
+- Dia F: `/dashboard/[...slug]`
+- Dia G: reader shell manga
+- Dia H: reader shell light novel
+- Dia I: limpeza bootstrap/seo-snapshot
+- Dia J: limpeza prerender/SSR legado
+- Dia K: limpeza deps/styling
 
-## 5. Checklist de entrada por fase
+## 7. Checklist de entrada por fase
 
 Antes de iniciar qualquer fase:
 
@@ -261,8 +423,9 @@ Antes de iniciar qualquer fase:
 - reler `docs/astro-migration-architecture.md`
 - identificar rotas exatas da sessao
 - listar comandos de validacao que vao ser executados
+- verificar se o contrato de dados em `Astro.locals` e suficiente
 
-## 6. Checklist de saida por fase
+## 8. Checklist de saida por fase
 
 Antes de encerrar qualquer sessao:
 
@@ -270,29 +433,30 @@ Antes de encerrar qualquer sessao:
 - registrar o que ainda ficou legado
 - rodar os comandos relevantes
 - manter rollback claro
+- atualizar tabela de ownership neste documento
 
-## 7. Registro de ownership sugerido
+## 9. Registro de ownership
 
 Atualizar esta tabela ao fim de cada marco:
 
 | Rota/grupo | Runtime atual | Ultima validacao |
 | --- | --- | --- |
-| `/termos-de-uso` | Astro | feito |
-| `/politica-de-privacidade` | Astro | feito |
-| `/sobre` | Astro | `npm run astro:check` + vitest Astro |
-| `/faq` | Astro | `npm run astro:check` + vitest Astro |
-| `/equipe` | Astro | `npm run astro:check` + vitest Astro |
-| `/doacoes` | Astro | `npm run astro:check` + vitest Astro |
-| `/recrutamento` | Astro | `npm run astro:check` + vitest Astro |
-| `/` | React legado | pendente |
-| `/projetos` | React legado | pendente |
-| `/projeto/[slug]` | React legado | pendente |
-| `/postagem/[slug]` | React legado | pendente |
-| `/login` | React legado | pendente |
-| `/dashboard/**` | React legado | pendente |
-| `/projeto/[slug]/leitura/[chapter]` | React legado | pendente |
+| `/termos-de-uso` | Astro | `astro:check` + vitest |
+| `/politica-de-privacidade` | Astro | `astro:check` + vitest |
+| `/sobre` | Astro | `astro:check` + vitest |
+| `/faq` | Astro | `astro:check` + vitest |
+| `/equipe` | Astro | `astro:check` + vitest |
+| `/doacoes` | Astro | `astro:check` + vitest |
+| `/recrutamento` | Astro | `astro:check` + vitest |
+| `/` | React legado | pendente (Fase 3) |
+| `/projetos` | React legado | pendente (Fase 3) |
+| `/projeto/[slug]` | React legado | pendente (Fase 3) |
+| `/postagem/[slug]` | React legado | pendente (Fase 3) |
+| `/login` | React legado | pendente (Fase 4) |
+| `/dashboard/**` | React legado | pendente (Fase 4) |
+| `/projeto/[slug]/leitura/[chapter]` | React legado | pendente (Fase 5) |
 
-## 8. Criterio para seguir para a proxima fase
+## 10. Criterio para seguir para a proxima fase
 
 So avancar quando a fase anterior tiver:
 
@@ -302,8 +466,9 @@ So avancar quando a fase anterior tiver:
 - lint verde
 - fallback/rollback simples
 - documentacao atualizada
+- Lighthouse sem regressao (quando aplicavel)
 
-## 9. Proximo passo oficial
+## 11. Proximo passo oficial
 
 Se a implementacao for retomada agora, o proximo marco deve ser:
 
@@ -311,7 +476,8 @@ Se a implementacao for retomada agora, o proximo marco deve ser:
 
 Ordem recomendada dentro dela:
 
-1. `/`
-2. `/projetos`
-3. `/projeto/[slug]`
-4. `/postagem/[slug]`
+1. expandir contrato de dados em `Astro.locals.nekomata`
+2. `/`
+3. `/projetos`
+4. `/projeto/[slug]`
+5. `/postagem/[slug]`
