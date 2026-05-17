@@ -95,15 +95,6 @@ vi.mock("../../server/lib/public-donations-qr.js", () => ({
   })),
 }));
 
-vi.mock("../../server/lib/public-prerender-runtime.js", () => ({
-  createPublicPrerenderRuntime: vi.fn(() => ({
-    isEnabled: false,
-    middleware: (_req: unknown, _res: unknown, next: () => void) => next(),
-    seedMissingStaticRoutes: vi.fn(async () => []),
-    enqueueFullRegeneration: vi.fn(async () => []),
-  })),
-}));
-
 vi.mock("../../server/lib/frontend-runtime.js", async () => {
   const actual = await vi.importActual<typeof import("../../server/lib/frontend-runtime.js")>(
     "../../server/lib/frontend-runtime.js",
@@ -181,7 +172,7 @@ describe.sequential("server/index boot smoke", () => {
     expect(onSpy).toHaveBeenCalledWith("error", expect.any(Function));
     expect(onSpy).toHaveBeenCalledWith("close", expect.any(Function));
     // Boot should register asynchronous background work; assert timer intent by validating scheduled callback shape.
-    expect(bootSmoke.timerState.immediates).toHaveLength(4);
+    expect(bootSmoke.timerState.immediates).toHaveLength(3);
     for (const immediate of bootSmoke.timerState.immediates) {
       expect(immediate.callback).toEqual(expect.any(Function));
     }

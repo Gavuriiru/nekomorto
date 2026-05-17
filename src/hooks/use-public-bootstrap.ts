@@ -286,6 +286,18 @@ export const primePublicBootstrapCache = (value: unknown) => {
   return true;
 };
 
+export const resetPublicBootstrapCache = () => {
+  const payload = asPublicBootstrapPayload(readWindowPublicBootstrapSource());
+  syncedWindowBootstrapSource = readWindowPublicBootstrapSource();
+  publicBootstrapCache.data = payload;
+  publicBootstrapCache.error = null;
+  publicBootstrapCache.status = payload ? "success" : "idle";
+  publicBootstrapCache.hasFetched = !!payload;
+  publicBootstrapCache.lastFetchedAt = payload ? Date.now() : 0;
+  publicBootstrapCache.inFlightPromise = null;
+  emitSnapshot();
+};
+
 export const refetchPublicBootstrapCache = async (apiBase = getApiBase()) =>
   await requestPublicBootstrap(apiBase, { force: true });
 

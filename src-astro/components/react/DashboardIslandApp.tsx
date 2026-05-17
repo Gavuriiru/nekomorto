@@ -26,11 +26,16 @@ const DashboardHostRoutes = () => (
 );
 
 interface DashboardIslandAppProps {
+  initialCurrentUser?: unknown;
   initialSettings?: SiteSettings | null;
 }
 
-const DashboardIslandApp = ({ initialSettings }: DashboardIslandAppProps) => (
-  <AppProviders initialSettings={initialSettings ?? undefined} initiallyLoaded={Boolean(initialSettings)}>
+const DashboardIslandApp = ({ initialCurrentUser, initialSettings }: DashboardIslandAppProps) => (
+  <AppProviders
+    initialCurrentUser={initialCurrentUser}
+    initialSettings={initialSettings ?? undefined}
+    initiallyLoaded={Boolean(initialSettings)}
+  >
     <BrowserRouter>
       <DashboardHostRoutes />
     </BrowserRouter>

@@ -16,10 +16,6 @@ vi.mock("@/components/ui/sonner", () => ({
   Toaster: () => <div data-testid="deferred-sonner" />,
 }));
 
-vi.mock("./routes/PublicRoutes", () => ({
-  default: () => <div data-testid="public-routes" />,
-}));
-
 vi.mock("./routes/DashboardRoutes", () => ({
   default: () => {
     throw new Promise(() => undefined);

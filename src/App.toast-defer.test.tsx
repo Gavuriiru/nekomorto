@@ -16,8 +16,8 @@ vi.mock("@/components/ui/sonner", () => ({
   Toaster: () => <div data-testid="deferred-sonner" />,
 }));
 
-vi.mock("./routes/PublicRoutes", () => ({
-  default: () => <div data-testid="public-routes" />,
+vi.mock("./routes/DashboardRoutes", () => ({
+  default: () => <div data-testid="dashboard-routes" />,
 }));
 
 vi.mock("@/hooks/use-reveal", () => ({
@@ -44,6 +44,7 @@ describe("App toast defer", () => {
   beforeEach(() => {
     scheduleOnBrowserLoadIdleMock.mockReset();
     scheduleOnBrowserLoadIdleMock.mockImplementation(() => () => undefined);
+    window.history.replaceState({}, "", "/dashboard");
     Object.defineProperty(window, "scrollTo", {
       value: vi.fn(),
       writable: true,

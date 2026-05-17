@@ -66,7 +66,7 @@ const createProject = ({
 });
 
 const getUtcDayKeyFromOffset = (offsetDays: number) => {
-  const day = new Date();
+  const day = new Date(FIXED_GENERATED_AT);
   day.setUTCHours(0, 0, 0, 0);
   day.setUTCDate(day.getUTCDate() - offsetDays);
   return day.toISOString().slice(0, 10);

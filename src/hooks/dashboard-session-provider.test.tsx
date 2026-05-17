@@ -1,6 +1,7 @@
 import { render, screen, waitFor } from "@testing-library/react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
+import { PublicBootstrapProvider } from "@/hooks/public-bootstrap-provider";
 import { DashboardSessionProvider } from "@/hooks/dashboard-session-provider";
 import { useDashboardSession } from "@/hooks/use-dashboard-session";
 
@@ -46,18 +47,9 @@ const SessionProbe = () => {
   );
 };
 
-const renderProvider = (tick: number) =>
-  render(
-    <DashboardSessionProvider>
-      <div data-testid="render-tick">{tick}</div>
-      <SessionProbe />
-    </DashboardSessionProvider>,
-  );
-
 describe("DashboardSessionProvider", () => {
   beforeEach(() => {
     apiFetchMock.mockReset();
-    (window as Window & { __BOOTSTRAP_PUBLIC_ME__?: unknown }).__BOOTSTRAP_PUBLIC_ME__ = undefined;
   });
 
   it("revalida o bootstrap uma vez por mount sem voltar ao loading bloqueante", async () => {
@@ -70,14 +62,21 @@ describe("DashboardSessionProvider", () => {
       return mockJsonResponse(false, { error: "not_found" }, 404);
     });
 
-    (window as Window & { __BOOTSTRAP_PUBLIC_ME__?: unknown }).__BOOTSTRAP_PUBLIC_ME__ = {
-      id: "u-1",
-      name: "Admin",
-      username: "admin",
-      permissions: ["*"],
-    };
-
-    const { rerender } = renderProvider(0);
+    const { rerender } = render(
+      <PublicBootstrapProvider
+        initialCurrentUser={{
+          id: "u-1",
+          name: "Admin",
+          username: "admin",
+          permissions: ["*"],
+        }}
+      >
+        <DashboardSessionProvider>
+          <div data-testid="render-tick">0</div>
+          <SessionProbe />
+        </DashboardSessionProvider>
+      </PublicBootstrapProvider>,
+    );
 
     expect(screen.getByTestId("session-probe")).toHaveAttribute("data-user", "admin");
     expect(screen.getByTestId("session-probe")).toHaveAttribute("data-loading", "true");
@@ -96,10 +95,19 @@ describe("DashboardSessionProvider", () => {
     });
 
     rerender(
-      <DashboardSessionProvider>
-        <div data-testid="render-tick">1</div>
-        <SessionProbe />
-      </DashboardSessionProvider>,
+      <PublicBootstrapProvider
+        initialCurrentUser={{
+          id: "u-1",
+          name: "Admin",
+          username: "admin",
+          permissions: ["*"],
+        }}
+      >
+        <DashboardSessionProvider>
+          <div data-testid="render-tick">1</div>
+          <SessionProbe />
+        </DashboardSessionProvider>
+      </PublicBootstrapProvider>,
     );
 
     expect(screen.getByTestId("session-probe")).toHaveAttribute("data-loading", "true");

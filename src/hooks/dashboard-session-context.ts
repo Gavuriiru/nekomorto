@@ -1,4 +1,7 @@
-import type { PublicBootstrapCurrentUser } from "@/lib/public-bootstrap-global";
+import {
+  type PublicBootstrapCurrentUser,
+  type PublicBootstrapCurrentUser as DashboardBootstrapSeedUser,
+} from "@/lib/public-bootstrap-global";
 import { createContext } from "react";
 
 export type DashboardBootstrapUser = Pick<
@@ -33,13 +36,9 @@ export type DashboardSessionContextValue = {
   setCurrentUser: (user: DashboardSessionUser | null) => void;
 };
 
-export const readDashboardBootstrapUser = (): DashboardBootstrapUser | null => {
-  if (typeof window === "undefined") {
-    return null;
-  }
-
-  const candidate = (window as Window & { __BOOTSTRAP_PUBLIC_ME__?: unknown })
-    .__BOOTSTRAP_PUBLIC_ME__;
+export const readDashboardBootstrapUser = (
+  candidate: DashboardBootstrapSeedUser | null | undefined,
+): DashboardBootstrapUser | null => {
   if (!candidate || typeof candidate !== "object") {
     return null;
   }
@@ -63,12 +62,10 @@ export const readDashboardBootstrapUser = (): DashboardBootstrapUser | null => {
   };
 };
 
-const bootstrapUser = readDashboardBootstrapUser();
-
 export const DashboardSessionContext = createContext<DashboardSessionContextValue>({
   hasProvider: false,
-  currentUser: bootstrapUser,
-  isLoading: Boolean(bootstrapUser),
+  currentUser: null,
+  isLoading: false,
   hasResolved: false,
   refresh: async () => null,
   setCurrentUser: () => undefined,

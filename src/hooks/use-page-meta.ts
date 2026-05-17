@@ -102,6 +102,9 @@ export const usePageMeta = ({
     if (isLoading) {
       return;
     }
+    if (document.documentElement.dataset.pageOwner === "astro") {
+      return;
+    }
     document.documentElement.dataset.pageMeta = "true";
     document.title = pageTitle;
 

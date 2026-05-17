@@ -4,5 +4,9 @@ import DashboardHostLayout from "../../layouts/DashboardHostLayout.astro";
 ---
 
 <DashboardHostLayout title="Dashboard">
-  <DashboardIslandApp client:only="react" initialSettings={Astro.locals.nekomata?.siteSettings || null} />
+  <DashboardIslandApp
+    client:only="react"
+    initialCurrentUser={Astro.locals.nekomata?.currentUser || null}
+    initialSettings={Astro.locals.nekomata?.siteSettings || null}
+  />
 </DashboardHostLayout>

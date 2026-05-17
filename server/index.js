@@ -217,8 +217,6 @@ import { normalizeLegacyUpdateRecord } from "./lib/pt-legacy-normalization.js";
 import { buildPublicBootstrapPayload } from "./lib/public-bootstrap.js";
 import { buildPublicRoutePayload } from "./lib/public-bootstrap.js";
 import { buildPublicDonationsRoutePayload } from "./lib/public-donations-qr.js";
-import { createPublicPrerenderRuntime } from "./lib/public-prerender-runtime.js";
-import { buildPublicPrerenderBuildFingerprint } from "./lib/public-prerender-build-fingerprint.js";
 import {
   resolveExistingPublicVariantUrl,
   resolveHomeHeroPreloadFromSlide,
@@ -741,7 +739,6 @@ const {
   PORT,
   PRIMARY_APP_HOST,
   PRIMARY_APP_ORIGIN,
-  publicPrerenderDir,
   PUBLIC_READ_CACHE_MAX_ENTRIES,
   PUBLIC_READ_CACHE_TTL_MS,
   SESSION_SECRET,
@@ -757,7 +754,6 @@ const {
   isMetricsEnabled,
   isOpsAlertsWebhookEnabled,
   isProduction,
-  isPublicPrerenderEnabled,
   isPwaDevEnabled,
   isRbacV2AcceptLegacyStar,
   isRbacV2Enabled,
@@ -1326,58 +1322,23 @@ const {
   renderMetaHtml,
   sendHtml,
 } = siteRenderingRuntime;
-const publicPrerenderRendererPath = path.join(REPO_ROOT_DIR, "dist-ssr", "public", "renderer.mjs");
-const publicPrerenderBuildFingerprint = buildPublicPrerenderBuildFingerprint({
-  apiContractVersion: API_CONTRACT_VERSION,
-  buildMetadata: getBuildMetadata(),
-  indexHtml: getIndexHtml(),
-});
-const publicPrerenderRuntime = createPublicPrerenderRuntime({
-  baseUrl: `http://127.0.0.1:${Number(PORT)}`,
-  buildFingerprint: publicPrerenderBuildFingerprint,
-  clientDistDir,
-  enabled: isPublicPrerenderEnabled,
-  getPublicVisiblePosts: () => getPublicVisiblePosts(),
-  getPublicVisibleProjects: () => getPublicVisibleProjects(),
-  outputDir: publicPrerenderDir,
-  rendererModulePath: publicPrerenderRendererPath,
-  sendHtml,
-});
-const enqueuePublicPrerenderFullRegeneration = (reason) => {
-  if (!publicPrerenderRuntime.isEnabled) {
-    return;
-  }
-  void publicPrerenderRuntime.enqueueFullRegeneration({ reason }).catch(() => undefined);
-};
 const writePostsWithPublicPrerender = (...args) => {
-  const result = writePosts(...args);
-  enqueuePublicPrerenderFullRegeneration("posts-write");
-  return result;
+  return writePosts(...args);
 };
 const writeProjectsWithPublicPrerender = (...args) => {
-  const result = writeProjects(...args);
-  enqueuePublicPrerenderFullRegeneration("projects-write");
-  return result;
+  return writeProjects(...args);
 };
 const writePagesWithPublicPrerender = (...args) => {
-  const result = writePages(...args);
-  enqueuePublicPrerenderFullRegeneration("pages-write");
-  return result;
+  return writePages(...args);
 };
 const writeSiteSettingsWithPublicPrerender = (...args) => {
-  const result = writeSiteSettings(...args);
-  enqueuePublicPrerenderFullRegeneration("settings-write");
-  return result;
+  return writeSiteSettings(...args);
 };
 const writeTagTranslationsWithPublicPrerender = (...args) => {
-  const result = writeTagTranslations(...args);
-  enqueuePublicPrerenderFullRegeneration("tag-translations-write");
-  return result;
+  return writeTagTranslations(...args);
 };
 const runAutoUploadReorganizationWithPublicPrerender = async (...args) => {
-  const result = await runAutoUploadReorganization(...args);
-  enqueuePublicPrerenderFullRegeneration("auto-upload-reorganization");
-  return result;
+  return await runAutoUploadReorganization(...args);
 };
 
 const getActiveProjectTypes = createGetActiveProjectTypes({
@@ -1780,7 +1741,51 @@ const resolveAstroPublicRouteKind = (pathname) => {
   return "";
 };
 
-app.use((req, res, next) => publicPrerenderRuntime.middleware(req, res, next));
+const findAstroBootstrapProjectByRouteSlug = (projects, routeSlug) => {
+  const rawRouteSlug = String(routeSlug || "").trim();
+  if (!rawRouteSlug) {
+    return null;
+  }
+  const normalizedRouteSlug = createSlug(rawRouteSlug);
+  return (
+    (Array.isArray(projects) ? projects : []).find((candidate) => {
+      const candidateId = String(candidate?.id || "").trim();
+      return (
+        candidateId === rawRouteSlug ||
+        createSlug(candidateId) === normalizedRouteSlug ||
+        createSlug(candidate?.title || "") === normalizedRouteSlug
+      );
+    }) || null
+  );
+};
+
+const buildAstroRelationProjectLookup = (projects, relations) => {
+  const relationKeys = new Set();
+  (Array.isArray(relations) ? relations : []).forEach((relation) => {
+    const projectId = String(relation?.projectId || "").trim();
+    const anilistId = String(relation?.anilistId || "").trim();
+    if (projectId) {
+      relationKeys.add(projectId);
+    }
+    if (anilistId) {
+      relationKeys.add(anilistId);
+    }
+  });
+  if (relationKeys.size === 0) {
+    return {};
+  }
+  return (Array.isArray(projects) ? projects : []).reduce((result, project) => {
+    const projectId = String(project?.id || "").trim();
+    const anilistId = String(project?.anilistId || "").trim();
+    if (projectId && relationKeys.has(projectId)) {
+      result[projectId] = projectId;
+    }
+    if (anilistId && relationKeys.has(anilistId)) {
+      result[anilistId] = projectId;
+    }
+    return result;
+  }, {});
+};
 
 const isAstroPublicRuntimeEnabled = isProduction;
 const astroPublicRequestHandler = createAstroPublicRequestHandler({
@@ -1818,12 +1823,43 @@ const astroPublicRequestHandler = createAstroPublicRequestHandler({
         if (!routeKind) {
           return null;
         }
-        return publicRuntime.buildPublicRouteResponsePayload({
-          pages,
-          routeKind,
-          routeParams: req?.params,
-          settings: siteSettings,
-        });
+        if (routeKind === "projects-list") {
+          const projects = getPublicVisibleProjects();
+          const tagTranslations = loadTagTranslations();
+          return buildPublicRoutePayload({
+            kind: "projects-list",
+            projects,
+            tagTranslations,
+            mediaVariants: buildPublicMediaVariants([projects]),
+          });
+        }
+        if (routeKind === "project-detail") {
+          const projects = getPublicVisibleProjects();
+          const project = findAstroBootstrapProjectByRouteSlug(projects, req?.params?.id);
+          if (!project) {
+            return null;
+          }
+          const tagTranslations = loadTagTranslations();
+          const projectPayload = { ...project };
+          return buildPublicRoutePayload({
+            kind: "project-detail",
+            project: projectPayload,
+            revision: buildProjectOgRevision({
+              project: projectPayload,
+              settings: siteSettings,
+              translations: tagTranslations,
+              origin: PRIMARY_APP_ORIGIN,
+              resolveVariantUrl: resolveMetaImageVariantUrl,
+            }),
+            relationProjectLookup: buildAstroRelationProjectLookup(projects, project?.relations),
+            tagTranslations,
+            mediaVariants: buildPublicMediaVariants([
+              projectPayload,
+              projectPayload?.relations || [],
+            ]),
+          });
+        }
+        return undefined;
       },
     }),
   loadPages: () => loadPages(),
@@ -2180,9 +2216,6 @@ startServerJobs({
   isAutoUploadReorganizationOnStartupEnabled,
   isMaintenanceMode,
   listenPort,
-  onListening: async () => {
-    await publicPrerenderRuntime.seedMissingStaticRoutes().catch(() => []);
-  },
   operationalAlertsWebhookState,
   rateLimiter,
   runAutoUploadReorganization: runAutoUploadReorganizationWithPublicPrerender,

@@ -36,9 +36,9 @@ Hoje o projeto esta em modo **hibrido**:
 - o backend continua sendo Node/Express em `server/index.js`
 - o frontend legado continua em React/Vite
 - o build legado continua produzindo `dist/`
-- o renderer SSR paralelo continua em `dist-ssr/public/renderer.mjs`
 - a nova camada Astro ja produz `dist-astro/`
 - em producao, o Express agora consegue servir um primeiro slice Astro
+- o build oficial ja nao produz mais `dist-ssr/public/renderer.mjs` nem prerender manual publico
 
 ### 3.1 Slice Astro ja implantado
 
@@ -72,10 +72,8 @@ Essas rotas usam:
 
 - island React compartilhada da Fase 3 para home, catalogo e detalhes de conteudo
 - core React do reader (`ProjectReading.tsx`, `PublicProjectReader`, `LexicalViewer`, comments)
-- bootstrap publico global (`window.__BOOTSTRAP_*`)
-- prerender incremental legado (`public-prerender-runtime.js`)
-- renderer SSR publico legado (`build-public-ssr.mjs`)
-- SEO snapshot para crawlers (`public-seo-snapshot.js`)
+- bootstrap global ainda existe como compat legado em helpers/testes, mas nao e mais contrato do runtime publico Astro
+- SEO snapshot e prerender/SSR publico paralelo sairam do pipeline oficial
 - preload recovery (`vite-preload-recovery.ts`)
 
 ### 3.3 Arquivos-chave da arquitetura legada
@@ -90,13 +88,13 @@ Essas rotas usam:
 | `server/routes/register-app-routes.js` | Express: catch-all do app legado |
 | `server/lib/html-bootstrap.js` | injeta `__BOOTSTRAP_*` no HTML |
 | `server/lib/public-seo-snapshot.js` | gera snapshot SEO escondido |
-| `server/lib/public-prerender-runtime.js` | prerender incremental via SSR |
+| `server/lib/public-prerender-runtime.js` | removido na Fase 6 |
 | `src/hooks/use-public-bootstrap.ts` | hook React que consome bootstrap global |
 | `src/lib/vite-preload-recovery.ts` | recovery de `vite:preloadError` |
 | `src/lib/build-chunking.ts` | chunking manual (lexical, charts, MUI, react-core) |
 | `server/lib/meta-html.js` | gera `<head>` com meta/OG/schema |
-| `scripts/build-public-ssr.mjs` | build do renderer SSR paralelo |
-| `scripts/prerender-public.mjs` | prerender por script |
+| `scripts/build-public-ssr.mjs` | removido na Fase 6 |
+| `scripts/prerender-public.mjs` | removido na Fase 6 |
 
 ## 4. Divida tecnica a eliminar
 
@@ -104,10 +102,10 @@ Gambiarras compensatorias que devem ser removidas ao longo da migracao:
 
 | Divida | Arquivo(s) | Fase de remocao |
 | --- | --- | --- |
-| `window.__BOOTSTRAP_PUBLIC__`, `__SETTINGS__`, `__PROMISE__` | `html-bootstrap.js`, `use-public-bootstrap.ts` | Fase 6 |
-| SEO snapshot escondido para crawlers | `public-seo-snapshot.js` | Fase 6 |
-| SSR publico separado do build principal | `build-public-ssr.mjs`, `dist-ssr/` | Fase 6 |
-| Prerender via boot do proprio servidor | `prerender-public.mjs`, `public-prerender-runtime.js` | Fase 6 |
+| `window.__BOOTSTRAP_PUBLIC__`, `__SETTINGS__`, `__PROMISE__` | `html-bootstrap.js`, `use-public-bootstrap.ts` | concluido no runtime publico Astro |
+| SEO snapshot escondido para crawlers | `public-seo-snapshot.js` | concluido |
+| SSR publico separado do build principal | `build-public-ssr.mjs`, `dist-ssr/` | concluido |
+| Prerender via boot do proprio servidor | `prerender-public.mjs`, `public-prerender-runtime.js` | concluido |
 | `vite:preloadError` recovery no publico | `vite-preload-recovery.ts` | Fase 6 |
 | Chunking manual para isolar deps pesadas | `build-chunking.ts` | Fase 7 |
 | PWA cleanup legado (nao e PWA funcional) | `build-pwa.mjs` | Fase 7 |
@@ -428,7 +426,6 @@ src-astro/
 ### 16.1 Artefatos atuais
 
 - `dist/`: bundle cliente legado Vite
-- `dist-ssr/`: renderer SSR/prerender legado
 - `dist-astro/`: bundle Astro
 
 ### 16.2 Ordem atual do build
@@ -437,10 +434,8 @@ src-astro/
 
 1. `npm run build:astro`
 2. `vite build`
-3. `npm run build:public:ssr`
-4. `npm run build:pwa`
-5. `npm run prerender:public`
-6. guards de chunks/home
+3. `npm run build:pwa`
+4. guards de chunks/home
 
 ### 16.3 Pipeline alvo (apos migracao completa)
 

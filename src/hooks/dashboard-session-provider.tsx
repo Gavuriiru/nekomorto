@@ -3,13 +3,17 @@ import {
   readDashboardBootstrapUser,
   type DashboardSessionUser,
 } from "@/hooks/dashboard-session-context";
+import { useResolvedPublicBootstrapCurrentUser } from "@/hooks/public-bootstrap-provider";
 import { getApiBase } from "@/lib/api-base";
 import { apiFetch } from "@/lib/api-client";
 import { type ReactNode, useCallback, useEffect, useMemo, useState } from "react";
 
 export const DashboardSessionProvider = ({ children }: { children: ReactNode }) => {
   const apiBase = getApiBase();
-  const [bootstrapUser] = useState<DashboardSessionUser | null>(() => readDashboardBootstrapUser());
+  const seededCurrentUser = useResolvedPublicBootstrapCurrentUser();
+  const [bootstrapUser] = useState<DashboardSessionUser | null>(() =>
+    readDashboardBootstrapUser(seededCurrentUser),
+  );
   const [currentUser, setCurrentUser] = useState<DashboardSessionUser | null>(bootstrapUser);
   const [isLoading, setIsLoading] = useState(Boolean(bootstrapUser));
   const [hasResolved, setHasResolved] = useState(false);

@@ -1,3 +1,4 @@
+import { resetPublicBootstrapCache } from "@/hooks/use-public-bootstrap";
 import { render, screen, within } from "@testing-library/react";
 import { MemoryRouter } from "react-router-dom";
 import { beforeEach, describe, expect, it, vi } from "vitest";
@@ -253,6 +254,7 @@ const setupApiMock = (users = usersFixture) => {
 describe("Team mobile social layout", () => {
   beforeEach(() => {
     clearBootstrapPayload();
+    resetPublicBootstrapCache();
     setupApiMock();
   });
 

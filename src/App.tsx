@@ -10,8 +10,6 @@ import type { ComponentType } from "react";
 import { lazy, Suspense, useEffect, useLayoutEffect, useState } from "react";
 import { BrowserRouter, Route, Routes, useLocation } from "react-router-dom";
 
-import PublicRoutes from "./routes/PublicRoutes";
-
 const DeferredSonner = lazy(() =>
   import("@/components/ui/sonner").then((module) => ({ default: module.Toaster })),
 );
@@ -44,6 +42,20 @@ const DashboardRoutesLoader = () => {
   }
 
   return <DashboardRoutesComponent />;
+};
+
+const FullReloadFallback = () => {
+  const location = useLocation();
+
+  useEffect(() => {
+    if (typeof window === "undefined") {
+      return;
+    }
+    const target = `${location.pathname}${location.search}${location.hash}`;
+    window.location.assign(target);
+  }, [location.hash, location.pathname, location.search]);
+
+  return null;
 };
 
 const RouterShell = () => {
@@ -79,10 +91,8 @@ const RouterShell = () => {
   return (
     <Suspense fallback={<RouteLoadingFallback />}>
       <Routes location={location}>
-        {isDashboardRoute ? (
-          <Route path="/dashboard/*" element={<DashboardRoutesLoader />} />
-        ) : null}
-        <Route path="*" element={<PublicRoutes />} />
+        {isDashboardRoute ? <Route path="/dashboard/*" element={<DashboardRoutesLoader />} /> : null}
+        <Route path="*" element={<FullReloadFallback />} />
       </Routes>
     </Suspense>
   );

@@ -15,7 +15,7 @@ sequencia, escopo nem criterios de validacao.
 | Fase 3 | concluida | Home e catalogo publico em ownership Astro |
 | Fase 4 | concluida | Login, dashboard host e fronteira React |
 | Fase 5 | concluida | Reader e islands pesadas |
-| Fase 6 | pendente | Limpeza de infraestrutura legada |
+| Fase 6 | concluida | Limpeza de infraestrutura legada |
 | Fase 7 | pendente | Simplificar styles/deps restantes |
 
 ### 1.2 O que ja foi feito
@@ -47,7 +47,7 @@ sequencia, escopo nem criterios de validacao.
 ### 1.3 O que falta ser feito
 
 - reduzir a ilha React compartilhada das rotas da Fase 3 e mover mais HTML para Astro puro
-- remover bootstrap global, seo-snapshot, prerender legado (Fase 6)
+- remover bootstrap global, seo-snapshot, prerender legado (feito na Fase 6)
 - limpar deps MUI/Emotion, chunking manual, PWA legado (Fase 7)
 
 ## 2. Ordem oficial de execucao
@@ -305,7 +305,7 @@ npm run lighthouse:reader-pages:mobile
 
 ### Fase 6. Limpeza de infraestrutura legada
 
-Status: **pendente**
+Status: **concluida**
 
 Prioridade: P2
 
@@ -314,19 +314,33 @@ Objetivo:
 - remover apenas o que deixou de ser necessario de verdade
 - cada remocao deve ser por evidencias, nao por desejo arquitetural
 
-#### Candidatos a remocao
+Entregas realizadas:
 
-| Item | Arquivo(s) | Condicao para remocao |
-| --- | --- | --- |
-| `window.__BOOTSTRAP_*` | `html-bootstrap.js`, `use-public-bootstrap.ts` | todas as rotas publicas migradas |
-| SEO snapshot | `public-seo-snapshot.js` | todas as rotas publicas migradas |
-| Prerender incremental | `public-prerender-runtime.js`, `prerender-public.mjs` | Astro SSR substitui |
-| SSR publico paralelo | `build-public-ssr.mjs`, `src/ssr/public-app.tsx` | Astro SSR substitui |
-| Vite preload recovery (publico) | `vite-preload-recovery.ts` | publico nao usa mais Vite |
-| `usePageMeta` nas rotas migradas | multiplos | Astro head substitui |
-| Trechos de `register-site-routes.js` | `register-site-routes.js` | rotas equivalentes no Astro |
-| Trechos de `register-app-routes.js` | `register-app-routes.js` | rotas equivalentes no Astro |
-| Bootstrap init script | `html-bootstrap.js` (linhas 65-237) | nenhuma rota depende mais |
+- pipeline legado removido do build oficial:
+  - `build:public:ssr`
+  - `prerender:public`
+  - `server/lib/public-prerender-runtime.js`
+  - `src/ssr/public-app.tsx`
+- shell React legado deixou de ser owner publico em `src/main.tsx` e `src/App.tsx`
+- `register-site-routes.js` ficou apenas com redirects publicos canonicos
+- `register-app-routes.js` virou catch-all HTML simples sem bootstrap HTML legado
+- layouts Astro deixaram de injetar `window.__BOOTSTRAP_*` para login, reader e dashboard
+- bootstrap inicial das islands passou a vir por props/context (`AppProviders`, `PublicBootstrapProvider`)
+- `usePageMeta` passou a respeitar ownership Astro nas rotas publicas migradas
+
+Pontos preservados:
+
+- home, catalogo, projeto, postagem e reader continuam usando islands React onde ainda ha interatividade estrutural
+- dashboard continua em React, mas seeded pelo host Astro em vez de globals do documento
+- `GET /api/public/bootstrap` continua existindo para refresh e hidratacao posterior
+- redirects publicos e fallback HTML continuam simples para rollback operacional
+
+#### Validacao
+
+```bash
+npx vitest run src/App.toast-defer.test.tsx src/App.loading-fallback.test.tsx src/hooks/dashboard-session-provider.test.tsx src/hooks/use-public-bootstrap.store.test.tsx src/server/register-app-routes.test.ts src/server/server-index-boot-smoke.test.ts
+npm run typecheck
+```
 
 #### Regra
 
@@ -453,10 +467,10 @@ So avancar quando a fase anterior tiver:
 
 Se a implementacao for retomada agora, o proximo marco deve ser:
 
-- **Fase 6: limpeza de infraestrutura legada**
+- **Fase 7: simplificar styles/deps restantes**
 
 Preparacao recomendada antes dela:
 
-1. confirmar que a rota de leitura em Astro passou smoke e Lighthouse sem regressao
-2. mapear quais trechos de `window.__BOOTSTRAP_*` ainda sao realmente necessarios fora do dashboard
-3. remover primeiro o que ja perdeu ownership publico real, sem tocar no que ainda sustenta o app React interno
+1. medir o que ainda vaza de bundle publico por `build-chunking.ts`
+2. mapear o enclave atual de MUI/Emotion no dashboard
+3. decidir o destino final de `build-pwa.mjs` antes de cortar o script

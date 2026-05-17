@@ -61,9 +61,9 @@ const parseSrc = (value: string | null) => {
   };
 };
 
-const renderDashboardSettings = () =>
+const renderDashboardSettings = (entry = "/dashboard/configuracoes") =>
   render(
-    <MemoryRouter initialEntries={["/dashboard/configuracoes"]}>
+    <MemoryRouter initialEntries={[entry]}>
       <DashboardSettings />
     </MemoryRouter>,
   );
@@ -152,10 +152,8 @@ describe("DashboardSettings svg refresh", () => {
   });
 
   it("updates downloads SVG preview when upload returns the same URL", async () => {
-    renderDashboardSettings();
+    renderDashboardSettings("/dashboard/configuracoes?tab=downloads");
     await screen.findByRole("heading", { name: /Painel/i });
-
-    fireEvent.mouseDown(screen.getByRole("tab", { name: /Downloads/i }));
     await screen.findByRole("heading", { name: /Fontes de download/i });
 
     const previewBefore = await screen.findByAltText(/Google Drive/i);
@@ -192,10 +190,8 @@ describe("DashboardSettings svg refresh", () => {
   });
 
   it("updates social link type SVG preview when upload returns the same URL", async () => {
-    renderDashboardSettings();
+    renderDashboardSettings("/dashboard/configuracoes?tab=redes-usuarios");
     await screen.findByRole("heading", { name: /Painel/i });
-
-    fireEvent.mouseDown(screen.getByRole("tab", { name: /Redes/i }));
     await screen.findByRole("heading", { name: /Redes sociais/i });
 
     const previewBefore = await screen.findByAltText(/Instagram/i);

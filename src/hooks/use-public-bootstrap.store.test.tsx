@@ -2,6 +2,10 @@ import { fireEvent, render, screen, waitFor } from "@testing-library/react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 const apiFetchMock = vi.hoisted(() => vi.fn());
+type BootstrapWindow = Window &
+  typeof globalThis & {
+    __BOOTSTRAP_PUBLIC__?: unknown;
+  };
 
 vi.mock("@/lib/api-base", () => ({
   getApiBase: () => "http://api.local",
@@ -18,10 +22,6 @@ const createJsonResponse = (ok: boolean, payload: unknown, status = ok ? 200 : 5
     json: async () => payload,
   }) as Response;
 
-const clearWindowBootstrap = () => {
-  (window as Window & { __BOOTSTRAP_PUBLIC__?: unknown }).__BOOTSTRAP_PUBLIC__ = undefined;
-};
-
 const loadHookModule = async () => {
   vi.resetModules();
   return await import("@/hooks/use-public-bootstrap");
@@ -31,7 +31,7 @@ describe("usePublicBootstrap store", () => {
   beforeEach(() => {
     vi.useRealTimers();
     apiFetchMock.mockReset();
-    clearWindowBootstrap();
+    delete (window as BootstrapWindow).__BOOTSTRAP_PUBLIC__;
   });
 
   it("deduplica fetch concorrente entre consumidores", async () => {
@@ -193,23 +193,6 @@ describe("usePublicBootstrap store", () => {
   });
 
   it("revalida imediatamente quando o bootstrap inicial vem em modo critical-home", async () => {
-    (window as Window & { __BOOTSTRAP_PUBLIC__?: unknown }).__BOOTSTRAP_PUBLIC__ = {
-      settings: {},
-      pages: { home: {} },
-      projects: [
-        {
-          id: "project-critical",
-          title: "Projeto Critico",
-        },
-      ],
-      posts: [],
-      updates: [],
-      mediaVariants: {},
-      tagTranslations: { tags: {}, genres: {}, staffRoles: {} },
-      generatedAt: "2026-03-05T00:00:00.000Z",
-      payloadMode: "critical-home",
-    };
-
     apiFetchMock.mockResolvedValueOnce(
       createJsonResponse(true, {
         settings: {},
@@ -224,7 +207,23 @@ describe("usePublicBootstrap store", () => {
       }),
     );
 
-    const { usePublicBootstrap } = await loadHookModule();
+    const { primePublicBootstrapCache, usePublicBootstrap } = await loadHookModule();
+    primePublicBootstrapCache({
+      settings: {},
+      pages: { home: {} },
+      projects: [
+        {
+          id: "project-critical",
+          title: "Projeto Critico",
+        },
+      ],
+      posts: [],
+      updates: [],
+      mediaVariants: {},
+      tagTranslations: { tags: {}, genres: {}, staffRoles: {} },
+      generatedAt: "2026-03-05T00:00:00.000Z",
+      payloadMode: "critical-home",
+    });
 
     const Harness = () => {
       const { data, isHydratingFullPayload } = usePublicBootstrap();
@@ -240,28 +239,10 @@ describe("usePublicBootstrap store", () => {
     await waitFor(() => {
       expect(screen.getByTestId("hook")).toHaveTextContent("Projeto Completo|full");
     });
-
-    const windowBootstrap = (window as Window & { __BOOTSTRAP_PUBLIC__?: unknown })
-      .__BOOTSTRAP_PUBLIC__ as { projects?: Array<{ title?: string }>; payloadMode?: string };
-
-    expect(windowBootstrap?.payloadMode).toBe("full");
-    expect(windowBootstrap?.projects?.[0]?.title).toBe("Projeto Completo");
     expect(apiFetchMock).toHaveBeenCalledTimes(1);
   });
 
   it("revalida imediatamente quando o bootstrap inicial vem em modo shell", async () => {
-    (window as Window & { __BOOTSTRAP_PUBLIC__?: unknown }).__BOOTSTRAP_PUBLIC__ = {
-      settings: {},
-      pages: { donations: {} },
-      projects: [],
-      posts: [],
-      updates: [],
-      mediaVariants: {},
-      tagTranslations: { tags: {}, genres: {}, staffRoles: {} },
-      generatedAt: "2026-03-05T00:00:00.000Z",
-      payloadMode: "shell",
-    };
-
     apiFetchMock.mockResolvedValueOnce(
       createJsonResponse(true, {
         settings: {},
@@ -276,7 +257,18 @@ describe("usePublicBootstrap store", () => {
       }),
     );
 
-    const { usePublicBootstrap } = await loadHookModule();
+    const { primePublicBootstrapCache, usePublicBootstrap } = await loadHookModule();
+    primePublicBootstrapCache({
+      settings: {},
+      pages: { donations: {} },
+      projects: [],
+      posts: [],
+      updates: [],
+      mediaVariants: {},
+      tagTranslations: { tags: {}, genres: {}, staffRoles: {} },
+      generatedAt: "2026-03-05T00:00:00.000Z",
+      payloadMode: "shell",
+    });
 
     const Harness = () => {
       const { data, isHydratingFullPayload } = usePublicBootstrap();
@@ -293,15 +285,6 @@ describe("usePublicBootstrap store", () => {
     await waitFor(() => {
       expect(screen.getByTestId("hook")).toHaveTextContent("Doacoes completas|full");
     });
-
-    const windowBootstrap = (window as Window & { __BOOTSTRAP_PUBLIC__?: unknown })
-      .__BOOTSTRAP_PUBLIC__ as {
-      pages?: { donations?: { heroTitle?: string } };
-      payloadMode?: string;
-    };
-
-    expect(windowBootstrap?.payloadMode).toBe("full");
-    expect(windowBootstrap?.pages?.donations?.heroTitle).toBe("Doacoes completas");
     expect(apiFetchMock).toHaveBeenCalledTimes(1);
   });
 
