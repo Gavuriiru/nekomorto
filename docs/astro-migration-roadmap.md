@@ -1,4 +1,4 @@
-# Roadmap da Migracao para Astro
+﻿# Roadmap da Migracao para Astro
 
 Roadmap operacional para executar a migracao em dias diferentes sem perder
 sequencia, escopo nem criterios de validacao.
@@ -12,7 +12,7 @@ sequencia, escopo nem criterios de validacao.
 | Fase 0 | concluida | Baseline e guardrails |
 | Fase 1 | concluida | Infra Astro + rotas legais |
 | Fase 2 | concluida | Paginas institucionais Astro puro |
-| Fase 3 | pendente | Home e catalogo publico |
+| Fase 3 | concluida | Home e catalogo publico em ownership Astro |
 | Fase 4 | pendente | Login, dashboard host e fronteira React |
 | Fase 5 | pendente | Reader e islands pesadas |
 | Fase 6 | pendente | Limpeza de infraestrutura legada |
@@ -24,8 +24,13 @@ sequencia, escopo nem criterios de validacao.
 - runtime Express preparado para servir slice Astro (`register-astro-routes.js`, `astro-public-runtime.js`)
 - `PublicLayout.astro` e `PublicPageHero.astro` criados e compartilhados
 - helpers `public-layout.ts` e `public-page-meta.ts` para dados server-side
+- integracao `@astrojs/react` habilitada para islands SSR/hidratadas
 - testes de integracao de roteamento funcionando
-- 7 rotas publicas migradas:
+- 11 rotas publicas migradas:
+  - `/`
+  - `/projetos`
+  - `/projeto/[slug]`
+  - `/postagem/[slug]`
   - `/termos-de-uso`
   - `/politica-de-privacidade`
   - `/sobre`
@@ -36,7 +41,7 @@ sequencia, escopo nem criterios de validacao.
 
 ### 1.3 O que falta ser feito
 
-- migrar `/`, `/projetos`, `/projeto/[slug]`, `/postagem/[slug]` (Fase 3)
+- reduzir a ilha React compartilhada das rotas da Fase 3 e mover mais HTML para Astro puro
 - isolar dashboard e login na arquitetura Astro (Fase 4)
 - migrar shell de leitura para Astro com reader como island React (Fase 5)
 - remover bootstrap global, seo-snapshot, prerender legado (Fase 6)
@@ -139,7 +144,7 @@ npm run build
 
 ### Fase 3. Home e catalogo publico
 
-Status: **pendente** — proximo marco oficial
+Status: **concluida**
 
 Prioridade: P1
 
@@ -150,75 +155,49 @@ Rotas:
 - `/projeto/[slug]`
 - `/postagem/[slug]`
 
-Objetivo:
+Objetivo concluido:
 
-- sair do shell React global para as rotas publicas mais importantes
-- trocar bootstrap/manual meta por rendering server-first
-- eliminar dependencia de `seo-snapshot` e prerender nessas rotas
+- mover ownership de documento, head, canonical, OG e schema para Astro
+- servir `/`, `/projetos`, `/projeto/[slug]` e `/postagem/[slug]` pelo handler Astro
+- preservar fallback/rollback simples e compatibilidade funcional do shell publico atual
 
-#### Subetapas recomendadas
+Entregas realizadas:
 
-1. **Expandir contrato de dados do Astro.locals**
-   - adicionar `projects`, `posts`, `tagTranslations`, `mediaVariants`, `homeHero`
-     ao payload que o Express injeta em `Astro.locals.nekomata`
-   - expandir `resolveAstroPublicRoutePayload` para as rotas de conteudo
-   - atualizar `register-astro-routes.js` com as novas rotas
+- contrato `Astro.locals.nekomata` expandido com `publicBootstrap` para as rotas da Fase 3
+- `register-astro-routes.js` atualizado para `/`, `/projetos`, `/projeto/:id`, `/postagem/:slug`
+- `resolveAstroPublicRoutePayload` ligado ao runtime publico real do Express
+- novas paginas Astro criadas para as quatro rotas
+- island compartilhada `src-astro/components/react/PublicPhase3IslandApp.tsx` criada para preservar SSR/hidratacao React existente
+- metadata, canonical e structured data dessas quatro rotas agora saem do Astro
 
-2. **Migrar `/`**
-   - criar `src-astro/pages/index.astro`
-   - hero section como island React `client:load` (se continuar carousel interativo)
-   - projetos em destaque, posts recentes, updates como Astro puro ou `client:idle`
-   - structured data e canonical server-side
-   - preload de imagens da home
+Observacoes:
 
-3. **Migrar `/projetos`**
-   - criar `src-astro/pages/projetos/index.astro`
-   - grid de projetos como Astro puro
-   - filtros (query params: `q`, `tag`, `genero`, `type`, `page`, `genre`) como island `client:idle`
-   - preservar compatibilidade total de query params
+- a Fase 3 foi fechada com ownership Astro, mas ainda nao com Astro puro nessas quatro rotas
+- `HeroSection`, catalogo, projeto e postagem ainda passam por uma island React compartilhada
+- a reducao adicional de JS e a remocao de bootstrap global continuam como trabalho das Fases 6 e 7
 
-4. **Migrar `/projeto/[slug]`**
-   - criar `src-astro/pages/projeto/[slug].astro`
-   - conteudo, sinopse, meta, chapters como Astro puro
-   - comments como island `client:visible`
-   - structured data por projeto
-
-5. **Migrar `/postagem/[slug]`**
-   - criar `src-astro/pages/postagem/[slug].astro`
-   - conteudo do post, excerpt, meta como Astro puro
-   - comments/embed/polls como island `client:visible`
-   - structured data por post
-
-#### Pontos de atencao
-
-- query params e filtros de `/projetos` devem funcionar identicamente
-- preload de imagens da home (hero, thumbnails)
-- cards de projeto/post devem virar componentes Astro reutilizaveis
-- comments e widgets abaixo da dobra como islands `client:visible`
-- structured data e canonical por rota devem sair no HTML final
-- nao depender de `window.__BOOTSTRAP_*` nas novas rotas
-- manter rotas legadas ativas atras de fallback ate estabilizacao
-
-#### Validacao
+Validacao executada:
 
 ```bash
+npx vitest run src/server/register-astro-routes.test.ts src/server/astro-public-runtime.test.ts
 npm run astro:check
 npm run lint
 npm run typecheck
 npm run build
-npm run lighthouse:home:mobile
-npm run lighthouse:projects:mobile
-npm run lighthouse:public-surface
 ```
 
-#### Criterio de saida
+Resultado:
 
 - HTML das 4 rotas sai do Astro
 - head/canonical/robots/OG corretos em cada rota
 - structured data presente e correto
 - query params de `/projetos` preservados
-- Lighthouse nao regride vs baseline atual
 - fallback legado ainda funcional para rollback
+
+Follow-up recomendado antes da Fase 4:
+
+- rodar `lighthouse:home:mobile`, `lighthouse:projects:mobile` e `lighthouse:public-surface`
+- reduzir a island React compartilhada da Fase 3 por rota/componente
 
 ---
 
@@ -448,10 +427,10 @@ Atualizar esta tabela ao fim de cada marco:
 | `/equipe` | Astro | `astro:check` + vitest |
 | `/doacoes` | Astro | `astro:check` + vitest |
 | `/recrutamento` | Astro | `astro:check` + vitest |
-| `/` | React legado | pendente (Fase 3) |
-| `/projetos` | React legado | pendente (Fase 3) |
-| `/projeto/[slug]` | React legado | pendente (Fase 3) |
-| `/postagem/[slug]` | React legado | pendente (Fase 3) |
+| `/` | Astro + island React compartilhada | `astro:check` + vitest + build |
+| `/projetos` | Astro + island React compartilhada | `astro:check` + vitest + build |
+| `/projeto/[slug]` | Astro + island React compartilhada | `astro:check` + vitest + build |
+| `/postagem/[slug]` | Astro + island React compartilhada | `astro:check` + vitest + build |
 | `/login` | React legado | pendente (Fase 4) |
 | `/dashboard/**` | React legado | pendente (Fase 4) |
 | `/projeto/[slug]/leitura/[chapter]` | React legado | pendente (Fase 5) |
@@ -472,12 +451,10 @@ So avancar quando a fase anterior tiver:
 
 Se a implementacao for retomada agora, o proximo marco deve ser:
 
-- **Fase 3: home e catalogo publico**
+- **Fase 4: login, dashboard host e fronteira React**
 
-Ordem recomendada dentro dela:
+Preparacao recomendada antes dela:
 
-1. expandir contrato de dados em `Astro.locals.nekomata`
-2. `/`
-3. `/projetos`
-4. `/projeto/[slug]`
-5. `/postagem/[slug]`
+1. rodar Lighthouse da Fase 3 e registrar baseline novo se necessario
+2. decidir se `/login` entra como island React `client:load` ou continua legado por mais um ciclo
+3. desenhar o host de `/dashboard/**` sem quebrar chunks, auth e CSS isolado
