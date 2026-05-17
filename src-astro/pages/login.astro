@@ -1,0 +1,22 @@
+---
+import LoginIslandApp from "../components/react/LoginIslandApp";
+import PublicLayout from "../layouts/PublicLayout.astro";
+
+const locals = Astro.locals.nekomata;
+const _location = `${Astro.url.pathname}${Astro.url.search}`;
+---
+
+<PublicLayout
+  canonicalUrl={new URL(Astro.url.pathname, locals?.primaryAppOrigin || Astro.url.origin).toString()}
+  description="Acesso autenticado ao dashboard do Nekomorto."
+  robots="noindex, nofollow"
+  title="Login"
+>
+  <LoginIslandApp
+    client:load
+    initialPublicBootstrap={locals?.publicBootstrap || null}
+    initialPublicRoutePayload={locals?.routePayload || null}
+    initialSettings={locals?.siteSettings || null}
+    location={_location}
+  />
+</PublicLayout>

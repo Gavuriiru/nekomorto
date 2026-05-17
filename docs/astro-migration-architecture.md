@@ -44,6 +44,8 @@ Hoje o projeto esta em modo **hibrido**:
 
 Rotas atualmente servidas pelo Astro:
 
+- `/login`
+- `/dashboard/**`
 - `/sobre`
 - `/faq`
 - `/equipe`
@@ -67,9 +69,7 @@ Essas rotas usam:
 - listagem de projetos (`/projetos`)
 - pagina de projeto (`/projeto/[slug]`)
 - pagina de postagem (`/postagem/[slug]`)
-- login (`/login`)
 - reader (`/projeto/[slug]/leitura/[chapter]`)
-- dashboard (`/dashboard/**`)
 - bootstrap publico global (`window.__BOOTSTRAP_*`)
 - prerender incremental legado (`public-prerender-runtime.js`)
 - renderer SSR publico legado (`build-public-ssr.mjs`)

@@ -66,6 +66,9 @@ describe("registerAstroRoutes", () => {
     "/recrutamento",
     "/termos-de-uso",
     "/politica-de-privacidade",
+    "/login",
+    "/dashboard",
+    "/dashboard/posts",
   ])("serves Astro-owned route %s before the legacy fallback", async (pathname) => {
     const started = await createTestServer({
       handleAstroPublicRequest: async (_req, res) => {
@@ -90,7 +93,7 @@ describe("registerAstroRoutes", () => {
     });
     activeServer = started.server;
 
-    const response = await fetch(`${started.baseUrl}/login`);
+    const response = await fetch(`${started.baseUrl}/projeto/teste/leitura/1`);
     const body = await response.text();
 
     expect(response.status).toBe(200);

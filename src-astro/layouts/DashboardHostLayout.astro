@@ -1,0 +1,57 @@
+---
+import "../../src/index.css";
+import "../../src/styles/fonts.css";
+import type { SiteSettings } from "../../src/types/site-settings";
+
+interface Props {
+  title?: string;
+  description?: string;
+  robots?: string;
+}
+
+const {
+  title: _title = "Dashboard",
+  description: _description = "Dashboard interno do Nekomorto.",
+  robots: _robots = "noindex, nofollow",
+} = Astro.props;
+const locals = Astro.locals.nekomata;
+const siteSettings = (locals?.siteSettings ?? {}) as Partial<SiteSettings>;
+const siteName = String(siteSettings.site?.name || "NEKOMATA").trim() || "NEKOMATA";
+const separator = siteSettings.site?.titleSeparator || " | ";
+const pageTitle = _title ? `${_title}${separator}${siteName}` : siteName;
+const bootstrapSettingsJson = JSON.stringify(locals?.siteSettings ?? null)
+  .replace(/</g, "\\u003C")
+  .replace(/>/g, "\\u003E")
+  .replace(/&/g, "\\u0026")
+  .replace(/\u2028/g, "\\u2028")
+  .replace(/\u2029/g, "\\u2029");
+const bootstrapCurrentUserJson = JSON.stringify(locals?.currentUser ?? null)
+  .replace(/</g, "\\u003C")
+  .replace(/>/g, "\\u003E")
+  .replace(/&/g, "\\u0026")
+  .replace(/\u2028/g, "\\u2028")
+  .replace(/\u2029/g, "\\u2029");
+---
+
+<!doctype html>
+<html lang="pt-BR">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>{pageTitle}</title>
+    <meta name="description" content={_description} />
+    <meta name="robots" content={_robots} />
+    <meta name="theme-color" content="hsl(var(--background))" />
+    <script is:inline>
+      {`window.__BOOTSTRAP_PUBLIC__ = null;
+window.__BOOTSTRAP_ROUTE__ = null;
+window.__BOOTSTRAP_SETTINGS__ = ${bootstrapSettingsJson};
+window.__BOOTSTRAP_PUBLIC_ME__ = ${bootstrapCurrentUserJson};
+window.__BOOTSTRAP_PWA_ENABLED__ = false;
+window.__BOOTSTRAP_SKIP_PUBLIC_FETCH__ = true;`}
+    </script>
+  </head>
+  <body class="min-h-screen bg-background text-foreground">
+    <slot />
+  </body>
+</html>

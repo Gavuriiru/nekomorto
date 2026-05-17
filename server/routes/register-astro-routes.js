@@ -10,7 +10,10 @@ export const ASTRO_PUBLIC_ROUTE_PATHS = Object.freeze([
   "/recrutamento",
   "/termos-de-uso",
   "/politica-de-privacidade",
+  "/login",
 ]);
+
+export const ASTRO_DASHBOARD_ROUTE_PATHS = Object.freeze(["/dashboard", "/dashboard/{*path}"]);
 
 const normalizePathname = (value) => {
   const pathname = String(value || "").trim();
@@ -25,13 +28,14 @@ export const isAstroPublicRoute = (pathname) => {
   const normalized = normalizePathname(pathname);
   return (
     ASTRO_PUBLIC_ROUTE_PATHS.includes(normalized) ||
+    /^\/dashboard(?:\/.*)?$/.test(normalized) ||
     /^\/projeto\/[^/]+$/.test(normalized) ||
     /^\/postagem\/[^/]+$/.test(normalized)
   );
 };
 
 export const registerAstroRoutes = ({ app, handleAstroPublicRequest } = {}) => {
-  app.get(ASTRO_PUBLIC_ROUTE_PATHS, async (req, res, next) => {
+  const handleAstroRoute = async (req, res, next) => {
     if (typeof handleAstroPublicRequest !== "function") {
       return next();
     }
@@ -40,7 +44,10 @@ export const registerAstroRoutes = ({ app, handleAstroPublicRequest } = {}) => {
     } catch (error) {
       return next(error);
     }
-  });
+  };
+
+  app.get(ASTRO_PUBLIC_ROUTE_PATHS, handleAstroRoute);
+  app.get(ASTRO_DASHBOARD_ROUTE_PATHS, handleAstroRoute);
 };
 
 export default registerAstroRoutes;

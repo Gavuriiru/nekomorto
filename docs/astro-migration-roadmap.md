@@ -13,7 +13,7 @@ sequencia, escopo nem criterios de validacao.
 | Fase 1 | concluida | Infra Astro + rotas legais |
 | Fase 2 | concluida | Paginas institucionais Astro puro |
 | Fase 3 | concluida | Home e catalogo publico em ownership Astro |
-| Fase 4 | pendente | Login, dashboard host e fronteira React |
+| Fase 4 | concluida | Login, dashboard host e fronteira React |
 | Fase 5 | pendente | Reader e islands pesadas |
 | Fase 6 | pendente | Limpeza de infraestrutura legada |
 | Fase 7 | pendente | Simplificar styles/deps restantes |
@@ -26,7 +26,8 @@ sequencia, escopo nem criterios de validacao.
 - helpers `public-layout.ts` e `public-page-meta.ts` para dados server-side
 - integracao `@astrojs/react` habilitada para islands SSR/hidratadas
 - testes de integracao de roteamento funcionando
-- 11 rotas publicas migradas:
+- ownership Astro expandido para login e dashboard host
+- 13 rotas/superficies migradas:
   - `/`
   - `/projetos`
   - `/projeto/[slug]`
@@ -38,11 +39,12 @@ sequencia, escopo nem criterios de validacao.
   - `/equipe`
   - `/doacoes`
   - `/recrutamento`
+  - `/login`
+  - `/dashboard/**`
 
 ### 1.3 O que falta ser feito
 
 - reduzir a ilha React compartilhada das rotas da Fase 3 e mover mais HTML para Astro puro
-- isolar dashboard e login na arquitetura Astro (Fase 4)
 - migrar shell de leitura para Astro com reader como island React (Fase 5)
 - remover bootstrap global, seo-snapshot, prerender legado (Fase 6)
 - limpar deps MUI/Emotion, chunking manual, PWA legado (Fase 7)
@@ -203,7 +205,7 @@ Follow-up recomendado antes da Fase 4:
 
 ### Fase 4. Login, dashboard host e fronteira React
 
-Status: **pendente**
+Status: **concluida**
 
 Prioridade: P1
 
@@ -212,35 +214,34 @@ Rotas:
 - `/login`
 - `/dashboard/**`
 
-Objetivo:
+Objetivo concluido:
 
-- decidir o host definitivo do dashboard na arquitetura nova
-- manter o app React do dashboard intacto, mas encapsulado de forma previsivel
+- mover `/login` e `/dashboard/**` para ownership Astro sem reescrever as paginas React existentes
+- manter auth/session, bootstrap e protecoes do dashboard intactos
+- separar o host publico de login do host interno de dashboard de forma previsivel
 
-#### Subetapas recomendadas
+Entregas realizadas:
 
-1. **`/login`**
-   - criar `src-astro/pages/login.astro`
-   - avaliar: Astro shell + island React `client:load` ou manter legado por mais um ciclo
-   - login e noindex, entao SEO nao e prioridade aqui
-   - auth flow deve continuar funcional identicamente
+- `register-astro-routes.js` expandido para `/login` e `/dashboard/**`
+- `src-astro/pages/login.astro` criada com shell Astro e island React dedicada
+- `src-astro/pages/dashboard/[...slug].astro` criada como host interno Astro
+- `DashboardHostLayout.astro` criado para o documento do dashboard
+- hosts React dedicados separados do `App.tsx` global:
+  - `LoginIslandApp.tsx`
+  - `DashboardIslandApp.tsx`
+- dashboard continua usando a arvore React atual, incluindo `DashboardRoutes`, `RequireAuth`, `DashboardSessionProvider` e `DashboardPreferencesProvider`
 
-2. **`/dashboard/**`**
-   - criar `src-astro/pages/dashboard/[...slug].astro`
-   - host dedicado com `DashboardHostLayout.astro`
-   - app React carregado como superficie isolada via `client:only`
-   - nao reescrever paginas do dashboard para Astro componente a componente
-   - manter todos os assets, chunks e CSS do dashboard isolados
+Pontos preservados:
 
-#### Pontos de atencao
-
-- auth/session devem continuar funcionando identicamente
-- CSS do dashboard (incluindo MUI/Emotion) deve ser isolado, sem vazar para publico
-- rotas protegidas devem manter validacao de ownership/permissao
+- login continua `noindex`
+- dashboard continua isolado do chrome publico
+- refresh direto em `/dashboard/**` continua valido
+- auth/session e ownership/permissoes continuam no caminho atual do backend e do app React
 
 #### Validacao
 
 ```bash
+npx vitest run src/server/register-astro-routes.test.ts src/server/register-app-routes.test.ts src/server/astro-public-runtime.test.ts
 npm run lint
 npm run typecheck
 npm run build

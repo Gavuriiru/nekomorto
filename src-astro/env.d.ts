@@ -8,6 +8,7 @@ declare global {
   namespace App {
     interface Locals {
       nekomata?: {
+        currentUser?: unknown;
         pages: PublicPagesConfig | Record<string, unknown> | null;
         primaryAppOrigin: string;
         publicBootstrap?: PublicBootstrapPayload | null;

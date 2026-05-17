@@ -144,6 +144,7 @@ export const createAstroPublicRequestHandler = ({
         : null;
     return handler(req, res, next, {
       nekomata: {
+        currentUser: req?.session?.user ?? null,
         pages,
         primaryAppOrigin: String(primaryAppOrigin || "").trim(),
         publicBootstrap,

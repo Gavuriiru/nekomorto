@@ -1,0 +1,8 @@
+---
+import DashboardIslandApp from "../../components/react/DashboardIslandApp";
+import DashboardHostLayout from "../../layouts/DashboardHostLayout.astro";
+---
+
+<DashboardHostLayout title="Dashboard">
+  <DashboardIslandApp client:only="react" initialSettings={Astro.locals.nekomata?.siteSettings || null} />
+</DashboardHostLayout>
