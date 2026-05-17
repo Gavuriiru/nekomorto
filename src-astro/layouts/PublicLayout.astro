@@ -1,14 +1,17 @@
 ---
 import "../../src/index.css";
 import "../../src/styles/fonts.css";
+import { serializeSchemaOrgEntry } from "../../server/lib/schema-org.js";
 import type { SiteSettings } from "../../src/types/site-settings";
 import { buildPublicChromeModel } from "../lib/public-layout";
 
 interface Props {
+  canonicalUrl?: string;
   description: string;
   image?: string;
   imageAlt?: string;
   robots?: string;
+  structuredData?: unknown[];
   title: string;
 }
 
@@ -17,6 +20,8 @@ const {
   image: _image = "",
   imageAlt: _imageAlt = "",
   robots: _robots = "index, follow",
+  canonicalUrl: _canonicalUrlProp = "",
+  structuredData: _structuredData = [],
   title: _title,
 } = Astro.props;
 const locals = Astro.locals.nekomata;
@@ -85,10 +90,14 @@ const fallbackSettings: SiteSettings = {
 const chrome = buildPublicChromeModel(locals?.siteSettings ?? fallbackSettings);
 const separator = locals?.siteSettings?.site?.titleSeparator || " | ";
 const _pageTitle = _title ? `${_title}${separator}${chrome.siteName}` : chrome.siteName;
-const _canonicalUrl = new URL(
+const _canonicalUrl = _canonicalUrlProp || new URL(
   Astro.url.pathname,
   locals?.primaryAppOrigin || Astro.url.origin || "https://nekomata.moe",
 ).toString();
+const _absoluteImage = _image ? new URL(_image, _canonicalUrl).toString() : "";
+const _absoluteFavicon = chrome.siteFaviconUrl
+  ? new URL(chrome.siteFaviconUrl, _canonicalUrl).toString()
+  : "";
 ---
 
 <!doctype html>
@@ -106,15 +115,29 @@ const _canonicalUrl = new URL(
     <meta property="og:url" content={_canonicalUrl} />
     <meta property="og:site_name" content={chrome.siteName} />
     <meta property="og:locale" content="pt_BR" />
-    {_image ? <meta property="og:image" content={_image} /> : null}
+    {_absoluteImage ? <meta property="og:image" content={_absoluteImage} /> : null}
     {_imageAlt ? <meta property="og:image:alt" content={_imageAlt} /> : null}
     <meta name="twitter:title" content={_pageTitle} />
     <meta name="twitter:description" content={_description} />
     <meta name="twitter:card" content={_image ? "summary_large_image" : "summary"} />
-    {_image ? <meta name="twitter:image" content={_image} /> : null}
+    {_absoluteImage ? <meta name="twitter:image" content={_absoluteImage} /> : null}
     {_imageAlt ? <meta name="twitter:image:alt" content={_imageAlt} /> : null}
     <link rel="canonical" href={_canonicalUrl} />
-    {chrome.siteFaviconUrl ? <link rel="icon" href={chrome.siteFaviconUrl} /> : null}
+    {_absoluteFavicon ? <link rel="icon" href={_absoluteFavicon} /> : null}
+    {
+      Array.isArray(_structuredData)
+        ? _structuredData
+            .filter((entry) => entry && typeof entry === "object")
+            .map((entry) => (
+              <script
+                is:inline
+                type="application/ld+json"
+                data-schema-org="true"
+                set:html={serializeSchemaOrgEntry(entry)}
+              />
+            ))
+        : null
+    }
   </head>
   <body class="min-h-screen bg-background text-foreground">
     <div class="flex min-h-screen flex-col bg-background text-foreground">

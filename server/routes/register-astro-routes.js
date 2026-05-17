@@ -1,4 +1,8 @@
 export const ASTRO_PUBLIC_ROUTE_PATHS = Object.freeze([
+  "/",
+  "/projetos",
+  "/projeto/:id",
+  "/postagem/:slug",
   "/sobre",
   "/faq",
   "/equipe",
@@ -19,7 +23,11 @@ const normalizePathname = (value) => {
 
 export const isAstroPublicRoute = (pathname) => {
   const normalized = normalizePathname(pathname);
-  return ASTRO_PUBLIC_ROUTE_PATHS.includes(normalized);
+  return (
+    ASTRO_PUBLIC_ROUTE_PATHS.includes(normalized) ||
+    /^\/projeto\/[^/]+$/.test(normalized) ||
+    /^\/postagem\/[^/]+$/.test(normalized)
+  );
 };
 
 export const registerAstroRoutes = ({ app, handleAstroPublicRequest } = {}) => {

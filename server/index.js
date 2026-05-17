@@ -1752,6 +1752,33 @@ const publicRuntime = createPublicRuntimeBundle(
 
 const { getPublicVisiblePosts, getPublicVisibleProjects } = publicRuntime;
 
+const isAstroPhase3Pathname = (pathname) => {
+  const normalizedPathname = String(pathname || "").trim() || "/";
+  return (
+    normalizedPathname === "/" ||
+    normalizedPathname === "/projetos" ||
+    /^\/projeto\/[^/]+$/.test(normalizedPathname) ||
+    /^\/postagem\/[^/]+$/.test(normalizedPathname)
+  );
+};
+
+const resolveAstroPublicRouteKind = (pathname) => {
+  const normalizedPathname = String(pathname || "").trim() || "/";
+  if (normalizedPathname === "/projetos") {
+    return "projects-list";
+  }
+  if (/^\/projeto\/[^/]+$/.test(normalizedPathname)) {
+    return "project-detail";
+  }
+  if (normalizedPathname === "/equipe") {
+    return "team";
+  }
+  if (normalizedPathname === "/doacoes") {
+    return "donations";
+  }
+  return "";
+};
+
 app.use((req, res, next) => publicPrerenderRuntime.middleware(req, res, next));
 
 const isAstroPublicRuntimeEnabled = isProduction;
@@ -1759,15 +1786,44 @@ const astroPublicRequestHandler = createAstroPublicRequestHandler({
   entryFilePath: ASTRO_SERVER_ENTRY_PATH,
   fs,
   isProduction,
-  loadAstroRoutePayload: ({ pathname, pages, siteSettings }) =>
+  loadAstroPublicBootstrap: ({ pathname, pages, req, siteSettings }) => {
+    if (!isAstroPhase3Pathname(pathname)) {
+      return null;
+    }
+    const routeSlug = String(req?.params?.slug || "").trim();
+    const currentPostDetail = routeSlug
+      ? (() => {
+          const post =
+            getPublicVisiblePosts().find((candidate) => String(candidate?.slug || "") === routeSlug) ||
+            null;
+          return post ? buildPublicPostDetail({ post, resolvePostCover }) : null;
+        })()
+      : null;
+    return publicRuntime.buildPublicBootstrapResponsePayload({
+      currentPostDetail,
+      pages,
+      payloadMode: PUBLIC_BOOTSTRAP_MODE_FULL,
+      settings: siteSettings,
+    });
+  },
+  loadAstroRoutePayload: ({ pathname, pages, req, siteSettings }) =>
     resolveAstroPublicRoutePayload({
       pathname,
       pages,
+      req,
       siteSettings,
-      buildPublicMediaVariants,
-      buildPublicTeamMembers,
-      loadLinkTypes,
-      resolvePublicDonationsRoutePayload: buildPublicDonationsRoutePayload,
+      loadAstroPublicRoutePayload: () => {
+        const routeKind = resolveAstroPublicRouteKind(pathname);
+        if (!routeKind) {
+          return null;
+        }
+        return publicRuntime.buildPublicRouteResponsePayload({
+          pages,
+          routeKind,
+          routeParams: req?.params,
+          settings: siteSettings,
+        });
+      },
     }),
   loadPages: () => loadPages(),
   loadSiteSettings: () => loadSiteSettings(),

@@ -1,7 +1,7 @@
 /// <reference types="astro/client" />
 
 import type { PublicPagesConfig } from "../src/types/public-pages";
-import type { PublicRoutePayload } from "../src/types/public-bootstrap";
+import type { PublicBootstrapPayload, PublicRoutePayload } from "../src/types/public-bootstrap";
 import type { SiteSettings } from "../src/types/site-settings";
 
 declare global {
@@ -10,6 +10,7 @@ declare global {
       nekomata?: {
         pages: PublicPagesConfig | Record<string, unknown> | null;
         primaryAppOrigin: string;
+        publicBootstrap?: PublicBootstrapPayload | null;
         routePayload?: PublicRoutePayload | null;
         siteSettings: SiteSettings;
       };

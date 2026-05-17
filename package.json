@@ -70,6 +70,7 @@
     "test:watch": "vitest"
   },
   "dependencies": {
+    "@astrojs/react": "4.4.1",
     "@astrojs/node": "10.1.1",
     "@aws-sdk/client-s3": "3.1044.0",
     "@lesjoursfr/html-to-epub": "6.1.0",

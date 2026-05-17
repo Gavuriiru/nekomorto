@@ -55,6 +55,10 @@ describe("registerAstroRoutes", () => {
   });
 
   it.each([
+    "/",
+    "/projetos",
+    "/projeto/projeto-teste",
+    "/postagem/postagem-teste",
     "/sobre",
     "/faq",
     "/equipe",

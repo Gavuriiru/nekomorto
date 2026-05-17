@@ -113,4 +113,46 @@ describe("resolveAstroPublicRoutePayload", () => {
 
     expect(payload).toBeNull();
   });
+
+  it("prefers a custom payload resolver when provided", async () => {
+    const loadAstroPublicRoutePayload = vi.fn(async () => ({
+      kind: "projects-list",
+      generatedAt: "2026-05-17T00:00:00.000Z",
+      mediaVariants: {},
+      projects: [],
+      tagTranslations: {
+        genres: {},
+        staffRoles: {},
+        tags: {},
+      },
+    }));
+
+    const payload = await resolveAstroPublicRoutePayload({
+      loadAstroPublicRoutePayload,
+      pathname: "/projetos",
+      req: {
+        params: {},
+      },
+    });
+
+    expect(payload).toEqual({
+      kind: "projects-list",
+      generatedAt: "2026-05-17T00:00:00.000Z",
+      mediaVariants: {},
+      projects: [],
+      tagTranslations: {
+        genres: {},
+        staffRoles: {},
+        tags: {},
+      },
+    });
+    expect(loadAstroPublicRoutePayload).toHaveBeenCalledWith({
+      pages: undefined,
+      pathname: "/projetos",
+      req: {
+        params: {},
+      },
+      siteSettings: undefined,
+    });
+  });
 });

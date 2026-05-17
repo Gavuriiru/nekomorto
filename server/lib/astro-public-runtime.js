@@ -21,11 +21,25 @@ export const resolveAstroPublicRoutePayload = async ({
   pathname,
   pages,
   siteSettings,
+  req,
   buildPublicMediaVariants,
   buildPublicTeamMembers,
+  loadAstroPublicRoutePayload,
   loadLinkTypes,
   resolvePublicDonationsRoutePayload,
 } = {}) => {
+  if (typeof loadAstroPublicRoutePayload === "function") {
+    const customPayload = await loadAstroPublicRoutePayload({
+      pathname,
+      pages,
+      req,
+      siteSettings,
+    });
+    if (customPayload !== undefined) {
+      return customPayload ?? null;
+    }
+  }
+
   const normalizedPathname = normalizePathname(pathname);
 
   switch (normalizedPathname) {
@@ -74,6 +88,7 @@ export const createAstroPublicRequestHandler = ({
   entryFilePath,
   fs,
   isProduction,
+  loadAstroPublicBootstrap,
   loadAstroRoutePayload,
   loadPages,
   loadSiteSettings,
@@ -118,10 +133,20 @@ export const createAstroPublicRequestHandler = ({
             siteSettings,
           })
         : null;
+    const publicBootstrap =
+      typeof loadAstroPublicBootstrap === "function"
+        ? await loadAstroPublicBootstrap({
+            pages,
+            pathname: req?.path,
+            req,
+            siteSettings,
+          })
+        : null;
     return handler(req, res, next, {
       nekomata: {
         pages,
         primaryAppOrigin: String(primaryAppOrigin || "").trim(),
+        publicBootstrap,
         routePayload,
         siteSettings,
       },

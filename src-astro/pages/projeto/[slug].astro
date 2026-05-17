@@ -1,0 +1,38 @@
+---
+import type { PublicRouteProjectDetailPayload } from "../../../src/types/public-bootstrap";
+import PublicPhase3IslandApp from "../../components/react/PublicPhase3IslandApp";
+import PublicLayout from "../../layouts/PublicLayout.astro";
+import { resolveProjectPageMeta } from "../../lib/public-phase3-meta";
+
+const locals = Astro.locals.nekomata;
+const publicBootstrap = locals?.publicBootstrap || null;
+const siteSettings = locals?.siteSettings;
+const routePayload =
+  locals?.routePayload && locals.routePayload.kind === "project-detail"
+    ? (locals.routePayload as PublicRouteProjectDetailPayload)
+    : null;
+const _meta = resolveProjectPageMeta({
+  fallbackOrigin: locals?.primaryAppOrigin || Astro.url.origin,
+  pathname: Astro.url.pathname,
+  publicBootstrap,
+  routePayload,
+  siteSettings,
+});
+const _location = `${Astro.url.pathname}${Astro.url.search}`;
+---
+
+<PublicLayout
+  canonicalUrl={_meta.canonicalUrl}
+  description={_meta.description}
+  image={_meta.image}
+  imageAlt={_meta.imageAlt}
+  structuredData={_meta.structuredData}
+  title={_meta.title}
+>
+  <PublicPhase3IslandApp
+    client:load
+    initialPublicBootstrap={publicBootstrap}
+    initialPublicRoutePayload={locals?.routePayload || null}
+    location={_location}
+  />
+</PublicLayout>
