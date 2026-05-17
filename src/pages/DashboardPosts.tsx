@@ -1,6 +1,26 @@
+import {
+  CalendarDays,
+  Copy,
+  Eye,
+  List as ListIcon,
+  MessageSquare,
+  Plus,
+  RotateCcw,
+  Trash2,
+  UserRound,
+} from "lucide-react";
+import {
+  type CSSProperties,
+  type KeyboardEvent as ReactKeyboardEvent,
+  useCallback,
+  useEffect,
+  useLayoutEffect,
+  useMemo,
+  useRef,
+  useState,
+} from "react";
+import { Link, Navigate, useLocation, useNavigate, useSearchParams } from "react-router-dom";
 import DashboardShell from "@/components/DashboardShell";
-import ProjectEmbedCard from "@/components/ProjectEmbedCard";
-import UploadPicture from "@/components/UploadPicture";
 import DashboardActionButton, {
   default as Button,
 } from "@/components/dashboard/DashboardActionButton";
@@ -36,6 +56,8 @@ import {
 import LazyImageLibraryDialog from "@/components/lazy/LazyImageLibraryDialog";
 import type { LexicalEditorHandle } from "@/components/lexical/LexicalEditor";
 import LexicalEditorSurface from "@/components/lexical/LexicalEditorSurface";
+import ProjectEmbedCard from "@/components/ProjectEmbedCard";
+import UploadPicture from "@/components/UploadPicture";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import AsyncState from "@/components/ui/async-state";
 import { Badge } from "@/components/ui/badge";
@@ -97,28 +119,6 @@ import { getImageFileNameFromUrl, resolvePostCoverPreview } from "@/lib/post-cov
 import { buildTranslationMap, sortByTranslatedLabel, translateTag } from "@/lib/project-taxonomy";
 import { normalizeUploadVariantUrlKey, type UploadMediaVariantsMap } from "@/lib/upload-variants";
 import type { ContentVersion, EditorialCalendarItem } from "@/types/editorial";
-import {
-  CalendarDays,
-  Copy,
-  Eye,
-  List as ListIcon,
-  MessageSquare,
-  Plus,
-  RotateCcw,
-  Trash2,
-  UserRound,
-} from "lucide-react";
-import {
-  type CSSProperties,
-  type KeyboardEvent as ReactKeyboardEvent,
-  useCallback,
-  useEffect,
-  useLayoutEffect,
-  useMemo,
-  useRef,
-  useState,
-} from "react";
-import { Link, Navigate, useLocation, useNavigate, useSearchParams } from "react-router-dom";
 
 const POST_EDITOR_TOOLBAR_STICKY_OFFSET_PX = 5;
 
@@ -1005,24 +1005,27 @@ const DashboardPosts = () => {
       return mapped.map((w) => w.post);
     }
 
+    if (sortMode === "tags") {
+      const collator = new Intl.Collator("pt-BR");
+      // Schwartzian transform to precompute tags strings
+      const mapped = filteredPosts.map((post) => {
+        const projectTags = post.projectId ? projectMap.get(post.projectId)?.tags || [] : [];
+        const postTags = Array.isArray(post.tags) ? post.tags : [];
+        const tagsJoined = [...projectTags, ...postTags].join(",");
+        return { post, tagsJoined };
+      });
+      mapped.sort((a, b) => collator.compare(a.tagsJoined, b.tagsJoined));
+      return mapped.map((w) => w.post);
+    }
+
+    const collator = new Intl.Collator("pt-BR");
     const next = [...filteredPosts];
     next.sort((a, b) => {
       if (sortMode === "alpha") {
-        return a.title.localeCompare(b.title, "pt-BR");
-      }
-      if (sortMode === "tags") {
-        const tagsA = [
-          ...(a.projectId ? projectMap.get(a.projectId)?.tags || [] : []),
-          ...(Array.isArray(a.tags) ? a.tags : []),
-        ];
-        const tagsB = [
-          ...(b.projectId ? projectMap.get(b.projectId)?.tags || [] : []),
-          ...(Array.isArray(b.tags) ? b.tags : []),
-        ];
-        return tagsA.join(",").localeCompare(tagsB.join(","), "pt-BR");
+        return collator.compare(a.title, b.title);
       }
       if (sortMode === "status") {
-        return a.status.localeCompare(b.status, "pt-BR");
+        return collator.compare(a.status, b.status);
       }
       if (sortMode === "views") {
         return (b.views || 0) - (a.views || 0);
