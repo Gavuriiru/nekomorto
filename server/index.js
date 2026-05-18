@@ -1791,6 +1791,7 @@ const isAstroPublicRuntimeEnabled = isProduction;
 const astroPublicRequestHandler = createAstroPublicRequestHandler({
   entryFilePath: ASTRO_SERVER_ENTRY_PATH,
   fs,
+  injectNonceIntoHtmlScripts,
   isProduction,
   loadAstroPublicBootstrap: ({ pathname, pages, req, siteSettings }) => {
     if (!isAstroPublicBootstrapPathname(pathname)) {

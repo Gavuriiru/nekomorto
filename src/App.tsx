@@ -14,6 +14,7 @@ const DeferredSonner = lazy(() =>
   import("@/components/ui/sonner").then((module) => ({ default: module.Toaster })),
 );
 const loadDashboardRoutes = () => import("./routes/DashboardRoutes");
+const PublicRoutes = lazy(() => import("./routes/PublicRoutes"));
 const PUBLIC_HOME_SCROLLBAR_GUTTER_CLASS = "public-home-scrollbar-gutter-stable";
 
 const RouteLoadingFallback = () => <AppLoadingFallback label="Carregando..." />;
@@ -44,24 +45,9 @@ const DashboardRoutesLoader = () => {
   return <DashboardRoutesComponent />;
 };
 
-const FullReloadFallback = () => {
-  const location = useLocation();
-
-  useEffect(() => {
-    if (typeof window === "undefined") {
-      return;
-    }
-    const target = `${location.pathname}${location.search}${location.hash}`;
-    window.location.assign(target);
-  }, [location.hash, location.pathname, location.search]);
-
-  return null;
-};
-
 const RouterShell = () => {
   const location = useLocation();
   useReveal();
-  const isDashboardRoute = location.pathname.startsWith("/dashboard");
   const isHomeRoute = location.pathname === "/";
 
   useLayoutEffect(() => {
@@ -91,8 +77,8 @@ const RouterShell = () => {
   return (
     <Suspense fallback={<RouteLoadingFallback />}>
       <Routes location={location}>
-        {isDashboardRoute ? <Route path="/dashboard/*" element={<DashboardRoutesLoader />} /> : null}
-        <Route path="*" element={<FullReloadFallback />} />
+        <Route path="/dashboard/*" element={<DashboardRoutesLoader />} />
+        <Route path="*" element={<PublicRoutes />} />
       </Routes>
     </Suspense>
   );
