@@ -45,6 +45,18 @@ const NavigationProbe = () => {
   );
 };
 
+const installDeterministicRaf = () => {
+  let nextId = 1;
+
+  vi.spyOn(window, "requestAnimationFrame").mockImplementation((callback) => {
+    const id = nextId++;
+    callback(performance.now());
+    return id;
+  });
+
+  vi.spyOn(window, "cancelAnimationFrame").mockImplementation(() => undefined);
+};
+
 describe("ScrollToTop", () => {
   beforeEach(() => {
     vi.stubGlobal("scrollTo", vi.fn());
@@ -135,6 +147,12 @@ describe("ScrollToTop", () => {
   });
 
   it("nao reseta o scroll ao voltar pelo historico do navegador", async () => {
+    installDeterministicRaf();
+    Object.defineProperty(window, "scrollY", {
+      configurable: true,
+      value: 120,
+    });
+
     render(
       <MemoryRouter initialEntries={["/inicial", "/capitulo"]} initialIndex={1}>
         <ScrollToTop />
@@ -152,6 +170,7 @@ describe("ScrollToTop", () => {
     await waitFor(() => {
       expect(screen.getByTestId("pathname")).toHaveTextContent("/inicial");
     });
+
     expect(scrollToMock).not.toHaveBeenCalled();
   });
 });

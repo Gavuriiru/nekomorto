@@ -16,9 +16,9 @@ interface PublicChromeIslandProps {
 }
 
 export const PublicChromeNavigationBridge = ({
-  reloadDocument = (target: string) => window.location.assign(target),
+  onRouteChange = () => undefined,
 }: {
-  reloadDocument?: (target: string) => void;
+  onRouteChange?: (target: string) => void;
 }) => {
   const location = useLocation();
   const previousTargetRef = useRef<string | null>(null);
@@ -33,8 +33,8 @@ export const PublicChromeNavigationBridge = ({
       return;
     }
     previousTargetRef.current = target;
-    reloadDocument(target);
-  }, [location.hash, location.pathname, location.search, reloadDocument]);
+    onRouteChange(target);
+  }, [location.hash, location.pathname, location.search, onRouteChange]);
 
   return null;
 };

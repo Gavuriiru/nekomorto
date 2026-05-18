@@ -22,6 +22,7 @@ import CommentsSection from "@/components/CommentsSection";
 import PublicProjectCard from "@/components/project/PublicProjectCard";
 import { publicPageLayoutTokens } from "@/components/public-page-tokens";
 import ThemedSvgLogo from "@/components/ThemedSvgLogo";
+import UploadPicture from "@/components/UploadPicture";
 import {
   Accordion,
   AccordionContent,
@@ -32,17 +33,16 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { PillButton } from "@/components/ui/pill-button";
-import UploadPicture from "@/components/UploadPicture";
+import { toast } from "@/components/ui/use-toast";
 import type { Project } from "@/data/projects";
-import { usePageMeta } from "@/hooks/use-page-meta";
 import {
   useResolvedPublicBootstrap,
   useResolvedPublicRoutePayload,
 } from "@/hooks/public-bootstrap-provider";
+import { usePageMeta } from "@/hooks/use-page-meta";
 import { usePublicBootstrap } from "@/hooks/use-public-bootstrap";
 import { usePublicCurrentUser } from "@/hooks/use-public-current-user";
 import { useSiteSettings } from "@/hooks/use-site-settings";
-import { toast } from "@/components/ui/use-toast";
 import { canManageProjectsAccess } from "@/lib/access-control";
 import { getApiBase } from "@/lib/api-base";
 import { apiFetch, apiFetchBestEffort } from "@/lib/api-client";
@@ -278,7 +278,7 @@ const ProjectPage = () => {
   const apiBase = getApiBase();
   const bootstrapData = useResolvedPublicBootstrap();
   const routePayload = useResolvedPublicRoutePayload();
-  const hasFullBootstrap = Boolean(bootstrapData && bootstrapData.payloadMode !== "critical-home");
+  const hasFullBootstrap = bootstrapData?.payloadMode === "full";
   const rawProjectRoutePayload = routePayload?.kind === "project-detail" ? routePayload : null;
   const bootstrapProject = resolveBootstrapProject(bootstrapData, slug);
   const routeProject = useMemo(() => {
@@ -294,7 +294,8 @@ const ProjectPage = () => {
       : null;
   }, [bootstrapData, rawProjectRoutePayload?.project, slug]);
   const projectRoutePayload = routeProject ? rawProjectRoutePayload : null;
-  const initialProject = routeProject || (bootstrapProject as Project | null) || null;
+  const bootstrapProjectSnapshot = hasFullBootstrap ? (bootstrapProject as Project | null) : null;
+  const initialProject = routeProject || bootstrapProjectSnapshot || null;
   const [project, setProject] = useState<Project | null>(() => initialProject);
   const [projectRevision, setProjectRevision] = useState(() => projectRoutePayload?.revision || "");
   const [hasLoaded, setHasLoaded] = useState(Boolean(initialProject));
@@ -303,27 +304,29 @@ const ProjectPage = () => {
       () =>
         projectRoutePayload?.relationProjectLookup ||
         buildRelationProjectLookup({
-          project: bootstrapProject,
+          project: bootstrapProjectSnapshot as PublicBootstrapProject | null,
           projects: hasFullBootstrap ? ((bootstrapData?.projects || []) as Project[]) : [],
         }),
     );
   const [tagTranslations, setTagTranslations] = useState<Record<string, string>>(
-    () => projectRoutePayload?.tagTranslations?.tags || bootstrapData?.tagTranslations?.tags || {},
+    () =>
+      projectRoutePayload?.tagTranslations?.tags ||
+      (hasFullBootstrap ? bootstrapData?.tagTranslations?.tags || {} : {}),
   );
   const [genreTranslations, setGenreTranslations] = useState<Record<string, string>>(
     () =>
-      projectRoutePayload?.tagTranslations?.genres || bootstrapData?.tagTranslations?.genres || {},
+      projectRoutePayload?.tagTranslations?.genres ||
+      (hasFullBootstrap ? bootstrapData?.tagTranslations?.genres || {} : {}),
   );
   const [staffRoleTranslations, setStaffRoleTranslations] = useState<Record<string, string>>(
     () =>
       projectRoutePayload?.tagTranslations?.staffRoles ||
-      bootstrapData?.tagTranslations?.staffRoles ||
-      {},
+      (hasFullBootstrap ? bootstrapData?.tagTranslations?.staffRoles || {} : {}),
   );
   const [hasLoadedTaxonomyTranslations, setHasLoadedTaxonomyTranslations] = useState(
     () => Boolean(projectRoutePayload) || hasFullBootstrap,
   );
-  const shouldHydrateProjectFromApi = !routeProject && (!bootstrapProject || !hasFullBootstrap);
+  const shouldHydrateProjectFromApi = !routeProject && !bootstrapProjectSnapshot;
   const shouldHydrateProjectMetaFromApi = !projectRoutePayload && !hasFullBootstrap;
   const { status: bootstrapStatus } = usePublicBootstrap();
   const isHydratingProject = !project && !hasLoaded;
@@ -331,7 +334,9 @@ const ProjectPage = () => {
   const { currentUser } = usePublicCurrentUser();
   const [episodePage, setEpisodePage] = useState(1);
   const [mediaVariants, setMediaVariants] = useState<UploadMediaVariantsMap>(
-    () => projectRoutePayload?.mediaVariants || bootstrapData?.mediaVariants || {},
+    () =>
+      projectRoutePayload?.mediaVariants ||
+      (hasFullBootstrap ? bootstrapData?.mediaVariants || {} : {}),
   );
   const { settings } = useSiteSettings();
   const trackedViewsRef = useRef<Set<string>>(new Set());
@@ -368,6 +373,7 @@ const ProjectPage = () => {
       setHasLoaded(true);
       return;
     }
+    setHasLoaded(false);
     let isActive = true;
     const load = async () => {
       try {
@@ -377,6 +383,7 @@ const ProjectPage = () => {
             setProject(null);
             setProjectRevision("");
             setMediaVariants({});
+            setRelationProjectLookup({});
           }
           return;
         }
@@ -426,16 +433,14 @@ const ProjectPage = () => {
       setHasLoaded(Boolean(projectRoutePayload.project));
       return;
     }
-    if (!bootstrapProject) {
-      return;
-    }
-    setProject(bootstrapProject as Project);
-    setHasLoaded(true);
-    setMediaVariants(bootstrapData?.mediaVariants || {});
-    if (hasFullBootstrap) {
+    if (bootstrapProjectSnapshot) {
+      setProject(bootstrapProjectSnapshot);
+      setProjectRevision("");
+      setHasLoaded(true);
+      setMediaVariants(bootstrapData?.mediaVariants || {});
       setRelationProjectLookup(
         buildRelationProjectLookup({
-          project: bootstrapProject,
+          project: bootstrapProjectSnapshot as PublicBootstrapProject | null,
           projects: (bootstrapData?.projects || []) as Project[],
         }),
       );
@@ -443,6 +448,10 @@ const ProjectPage = () => {
       setGenreTranslations(bootstrapData?.tagTranslations?.genres || {});
       setStaffRoleTranslations(bootstrapData?.tagTranslations?.staffRoles || {});
       setHasLoadedTaxonomyTranslations(true);
+      return;
+    }
+    if (shouldHydrateProjectFromApi) {
+      setHasLoaded(false);
     }
   }, [
     bootstrapData?.mediaVariants,
@@ -450,16 +459,11 @@ const ProjectPage = () => {
     bootstrapData?.tagTranslations?.genres,
     bootstrapData?.tagTranslations?.staffRoles,
     bootstrapData?.tagTranslations?.tags,
-    bootstrapProject,
+    bootstrapProjectSnapshot,
     hasFullBootstrap,
     projectRoutePayload,
+    shouldHydrateProjectFromApi,
   ]);
-
-  useEffect(() => {
-    if (!project && bootstrapProject) {
-      setProject(bootstrapProject as Project);
-    }
-  }, [bootstrapProject, project]);
 
   useEffect(() => {
     if (!project?.id) {

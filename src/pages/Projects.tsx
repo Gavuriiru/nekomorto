@@ -27,6 +27,7 @@ import { useDynamicSynopsisClamp } from "@/hooks/use-dynamic-synopsis-clamp";
 import { useIsMobile } from "@/hooks/use-mobile";
 import { usePageMeta } from "@/hooks/use-page-meta";
 import {
+  usePublishResolvedPublicSnapshots,
   useResolvedPublicBootstrap,
   useResolvedPublicRoutePayload,
 } from "@/hooks/public-bootstrap-provider";
@@ -607,6 +608,7 @@ const Projects = () => {
   const isMobile = useIsMobile();
   const bootstrap = useResolvedPublicBootstrap();
   const routePayload = useResolvedPublicRoutePayload();
+  const { publishPublicRoutePayload } = usePublishResolvedPublicSnapshots();
   const hasFullBootstrap = Boolean(bootstrap && bootstrap.payloadMode !== "critical-home");
   const projectsRoutePayload = routePayload?.kind === "projects-list" ? routePayload : null;
   const bootstrapProjects = hasFullBootstrap ? ((bootstrap?.projects || []) as Project[]) : [];
@@ -1146,6 +1148,29 @@ const Projects = () => {
       : activeFilterCount === 1
         ? "1 filtro ativo"
         : `${activeFilterCount} filtros ativos`;
+
+  useEffect(() => {
+    publishPublicRoutePayload({
+      kind: "projects-list",
+      generatedAt: projectsRoutePayload?.generatedAt || bootstrap?.generatedAt || "",
+      projects,
+      mediaVariants: projectsMediaVariants,
+      tagTranslations: {
+        tags: tagTranslations,
+        genres: genreTranslations,
+        staffRoles: bootstrapTagTranslations?.staffRoles || {},
+      },
+    });
+  }, [
+    bootstrapTagTranslations?.staffRoles,
+    bootstrap?.generatedAt,
+    genreTranslations,
+    projects,
+    projectsMediaVariants,
+    projectsRoutePayload?.generatedAt,
+    publishPublicRoutePayload,
+    tagTranslations,
+  ]);
 
   return (
     <div className="min-h-screen text-foreground">

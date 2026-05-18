@@ -12,12 +12,12 @@ import PublicChromeIsland, {
 const createSettings = (override: Partial<SiteSettings> = {}) =>
   mergeSettings(defaultSettings, override);
 
-const NavigationProbe = ({ reloadDocument }: { reloadDocument: (target: string) => void }) => {
+const NavigationProbe = ({ onRouteChange }: { onRouteChange: (target: string) => void }) => {
   const navigate = useNavigate();
 
   return (
     <>
-      <PublicChromeNavigationBridge reloadDocument={reloadDocument} />
+      <PublicChromeNavigationBridge onRouteChange={onRouteChange} />
       <button type="button" onClick={() => navigate("/sobre")}>
         Ir para sobre
       </button>
@@ -60,24 +60,24 @@ describe("PublicChromeIsland", () => {
     expect(html).toContain("Pol");
   });
 
-  it("recarrega o documento quando a rota interna muda depois do mount inicial", async () => {
-    const reloadDocument = vi.fn();
+  it("acompanha a rota interna sem recarregar o documento depois do mount inicial", async () => {
+    const onRouteChange = vi.fn();
 
     render(
       <MemoryRouter initialEntries={["/"]}>
         <Routes>
-          <Route path="*" element={<NavigationProbe reloadDocument={reloadDocument} />} />
+          <Route path="*" element={<NavigationProbe onRouteChange={onRouteChange} />} />
         </Routes>
       </MemoryRouter>,
     );
 
-    expect(reloadDocument).not.toHaveBeenCalled();
+    expect(onRouteChange).not.toHaveBeenCalled();
 
     fireEvent.click(screen.getByRole("button", { name: "Ir para sobre" }));
 
     await waitFor(() => {
-      expect(reloadDocument).toHaveBeenCalledTimes(1);
+      expect(onRouteChange).toHaveBeenCalledTimes(1);
     });
-    expect(reloadDocument).toHaveBeenCalledWith("/sobre");
+    expect(onRouteChange).toHaveBeenCalledWith("/sobre");
   });
 });

@@ -1,13 +1,14 @@
+import { useEffect, useMemo } from "react";
 import PublicDonationsPageContent from "@/components/public-pages/PublicDonationsPageContent";
-import { usePageMeta } from "@/hooks/use-page-meta";
 import {
+  usePublishResolvedPublicSnapshots,
   useResolvedPublicBootstrap,
   useResolvedPublicRoutePayload,
 } from "@/hooks/public-bootstrap-provider";
+import { usePageMeta } from "@/hooks/use-page-meta";
 import { usePublicBootstrap } from "@/hooks/use-public-bootstrap";
 import { useSiteSettings } from "@/hooks/use-site-settings";
 import { normalizeDonationsCryptoServices } from "@/lib/donations-crypto";
-import { useMemo } from "react";
 import {
   buildInstitutionalOgImageAlt,
   buildInstitutionalOgRevision,
@@ -18,7 +19,7 @@ import {
 const emptyDonations = {
   shareImage: "",
   shareImageAlt: "",
-  heroTitle: "",
+  heroTitle: "Doações",
   heroSubtitle: "",
   costs: [],
   reasonTitle: "",
@@ -47,12 +48,16 @@ const Donations = () => {
   const { settings } = useSiteSettings();
   const windowBootstrap = useResolvedPublicBootstrap();
   const routePayload = useResolvedPublicRoutePayload();
+  const { publishPublicRoutePayload } = usePublishResolvedPublicSnapshots();
   const { data: bootstrapData, status: bootstrapStatus } = usePublicBootstrap();
   const bootstrap = bootstrapData || windowBootstrap;
   const donationsRoutePayload = routePayload?.kind === "donations" ? routePayload : null;
-  const hasDonationsBootstrap = Boolean(bootstrap && bootstrap.payloadMode !== "critical-home");
+  const hasDonationsBootstrap = bootstrap?.payloadMode === "full";
+  const hasShellRouteSnapshot =
+    bootstrap?.payloadMode === "shell" && Boolean(donationsRoutePayload);
   const donations = useMemo(() => {
-    const incoming = hasDonationsBootstrap ? bootstrap?.pages?.donations || null : null;
+    const incoming =
+      hasDonationsBootstrap || hasShellRouteSnapshot ? bootstrap?.pages?.donations || null : null;
     if (!incoming) {
       return defaultDonations;
     }
@@ -64,10 +69,10 @@ const Donations = () => {
       donorsIcon: incoming.donorsIcon || defaultDonations.donorsIcon,
       cryptoServices: normalizeDonationsCryptoServices(incoming.cryptoServices),
     };
-  }, [bootstrap, hasDonationsBootstrap]);
+  }, [bootstrap, hasDonationsBootstrap, hasShellRouteSnapshot]);
   const pageBootstrap = hasDonationsBootstrap ? bootstrap || null : null;
   const pageMediaVariants = pageBootstrap?.mediaVariants || {};
-  const shouldShowHydrationState = !pageBootstrap;
+  const shouldShowHydrationState = !pageBootstrap && !hasShellRouteSnapshot;
   const hasHydrationError = shouldShowHydrationState && bootstrapStatus === "error";
   const merchantName =
     String(settings.site.name || settings.footer.brandName || "Nekomata").trim() || "Nekomata";
@@ -90,6 +95,13 @@ const Donations = () => {
     imageAlt: buildInstitutionalOgImageAlt("donations"),
     mediaVariants: pageMediaVariants,
   });
+
+  useEffect(() => {
+    if (!donationsRoutePayload) {
+      return;
+    }
+    publishPublicRoutePayload(donationsRoutePayload);
+  }, [donationsRoutePayload, publishPublicRoutePayload]);
 
   return (
     <PublicDonationsPageContent

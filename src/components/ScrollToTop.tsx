@@ -92,6 +92,9 @@ export const ScrollToTop = () => {
     }
     let raf = window.requestAnimationFrame(() => {
       raf = window.requestAnimationFrame(() => {
+        if (shouldPreserveBrowserHistoryScroll) {
+          return;
+        }
         if (window.scrollY > 0) {
           window.scrollTo({ top: 0, left: 0, behavior: "auto" });
         }

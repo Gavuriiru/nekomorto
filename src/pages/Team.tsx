@@ -1,11 +1,12 @@
 import { useEffect, useMemo, useState } from "react";
 
 import PublicTeamPageContent from "@/components/public-pages/PublicTeamPageContent";
-import { usePageMeta } from "@/hooks/use-page-meta";
 import {
+  usePublishResolvedPublicSnapshots,
   useResolvedPublicBootstrap,
   useResolvedPublicRoutePayload,
 } from "@/hooks/public-bootstrap-provider";
+import { usePageMeta } from "@/hooks/use-page-meta";
 import { usePublicBootstrap } from "@/hooks/use-public-bootstrap";
 import { useSiteSettings } from "@/hooks/use-site-settings";
 import { getApiBase } from "@/lib/api-base";
@@ -19,14 +20,18 @@ import {
   resolveInstitutionalOgSupportText,
 } from "../../shared/institutional-og-seo.js";
 
+const resolveTextOrFallback = (value: unknown, fallback: string) =>
+  String(value || "").trim() || fallback;
+
 const Team = () => {
   const apiBase = getApiBase();
   const { settings } = useSiteSettings();
   const windowBootstrap = useResolvedPublicBootstrap();
+  const { publishPublicRoutePayload } = usePublishResolvedPublicSnapshots();
   const { data: bootstrapData } = usePublicBootstrap();
   const bootstrap = bootstrapData || windowBootstrap;
   const routePayload = useResolvedPublicRoutePayload();
-  const hasFullBootstrap = Boolean(bootstrap && bootstrap.payloadMode !== "critical-home");
+  const hasFullBootstrap = bootstrap?.payloadMode === "full";
   const teamRoutePayload = routePayload?.kind === "team" ? routePayload : null;
   const bootstrapHasTeamSnapshot = Boolean(
     bootstrap &&
@@ -59,15 +64,25 @@ const Team = () => {
   );
   const pageCopy = useMemo(
     () => ({
-      shareImage: "",
-      shareImageAlt: "",
-      heroBadge: "Equipe",
-      heroTitle: "ConheÃ§a quem faz o projeto acontecer",
-      heroSubtitle:
+      shareImage: String(bootstrap?.pages.team?.shareImage || "").trim(),
+      shareImageAlt: String(bootstrap?.pages.team?.shareImageAlt || "").trim(),
+      heroBadge: resolveTextOrFallback(bootstrap?.pages.team?.heroBadge, "Equipe"),
+      heroTitle: resolveTextOrFallback(
+        bootstrap?.pages.team?.heroTitle,
+        "ConheÃ§a quem faz o projeto acontecer",
+      ),
+      heroSubtitle: resolveTextOrFallback(
+        bootstrap?.pages.team?.heroSubtitle,
         "Os perfis e redes sociais serÃ£o gerenciados pela dashboard. Este layout antecipa como a equipe aparecerÃ¡ para o pÃºblico.",
-      retiredTitle: "Membros aposentados",
-      retiredSubtitle: "Agradecemos por todas as contribuiÃ§Ãµes.",
-      ...(bootstrap?.pages.team || {}),
+      ),
+      retiredTitle: resolveTextOrFallback(
+        bootstrap?.pages.team?.retiredTitle,
+        "Membros aposentados",
+      ),
+      retiredSubtitle: resolveTextOrFallback(
+        bootstrap?.pages.team?.retiredSubtitle,
+        "Agradecemos por todas as contribuiÃ§Ãµes.",
+      ),
     }),
     [bootstrap],
   );
@@ -152,6 +167,23 @@ const Team = () => {
       isActive = false;
     };
   }, [apiBase, hasTeamBootstrapSnapshot]);
+
+  useEffect(() => {
+    publishPublicRoutePayload({
+      kind: "team",
+      generatedAt: teamRoutePayload?.generatedAt || bootstrap?.generatedAt || "",
+      teamMembers: members,
+      teamLinkTypes: linkTypes,
+      mediaVariants: memberMediaVariants,
+    });
+  }, [
+    bootstrap?.generatedAt,
+    linkTypes,
+    memberMediaVariants,
+    members,
+    publishPublicRoutePayload,
+    teamRoutePayload?.generatedAt,
+  ]);
 
   return (
     <PublicTeamPageContent

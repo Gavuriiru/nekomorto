@@ -1,7 +1,7 @@
-import { resetPublicBootstrapCache } from "@/hooks/use-public-bootstrap";
 import { render, screen, within } from "@testing-library/react";
 import { MemoryRouter } from "react-router-dom";
 import { beforeEach, describe, expect, it, vi } from "vitest";
+import { resetPublicBootstrapCache } from "@/hooks/use-public-bootstrap";
 
 import Team from "@/pages/Team";
 
@@ -408,6 +408,44 @@ describe("Team mobile social layout", () => {
     } finally {
       vi.useRealTimers();
     }
+  });
+
+  it("preserva o hero fallback quando o bootstrap shell traz campos vazios", () => {
+    setBootstrapPayload({
+      settings: {},
+      pages: {
+        team: {
+          heroBadge: "",
+          heroTitle: "",
+          heroSubtitle: "",
+          retiredTitle: "",
+          retiredSubtitle: "",
+        },
+      },
+      projects: [],
+      posts: [],
+      updates: [],
+      teamMembers: [],
+      teamLinkTypes: [],
+      mediaVariants: {},
+      tagTranslations: { tags: {}, genres: {}, staffRoles: {} },
+      generatedAt: "2026-03-06T00:00:00.000Z",
+      payloadMode: "shell",
+    });
+
+    render(
+      <MemoryRouter>
+        <Team />
+      </MemoryRouter>,
+    );
+
+    expect(screen.getByText("Equipe")).toBeInTheDocument();
+    expect(
+      screen.getByRole("heading", {
+        level: 1,
+        name: /faz o projeto acontecer/i,
+      }),
+    ).toBeInTheDocument();
   });
 
   it("prioriza apenas o primeiro avatar visivel para LCP", async () => {

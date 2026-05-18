@@ -222,6 +222,36 @@ describe("Donations Pix and crypto QR code", () => {
     expect(screen.getByText("Apoiador")).toBeInTheDocument();
   });
 
+  it("mantem um hero fallback visivel durante bootstrap shell sem payload completo", () => {
+    setWindowBootstrap({
+      settings: {},
+      pages: { home: {} },
+      projects: [],
+      posts: [],
+      updates: [],
+      tagTranslations: {
+        tags: {},
+        genres: {},
+        staffRoles: {},
+      },
+      generatedAt: "2026-04-10T19:00:00.000Z",
+      mediaVariants: {},
+      payloadMode: "shell",
+    });
+    apiFetchMock.mockImplementation(async (_base: string, endpoint: string) => {
+      if (endpoint === "/api/public/bootstrap") {
+        return mockJsonResponse(false, { error: "not_found" }, 500);
+      }
+      return mockJsonResponse(false, { error: "not_found" }, 404);
+    });
+
+    render(<Donations />);
+
+    expect(screen.getByRole("heading", { level: 1, name: "Doações" })).toBeInTheDocument();
+    expect(screen.getByText("Carregando doações...")).toBeInTheDocument();
+    expect(screen.queryByAltText("QR Code PIX")).not.toBeInTheDocument();
+  });
+
   it("prioriza o QR customizado e nao chama o encoder local", async () => {
     setBootstrapDonationsPage({
       pixKey: "pix-chave-teste",
@@ -280,6 +310,7 @@ describe("Donations Pix and crypto QR code", () => {
 
     render(<Donations />);
 
+    expect(screen.getByRole("heading", { level: 1, name: "Doacoes" })).toBeInTheDocument();
     expect(screen.getByAltText("QR Code PIX")).toHaveAttribute(
       "src",
       "data:image/png;base64,server-pix",
