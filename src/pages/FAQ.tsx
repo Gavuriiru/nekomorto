@@ -8,7 +8,8 @@ import { Card, CardContent } from "@/components/ui/card";
 import { Separator } from "@/components/ui/separator";
 import { usePageMeta } from "@/hooks/use-page-meta";
 import { useResolvedPublicBootstrap } from "@/hooks/public-bootstrap-provider";
-import { HelpCircle, Info, Rocket, Shield, Sparkles, Users } from "lucide-react";
+import { resolveFaqIcon } from "@/lib/institutional-page-icons";
+import { HelpCircle } from "lucide-react";
 import { useMemo } from "react";
 import {
   buildInstitutionalOgImageAlt,
@@ -17,18 +18,6 @@ import {
   resolveInstitutionalOgSupportText,
 } from "../../shared/institutional-og-seo.js";
 import { normalizeFaqPublicPage } from "../../shared/public-page-content.js";
-
-const iconMap: Record<string, typeof HelpCircle> = {
-  HelpCircle,
-  Info,
-  Users,
-  Rocket,
-  Shield,
-  Sparkles,
-};
-
-const resolveFaqIcon = (iconName: string | undefined, fallback: typeof HelpCircle) =>
-  (iconName ? iconMap[iconName] : undefined) || fallback;
 
 const FAQ = () => {
   const bootstrap = useResolvedPublicBootstrap();

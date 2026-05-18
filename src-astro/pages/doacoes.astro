@@ -7,10 +7,21 @@ import {
   isRenderableDonationsCryptoService,
   normalizeDonationsCryptoServices,
 } from "../../src/lib/donations-crypto";
+import { resolveDonationsIcon } from "../../src/lib/institutional-page-icons";
 import { sanitizePublicHref } from "../../src/lib/url-safety";
 import type { PublicRouteDonationsPayload } from "../../src/types/public-bootstrap";
 import type { DonationsPageConfig } from "../../src/types/public-pages";
 import { emptyPublicPagesConfig } from "../../src/types/public-pages";
+import {
+  Check,
+  Coins,
+  Copy,
+  ExternalLink,
+  HeartHandshake,
+  PiggyBank,
+  QrCode,
+  Sparkles,
+} from "lucide-react";
 import PublicPageHero from "../components/PublicPageHero.astro";
 import { buildInstitutionalPageMeta } from "../lib/public-page-meta";
 import { astroStaticRevealClassName } from "../lib/public-reveal";
@@ -53,17 +64,20 @@ const getCryptoQrUrl = (index: number) =>
 
       {Array.isArray(donations.costs) && donations.costs.length > 0 ? (
         <section class={`mx-auto grid w-full max-w-6xl gap-6 px-6 pb-12 pt-10 md:grid-cols-3 md:px-10 ${astroStaticRevealClassName}`} data-reveal>
-          {donations.costs.map((item) => (
-            <article class="stacked-surface stacked-surface--public stacked-surface--interactive group rounded-2xl border border-border/60 bg-card/80 p-6">
-              <p class="flex items-center gap-3 text-sm font-semibold uppercase tracking-widest text-muted-foreground transition-colors duration-300 group-hover:text-primary">
-                <span class="h-2 w-2 rounded-full bg-primary/80"></span>
-                {item.title}
-              </p>
-              <p class="mt-3 whitespace-pre-wrap text-sm text-muted-foreground transition-colors duration-300 group-hover:text-foreground/80">
-                {item.description}
-              </p>
-            </article>
-          ))}
+          {donations.costs.map((item) => {
+            const Icon = resolveDonationsIcon(item.icon, Sparkles);
+            return (
+              <article class="stacked-surface stacked-surface--public stacked-surface--interactive group rounded-2xl border border-border/60 bg-card/80 p-6">
+                <p class="flex items-center gap-3 text-sm font-semibold uppercase tracking-widest text-muted-foreground transition-colors duration-300 group-hover:text-primary">
+                  <Icon className="h-4 w-4 text-primary/80 transition-colors duration-300 group-hover:text-primary" />
+                  {item.title}
+                </p>
+                <p class="mt-3 whitespace-pre-wrap text-sm text-muted-foreground transition-colors duration-300 group-hover:text-foreground/80">
+                  {item.description}
+                </p>
+              </article>
+            );
+          })}
         </section>
       ) : null}
 
@@ -147,10 +161,15 @@ const getCryptoQrUrl = (index: number) =>
             ]}>
               {donations.reasonTitle || donations.reasonText ? (
                 <div class="space-y-4 rounded-2xl p-2">
-                  <p class="flex items-center gap-3 text-sm font-semibold uppercase tracking-widest text-muted-foreground">
-                    <span class="h-2 w-2 rounded-full bg-primary/80"></span>
-                    {donations.reasonTitle}
-                  </p>
+                  {(() => {
+                    const ReasonIcon = resolveDonationsIcon(donations.reasonIcon, HeartHandshake);
+                    return (
+                      <p class="flex items-center gap-3 text-sm font-semibold uppercase tracking-widest text-muted-foreground">
+                        <ReasonIcon className="h-4 w-4 text-primary/80" />
+                        {donations.reasonTitle}
+                      </p>
+                    );
+                  })()}
                   <p class="whitespace-pre-wrap text-sm text-muted-foreground md:text-base">
                     {donations.reasonText}
                   </p>
@@ -165,10 +184,15 @@ const getCryptoQrUrl = (index: number) =>
               {donations.pixKey ? (
                 <div id="pix-doacoes" class="rounded-2xl border border-border/60 bg-background/50 p-5">
                   <div class="flex items-center justify-between">
-                    <div class="flex items-center gap-2 text-sm font-semibold uppercase tracking-widest text-muted-foreground">
-                      <span class="h-2 w-2 rounded-full bg-primary/80"></span>
-                      PIX
-                    </div>
+                    {(() => {
+                      const PixIcon = resolveDonationsIcon(donations.pixIcon, QrCode);
+                      return (
+                        <div class="flex items-center gap-2 text-sm font-semibold uppercase tracking-widest text-muted-foreground">
+                          <PixIcon className="h-4 w-4 text-primary/80" />
+                          PIX
+                        </div>
+                      );
+                    })()}
                     <span class="text-xs text-muted-foreground">Chave e QR Code</span>
                   </div>
                   <div class="mt-4 grid gap-4 md:grid-cols-[0.8fr_1.2fr] md:items-center">
@@ -186,10 +210,17 @@ const getCryptoQrUrl = (index: number) =>
                       <div class="flex w-full flex-wrap items-center gap-3 md:justify-center">
                         <button
                           type="button"
-                          class="inline-flex w-full items-center justify-center rounded-xl bg-primary px-4 py-2 text-sm font-semibold text-primary-foreground transition hover:opacity-90 md:w-auto"
+                          class="inline-flex w-full items-center justify-center gap-2 rounded-xl bg-primary px-4 py-2 text-sm font-semibold text-primary-foreground transition hover:opacity-90 md:w-auto"
                           data-copy-text={donations.pixKey}
+                          aria-label="Copiar chave PIX"
                         >
-                          Copiar chave PIX
+                          <span data-copy-icon>
+                            <Copy className="h-4 w-4" />
+                          </span>
+                          <span data-copy-label>Copiar chave PIX</span>
+                          <span data-copy-success-icon class="hidden">
+                            <Check className="h-4 w-4" />
+                          </span>
                         </button>
                       </div>
                     </div>
@@ -217,31 +248,37 @@ const getCryptoQrUrl = (index: number) =>
                     aria-label="Criptomoedas"
                     class="no-scrollbar flex gap-2 overflow-x-auto pb-0.5 md:flex-col md:gap-1.5 md:overflow-visible md:pb-0"
                   >
-                    {visibleCryptoServices.map((service, index) => (
-                      <button
-                        type="button"
-                        role="tab"
-                        id={`donations-crypto-tab-${index}`}
-                        aria-controls={`donations-crypto-panel-${index}`}
-                        aria-selected={index === 0 ? "true" : "false"}
-                        data-crypto-tab
-                        data-crypto-index={index}
-                        class:list={[
-                          "group relative flex h-12 w-12 shrink-0 items-center justify-center overflow-hidden rounded-[1.1rem] border transition-all duration-300 md:h-13 md:w-13",
-                          index === 0
-                            ? "border-primary/50 text-primary"
-                            : "border-border/50 text-muted-foreground hover:border-primary/40 hover:text-foreground",
-                        ]}
-                      >
-                        <span class:list={[
-                          "absolute inset-y-3 left-0 hidden w-1 rounded-full bg-primary transition-opacity md:block",
-                          index === 0 ? "opacity-100" : "opacity-0",
-                        ]}></span>
-                        <span class="text-[10px] font-semibold uppercase tracking-[0.12em]">
-                          {String(service.name || "?").slice(0, 2).toUpperCase()}
-                        </span>
-                      </button>
-                    ))}
+                    {visibleCryptoServices.map((service, index) => {
+                      const TabIcon = resolveDonationsIcon(service.icon, Coins);
+                      return (
+                        <button
+                          type="button"
+                          role="tab"
+                          id={`donations-crypto-tab-${index}`}
+                          aria-controls={`donations-crypto-panel-${index}`}
+                          aria-selected={index === 0 ? "true" : "false"}
+                          data-crypto-tab
+                          data-crypto-index={index}
+                          class:list={[
+                            "group relative flex h-12 w-12 shrink-0 items-center justify-center overflow-hidden rounded-[1.1rem] border transition-all duration-300 md:h-13 md:w-13",
+                            index === 0
+                              ? "border-primary/50 text-primary"
+                              : "border-border/50 text-muted-foreground hover:border-primary/40 hover:text-foreground",
+                          ]}
+                        >
+                          <span class:list={[
+                            "absolute inset-y-3 left-0 hidden w-1 rounded-full bg-primary transition-opacity md:block",
+                            index === 0 ? "opacity-100" : "opacity-0",
+                          ]}></span>
+                          <TabIcon
+                            class:list={[
+                              "h-4 w-4 transition-transform duration-300",
+                              index === 0 ? "scale-105 text-primary" : "text-muted-foreground group-hover:text-primary",
+                            ]}
+                          />
+                        </button>
+                      );
+                    })}
                   </div>
                 </div>
               ) : null}
@@ -276,7 +313,7 @@ const getCryptoQrUrl = (index: number) =>
                                   aria-label={service.actionLabel || DEFAULT_DONATIONS_CRYPTO_ACTION_LABEL}
                                   title={service.actionLabel || DEFAULT_DONATIONS_CRYPTO_ACTION_LABEL}
                                 >
-                                  ↗
+                                  <ExternalLink className="h-3 w-3" />
                                 </a>
                               ) : null}
                             </div>
@@ -302,7 +339,12 @@ const getCryptoQrUrl = (index: number) =>
                                 aria-label="Copiar endereco"
                                 title="Copiar endereco"
                               >
-                                ⧉
+                                <span data-copy-icon>
+                                  <Copy className="h-3 w-3" />
+                                </span>
+                                <span data-copy-success-icon class="hidden">
+                                  <Check className="h-3 w-3" />
+                                </span>
                               </button>
                             </div>
                           </div>
@@ -341,10 +383,15 @@ const getCryptoQrUrl = (index: number) =>
       {Array.isArray(donations.donors) && donations.donors.length > 0 ? (
         <section class={`mx-auto w-full max-w-6xl px-6 pb-24 pt-4 md:px-10 ${astroStaticRevealClassName}`} data-reveal>
           <article class="stacked-surface stacked-surface--public rounded-2xl bg-card/80 p-6 shadow-public-card md:p-8">
-            <div class="flex items-center gap-3 text-xl font-semibold text-foreground">
-              <span class="h-2 w-2 rounded-full bg-primary/80"></span>
-              Lista de doadores
-            </div>
+            {(() => {
+              const DonorsIcon = resolveDonationsIcon(donations.donorsIcon, PiggyBank);
+              return (
+                <div class="flex items-center gap-3 text-xl font-semibold text-foreground">
+                  <DonorsIcon className="h-5 w-5 text-primary/80" />
+                  Lista de doadores
+                </div>
+              );
+            })()}
             <div class="my-6 h-px bg-border/60"></div>
             <div class="overflow-x-auto">
               <table class="w-full text-left text-sm">
@@ -385,10 +432,21 @@ const getCryptoQrUrl = (index: number) =>
       if (!(button instanceof HTMLButtonElement)) {
         return;
       }
-      if (!button.dataset.copyBaseLabel) {
-        button.dataset.copyBaseLabel = button.textContent || "Copiar";
+      const label = button.querySelector("[data-copy-label]");
+      const icon = button.querySelector("[data-copy-icon]");
+      const successIcon = button.querySelector("[data-copy-success-icon]");
+      if (label instanceof HTMLElement) {
+        if (!button.dataset.copyBaseLabel) {
+          button.dataset.copyBaseLabel = label.textContent || "Copiar";
+        }
+        label.textContent = copied ? "Copiado" : button.dataset.copyBaseLabel;
       }
-      button.textContent = copied ? "Copiado" : button.dataset.copyBaseLabel;
+      if (icon instanceof HTMLElement) {
+        icon.classList.toggle("hidden", copied);
+      }
+      if (successIcon instanceof HTMLElement) {
+        successIcon.classList.toggle("hidden", !copied);
+      }
     };
 
     document.addEventListener("click", async (event) => {

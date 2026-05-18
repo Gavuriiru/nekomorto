@@ -6,21 +6,10 @@ import {
 import { Card, CardContent } from "@/components/ui/card";
 import { usePageMeta } from "@/hooks/use-page-meta";
 import { useResolvedPublicBootstrap } from "@/hooks/public-bootstrap-provider";
+import { resolveAboutIcon } from "@/lib/institutional-page-icons";
 import {
   Flame,
-  Heart,
-  HeartHandshake,
-  HelpCircle,
-  Info,
-  PiggyBank,
-  QrCode,
-  Rocket,
-  Server,
-  Shield,
   Sparkles,
-  Users,
-  Wand2,
-  Zap,
 } from "lucide-react";
 import { useMemo } from "react";
 import {
@@ -30,26 +19,6 @@ import {
   resolveInstitutionalOgSupportText,
 } from "../../shared/institutional-og-seo.js";
 import { normalizeAboutPublicPage } from "../../shared/public-page-content.js";
-
-const iconMap: Record<string, typeof Heart> = {
-  Heart,
-  Sparkles,
-  Users,
-  Wand2,
-  Flame,
-  Zap,
-  HeartHandshake,
-  QrCode,
-  PiggyBank,
-  Server,
-  HelpCircle,
-  Info,
-  Rocket,
-  Shield,
-};
-
-const resolveAboutIcon = (iconName: string | undefined, fallback: typeof Heart) =>
-  (iconName ? iconMap[iconName] : undefined) || fallback;
 
 const About = () => {
   const bootstrap = useResolvedPublicBootstrap();

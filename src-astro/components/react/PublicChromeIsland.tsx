@@ -3,7 +3,8 @@ import Footer from "@/components/Footer";
 import Header from "@/components/Header";
 import type { PublicBootstrapPayload, PublicRoutePayload } from "@/types/public-bootstrap";
 import type { SiteSettings } from "@/types/site-settings";
-import { BrowserRouter, StaticRouter } from "react-router-dom";
+import { useEffect, useRef } from "react";
+import { BrowserRouter, StaticRouter, useLocation } from "react-router-dom";
 
 interface PublicChromeIslandProps {
   initialCurrentUser?: unknown;
@@ -13,6 +14,30 @@ interface PublicChromeIslandProps {
   kind: "footer" | "header";
   location: string;
 }
+
+export const PublicChromeNavigationBridge = ({
+  reloadDocument = () => window.location.reload(),
+}: {
+  reloadDocument?: () => void;
+}) => {
+  const location = useLocation();
+  const previousTargetRef = useRef<string | null>(null);
+
+  useEffect(() => {
+    const target = `${location.pathname}${location.search}${location.hash}`;
+    if (previousTargetRef.current === null) {
+      previousTargetRef.current = target;
+      return;
+    }
+    if (previousTargetRef.current === target) {
+      return;
+    }
+    previousTargetRef.current = target;
+    reloadDocument();
+  }, [location.hash, location.pathname, location.search, reloadDocument]);
+
+  return null;
+};
 
 const PublicChromeIsland = ({
   initialCurrentUser,
@@ -31,6 +56,7 @@ const PublicChromeIsland = ({
       initialSettings={initialSettings ?? initialPublicBootstrap?.settings}
       initiallyLoaded={Boolean(initialSettings ?? initialPublicBootstrap?.settings)}
     >
+      <PublicChromeNavigationBridge />
       {chrome}
     </AppProviders>
   );

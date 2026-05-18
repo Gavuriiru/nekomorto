@@ -9,17 +9,8 @@ import { usePageMeta } from "@/hooks/use-page-meta";
 import { useResolvedPublicBootstrap } from "@/hooks/public-bootstrap-provider";
 import { usePublicBootstrap } from "@/hooks/use-public-bootstrap";
 import { useSiteSettings } from "@/hooks/use-site-settings";
-import {
-  Languages,
-  Layers,
-  Paintbrush,
-  PenTool,
-  ScanText,
-  ShieldCheck,
-  Sparkles,
-  Timer,
-  Video,
-} from "lucide-react";
+import { resolveRecruitmentIcon } from "@/lib/institutional-page-icons";
+import { Sparkles } from "lucide-react";
 import { useMemo } from "react";
 import {
   buildInstitutionalOgImageAlt,
@@ -28,21 +19,6 @@ import {
   resolveInstitutionalOgSupportText,
 } from "../../shared/institutional-og-seo.js";
 import { normalizeRecruitmentPublicPage } from "../../shared/public-page-content.js";
-
-const iconMap = {
-  Languages,
-  ScanText,
-  PenTool,
-  Sparkles,
-  Video,
-  Paintbrush,
-  Layers,
-  Timer,
-  ShieldCheck,
-};
-
-const isRecruitmentIconKey = (value: string | undefined): value is keyof typeof iconMap =>
-  typeof value === "string" && value in iconMap;
 
 const Recruitment = () => {
   const { settings } = useSiteSettings();
@@ -92,7 +68,7 @@ const Recruitment = () => {
           >
             <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
               {recruitment.roles.map((role, index) => {
-                const Icon = isRecruitmentIconKey(role.icon) ? iconMap[role.icon] : Sparkles;
+                const Icon = resolveRecruitmentIcon(role.icon, Sparkles);
                 return (
                   <Card
                     key={role.title}

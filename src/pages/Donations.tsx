@@ -17,6 +17,7 @@ import {
 } from "@/hooks/public-bootstrap-provider";
 import { usePublicBootstrap } from "@/hooks/use-public-bootstrap";
 import { useSiteSettings } from "@/hooks/use-site-settings";
+import { resolveDonationsIcon } from "@/lib/institutional-page-icons";
 import { useTextQrCode } from "@/hooks/use-text-qr-code";
 import {
   DEFAULT_DONATIONS_CRYPTO_SECTION_TITLE,
@@ -30,35 +31,14 @@ import {
 import { buildMonthlyGoalSummary } from "@/lib/donations-monthly-goal";
 import type { DonationsCryptoService } from "@/types/public-pages";
 import {
-  BadgeDollarSign,
-  Banknote,
-  Bitcoin,
   Check,
-  CircleDollarSign,
   Coins,
   Copy,
-  DollarSign,
   ExternalLink,
-  Flame,
-  Heart,
   HeartHandshake,
-  HandCoins,
-  HelpCircle,
-  Info,
-  Landmark,
   PiggyBank,
   QrCode,
-  Rocket,
-  Server,
-  Shield,
   Sparkles,
-  Users,
-  Wallet,
-  Wallet2,
-  WalletCards,
-  WalletMinimal,
-  Wand2,
-  Zap,
 } from "lucide-react";
 import { useEffect, useMemo, useRef, useState } from "react";
 import {
@@ -67,38 +47,6 @@ import {
   buildVersionedInstitutionalOgImagePath,
   resolveInstitutionalOgSupportText,
 } from "../../shared/institutional-og-seo.js";
-
-const iconMap: Record<string, typeof Server> = {
-  Server,
-  PiggyBank,
-  Sparkles,
-  HeartHandshake,
-  QrCode,
-  Heart,
-  Users,
-  Wand2,
-  Flame,
-  Zap,
-  HelpCircle,
-  Info,
-  Rocket,
-  Shield,
-  Coins,
-  HandCoins,
-  Wallet,
-  Wallet2,
-  WalletCards,
-  WalletMinimal,
-  BadgeDollarSign,
-  Landmark,
-  Banknote,
-  CircleDollarSign,
-  DollarSign,
-  Bitcoin,
-};
-
-const resolveDonationsIcon = (iconName: string | undefined, fallback: typeof Server) =>
-  (iconName ? iconMap[iconName] : undefined) || fallback;
 
 const emptyDonations = {
   shareImage: "",
@@ -747,7 +695,7 @@ const Donations = () => {
                   <CardContent className="p-6 md:p-8">
                     <div className="flex items-center gap-3 text-xl font-semibold text-foreground">
                       {(() => {
-                        const DonorsIcon = iconMap[donations.donorsIcon] || PiggyBank;
+                        const DonorsIcon = resolveDonationsIcon(donations.donorsIcon, PiggyBank);
                         return <DonorsIcon className="h-5 w-5 text-primary/80" />;
                       })()}
                       Lista de doadores
