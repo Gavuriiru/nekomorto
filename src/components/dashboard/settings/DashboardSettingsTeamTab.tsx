@@ -92,6 +92,7 @@ export const DashboardSettingsTeamTab = () => {
                 <DashboardActionButton
                   type="button"
                   size="icon"
+                  aria-label="Remover cargo da equipe"
                   className={responsiveCompactRowDeleteButtonClass}
                   onClick={() =>
                     setSettings((prev) => ({
@@ -100,7 +101,7 @@ export const DashboardSettingsTeamTab = () => {
                     }))
                   }
                 >
-                  <Trash2 className="h-4 w-4" />
+                  <Trash2 className="h-4 w-4" aria-hidden="true" />
                 </DashboardActionButton>
               </div>
             ))}
