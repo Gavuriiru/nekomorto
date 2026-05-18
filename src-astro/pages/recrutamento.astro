@@ -5,6 +5,7 @@ import { sanitizePublicHref } from "../../src/lib/url-safety";
 import type { RecruitmentPageConfig } from "../../src/types/public-pages";
 import PublicPageHero from "../components/PublicPageHero.astro";
 import { buildInstitutionalPageMeta } from "../lib/public-page-meta";
+import { astroStaticRevealClassName } from "../lib/public-reveal";
 import PublicLayout from "../layouts/PublicLayout.astro";
 
 const locals = Astro.locals.nekomata;
@@ -34,7 +35,7 @@ const discordUrl = sanitizePublicHref(locals?.siteSettings?.community?.discordUr
       />
 
       {recruitment.roles.length > 0 ? (
-        <section class="mx-auto grid w-full max-w-6xl gap-4 px-6 pt-10 sm:grid-cols-2 md:px-10 lg:grid-cols-3 reveal" data-reveal>
+        <section class={`mx-auto grid w-full max-w-6xl gap-4 px-6 pt-10 sm:grid-cols-2 md:px-10 lg:grid-cols-3 ${astroStaticRevealClassName}`} data-reveal>
           {recruitment.roles.map((role, index) => (
             <article
               class="stacked-surface stacked-surface--public stacked-surface--interactive group rounded-2xl border border-border/60 bg-card/70 p-5 opacity-0 animate-fade-in"
@@ -57,7 +58,7 @@ const discordUrl = sanitizePublicHref(locals?.siteSettings?.community?.discordUr
       ) : null}
 
       {recruitment.ctaTitle || recruitment.ctaSubtitle || recruitment.ctaButtonLabel ? (
-        <section class="mx-auto mt-12 w-full max-w-6xl px-6 md:px-10 reveal" data-reveal>
+        <section class={`mx-auto mt-12 w-full max-w-6xl px-6 md:px-10 ${astroStaticRevealClassName}`} data-reveal>
           <article class="rounded-2xl border border-border/60 bg-card/70 p-6 opacity-0 animate-fade-in" style="animation-delay:0.4s">
             <div class="flex flex-col items-stretch gap-4 md:flex-row md:items-center md:justify-between">
               <div class="space-y-1">

@@ -8,6 +8,7 @@ import { sanitizePublicHref } from "../../src/lib/url-safety";
 import type { PublicRouteTeamPayload } from "../../src/types/public-bootstrap";
 import type { PublicTeamMember } from "../../src/types/public-team";
 import { buildInstitutionalPageMeta } from "../lib/public-page-meta";
+import { astroStaticRevealClassName } from "../lib/public-reveal";
 import PublicLayout from "../layouts/PublicLayout.astro";
 
 const locals = Astro.locals.nekomata;
@@ -135,7 +136,7 @@ const getFavoriteWorks = (member: PublicTeamMember, key: FavoriteCategoryKey): s
     <main>
       <section class="relative overflow-hidden bg-background [background-image:var(--gradient-public-hero)] bg-no-repeat">
         <div class="relative mx-auto w-full max-w-6xl px-6 pb-8 pt-20 md:px-10 md:pb-10 md:pt-28">
-          <div class="max-w-3xl space-y-4 reveal" data-reveal>
+          <div class={`max-w-3xl space-y-4 ${astroStaticRevealClassName}`} data-reveal>
             <p class="inline-flex rounded-full border border-border/60 bg-secondary px-3 py-1 text-xs font-semibold uppercase tracking-widest text-secondary-foreground animate-fade-in">
               {teamPage.heroBadge}
             </p>
@@ -149,7 +150,7 @@ const getFavoriteWorks = (member: PublicTeamMember, key: FavoriteCategoryKey): s
         </div>
       </section>
 
-      <section class="mx-auto w-full max-w-6xl px-6 pb-20 pt-6 md:px-10 reveal" data-reveal>
+      <section class={`mx-auto w-full max-w-6xl px-6 pb-20 pt-6 md:px-10 ${astroStaticRevealClassName}`} data-reveal>
         {teamMembers.length === 0 ? (
           <div class="mt-10 rounded-2xl border border-dashed border-border/60 bg-card/60 px-6 py-10 text-sm text-muted-foreground">
             Nenhum membro disponivel no momento.

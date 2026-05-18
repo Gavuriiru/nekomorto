@@ -4,6 +4,7 @@ import type { FaqPageConfig } from "../../src/types/public-pages";
 import { normalizeFaqPublicPage } from "../../shared/public-page-content.js";
 import PublicPageHero from "../components/PublicPageHero.astro";
 import { buildInstitutionalPageMeta } from "../lib/public-page-meta";
+import { astroStaticRevealClassName } from "../lib/public-reveal";
 import PublicLayout from "../layouts/PublicLayout.astro";
 
 const locals = Astro.locals.nekomata;
@@ -21,7 +22,7 @@ const meta = buildInstitutionalPageMeta({
       <PublicPageHero title={faq.heroTitle} subtitle={faq.heroSubtitle} />
 
       {faq.introCards.length > 0 ? (
-        <section class="mx-auto grid w-full max-w-6xl gap-6 px-6 pb-16 pt-10 md:grid-cols-2 md:px-10 reveal" data-reveal>
+        <section class={`mx-auto grid w-full max-w-6xl gap-6 px-6 pb-16 pt-10 md:grid-cols-2 md:px-10 ${astroStaticRevealClassName}`} data-reveal>
           {faq.introCards.map((card) => (
             <article class="stacked-surface stacked-surface--public stacked-surface--interactive group rounded-2xl border border-border/60 bg-card/80 p-6">
               <p class="flex items-center gap-3 text-sm font-semibold uppercase tracking-widest text-muted-foreground transition-colors duration-300 group-hover:text-primary">
@@ -41,7 +42,7 @@ const meta = buildInstitutionalPageMeta({
       ) : null}
 
       {faq.groups.length > 0 ? (
-        <section class="mx-auto grid w-full max-w-6xl gap-6 px-6 pb-24 pt-2 md:px-10 reveal" data-reveal>
+        <section class={`mx-auto grid w-full max-w-6xl gap-6 px-6 pb-24 pt-2 md:px-10 ${astroStaticRevealClassName}`} data-reveal>
           {faq.groups.map((group) => (
             <article class="stacked-surface stacked-surface--public rounded-2xl border border-border/60 bg-card/80 p-6">
               <p class="flex items-center gap-3 text-sm font-semibold uppercase tracking-widest text-muted-foreground">

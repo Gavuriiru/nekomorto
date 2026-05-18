@@ -3,6 +3,7 @@ import "../../src/index.css";
 import "../../src/styles/fonts.css";
 import { serializeSchemaOrgEntry } from "../../server/lib/schema-org.js";
 import type { SiteSettings } from "../../src/types/site-settings";
+import PublicChromeIsland from "../components/react/PublicChromeIsland";
 import { buildPublicChromeModel } from "../lib/public-layout";
 
 interface Props {
@@ -90,14 +91,18 @@ const fallbackSettings: SiteSettings = {
 const chrome = buildPublicChromeModel(locals?.siteSettings ?? fallbackSettings);
 const separator = locals?.siteSettings?.site?.titleSeparator || " | ";
 const _pageTitle = _title ? `${_title}${separator}${chrome.siteName}` : chrome.siteName;
-const _canonicalUrl = _canonicalUrlProp || new URL(
-  Astro.url.pathname,
-  locals?.primaryAppOrigin || Astro.url.origin || "https://nekomata.moe",
-).toString();
+const _canonicalUrl =
+  _canonicalUrlProp ||
+  new URL(
+    Astro.url.pathname,
+    locals?.primaryAppOrigin || Astro.url.origin || "https://nekomata.moe",
+  ).toString();
 const _absoluteImage = _image ? new URL(_image, _canonicalUrl).toString() : "";
 const _absoluteFavicon = chrome.siteFaviconUrl
   ? new URL(chrome.siteFaviconUrl, _canonicalUrl).toString()
   : "";
+const _location = `${Astro.url.pathname}${Astro.url.search}`;
+const _hasSurfaceGradient = Astro.url.pathname === "/projetos";
 ---
 
 <!doctype html>
@@ -140,119 +145,30 @@ const _absoluteFavicon = chrome.siteFaviconUrl
     }
   </head>
   <body class="min-h-screen bg-background text-foreground">
-    <div class="flex min-h-screen flex-col bg-background text-foreground">
-      <header class="sticky top-0 z-40 border-b border-border/60 bg-background/85 backdrop-blur-xl">
-        <div class="mx-auto flex max-w-7xl items-center justify-between gap-6 px-6 py-4 md:px-12">
-          <a href="/" class="flex items-center gap-3 text-lg font-black tracking-[0.22em] text-foreground">
-            {
-              chrome.wordmarkUrl ? (
-                <>
-                  <img
-                    src={chrome.wordmarkUrl}
-                    alt={chrome.wordmarkAlt}
-                    class="h-8 w-auto max-w-[220px] object-contain md:h-10 md:max-w-[280px]"
-                  />
-                  <span class="sr-only">{chrome.siteName}</span>
-                </>
-              ) : (
-                chrome.siteName
-              )
-            }
-          </a>
+    <div class:list={["flex min-h-screen flex-col bg-background text-foreground", _hasSurfaceGradient && "bg-gradient-surface"]}>
+      <PublicChromeIsland
+        client:load
+        kind="header"
+        location={_location}
+        initialCurrentUser={locals?.currentUser ?? null}
+        initialPublicBootstrap={locals?.publicBootstrap || null}
+        initialPublicRoutePayload={locals?.routePayload || null}
+        initialSettings={locals?.siteSettings || null}
+      />
 
-          <nav aria-label="Navegação principal" class="hidden items-center gap-6 text-sm font-medium text-foreground/80 lg:flex">
-            {
-              chrome.navbarLinks.map((item) => (
-                <a
-                  href={item.href}
-                  class:list={[
-                    "transition-colors hover:text-foreground",
-                    Astro.url.pathname === item.href ||
-                    (item.href !== "/" && Astro.url.pathname.startsWith(`${item.href}/`))
-                      ? "font-semibold text-foreground"
-                      : "text-foreground/80",
-                  ]}
-                  target={item.isExternal ? "_blank" : undefined}
-                  rel={item.isExternal ? "noreferrer noopener" : undefined}
-                >
-                  {item.label}
-                </a>
-              ))
-            }
-          </nav>
-        </div>
-      </header>
-
-      <main id="public-main-content" class="flex-1">
+      <main id="public-main-content" tabindex="-1" class="a11y-focus-target flex-1 page-transition">
         <slot />
       </main>
 
-      <footer class="border-t border-border/60 bg-background">
-        <div class="mx-auto grid max-w-7xl gap-10 px-6 pb-12 pt-14 md:px-12 lg:grid-cols-[1.2fr_1fr_1fr_1fr]">
-          <div class="space-y-4">
-            <div class="flex items-center gap-3">
-              {
-                chrome.wordmarkUrl ? (
-                  <img
-                    src={chrome.wordmarkUrl}
-                    alt={chrome.wordmarkAlt}
-                    class="h-10 w-auto max-w-[240px] object-contain md:h-12 md:max-w-[300px]"
-                  />
-                ) : (
-                  <p class="text-3xl font-black tracking-[0.28em] text-foreground">{chrome.brandName}</p>
-                )
-              }
-            </div>
-            <p class="text-sm leading-relaxed text-muted-foreground">{chrome.footerDescription}</p>
-          </div>
-
-          {
-            chrome.footerLinks.map((section) => (
-              <div class="space-y-4">
-                <p class="text-sm font-semibold uppercase tracking-[0.2em] text-muted-foreground">
-                  {section.title}
-                </p>
-                <ul class="space-y-2 text-sm">
-                  {
-                    section.links.map((item) => (
-                      <li>
-                        <a
-                          href={item.href}
-                          class="text-foreground/80 transition-colors hover:text-primary"
-                          target={item.isExternal ? "_blank" : undefined}
-                          rel={item.isExternal ? "noreferrer noopener" : undefined}
-                        >
-                          {item.label}
-                        </a>
-                      </li>
-                    ))
-                  }
-                </ul>
-              </div>
-            ))
-          }
-
-          <div class="flex flex-col gap-3 rounded-2xl border border-primary/20 bg-gradient-card p-5 text-sm text-foreground">
-            <p class="font-semibold text-primary">{chrome.footerHighlightTitle}</p>
-            <p class="text-muted-foreground">{chrome.footerHighlightDescription}</p>
-          </div>
-        </div>
-
-        <div class="border-t border-border/60 bg-background">
-          <div class="mx-auto flex max-w-7xl flex-col gap-3 px-6 py-6 text-xs text-muted-foreground md:flex-row md:items-center md:justify-between md:px-12">
-            <p>{locals?.siteSettings?.footer?.copyright || ""}</p>
-            <div class="flex flex-wrap gap-x-4 gap-y-2">
-              {
-                chrome.legalLinks.map((item) => (
-                  <a href={item.href} class="transition-colors hover:text-foreground">
-                    {item.label}
-                  </a>
-                ))
-              }
-            </div>
-          </div>
-        </div>
-      </footer>
+      <PublicChromeIsland
+        client:load
+        kind="footer"
+        location={_location}
+        initialCurrentUser={locals?.currentUser ?? null}
+        initialPublicBootstrap={locals?.publicBootstrap || null}
+        initialPublicRoutePayload={locals?.routePayload || null}
+        initialSettings={locals?.siteSettings || null}
+      />
     </div>
   </body>
 </html>

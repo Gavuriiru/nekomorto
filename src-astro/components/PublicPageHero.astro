@@ -1,5 +1,7 @@
 ---
 /* biome-ignore-all lint/correctness/noUnusedVariables: Astro template consumes frontmatter bindings. */
+import { astroStaticRevealClassName } from "../lib/public-reveal";
+
 interface Props {
   badge?: string;
   badges?: string[];
@@ -16,7 +18,7 @@ const badgeItems = (Array.isArray(badges) ? badges : [])
 
 <section class="relative overflow-hidden bg-background [background-image:var(--gradient-public-hero)] bg-no-repeat">
   <div class="relative mx-auto w-full max-w-6xl px-6 pb-8 pt-20 md:px-10 md:pb-10 md:pt-28">
-    <div class="max-w-3xl space-y-4 reveal" data-reveal>
+    <div class={`max-w-3xl space-y-4 ${astroStaticRevealClassName}`} data-reveal>
       {badgeLabel ? (
         <p class="inline-flex rounded-full border border-border/60 bg-secondary px-3 py-1 text-xs font-semibold uppercase tracking-widest text-secondary-foreground animate-fade-in">
           {badgeLabel}
