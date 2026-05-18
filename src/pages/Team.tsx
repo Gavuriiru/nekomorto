@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useState } from "react";
 
+import PublicPageHero from "@/components/PublicPageHero";
 import PublicTeamPageContent from "@/components/public-pages/PublicTeamPageContent";
 import {
   usePublishResolvedPublicSnapshots,
@@ -186,14 +187,21 @@ const Team = () => {
   ]);
 
   return (
-    <PublicTeamPageContent
-      isLoading={isLoading}
-      linkTypes={linkTypes}
-      mediaVariants={memberMediaVariants}
-      members={members}
-      pageCopy={pageCopy}
-      siteSettings={settings}
-    />
+    <div className="min-h-screen bg-background text-foreground">
+      <PublicPageHero
+        badge={pageCopy.heroBadge}
+        title={pageCopy.heroTitle}
+        subtitle={pageCopy.heroSubtitle}
+      />
+      <PublicTeamPageContent
+        isLoading={isLoading}
+        linkTypes={linkTypes}
+        mediaVariants={memberMediaVariants}
+        members={members}
+        pageCopy={pageCopy}
+        siteSettings={settings}
+      />
+    </div>
   );
 };
 

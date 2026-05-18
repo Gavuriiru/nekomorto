@@ -1,4 +1,3 @@
-import PublicPageHero from "@/components/PublicPageHero";
 import {
   publicInteractiveStackedSurfaceClassName,
   publicPageLayoutTokens,
@@ -295,14 +294,7 @@ const PublicDonationsPageContent = ({
   }, [activeCryptoIndex, visibleCryptoServices.length]);
 
   return (
-    <div className="min-h-screen bg-background text-foreground">
-      <PublicPageHero
-        title={shouldShowHydrationState ? "Doações" : donations.heroTitle}
-        subtitle={
-          shouldShowHydrationState ? "Carregando informações de apoio..." : donations.heroSubtitle
-        }
-      />
-
+    <>
       {shouldShowHydrationState ? (
         <section
           className={`${publicPageLayoutTokens.sectionBase} max-w-6xl pb-24 pt-10 reveal`}
@@ -667,7 +659,7 @@ const PublicDonationsPageContent = ({
           ) : null}
         </>
       )}
-    </div>
+    </>
   );
 };
 

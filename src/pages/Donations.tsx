@@ -1,4 +1,5 @@
 import { useEffect, useMemo } from "react";
+import PublicPageHero from "@/components/PublicPageHero";
 import PublicDonationsPageContent from "@/components/public-pages/PublicDonationsPageContent";
 import {
   usePublishResolvedPublicSnapshots,
@@ -104,13 +105,23 @@ const Donations = () => {
   }, [donationsRoutePayload, publishPublicRoutePayload]);
 
   return (
-    <PublicDonationsPageContent
-      donations={donations}
-      hasHydrationError={hasHydrationError}
-      merchantName={merchantName}
-      routePayload={donationsRoutePayload}
-      shouldShowHydrationState={shouldShowHydrationState}
-    />
+    <div className="min-h-screen bg-background text-foreground">
+      <PublicPageHero
+        title={shouldShowHydrationState ? "DoaÃ§Ãµes" : donations.heroTitle}
+        subtitle={
+          shouldShowHydrationState
+            ? "Carregando informaÃ§Ãµes de apoio..."
+            : donations.heroSubtitle
+        }
+      />
+      <PublicDonationsPageContent
+        donations={donations}
+        hasHydrationError={hasHydrationError}
+        merchantName={merchantName}
+        routePayload={donationsRoutePayload}
+        shouldShowHydrationState={shouldShowHydrationState}
+      />
+    </div>
   );
 };
 

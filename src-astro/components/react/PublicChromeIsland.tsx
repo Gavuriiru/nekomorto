@@ -15,6 +15,20 @@ interface PublicChromeIslandProps {
   location: string;
 }
 
+export const navigateDocumentTo = (
+  target: string,
+  navigate: (href: string) => void = (href) => window.location.assign(href),
+) => {
+  if (typeof window === "undefined") {
+    return;
+  }
+  const normalizedTarget = String(target || "").trim();
+  if (!normalizedTarget) {
+    return;
+  }
+  navigate(normalizedTarget);
+};
+
 export const PublicChromeNavigationBridge = ({
   onRouteChange = () => undefined,
 }: {
@@ -56,7 +70,7 @@ const PublicChromeIsland = ({
       initialSettings={initialSettings ?? initialPublicBootstrap?.settings}
       initiallyLoaded={Boolean(initialSettings ?? initialPublicBootstrap?.settings)}
     >
-      <PublicChromeNavigationBridge />
+      <PublicChromeNavigationBridge onRouteChange={navigateDocumentTo} />
       {chrome}
     </AppProviders>
   );

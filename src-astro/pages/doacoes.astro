@@ -1,4 +1,5 @@
 ---
+import PublicPageHero from "../components/PublicPageHero.astro";
 import PublicDonationsPageContent from "../../src/components/public-pages/PublicDonationsPageContent";
 import type { PublicRouteDonationsPayload } from "../../src/types/public-bootstrap";
 import { emptyPublicPagesConfig } from "../../src/types/public-pages";
@@ -26,11 +27,14 @@ const merchantName =
 ---
 
 <PublicLayout title={meta.title || "Doacoes"} description={meta.description} image={meta.image} imageAlt={meta.imageAlt}>
-  <PublicDonationsPageContent
-    client:load
-    donations={donations}
-    merchantName={merchantName}
-    routePayload={routePayload}
-    shouldShowHydrationState={false}
-  />
+  <div class="min-h-screen bg-background text-foreground">
+    <PublicPageHero title={donations.heroTitle} subtitle={donations.heroSubtitle} />
+    <PublicDonationsPageContent
+      client:load
+      donations={donations}
+      merchantName={merchantName}
+      routePayload={routePayload}
+      shouldShowHydrationState={false}
+    />
+  </div>
 </PublicLayout>

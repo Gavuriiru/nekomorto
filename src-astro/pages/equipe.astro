@@ -1,4 +1,5 @@
 ---
+import PublicPageHero from "../components/PublicPageHero.astro";
 import PublicTeamPageContent from "../../src/components/public-pages/PublicTeamPageContent";
 import type { PublicRouteTeamPayload } from "../../src/types/public-bootstrap";
 import { emptyPublicPagesConfig } from "../../src/types/public-pages";
@@ -30,13 +31,20 @@ const teamPage = {
 ---
 
 <PublicLayout title={meta.title || "Equipe"} description={meta.description} image={meta.image} imageAlt={meta.imageAlt}>
-  <PublicTeamPageContent
-    client:load
-    isLoading={false}
-    linkTypes={routePayload?.teamLinkTypes || []}
-    mediaVariants={routePayload?.mediaVariants || {}}
-    members={routePayload?.teamMembers || []}
-    pageCopy={teamPage}
-    siteSettings={locals?.siteSettings || null}
-  />
+  <div class="min-h-screen bg-background text-foreground">
+    <PublicPageHero
+      badge={teamPage.heroBadge}
+      title={teamPage.heroTitle}
+      subtitle={teamPage.heroSubtitle}
+    />
+    <PublicTeamPageContent
+      client:load
+      isLoading={false}
+      linkTypes={routePayload?.teamLinkTypes || []}
+      mediaVariants={routePayload?.mediaVariants || {}}
+      members={routePayload?.teamMembers || []}
+      pageCopy={teamPage}
+      siteSettings={locals?.siteSettings || null}
+    />
+  </div>
 </PublicLayout>

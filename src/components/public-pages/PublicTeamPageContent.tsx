@@ -1,4 +1,3 @@
-import PublicPageHero from "@/components/PublicPageHero";
 import PublicUserProfileCard from "@/components/PublicUserProfileCard";
 import { publicPageLayoutTokens } from "@/components/public-page-tokens";
 import { normalizeUploadVariantUrlKey, type UploadMediaVariantsMap } from "@/lib/upload-variants";
@@ -90,17 +89,10 @@ const PublicTeamPageContent = ({
   const prioritizedMemberId = activeMembers[0]?.id || retiredMembers[0]?.id || "";
 
   return (
-    <div className="min-h-screen bg-background text-foreground">
-      <PublicPageHero
-        badge={pageCopy.heroBadge}
-        title={pageCopy.heroTitle}
-        subtitle={pageCopy.heroSubtitle}
-      />
-
-      <section
-        className={`${publicPageLayoutTokens.sectionBase} max-w-6xl pb-20 pt-6 reveal`}
-        data-reveal
-      >
+    <section
+      className={`${publicPageLayoutTokens.sectionBase} max-w-6xl pb-20 pt-6 reveal`}
+      data-reveal
+    >
         {isLoading ? (
           <div className="mt-10 rounded-2xl border border-border/60 bg-card/60 px-6 py-10 text-sm text-muted-foreground">
             Carregando equipe...
@@ -165,8 +157,7 @@ const PublicTeamPageContent = ({
             ) : null}
           </>
         )}
-      </section>
-    </div>
+    </section>
   );
 };
 

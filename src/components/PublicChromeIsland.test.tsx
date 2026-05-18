@@ -7,6 +7,7 @@ import { describe, expect, it, vi } from "vitest";
 
 import PublicChromeIsland, {
   PublicChromeNavigationBridge,
+  navigateDocumentTo,
 } from "../../src-astro/components/react/PublicChromeIsland";
 
 const createSettings = (override: Partial<SiteSettings> = {}) =>
@@ -79,5 +80,13 @@ describe("PublicChromeIsland", () => {
       expect(onRouteChange).toHaveBeenCalledTimes(1);
     });
     expect(onRouteChange).toHaveBeenCalledWith("/sobre");
+  });
+
+  it("forca navegacao de documento quando o destino muda", () => {
+    const assignSpy = vi.fn();
+
+    navigateDocumentTo("/sobre", assignSpy);
+
+    expect(assignSpy).toHaveBeenCalledWith("/sobre");
   });
 });
