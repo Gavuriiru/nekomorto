@@ -4,6 +4,7 @@ import { useLocation } from "react-router-dom";
 import { clearSkipRouteMotion, consumePopstate } from "@/lib/route-motion";
 
 const DEFAULT_SELECTOR = "[data-reveal]";
+const ASTRO_STATIC_PUBLIC_REVEAL_SKIP_ROUTES = [/^\/$/, /^\/projetos$/, /^\/projeto\/[^/]+$/];
 
 const shouldRunRevealForPath = (pathname: string) => {
   const currentPath = String(pathname || "").trim() || "/";
@@ -14,6 +15,13 @@ const shouldRunRevealForPath = (pathname: string) => {
     return false;
   }
   return true;
+};
+
+const shouldSkipRevealForAstroDocument = (pathname: string) => {
+  if (document.documentElement.dataset.pageOwner !== "astro") {
+    return false;
+  }
+  return ASTRO_STATIC_PUBLIC_REVEAL_SKIP_ROUTES.some((pattern) => pattern.test(pathname));
 };
 
 const instantlyRevealAll = (selector: string) => {
@@ -30,6 +38,12 @@ export const useReveal = (selector = DEFAULT_SELECTOR) => {
 
   useEffect(() => {
     if (!shouldRunReveal) {
+      return;
+    }
+
+    if (shouldSkipRevealForAstroDocument(location.pathname)) {
+      clearSkipRouteMotion();
+      instantlyRevealAll(selector);
       return;
     }
 

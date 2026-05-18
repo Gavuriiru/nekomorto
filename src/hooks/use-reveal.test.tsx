@@ -273,4 +273,28 @@ describe("useReveal", () => {
 
     document.documentElement.classList.remove("skip-route-motion");
   });
+
+  it("nao reoculta rotas publicas Astro ja entregues pelo documento", async () => {
+    setReducedMotion(false);
+    const observer = installIntersectionObserver();
+    document.documentElement.dataset.pageOwner = "astro";
+
+    render(
+      <MemoryRouter initialEntries={["/projetos"]}>
+        <Routes>
+          <Route path="/projetos" element={<RevealHarness />} />
+        </Routes>
+      </MemoryRouter>,
+    );
+
+    const target = screen.getByTestId("reveal-target");
+
+    await waitFor(() => {
+      expect(target).toHaveClass("reveal-visible");
+      expect(target).not.toHaveClass("reveal-hidden");
+    });
+
+    expect(observer.observe).not.toHaveBeenCalled();
+    delete document.documentElement.dataset.pageOwner;
+  });
 });

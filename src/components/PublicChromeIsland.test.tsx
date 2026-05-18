@@ -12,7 +12,7 @@ import PublicChromeIsland, {
 const createSettings = (override: Partial<SiteSettings> = {}) =>
   mergeSettings(defaultSettings, override);
 
-const NavigationProbe = ({ reloadDocument }: { reloadDocument: () => void }) => {
+const NavigationProbe = ({ reloadDocument }: { reloadDocument: (target: string) => void }) => {
   const navigate = useNavigate();
 
   return (
@@ -78,5 +78,6 @@ describe("PublicChromeIsland", () => {
     await waitFor(() => {
       expect(reloadDocument).toHaveBeenCalledTimes(1);
     });
+    expect(reloadDocument).toHaveBeenCalledWith("/sobre");
   });
 });

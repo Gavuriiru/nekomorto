@@ -1,17 +1,16 @@
 import { useEffect, useMemo, useState } from "react";
 
-import PublicPageHero from "@/components/PublicPageHero";
-import PublicUserProfileCard from "@/components/PublicUserProfileCard";
-import { publicPageLayoutTokens } from "@/components/public-page-tokens";
+import PublicTeamPageContent from "@/components/public-pages/PublicTeamPageContent";
 import { usePageMeta } from "@/hooks/use-page-meta";
 import {
   useResolvedPublicBootstrap,
   useResolvedPublicRoutePayload,
 } from "@/hooks/public-bootstrap-provider";
 import { usePublicBootstrap } from "@/hooks/use-public-bootstrap";
+import { useSiteSettings } from "@/hooks/use-site-settings";
 import { getApiBase } from "@/lib/api-base";
 import { apiFetch } from "@/lib/api-client";
-import { normalizeUploadVariantUrlKey, type UploadMediaVariantsMap } from "@/lib/upload-variants";
+import type { UploadMediaVariantsMap } from "@/lib/upload-variants";
 import type { PublicTeamLinkType, PublicTeamMember } from "@/types/public-team";
 import {
   buildInstitutionalOgImageAlt,
@@ -20,10 +19,9 @@ import {
   resolveInstitutionalOgSupportText,
 } from "../../shared/institutional-og-seo.js";
 
-const TEAM_AVATAR_IMAGE_SIZES = "(max-width: 639px) 224px, (max-width: 767px) 240px, 256px";
-
 const Team = () => {
   const apiBase = getApiBase();
+  const { settings } = useSiteSettings();
   const windowBootstrap = useResolvedPublicBootstrap();
   const { data: bootstrapData } = usePublicBootstrap();
   const bootstrap = bootstrapData || windowBootstrap;
@@ -64,11 +62,11 @@ const Team = () => {
       shareImage: "",
       shareImageAlt: "",
       heroBadge: "Equipe",
-      heroTitle: "Conheça quem faz o projeto acontecer",
+      heroTitle: "ConheÃ§a quem faz o projeto acontecer",
       heroSubtitle:
-        "Os perfis e redes sociais serão gerenciados pela dashboard. Este layout antecipa como a equipe aparecerá para o público.",
+        "Os perfis e redes sociais serÃ£o gerenciados pela dashboard. Este layout antecipa como a equipe aparecerÃ¡ para o pÃºblico.",
       retiredTitle: "Membros aposentados",
-      retiredSubtitle: "Agradecemos por todas as contribuições.",
+      retiredSubtitle: "Agradecemos por todas as contribuiÃ§Ãµes.",
       ...(bootstrap?.pages.team || {}),
     }),
     [bootstrap],
@@ -155,133 +153,15 @@ const Team = () => {
     };
   }, [apiBase, hasTeamBootstrapSnapshot]);
 
-  const normalizedStatus = (status?: string | null) => (status || "").toLowerCase();
-  const retiredMembers = members
-    .filter(
-      (member) =>
-        normalizedStatus(member.status) === "retired" ||
-        normalizedStatus(member.status) === "aposentado",
-    )
-    .sort((a, b) => (a.order ?? 0) - (b.order ?? 0));
-  const activeMembers = members
-    .filter(
-      (member) =>
-        normalizedStatus(member.status) !== "retired" &&
-        normalizedStatus(member.status) !== "aposentado",
-    )
-    .sort((a, b) => (a.order ?? 0) - (b.order ?? 0));
-
-  const getMemberImageSrc = (member: PublicTeamMember) => {
-    const image = String(member.avatarUrl || "").trim();
-    if (!image || image === "/placeholder.svg") {
-      return "/placeholder.svg";
-    }
-    const variantKey = normalizeUploadVariantUrlKey(image);
-    const variantsVersion = Number(memberMediaVariants?.[variantKey]?.variantsVersion);
-    if (!Number.isFinite(variantsVersion) || variantsVersion <= 0) {
-      return image;
-    }
-    const normalizedVersion = Math.floor(variantsVersion);
-    return image.includes("?")
-      ? `${image}&v=${normalizedVersion}`
-      : `${image}?v=${normalizedVersion}`;
-  };
-
-  const prioritizedMemberId = activeMembers[0]?.id || retiredMembers[0]?.id || "";
-
-  const renderMemberCard = (
-    member: PublicTeamMember,
-    options?: { retired?: boolean; prioritizeImage?: boolean },
-  ) => {
-    const isRetiredCard = options?.retired ?? false;
-    const shouldPrioritizeImage = options?.prioritizeImage ?? false;
-    return (
-      <PublicUserProfileCard
-        key={member.id}
-        member={member}
-        linkTypes={linkTypes}
-        mediaVariants={memberMediaVariants}
-        retired={isRetiredCard}
-        imageSrc={getMemberImageSrc(member)}
-        imageLoading={shouldPrioritizeImage ? "eager" : "lazy"}
-        imageFetchPriority={shouldPrioritizeImage ? "high" : "auto"}
-        imageSizes={TEAM_AVATAR_IMAGE_SIZES}
-      />
-    );
-  };
-
   return (
-    <div className="min-h-screen bg-background text-foreground">
-      <main>
-        <PublicPageHero
-          badge={pageCopy.heroBadge}
-          title={pageCopy.heroTitle}
-          subtitle={pageCopy.heroSubtitle}
-        />
-
-        <section
-          className={`${publicPageLayoutTokens.sectionBase} max-w-6xl pb-20 pt-6 reveal`}
-          data-reveal
-        >
-          {isLoading ? (
-            <div className="mt-10 rounded-2xl border border-border/60 bg-card/60 px-6 py-10 text-sm text-muted-foreground">
-              Carregando equipe...
-            </div>
-          ) : members.length === 0 ? (
-            <div className="mt-10 rounded-2xl border border-dashed border-border/60 bg-card/60 px-6 py-10 text-sm text-muted-foreground">
-              Nenhum membro disponível no momento.
-            </div>
-          ) : (
-            <>
-              {activeMembers.length > 0 ? (
-                <section className="mt-10" aria-labelledby="team-active-members-heading">
-                  <h2 id="team-active-members-heading" className="sr-only">
-                    Membros ativos
-                  </h2>
-                  <div className="grid gap-8 md:gap-10">
-                    {activeMembers.map((member) =>
-                      renderMemberCard(member, {
-                        prioritizeImage: member.id === prioritizedMemberId,
-                      }),
-                    )}
-                  </div>
-                </section>
-              ) : null}
-
-              {retiredMembers.length > 0 ? (
-                <section className="mt-16 space-y-6" aria-labelledby="team-retired-members-heading">
-                  {pageCopy.retiredTitle || pageCopy.retiredSubtitle ? (
-                    <div>
-                      {pageCopy.retiredTitle ? (
-                        <h2
-                          id="team-retired-members-heading"
-                          className="text-lg font-semibold text-foreground"
-                        >
-                          {pageCopy.retiredTitle}
-                        </h2>
-                      ) : null}
-                      {pageCopy.retiredSubtitle ? (
-                        <p className="whitespace-pre-wrap text-sm text-muted-foreground">
-                          {pageCopy.retiredSubtitle}
-                        </p>
-                      ) : null}
-                    </div>
-                  ) : null}
-                  <div className="mt-8 grid gap-8 md:gap-10">
-                    {retiredMembers.map((member) =>
-                      renderMemberCard(member, {
-                        retired: true,
-                        prioritizeImage: member.id === prioritizedMemberId,
-                      }),
-                    )}
-                  </div>
-                </section>
-              ) : null}
-            </>
-          )}
-        </section>
-      </main>
-    </div>
+    <PublicTeamPageContent
+      isLoading={isLoading}
+      linkTypes={linkTypes}
+      mediaVariants={memberMediaVariants}
+      members={members}
+      pageCopy={pageCopy}
+      siteSettings={settings}
+    />
   );
 };
 

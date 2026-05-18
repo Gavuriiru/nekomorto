@@ -37,6 +37,7 @@ import type {
   PublicTeamLinkType,
   PublicTeamMember,
 } from "@/types/public-team";
+import type { SiteSettings } from "@/types/site-settings";
 
 const FAVORITE_WORK_CATEGORIES = ["manga", "anime"] as const;
 const FAVORITES_HINT_TEXT = "Clique para ver as obras favoritas";
@@ -51,6 +52,7 @@ type PublicUserProfileCardProps = {
   imageLoading?: "eager" | "lazy";
   imageFetchPriority?: "high" | "low" | "auto";
   imageSizes?: string;
+  siteSettings?: SiteSettings | null;
   testId?: string;
 };
 
@@ -212,9 +214,11 @@ const PublicUserProfileCard = ({
   imageLoading,
   imageFetchPriority,
   imageSizes,
+  siteSettings,
   testId,
 }: PublicUserProfileCardProps) => {
-  const { settings } = useSiteSettings();
+  const { settings: contextSettings } = useSiteSettings();
+  const settings = siteSettings || contextSettings;
   const [isFavoritePanelOpen, setFavoritePanelOpen] = useState(false);
 
   const roleIconMap = useMemo(
