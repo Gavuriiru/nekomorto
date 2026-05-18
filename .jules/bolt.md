@@ -11,3 +11,7 @@
 ## 2025-05-01 - Avoid precomputing timestamps unconditionally
 **Learning:** Precomputing timestamps for sorting avoids O(N log N) date parsing, but precomputing them unconditionally when the array might be sorted by non-date keys (e.g., alphabetically or by views) introduces unnecessary O(N) date parsing overhead.
 **Action:** Only precompute timestamps inside `useMemo` hooks if the selected `sortMode` actually utilizes those timestamps for sorting.
+
+## 2024-05-18 - Replacing `localeCompare` with `Intl.Collator` (or `comparePtBr` wrapper) in React sorting operations
+**Learning:** In Javascript, `String.prototype.localeCompare` recreates internal `Intl.Collator` objects on every invocation. When this is executed inside an `Array.prototype.sort()` comparator function for lists (such as projects in the dashboard editor), it creates an `O(N log N)` bottleneck. Profiling confirms that using a pre-instantiated `Intl.Collator.compare` (wrapped in `comparePtBr` in this codebase) is substantially faster.
+**Action:** Replace `localeCompare` with the `comparePtBr` helper (which uses a pre-initialized `Intl.Collator`) from `src/lib/search-ranking.ts` whenever performing string collation operations within sorting functions to improve iteration performance.
