@@ -1,6 +1,8 @@
 import {
+  THEME_MODE_GLOBAL_STATE_KEY,
   THEME_MODE_PRESERVE_MOTION_ATTRIBUTE,
   THEME_MODE_STORAGE_KEY,
+  THEME_MODE_SYNC_EVENT,
   type ThemeMode,
   ThemeModeContext,
   type ThemeModeContextValue,
@@ -18,9 +20,69 @@ const normalizePreference = (value: unknown): ThemeModePreference => {
   return "global";
 };
 
+type ThemeModeSyncState = {
+  accent: string;
+  effectiveMode: ThemeMode;
+  globalMode: ThemeMode;
+  preference: ThemeModePreference;
+};
+
+const isThemeModeSyncState = (value: unknown): value is Partial<ThemeModeSyncState> =>
+  Boolean(value) && typeof value === "object";
+
+const readWindowThemeSyncState = (): ThemeModeSyncState | null => {
+  if (typeof window === "undefined") {
+    return null;
+  }
+  const candidate = (
+    window as Window &
+      typeof globalThis & {
+        [THEME_MODE_GLOBAL_STATE_KEY]?: unknown;
+      }
+  )[THEME_MODE_GLOBAL_STATE_KEY];
+  if (!isThemeModeSyncState(candidate)) {
+    return null;
+  }
+  return {
+    accent: resolveThemeColor(candidate.accent),
+    effectiveMode: normalizeMode(candidate.effectiveMode),
+    globalMode: normalizeMode(candidate.globalMode),
+    preference: normalizePreference(candidate.preference),
+  };
+};
+
+const writeWindowThemeSyncState = (state: ThemeModeSyncState) => {
+  if (typeof window === "undefined") {
+    return state;
+  }
+  (
+    window as Window &
+      typeof globalThis & {
+        [THEME_MODE_GLOBAL_STATE_KEY]?: ThemeModeSyncState;
+      }
+  )[THEME_MODE_GLOBAL_STATE_KEY] = state;
+  return state;
+};
+
+const dispatchThemeSyncEvent = (state: ThemeModeSyncState) => {
+  if (typeof window === "undefined") {
+    return;
+  }
+  writeWindowThemeSyncState(state);
+  window.dispatchEvent(
+    new CustomEvent<ThemeModeSyncState>(THEME_MODE_SYNC_EVENT, {
+      detail: state,
+    }),
+  );
+};
+
 const readStoredPreference = (): ThemeModePreference => {
   if (typeof window === "undefined") {
     return "global";
+  }
+  const syncedPreference = readWindowThemeSyncState()?.preference;
+  if (syncedPreference) {
+    return syncedPreference;
   }
   try {
     const raw = window.localStorage.getItem(THEME_MODE_STORAGE_KEY);
@@ -156,6 +218,47 @@ export const ThemeModeProvider = ({ children }: { children: ReactNode }) => {
 
     applyThemeToDocument(effectiveMode, themeAccent);
   }, [effectiveMode, hasSyncedStoredPreference, themeAccent]);
+
+  useEffect(() => {
+    if (typeof window === "undefined" || !hasSyncedStoredPreference) {
+      return;
+    }
+    const nextState = {
+      accent: resolveThemeColor(themeAccent),
+      effectiveMode,
+      globalMode,
+      preference,
+    } satisfies ThemeModeSyncState;
+    const currentState = readWindowThemeSyncState();
+    if (
+      currentState &&
+      currentState.preference === nextState.preference &&
+      currentState.effectiveMode === nextState.effectiveMode &&
+      currentState.globalMode === nextState.globalMode &&
+      currentState.accent === nextState.accent
+    ) {
+      return;
+    }
+    dispatchThemeSyncEvent(nextState);
+  }, [effectiveMode, globalMode, hasSyncedStoredPreference, preference, themeAccent]);
+
+  useEffect(() => {
+    if (typeof window === "undefined") {
+      return;
+    }
+    const handleThemeSync = (event: Event) => {
+      const detail =
+        event instanceof CustomEvent && isThemeModeSyncState(event.detail) ? event.detail : null;
+      const nextPreference = detail
+        ? normalizePreference(detail.preference)
+        : (readWindowThemeSyncState()?.preference ?? "global");
+      setPreferenceState((current) => (current === nextPreference ? current : nextPreference));
+    };
+    window.addEventListener(THEME_MODE_SYNC_EVENT, handleThemeSync);
+    return () => {
+      window.removeEventListener(THEME_MODE_SYNC_EVENT, handleThemeSync);
+    };
+  }, []);
 
   useEffect(
     () => () => {

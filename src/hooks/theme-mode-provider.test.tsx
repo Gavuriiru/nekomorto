@@ -1,19 +1,27 @@
 import { Badge } from "@/components/ui/badge";
 import { defaultSettings, mergeSettings, SiteSettingsContext } from "@/hooks/site-settings-context";
 import {
+  THEME_MODE_GLOBAL_STATE_KEY,
   THEME_MODE_PRESERVE_MOTION_ATTRIBUTE,
   THEME_MODE_STORAGE_KEY,
   type ThemeModePreference,
 } from "@/hooks/theme-mode-context";
+import TweetComponent from "@/components/lexical/editor/nodes/TweetComponent";
 import { ThemeModeProvider } from "@/hooks/theme-mode-provider";
 import { useThemeMode } from "@/hooks/use-theme-mode";
 import { resolveThemeColor } from "@/lib/theme-color";
 import type { SiteSettings } from "@/types/site-settings";
-import { act, fireEvent, render, screen, waitFor } from "@testing-library/react";
+import { act, fireEvent, render, screen, waitFor, within } from "@testing-library/react";
 import { hydrateRoot } from "react-dom/client";
 import { renderToString } from "react-dom/server";
 import type { ReactNode } from "react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+
+vi.mock("@lexical/react/LexicalBlockWithAlignableContents", () => ({
+  BlockWithAlignableContents: ({ children }: { children: ReactNode }) => (
+    <div data-testid="tweet-block">{children}</div>
+  ),
+}));
 
 const createSettings = (override: Partial<SiteSettings> = {}) =>
   mergeSettings(defaultSettings, override);
@@ -37,6 +45,23 @@ const ThemeProbe = () => {
         set-dark
       </button>
     </div>
+  );
+};
+
+const NamedThemeProbe = ({ name }: { name: string }) => {
+  const { effectiveMode, preference, setPreference } = useThemeMode();
+
+  return (
+    <section data-testid={`theme-probe-${name}`}>
+      <p data-testid={`effective-mode-${name}`}>{effectiveMode}</p>
+      <p data-testid={`preference-${name}`}>{preference}</p>
+      <button type="button" onClick={() => setPreference("light")}>
+        set-light-{name}
+      </button>
+      <button type="button" onClick={() => setPreference("dark")}>
+        set-dark-{name}
+      </button>
+    </section>
   );
 };
 
@@ -110,6 +135,12 @@ const mockAnimationFrames = () => {
 describe("ThemeModeProvider", () => {
   beforeEach(() => {
     window.localStorage.clear();
+    delete (
+      window as Window &
+        typeof globalThis & {
+          [THEME_MODE_GLOBAL_STATE_KEY]?: unknown;
+        }
+    )[THEME_MODE_GLOBAL_STATE_KEY];
     window.history.replaceState(null, "", "/");
     document.documentElement.classList.remove("dark");
     delete document.documentElement.dataset.themeMode;
@@ -125,6 +156,12 @@ describe("ThemeModeProvider", () => {
 
   afterEach(() => {
     document.head.querySelector(THEME_TRANSITION_STYLE_SELECTOR)?.remove();
+    delete (
+      window as Window &
+        typeof globalThis & {
+          twttr?: unknown;
+        }
+    ).twttr;
     vi.restoreAllMocks();
   });
 
@@ -315,6 +352,94 @@ describe("ThemeModeProvider", () => {
     } finally {
       animationFrames.restore();
     }
+  });
+
+  it("syncs theme preference across independent roots in the same document", async () => {
+    const settings = createSettings({ theme: { accent: "#9667e0", mode: "dark" } });
+    const firstRoot = renderWithSettings(settings, <NamedThemeProbe name="first" />);
+    const secondRoot = renderWithSettings(settings, <NamedThemeProbe name="second" />);
+
+    expect(within(firstRoot.container).getByTestId("effective-mode-first")).toHaveTextContent(
+      "dark",
+    );
+    expect(within(secondRoot.container).getByTestId("effective-mode-second")).toHaveTextContent(
+      "dark",
+    );
+
+    fireEvent.click(within(firstRoot.container).getByRole("button", { name: "set-light-first" }));
+
+    await waitFor(() => {
+      expect(within(secondRoot.container).getByTestId("effective-mode-second")).toHaveTextContent(
+        "light",
+      );
+    });
+    expect(within(secondRoot.container).getByTestId("preference-second")).toHaveTextContent(
+      "light",
+    );
+    assertDocumentTheme("light");
+  });
+
+  it("recreates tweet embeds in another root when global theme sync changes", async () => {
+    const createTweet = vi.fn(
+      async (_tweetId: string, container: HTMLElement, options?: { theme?: "light" | "dark" }) => {
+        const tweet = document.createElement("blockquote");
+        tweet.className = "twitter-tweet-rendered";
+        tweet.setAttribute("data-theme", String(options?.theme || ""));
+        container.appendChild(tweet);
+        return container;
+      },
+    );
+    (
+      window as Window &
+        typeof globalThis & {
+          twttr?: {
+            widgets?: {
+              createTweet: typeof createTweet;
+            };
+          };
+        }
+    ).twttr = {
+      widgets: {
+        createTweet,
+      },
+    };
+
+    const settings = createSettings({ theme: { accent: "#9667e0", mode: "dark" } });
+    const controlRoot = renderWithSettings(settings, <NamedThemeProbe name="control" />);
+    const tweetRoot = renderWithSettings(
+      settings,
+      <TweetComponent
+        className={{ base: "embed-base", focus: "embed-focus" }}
+        format={null}
+        nodeKey={"tweet-node"}
+        tweetID="1234567890"
+      />,
+    );
+
+    await waitFor(() => {
+      expect(createTweet).toHaveBeenCalledWith("1234567890", expect.any(HTMLElement), {
+        theme: "dark",
+      });
+    });
+    expect(
+      tweetRoot.container.querySelector(".twitter-tweet-rendered")?.getAttribute("data-theme"),
+    ).toBe("dark");
+
+    fireEvent.click(
+      within(controlRoot.container).getByRole("button", { name: "set-light-control" }),
+    );
+
+    await waitFor(() => {
+      expect(createTweet).toHaveBeenCalledWith("1234567890", expect.any(HTMLElement), {
+        theme: "light",
+      });
+    });
+    await waitFor(() => {
+      expect(
+        tweetRoot.container.querySelector(".twitter-tweet-rendered")?.getAttribute("data-theme"),
+      ).toBe("light");
+    });
+    expect(createTweet).toHaveBeenCalledTimes(2);
   });
 
   it("keeps semantic badges tied to theme tokens in light mode without dark selectors", async () => {

@@ -189,7 +189,7 @@ describe("buffered Astro response delivery", () => {
     }
   });
 
-  it("rewrites html script nonces after buffering the Astro response", () => {
+  it("rewrites html script nonces after buffering the Astro response", async () => {
     const buffered = createBufferedAstroResponse({
       locals: {
         cspNonce: "nonce-123",
@@ -222,9 +222,9 @@ describe("buffered Astro response delivery", () => {
       status: vi.fn(() => destination),
     };
 
-    sendBufferedAstroResponse({
+    await sendBufferedAstroResponse({
       destination,
-      injectNonceIntoHtmlScripts: (html, nonce) => html.replace("<script", `<script nonce="${nonce}"`),
+      rewriteHtml: (html, nonce) => html.replace("<script", `<script nonce="${nonce}"`),
       source: buffered,
     });
 
@@ -234,7 +234,7 @@ describe("buffered Astro response delivery", () => {
     expect(destination.removeHeader).toHaveBeenCalledWith("Content-Length");
   });
 
-  it("keeps non-html payloads untouched", () => {
+  it("keeps non-html payloads untouched", async () => {
     const buffered = createBufferedAstroResponse({
       locals: {
         cspNonce: "nonce-123",
@@ -260,16 +260,16 @@ describe("buffered Astro response delivery", () => {
       status: vi.fn(() => destination),
     };
 
-    sendBufferedAstroResponse({
+    await sendBufferedAstroResponse({
       destination,
-      injectNonceIntoHtmlScripts: (html) => `${html}<!-- rewritten -->`,
+      rewriteHtml: (html) => `${html}<!-- rewritten -->`,
       source: buffered,
     });
 
     expect(destination.body.toString("utf8")).toBe('{"ok":true}');
   });
 
-  it("completes a real express response when Astro writes in multiple chunks", async () => {
+  it("completes a real Astro public response with bootstrap injection and nonce rewriting", async () => {
     const tempDir = mkdtempSync(path.join(process.cwd(), "tmp-astro-handler-"));
     tempDirs.push(tempDir);
     const entryFilePath = path.join(tempDir, "entry.mjs");
@@ -302,15 +302,26 @@ describe("buffered Astro response delivery", () => {
       },
       injectNonceIntoHtmlScripts: (html, nonce) =>
         html.replace("<script", `<script nonce="${nonce}"`),
+      injectAstroPublicHtml: async ({ html, publicRoutePayload, settings }) =>
+        `${html}<script>window.__BOOTSTRAP_ROUTE__ = ${JSON.stringify(publicRoutePayload)};window.__BOOTSTRAP_SETTINGS__ = ${JSON.stringify(settings)};</script>`,
       isProduction: true,
       loadAstroPublicBootstrap: () => null,
-      loadAstroRoutePayload: () => null,
+      loadAstroFallbackRoutePayload: ({ routePayload }) => routePayload,
+      loadAstroRoutePayload: () => ({
+        kind: "team",
+        generatedAt: "2026-05-17T00:00:00.000Z",
+        teamMembers: [{ id: "member-1" }],
+      }),
       loadPages: () => null,
-      loadSiteSettings: () => null,
+      loadSiteSettings: () => ({
+        theme: {
+          mode: "light",
+        },
+      }),
       primaryAppOrigin: "http://127.0.0.1:0",
     });
 
-    app.get("/dashboard", (req, res, next) => {
+    app.get("/equipe", (req, res, next) => {
       void handler(req, res, next);
     });
 
@@ -322,7 +333,7 @@ describe("buffered Astro response delivery", () => {
       const address = server.address();
       const port = typeof address === "object" && address ? address.port : 0;
       const baseUrl = new URL(`http://127.0.0.1:${port}`);
-      const response = await requestText(baseUrl, "/dashboard");
+      const response = await requestText(baseUrl, "/equipe");
 
       expect(response.status).toBe(200);
       expect(response.headers.get("content-type")).toContain("text/html");
@@ -330,6 +341,84 @@ describe("buffered Astro response delivery", () => {
       expect(response.body).toContain('nonce="nonce-xyz"');
       expect(response.body).toContain("window.__origin=");
       expect(response.body).toContain("http://127.0.0.1:0");
+      expect(response.body).toContain('window.__BOOTSTRAP_SETTINGS__ = {"theme":{"mode":"light"}}');
+      expect(response.body).toContain('window.__BOOTSTRAP_ROUTE__ = {"kind":"team"');
+    } finally {
+      await new Promise((resolve, reject) => {
+        server.close((error) => {
+          if (error) {
+            reject(error);
+            return;
+          }
+          resolve(undefined);
+        });
+      });
+    }
+  });
+
+  it("repairs incomplete institutional route payloads before Astro renders", async () => {
+    const tempDir = mkdtempSync(path.join(process.cwd(), "tmp-astro-handler-"));
+    tempDirs.push(tempDir);
+    const entryFilePath = path.join(tempDir, "entry.mjs");
+    writeFileSync(
+      entryFilePath,
+      [
+        "export const handler = async (_req, res, _next, locals) => {",
+        '  res.writeHead(200, { "Content-Type": "text/html; charset=utf-8" });',
+        "  res.end(`<!doctype html><html><body>${JSON.stringify(locals.nekomata.routePayload)}</body></html>`);",
+        "};",
+      ].join("\n"),
+      "utf8",
+    );
+
+    const app = express();
+    const handler = createAstroPublicRequestHandler({
+      entryFilePath,
+      fs: {
+        existsSync: (candidate) => candidate === entryFilePath,
+      },
+      injectAstroPublicHtml: ({ html }) => html,
+      isProduction: true,
+      loadAstroFallbackRoutePayload: async ({ pathname, routePayload }) => {
+        if (pathname !== "/doacoes" || routePayload?.pixQrCodeUrl) {
+          return routePayload;
+        }
+        return {
+          kind: "donations",
+          generatedAt: "2026-05-17T00:00:00.000Z",
+          pixQrCodeUrl: "data:image/png;base64,pix",
+          cryptoQrCodeUrls: { "0": "data:image/png;base64,btc" },
+        };
+      },
+      loadAstroPublicBootstrap: () => null,
+      loadAstroRoutePayload: () => ({
+        kind: "donations",
+        generatedAt: "2026-05-17T00:00:00.000Z",
+        pixQrCodeUrl: "",
+        cryptoQrCodeUrls: {},
+      }),
+      loadPages: () => null,
+      loadSiteSettings: () => null,
+      primaryAppOrigin: "http://127.0.0.1:0",
+    });
+
+    app.get("/doacoes", (req, res, next) => {
+      void handler(req, res, next);
+    });
+
+    const server = await new Promise<Server>((resolve) => {
+      const nextServer = app.listen(0, () => resolve(nextServer));
+    });
+
+    try {
+      const address = server.address();
+      const port = typeof address === "object" && address ? address.port : 0;
+      const baseUrl = new URL(`http://127.0.0.1:${port}`);
+      const response = await requestText(baseUrl, "/doacoes");
+
+      expect(response.status).toBe(200);
+      expect(response.body).toContain('"pixQrCodeUrl":"data:image/png;base64,pix"');
+      expect(response.body).toContain('"cryptoQrCodeUrls":{"0":"data:image/png;base64,btc"}');
     } finally {
       await new Promise((resolve, reject) => {
         server.close((error) => {

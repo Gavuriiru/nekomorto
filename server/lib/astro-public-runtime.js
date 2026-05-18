@@ -37,7 +37,9 @@ const shouldInjectNonceIntoAstroHtml = (res, bodyBuffer) => {
   if (contentTypeHeader.toLowerCase().includes("text/html")) {
     return true;
   }
-  const bodyPreview = bodyBuffer.toString("utf8", 0, Math.min(bodyBuffer.length, 512)).toLowerCase();
+  const bodyPreview = bodyBuffer
+    .toString("utf8", 0, Math.min(bodyBuffer.length, 512))
+    .toLowerCase();
   return bodyPreview.includes("<!doctype html") || bodyPreview.includes("<html");
 };
 
@@ -69,7 +71,7 @@ export const createBufferedAstroResponse = ({ req, locals } = {}) => {
   const headers = new Map();
   const bodyChunks = [];
 
-  class BufferedAstroResponse extends EventEmitter { }
+  class BufferedAstroResponse extends EventEmitter {}
 
   const res = new BufferedAstroResponse();
   res.headersSent = false;
@@ -150,11 +152,7 @@ export const createBufferedAstroResponse = ({ req, locals } = {}) => {
   };
 };
 
-export const sendBufferedAstroResponse = ({
-  destination,
-  injectNonceIntoHtmlScripts,
-  source,
-} = {}) => {
+export const sendBufferedAstroResponse = async ({ destination, rewriteHtml, source } = {}) => {
   if (!destination || !source) {
     return undefined;
   }
@@ -162,13 +160,12 @@ export const sendBufferedAstroResponse = ({
   const sourceResponse = source.res ?? null;
   const cspNonce =
     typeof destination.locals?.cspNonce === "string" ? destination.locals.cspNonce.trim() : "";
-  const bodyBuffer = typeof source.getBodyBuffer === "function" ? source.getBodyBuffer() : Buffer.alloc(0);
+  const bodyBuffer =
+    typeof source.getBodyBuffer === "function" ? source.getBodyBuffer() : Buffer.alloc(0);
   const shouldRewriteHtml =
-    cspNonce &&
-    typeof injectNonceIntoHtmlScripts === "function" &&
-    shouldInjectNonceIntoAstroHtml(sourceResponse, bodyBuffer);
+    typeof rewriteHtml === "function" && shouldInjectNonceIntoAstroHtml(sourceResponse, bodyBuffer);
   const nextChunk = shouldRewriteHtml
-    ? Buffer.from(injectNonceIntoHtmlScripts(bodyBuffer.toString("utf8"), cspNonce), "utf8")
+    ? Buffer.from(await rewriteHtml(bodyBuffer.toString("utf8"), cspNonce), "utf8")
     : bodyBuffer;
   const sourceHeaders = typeof source.getHeaders === "function" ? source.getHeaders() : {};
   const statusCode = Number(sourceResponse?.statusCode || 200) || 200;
@@ -267,8 +264,10 @@ export const resolveAstroPublicRoutePayload = async ({
 export const createAstroPublicRequestHandler = ({
   entryFilePath,
   fs,
+  injectAstroPublicHtml,
   injectNonceIntoHtmlScripts,
   isProduction,
+  loadAstroFallbackRoutePayload,
   loadAstroPublicBootstrap,
   loadAstroRoutePayload,
   loadPages,
@@ -318,6 +317,16 @@ export const createAstroPublicRequestHandler = ({
             siteSettings,
           })
         : null;
+    const resolvedRoutePayload =
+      typeof loadAstroFallbackRoutePayload === "function"
+        ? await loadAstroFallbackRoutePayload({
+            pages,
+            pathname: req?.path,
+            req,
+            routePayload,
+            siteSettings,
+          })
+        : routePayload;
     const publicBootstrap =
       typeof loadAstroPublicBootstrap === "function"
         ? await loadAstroPublicBootstrap({
@@ -334,13 +343,31 @@ export const createAstroPublicRequestHandler = ({
           pages,
           primaryAppOrigin: String(primaryAppOrigin || "").trim(),
           publicBootstrap,
-          routePayload,
+          routePayload: resolvedRoutePayload,
           siteSettings,
         },
       });
       return sendBufferedAstroResponse({
         destination: res,
-        injectNonceIntoHtmlScripts,
+        rewriteHtml: async (html, cspNonce) => {
+          let nextHtml = String(html || "");
+          if (typeof injectAstroPublicHtml === "function") {
+            nextHtml = await injectAstroPublicHtml({
+              html: nextHtml,
+              pathname: req?.path,
+              publicBootstrap,
+              publicMe: req?.session?.user ?? null,
+              publicRoutePayload: resolvedRoutePayload,
+              routeParams: req?.params,
+              routeQuery: req?.query,
+              settings: siteSettings,
+            });
+          }
+          if (cspNonce && typeof injectNonceIntoHtmlScripts === "function") {
+            nextHtml = injectNonceIntoHtmlScripts(nextHtml, cspNonce);
+          }
+          return nextHtml;
+        },
         source: bufferedAstroResponse,
       });
     } catch (error) {

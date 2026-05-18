@@ -267,6 +267,49 @@ describe("public-site-runtime", () => {
     expect(dashboardHtml).toContain("skip:yes");
   });
 
+  it("injects a resolved astro document bootstrap without recomputing the payload", async () => {
+    let capturedBootstrap = null;
+    let capturedRoutePayload = null;
+    const runtime = createPublicSiteRuntime(
+      createDeps({
+        injectBootstrapGlobals: ({ html, publicBootstrap, publicRoutePayload }) => {
+          capturedBootstrap = publicBootstrap ?? null;
+          capturedRoutePayload = publicRoutePayload ?? null;
+          return `${html}|route:${publicRoutePayload?.kind || "none"}`;
+        },
+      }),
+    );
+
+    const publicBootstrap = runtime.buildPublicBootstrapResponsePayload({
+      payloadMode: PUBLIC_BOOTSTRAP_MODE_FULL,
+    });
+    const providedRoutePayload = {
+      kind: "team",
+      generatedAt: "2026-05-17T00:00:00.000Z",
+      teamMembers: [],
+    };
+
+    const result = await runtime.injectResolvedPublicDocumentHtml({
+      html: '<html><head><link rel="stylesheet" href="/assets/app.css"></head></html>',
+      pathname: "/equipe",
+      publicBootstrap,
+      publicMe: { id: "user-1" },
+      publicRoutePayload: providedRoutePayload,
+      settings: {},
+    });
+
+    expect(result.html).toContain("route:team");
+    expect(result.html).toContain("preloads:2");
+    expect(capturedBootstrap).toBe(publicBootstrap);
+    expect(capturedRoutePayload).toEqual(
+      expect.objectContaining({
+        kind: "team",
+        teamMembers: [expect.objectContaining({ id: "team-1" })],
+        teamLinkTypes: [expect.objectContaining({ id: "site" })],
+      }),
+    );
+  });
+
   it("injects a crawlable seo snapshot for indexable public pages", async () => {
     const runtime = createPublicSiteRuntime(
       createDeps({

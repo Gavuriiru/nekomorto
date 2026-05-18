@@ -412,9 +412,9 @@ export const createPublicSiteRuntime = (dependencies = {}) => {
     home:
       pages?.home && typeof pages.home === "object"
         ? {
-          shareImage: String(pages.home.shareImage || ""),
-          shareImageAlt: String(pages.home.shareImageAlt || ""),
-        }
+            shareImage: String(pages.home.shareImage || ""),
+            shareImageAlt: String(pages.home.shareImageAlt || ""),
+          }
         : { shareImage: "", shareImageAlt: "" },
   });
 
@@ -693,6 +693,43 @@ export const createPublicSiteRuntime = (dependencies = {}) => {
       return source;
     }
     return source.replace('<div id="root"></div>', `${snippet}\n<div id="root"></div>`);
+  };
+
+  const isCompleteTeamRoutePayload = (payload) =>
+    payload?.kind === "team" &&
+    Array.isArray(payload.teamMembers) &&
+    Array.isArray(payload.teamLinkTypes) &&
+    payload.mediaVariants &&
+    typeof payload.mediaVariants === "object";
+
+  const isCompleteDonationsRoutePayload = (payload) =>
+    payload?.kind === "donations" &&
+    typeof payload.pixQrCodeUrl === "string" &&
+    payload.cryptoQrCodeUrls &&
+    typeof payload.cryptoQrCodeUrls === "object" &&
+    !Array.isArray(payload.cryptoQrCodeUrls);
+
+  const resolveCompleteInstitutionalRoutePayload = async ({
+    pathname,
+    pages,
+    publicRoutePayload,
+    settings,
+  }) => {
+    if (pathname === "/equipe" && !isCompleteTeamRoutePayload(publicRoutePayload)) {
+      return buildPublicRouteResponsePayload({
+        pages,
+        routeKind: PUBLIC_ROUTE_KIND_TEAM,
+        settings,
+      });
+    }
+    if (pathname === "/doacoes" && !isCompleteDonationsRoutePayload(publicRoutePayload)) {
+      return buildPublicRouteResponsePayload({
+        pages,
+        routeKind: PUBLIC_ROUTE_KIND_DONATIONS,
+        settings,
+      });
+    }
+    return publicRoutePayload ?? null;
   };
 
   const resolveHomeHeroPreload = (publicBootstrap) => {
@@ -999,111 +1036,39 @@ export const createPublicSiteRuntime = (dependencies = {}) => {
     };
   };
 
-  const injectPublicBootstrapHtml = async ({
+  const injectResolvedPublicDocumentHtml = async ({
     html,
-    req,
-    settings,
-    pages,
     includeHeroImagePreload = false,
-    includeProjectsImagePreloads = false,
-    bootstrapMode = PUBLIC_BOOTSTRAP_MODE_FULL,
     includeHomeHeroShell = false,
+    includeProjectsImagePreloads = false,
+    pages = loadPages(),
+    pathname = "/",
+    publicBootstrap = null,
+    publicMe = null,
+    publicRoutePayload = null,
+    routeParams = {},
+    routeQuery = {},
+    settings = loadSiteSettings(),
   }) => {
+    const normalizedPathname = String(pathname || "").trim() || "/";
     const normalizedPages = resolvePublicPathIndexability({
-      pathname: req?.path,
+      pathname: normalizedPathname,
       pages,
     }).pages;
-    const routeKind = resolvePublicRouteKind(req?.path);
-    const routeCurrentPostDetail =
-      routeKind === PUBLIC_ROUTE_KIND_POST && bootstrapMode === PUBLIC_BOOTSTRAP_MODE_FULL
-        ? (() => {
-          const routeSlug = String(req?.params?.slug || "").trim();
-          if (!routeSlug) {
-            return null;
-          }
-          const routePost = getPublicVisiblePosts().find(
-            (candidate) => String(candidate?.slug || "").trim() === routeSlug,
-          );
-          return routePost ? buildPublicPostDetail({ post: routePost, resolvePostCover }) : null;
-        })()
-        : null;
-    const publicBootstrap =
-      bootstrapMode === PUBLIC_BOOTSTRAP_MODE_SHELL
-        ? buildShellPublicBootstrapPayload({
-          settings,
-          pages: normalizedPages,
-        })
-        : buildPublicBootstrapResponsePayload({
-          settings,
-          pages: normalizedPages,
-          payloadMode: bootstrapMode,
-          currentPostDetail: routeCurrentPostDetail,
-        });
-    const publicRoutePayload =
-      bootstrapMode === PUBLIC_BOOTSTRAP_MODE_SHELL
-        ? await buildPublicRouteResponsePayload({
-          settings,
-          pages: normalizedPages,
-          routeKind,
-          routeParams: req?.params,
-        })
-        : null;
-    const routeProject =
-      routeKind === PUBLIC_ROUTE_KIND_PROJECT_DETAIL ||
-        routeKind === PUBLIC_ROUTE_KIND_PROJECT_READING ||
-        req?.path?.startsWith("/projetos/")
-        ? findBootstrapProjectByRouteSlug(getPublicVisibleProjects(), req?.params?.id)
-        : null;
-    const routePost =
-      routeKind === PUBLIC_ROUTE_KIND_POST && routeCurrentPostDetail
-        ? getPublicVisiblePosts().find(
-          (candidate) => String(candidate?.slug || "").trim() === String(req?.params?.slug || ""),
-        ) || null
-        : null;
-    const indexability = resolvePublicPathIndexability({
-      pathname: req?.path,
+    const resolvedRoutePayload = await resolveCompleteInstitutionalRoutePayload({
+      pathname: normalizedPathname,
       pages: normalizedPages,
-      project: routeProject,
-      post: routePost,
-      isReadingRoute: /^\/projeto(?:s)?\/.+\/leitura\/.+/.test(String(req?.path || "")),
+      publicRoutePayload,
+      settings,
     });
-    const publicMe = req?.session?.user ? buildUserPayload(req.session.user) : null;
     let nextHtml = injectBootstrapGlobals({
       html,
       publicBootstrap,
-      publicRoutePayload,
+      publicRoutePayload: resolvedRoutePayload,
       settings,
       publicMe,
       pwaEnabled: false,
     });
-    if (indexability.shouldRenderSeoSnapshot) {
-      nextHtml = injectSeoSnapshotMarkup({
-        html: nextHtml,
-        snapshotHtml: buildPublicSeoSnapshot({
-          pathname: req?.path,
-          pages: indexability.pages,
-          settings,
-          publicBootstrap:
-            publicRoutePayload?.kind === "project-detail" && publicRoutePayload.project
-              ? {
-                ...publicBootstrap,
-                projects: [publicRoutePayload.project],
-                mediaVariants: publicRoutePayload.mediaVariants || publicBootstrap?.mediaVariants,
-              }
-              : publicRoutePayload?.kind === "team"
-                ? {
-                  ...publicBootstrap,
-                  teamMembers: publicRoutePayload.teamMembers,
-                  mediaVariants:
-                    publicRoutePayload.mediaVariants || publicBootstrap?.mediaVariants,
-                }
-                : publicBootstrap,
-          project: routeProject,
-          post: routePost,
-          stripHtml,
-        }),
-      });
-    }
     const preloads = extractLocalStylesheetHrefs(nextHtml).map((href) => ({
       href,
       as: "style",
@@ -1115,15 +1080,15 @@ export const createPublicSiteRuntime = (dependencies = {}) => {
         preloads.push(heroPreload);
       }
     }
-    preloads.push(...resolvePublicRouteModulePreloads(req?.path));
+    preloads.push(...resolvePublicRouteModulePreloads(normalizedPathname));
     if (includeProjectsImagePreloads) {
       const routeProjects =
-        publicRoutePayload?.kind === "projects-list"
-          ? publicRoutePayload.projects
+        resolvedRoutePayload?.kind === "projects-list"
+          ? resolvedRoutePayload.projects
           : publicBootstrap?.projects;
       const routeMediaVariants =
-        publicRoutePayload?.kind === "projects-list"
-          ? publicRoutePayload.mediaVariants
+        resolvedRoutePayload?.kind === "projects-list"
+          ? resolvedRoutePayload.mediaVariants
           : publicBootstrap?.mediaVariants;
       preloads.push(
         ...resolvePublicProjectsListPreloads({
@@ -1133,15 +1098,15 @@ export const createPublicSiteRuntime = (dependencies = {}) => {
         }),
       );
     }
-    if (req?.path === "/equipe") {
+    if (normalizedPathname === "/equipe") {
       const teamAvatarPreload = resolvePublicTeamAvatarPreload({
         teamMembers:
-          publicRoutePayload?.kind === "team"
-            ? publicRoutePayload.teamMembers
+          resolvedRoutePayload?.kind === "team"
+            ? resolvedRoutePayload.teamMembers
             : publicBootstrap?.teamMembers,
         mediaVariants:
-          publicRoutePayload?.kind === "team"
-            ? publicRoutePayload.mediaVariants
+          resolvedRoutePayload?.kind === "team"
+            ? resolvedRoutePayload.mediaVariants
             : publicBootstrap?.mediaVariants,
         resolveVariantUrl: resolveMetaImageVariantUrl,
       });
@@ -1149,8 +1114,8 @@ export const createPublicSiteRuntime = (dependencies = {}) => {
         preloads.push(teamAvatarPreload);
       }
     }
-    if (req?.path?.startsWith("/postagem/")) {
-      const routeSlug = String(req?.params?.slug || "").trim();
+    if (normalizedPathname.startsWith("/postagem/")) {
+      const routeSlug = String(routeParams?.slug || "").trim();
       const bootstrapPost =
         (Array.isArray(publicBootstrap?.posts) ? publicBootstrap.posts : []).find(
           (candidate) => String(candidate?.slug || "").trim() === routeSlug,
@@ -1164,6 +1129,14 @@ export const createPublicSiteRuntime = (dependencies = {}) => {
         preloads.push(postCoverPreload);
       }
     }
+    const routeKind = resolvePublicRouteKind(normalizedPathname);
+    const routeProjectId = String(routeParams?.id || "").trim();
+    const routeProject =
+      routeKind === PUBLIC_ROUTE_KIND_PROJECT_DETAIL ||
+      routeKind === PUBLIC_ROUTE_KIND_PROJECT_READING ||
+      normalizedPathname.startsWith("/projetos/")
+        ? findBootstrapProjectByRouteSlug(publicBootstrap?.projects, routeProjectId)
+        : null;
     if (routeKind === PUBLIC_ROUTE_KIND_PROJECT_DETAIL && routeProject) {
       const heroSrc = String(
         routeProject.banner || routeProject.heroImageUrl || routeProject.cover || "",
@@ -1187,10 +1160,9 @@ export const createPublicSiteRuntime = (dependencies = {}) => {
         preloads.push(coverPreload);
       }
     }
-    if (/^\/projeto(?:s)?\/.+\/leitura\/.+/.test(String(req?.path || ""))) {
-      const routeProjectId = String(req?.params?.id || "").trim();
-      const chapterNumber = Number(req?.params?.chapter);
-      const routeVolume = Number(req?.query?.volume);
+    if (/^\/projeto(?:s)?\/.+\/leitura\/.+/.test(normalizedPathname)) {
+      const chapterNumber = Number(routeParams?.chapter);
+      const routeVolume = Number(routeQuery?.volume);
       const readingHeroImageUrl = resolveBootstrapReadingHeroImageUrl({
         project:
           routeProject ||
@@ -1213,12 +1185,132 @@ export const createPublicSiteRuntime = (dependencies = {}) => {
         preloads,
       });
     }
-    if (includeHomeHeroShell && req?.path === "/") {
+    if (includeHomeHeroShell && normalizedPathname === "/") {
       const shellSnapshot = buildHomeHeroShellMarkup(publicBootstrap);
       nextHtml = injectHomeHeroShell({
         html: nextHtml,
         shellMarkup: shellSnapshot.markup,
         criticalCss: shellSnapshot.criticalCss,
+      });
+    }
+    return {
+      html: nextHtml,
+      publicRoutePayload: resolvedRoutePayload,
+    };
+  };
+
+  const injectPublicBootstrapHtml = async ({
+    html,
+    req,
+    settings,
+    pages,
+    includeHeroImagePreload = false,
+    includeProjectsImagePreloads = false,
+    bootstrapMode = PUBLIC_BOOTSTRAP_MODE_FULL,
+    includeHomeHeroShell = false,
+  }) => {
+    const normalizedPages = resolvePublicPathIndexability({
+      pathname: req?.path,
+      pages,
+    }).pages;
+    const routeKind = resolvePublicRouteKind(req?.path);
+    const routeCurrentPostDetail =
+      routeKind === PUBLIC_ROUTE_KIND_POST && bootstrapMode === PUBLIC_BOOTSTRAP_MODE_FULL
+        ? (() => {
+            const routeSlug = String(req?.params?.slug || "").trim();
+            if (!routeSlug) {
+              return null;
+            }
+            const routePost = getPublicVisiblePosts().find(
+              (candidate) => String(candidate?.slug || "").trim() === routeSlug,
+            );
+            return routePost ? buildPublicPostDetail({ post: routePost, resolvePostCover }) : null;
+          })()
+        : null;
+    const publicBootstrap =
+      bootstrapMode === PUBLIC_BOOTSTRAP_MODE_SHELL
+        ? buildShellPublicBootstrapPayload({
+            settings,
+            pages: normalizedPages,
+          })
+        : buildPublicBootstrapResponsePayload({
+            settings,
+            pages: normalizedPages,
+            payloadMode: bootstrapMode,
+            currentPostDetail: routeCurrentPostDetail,
+          });
+    const publicRoutePayload =
+      bootstrapMode === PUBLIC_BOOTSTRAP_MODE_SHELL
+        ? await buildPublicRouteResponsePayload({
+            settings,
+            pages: normalizedPages,
+            routeKind,
+            routeParams: req?.params,
+          })
+        : null;
+    const routeProject =
+      routeKind === PUBLIC_ROUTE_KIND_PROJECT_DETAIL ||
+      routeKind === PUBLIC_ROUTE_KIND_PROJECT_READING ||
+      req?.path?.startsWith("/projetos/")
+        ? findBootstrapProjectByRouteSlug(getPublicVisibleProjects(), req?.params?.id)
+        : null;
+    const routePost =
+      routeKind === PUBLIC_ROUTE_KIND_POST && routeCurrentPostDetail
+        ? getPublicVisiblePosts().find(
+            (candidate) => String(candidate?.slug || "").trim() === String(req?.params?.slug || ""),
+          ) || null
+        : null;
+    const indexability = resolvePublicPathIndexability({
+      pathname: req?.path,
+      pages: normalizedPages,
+      project: routeProject,
+      post: routePost,
+      isReadingRoute: /^\/projeto(?:s)?\/.+\/leitura\/.+/.test(String(req?.path || "")),
+    });
+    const publicMe = req?.session?.user ? buildUserPayload(req.session.user) : null;
+    const resolvedDocument = await injectResolvedPublicDocumentHtml({
+      html,
+      includeHeroImagePreload,
+      includeHomeHeroShell,
+      includeProjectsImagePreloads,
+      pages: normalizedPages,
+      pathname: req?.path,
+      publicBootstrap,
+      publicMe,
+      publicRoutePayload,
+      routeParams: req?.params,
+      routeQuery: req?.query,
+      settings,
+    });
+    let nextHtml = resolvedDocument.html;
+    const resolvedRoutePayload = resolvedDocument.publicRoutePayload;
+    if (indexability.shouldRenderSeoSnapshot) {
+      nextHtml = injectSeoSnapshotMarkup({
+        html: nextHtml,
+        snapshotHtml: buildPublicSeoSnapshot({
+          pathname: req?.path,
+          pages: indexability.pages,
+          settings,
+          publicBootstrap:
+            resolvedRoutePayload?.kind === "project-detail" && resolvedRoutePayload.project
+              ? {
+                  ...publicBootstrap,
+                  projects: [resolvedRoutePayload.project],
+                  mediaVariants:
+                    resolvedRoutePayload.mediaVariants || publicBootstrap?.mediaVariants,
+                }
+              : resolvedRoutePayload?.kind === "team"
+                ? {
+                    ...publicBootstrap,
+                    teamMembers: resolvedRoutePayload.teamMembers,
+                    mediaVariants:
+                      resolvedRoutePayload.mediaVariants || publicBootstrap?.mediaVariants,
+                  }
+                : publicBootstrap,
+          project: routeProject,
+          post: routePost,
+          stripHtml,
+        }),
       });
     }
     return nextHtml;
@@ -1254,6 +1346,7 @@ export const createPublicSiteRuntime = (dependencies = {}) => {
     buildPublicBootstrapResponsePayload,
     buildPublicSitemapEntries,
     injectDashboardBootstrapHtml,
+    injectResolvedPublicDocumentHtml,
     injectPublicBootstrapHtml,
     sendXmlResponse,
   };

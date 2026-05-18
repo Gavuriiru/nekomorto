@@ -1791,8 +1791,71 @@ const isAstroPublicRuntimeEnabled = isProduction;
 const astroPublicRequestHandler = createAstroPublicRequestHandler({
   entryFilePath: ASTRO_SERVER_ENTRY_PATH,
   fs,
+  injectAstroPublicHtml: async ({
+    html,
+    pathname,
+    publicBootstrap,
+    publicMe,
+    publicRoutePayload,
+    routeParams,
+    routeQuery,
+    settings,
+  }) => {
+    const injected = await publicRuntime.injectResolvedPublicDocumentHtml({
+      html,
+      includeHeroImagePreload: pathname === "/",
+      includeHomeHeroShell: pathname === "/",
+      includeProjectsImagePreloads: pathname === "/projetos",
+      pages: loadPages(),
+      pathname,
+      publicBootstrap,
+      publicMe: publicMe ? buildUserPayload(publicMe) : null,
+      publicRoutePayload,
+      routeParams,
+      routeQuery,
+      settings,
+    });
+    return injected.html;
+  },
   injectNonceIntoHtmlScripts,
   isProduction,
+  loadAstroFallbackRoutePayload: async ({ pathname, pages, req, routePayload, siteSettings }) => {
+    if (pathname !== "/equipe" && pathname !== "/doacoes") {
+      return routePayload;
+    }
+    if (pathname === "/equipe") {
+      const isCompleteTeamPayload =
+        routePayload?.kind === "team" &&
+        Array.isArray(routePayload.teamMembers) &&
+        Array.isArray(routePayload.teamLinkTypes) &&
+        routePayload.mediaVariants &&
+        typeof routePayload.mediaVariants === "object";
+      if (isCompleteTeamPayload) {
+        return routePayload;
+      }
+    }
+    if (pathname === "/doacoes") {
+      const isCompleteDonationsPayload =
+        routePayload?.kind === "donations" &&
+        typeof routePayload.pixQrCodeUrl === "string" &&
+        routePayload.cryptoQrCodeUrls &&
+        typeof routePayload.cryptoQrCodeUrls === "object" &&
+        !Array.isArray(routePayload.cryptoQrCodeUrls);
+      if (isCompleteDonationsPayload) {
+        return routePayload;
+      }
+    }
+    return resolveAstroPublicRoutePayload({
+      pathname,
+      pages,
+      req,
+      siteSettings,
+      buildPublicMediaVariants,
+      buildPublicTeamMembers,
+      loadLinkTypes,
+      resolvePublicDonationsRoutePayload: buildPublicDonationsRoutePayload,
+    });
+  },
   loadAstroPublicBootstrap: ({ pathname, pages, req, siteSettings }) => {
     if (!isAstroPublicBootstrapPathname(pathname)) {
       return null;
@@ -1801,8 +1864,9 @@ const astroPublicRequestHandler = createAstroPublicRequestHandler({
     const currentPostDetail = routeSlug
       ? (() => {
           const post =
-            getPublicVisiblePosts().find((candidate) => String(candidate?.slug || "") === routeSlug) ||
-            null;
+            getPublicVisiblePosts().find(
+              (candidate) => String(candidate?.slug || "") === routeSlug,
+            ) || null;
           return post ? buildPublicPostDetail({ post, resolvePostCover }) : null;
         })()
       : null;
