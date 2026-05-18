@@ -1,3 +1,4 @@
+import { EventEmitter } from "node:events";
 import { pathToFileURL } from "node:url";
 import { buildPublicRoutePayload } from "./public-bootstrap.js";
 
@@ -40,50 +41,160 @@ const shouldInjectNonceIntoAstroHtml = (res, bodyBuffer) => {
   return bodyPreview.includes("<!doctype html") || bodyPreview.includes("<html");
 };
 
-export const attachAstroHtmlNonceInjection = ({ res, injectNonceIntoHtmlScripts } = {}) => {
-  if (!res || typeof injectNonceIntoHtmlScripts !== "function") {
-    return () => { };
+const normalizeBufferedAstroHeaderEntries = (headers) =>
+  Object.entries(headers || {}).map(([name, value]) => [String(name), value]);
+
+const normalizeBufferedAstroWriteArgs = (chunk, encoding, callback) => {
+  let nextChunk = chunk;
+  let nextEncoding = encoding;
+  let nextCallback = callback;
+
+  if (typeof nextChunk === "function") {
+    nextCallback = nextChunk;
+    nextChunk = undefined;
+    nextEncoding = undefined;
+  } else if (typeof nextEncoding === "function") {
+    nextCallback = nextEncoding;
+    nextEncoding = undefined;
   }
 
-  const originalWrite = res.write.bind(res);
-  const originalEnd = res.end.bind(res);
+  return {
+    callback: typeof nextCallback === "function" ? nextCallback : undefined,
+    chunk: nextChunk,
+    encoding: typeof nextEncoding === "string" ? nextEncoding : undefined,
+  };
+};
+
+export const createBufferedAstroResponse = ({ req, locals } = {}) => {
+  const headers = new Map();
   const bodyChunks = [];
 
+  class BufferedAstroResponse extends EventEmitter { }
+
+  const res = new BufferedAstroResponse();
+  res.headersSent = false;
+  res.locals = locals ?? {};
+  res.req = req ?? null;
+  res.statusCode = 200;
+  res.statusMessage = "";
+  res.writableEnded = false;
+
+  res.setHeader = (name, value) => {
+    const headerName = String(name || "");
+    if (!headerName) {
+      return res;
+    }
+    headers.set(headerName.toLowerCase(), {
+      name: headerName,
+      value,
+    });
+    return res;
+  };
+
+  res.getHeader = (name) => headers.get(String(name || "").toLowerCase())?.value;
+
+  res.removeHeader = (name) => {
+    headers.delete(String(name || "").toLowerCase());
+    return res;
+  };
+
+  res.writeHead = (statusCode, statusMessageOrHeaders, maybeHeaders) => {
+    res.statusCode = Number(statusCode || 200) || 200;
+    res.headersSent = true;
+
+    let nextHeaders = maybeHeaders;
+    if (typeof statusMessageOrHeaders === "string") {
+      res.statusMessage = statusMessageOrHeaders;
+    } else if (statusMessageOrHeaders && typeof statusMessageOrHeaders === "object") {
+      nextHeaders = statusMessageOrHeaders;
+    }
+
+    normalizeBufferedAstroHeaderEntries(nextHeaders).forEach(([name, value]) => {
+      res.setHeader(name, value);
+    });
+
+    return res;
+  };
+
   res.write = (chunk, encoding, callback) => {
-    if (chunk !== undefined && chunk !== null) {
-      bodyChunks.push(toBuffer(chunk, encoding));
+    const normalized = normalizeBufferedAstroWriteArgs(chunk, encoding, callback);
+    if (normalized.chunk !== undefined && normalized.chunk !== null) {
+      bodyChunks.push(toBuffer(normalized.chunk, normalized.encoding));
     }
-    if (typeof callback === "function") {
-      callback();
-    }
+    normalized.callback?.();
     return true;
   };
 
   res.end = (chunk, encoding, callback) => {
-    if (chunk !== undefined && chunk !== null) {
-      bodyChunks.push(toBuffer(chunk, encoding));
+    const normalized = normalizeBufferedAstroWriteArgs(chunk, encoding, callback);
+    if (normalized.chunk !== undefined && normalized.chunk !== null) {
+      bodyChunks.push(toBuffer(normalized.chunk, normalized.encoding));
     }
-
-    const cspNonce = typeof res.locals?.cspNonce === "string" ? res.locals.cspNonce.trim() : "";
-    const bodyBuffer = Buffer.concat(bodyChunks);
-    const nextChunk =
-      cspNonce && shouldInjectNonceIntoAstroHtml(res, bodyBuffer)
-        ? Buffer.from(injectNonceIntoHtmlScripts(bodyBuffer.toString("utf8"), cspNonce), "utf8")
-        : bodyBuffer;
-
-    if (typeof res.removeHeader === "function") {
-      res.removeHeader("Content-Length");
+    if (!res.headersSent) {
+      res.headersSent = true;
     }
-
-    res.write = originalWrite;
-    res.end = originalEnd;
-    return originalEnd(nextChunk, undefined, callback);
+    res.writableEnded = true;
+    normalized.callback?.();
+    res.emit("finish");
+    return res;
   };
 
-  return () => {
-    res.write = originalWrite;
-    res.end = originalEnd;
+  return {
+    getBodyBuffer: () => Buffer.concat(bodyChunks),
+    getHeaders: () =>
+      Array.from(headers.values()).reduce((result, entry) => {
+        result[entry.name] = entry.value;
+        return result;
+      }, {}),
+    res,
   };
+};
+
+export const sendBufferedAstroResponse = ({
+  destination,
+  injectNonceIntoHtmlScripts,
+  source,
+} = {}) => {
+  if (!destination || !source) {
+    return undefined;
+  }
+
+  const sourceResponse = source.res ?? null;
+  const cspNonce =
+    typeof destination.locals?.cspNonce === "string" ? destination.locals.cspNonce.trim() : "";
+  const bodyBuffer = typeof source.getBodyBuffer === "function" ? source.getBodyBuffer() : Buffer.alloc(0);
+  const shouldRewriteHtml =
+    cspNonce &&
+    typeof injectNonceIntoHtmlScripts === "function" &&
+    shouldInjectNonceIntoAstroHtml(sourceResponse, bodyBuffer);
+  const nextChunk = shouldRewriteHtml
+    ? Buffer.from(injectNonceIntoHtmlScripts(bodyBuffer.toString("utf8"), cspNonce), "utf8")
+    : bodyBuffer;
+  const sourceHeaders = typeof source.getHeaders === "function" ? source.getHeaders() : {};
+  const statusCode = Number(sourceResponse?.statusCode || 200) || 200;
+  const statusMessage = String(sourceResponse?.statusMessage || "");
+
+  if (typeof destination.status === "function") {
+    destination.status(statusCode);
+  } else {
+    destination.statusCode = statusCode;
+  }
+  if (statusMessage) {
+    destination.statusMessage = statusMessage;
+  }
+
+  normalizeBufferedAstroHeaderEntries(sourceHeaders).forEach(([name, value]) => {
+    if (shouldRewriteHtml && name.toLowerCase() === "content-length") {
+      return;
+    }
+    destination.setHeader?.(name, value);
+  });
+
+  if (shouldRewriteHtml) {
+    destination.removeHeader?.("Content-Length");
+  }
+
+  return destination.end(nextChunk);
 };
 
 export const resolveAstroPublicRoutePayload = async ({
@@ -192,32 +303,32 @@ export const createAstroPublicRequestHandler = ({
     if (!handler) {
       return next();
     }
-    const restoreAstroResponse = attachAstroHtmlNonceInjection({
-      res,
-      injectNonceIntoHtmlScripts,
+    const bufferedAstroResponse = createBufferedAstroResponse({
+      locals: res.locals,
+      req,
     });
     const pages = typeof loadPages === "function" ? loadPages() : null;
     const siteSettings = typeof loadSiteSettings === "function" ? loadSiteSettings() : null;
     const routePayload =
       typeof loadAstroRoutePayload === "function"
         ? await loadAstroRoutePayload({
-          pages,
-          pathname: req?.path,
-          req,
-          siteSettings,
-        })
+            pages,
+            pathname: req?.path,
+            req,
+            siteSettings,
+          })
         : null;
     const publicBootstrap =
       typeof loadAstroPublicBootstrap === "function"
         ? await loadAstroPublicBootstrap({
-          pages,
-          pathname: req?.path,
-          req,
-          siteSettings,
-        })
+            pages,
+            pathname: req?.path,
+            req,
+            siteSettings,
+          })
         : null;
     try {
-      return await handler(req, res, next, {
+      await handler(req, bufferedAstroResponse.res, next, {
         nekomata: {
           currentUser: req?.session?.user ?? null,
           pages,
@@ -227,8 +338,12 @@ export const createAstroPublicRequestHandler = ({
           siteSettings,
         },
       });
+      return sendBufferedAstroResponse({
+        destination: res,
+        injectNonceIntoHtmlScripts,
+        source: bufferedAstroResponse,
+      });
     } catch (error) {
-      restoreAstroResponse();
       throw error;
     }
   };

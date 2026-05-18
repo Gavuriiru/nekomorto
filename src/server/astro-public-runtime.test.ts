@@ -1,9 +1,25 @@
-import { describe, expect, it, vi } from "vitest";
+import compression from "compression";
+import express from "express";
+import type { Server } from "node:http";
+import { mkdtempSync, rmSync, writeFileSync } from "node:fs";
+import path from "node:path";
+import { afterEach, describe, expect, it, vi } from "vitest";
 
 import {
-  attachAstroHtmlNonceInjection,
+  createAstroPublicRequestHandler,
+  createBufferedAstroResponse,
   resolveAstroPublicRoutePayload,
+  sendBufferedAstroResponse,
 } from "../../server/lib/astro-public-runtime.js";
+
+const requestText = async (baseUrl, pathname) => {
+  const response = await fetch(new URL(pathname, baseUrl));
+  return {
+    body: await response.text(),
+    headers: response.headers,
+    status: response.status,
+  };
+};
 
 describe("resolveAstroPublicRoutePayload", () => {
   it("builds the team payload for /equipe", async () => {
@@ -160,103 +176,170 @@ describe("resolveAstroPublicRoutePayload", () => {
   });
 });
 
-describe("attachAstroHtmlNonceInjection", () => {
-  const createResponse = ({
-    contentType = "text/html; charset=utf-8",
-    cspNonce = "nonce-123",
-  }: {
-    contentType?: string;
-    cspNonce?: string;
-  } = {}) => {
-    const headers = new Map<string, string>([["Content-Type", contentType]]);
-    const writes: Buffer[] = [];
-    const res = {
+describe("buffered Astro response delivery", () => {
+  const tempDirs: string[] = [];
+
+  afterEach(() => {
+    while (tempDirs.length > 0) {
+      const tempDir = tempDirs.pop();
+      if (!tempDir) {
+        continue;
+      }
+      rmSync(tempDir, { force: true, recursive: true });
+    }
+  });
+
+  it("rewrites html script nonces after buffering the Astro response", () => {
+    const buffered = createBufferedAstroResponse({
       locals: {
-        cspNonce,
+        cspNonce: "nonce-123",
       },
-      end: vi.fn((chunk?: Buffer | string, _encoding?: BufferEncoding, callback?: () => void) => {
-        if (chunk !== undefined) {
-          writes.push(Buffer.isBuffer(chunk) ? chunk : Buffer.from(String(chunk), "utf8"));
-        }
-        callback?.();
-        return res;
+    });
+
+    buffered.res.writeHead(200, {
+      "Content-Length": "91",
+      "Content-Type": "text/html; charset=utf-8",
+    });
+    buffered.res.write("<!doctype html><html><body>");
+    buffered.res.end('<script type="module" src="/_astro/client.js"></script></body></html>');
+
+    const destination = {
+      body: Buffer.alloc(0),
+      headers: new Map(),
+      locals: {
+        cspNonce: "nonce-123",
+      },
+      removeHeader: vi.fn((name) => {
+        destination.headers.delete(String(name).toLowerCase());
       }),
-      getHeader: vi.fn((name: string) => headers.get(name)),
-      removeHeader: vi.fn((name: string) => {
-        headers.delete(name);
+      setHeader: vi.fn((name, value) => {
+        destination.headers.set(String(name).toLowerCase(), value);
       }),
-      write: vi.fn((chunk?: Buffer | string, _encoding?: BufferEncoding, callback?: () => void) => {
-        if (chunk !== undefined) {
-          writes.push(Buffer.isBuffer(chunk) ? chunk : Buffer.from(String(chunk), "utf8"));
-        }
-        callback?.();
-        return true;
+      end: vi.fn((chunk) => {
+        destination.body = Buffer.from(chunk);
+        return destination;
       }),
+      status: vi.fn(() => destination),
     };
 
-    return {
-      getBody: () => Buffer.concat(writes).toString("utf8"),
-      res,
-    };
-  };
-
-  it("injects the current nonce into buffered Astro HTML scripts", () => {
-    const { getBody, res } = createResponse();
-
-    attachAstroHtmlNonceInjection({
-      res,
+    sendBufferedAstroResponse({
+      destination,
       injectNonceIntoHtmlScripts: (html, nonce) => html.replace("<script", `<script nonce="${nonce}"`),
+      source: buffered,
     });
 
-    res.write("<!doctype html><html><body>");
-    res.end('<script type="module" src="/_astro/client.js"></script></body></html>');
-
-    expect(getBody()).toContain('<script nonce="nonce-123" type="module" src="/_astro/client.js"></script>');
-    expect(res.removeHeader).toHaveBeenCalledWith("Content-Length");
+    expect(destination.body.toString("utf8")).toContain(
+      '<script nonce="nonce-123" type="module" src="/_astro/client.js"></script>',
+    );
+    expect(destination.removeHeader).toHaveBeenCalledWith("Content-Length");
   });
 
-  it("passes the full html to the nonce injector so existing nonce values are replaced", () => {
-    const { getBody, res } = createResponse();
+  it("keeps non-html payloads untouched", () => {
+    const buffered = createBufferedAstroResponse({
+      locals: {
+        cspNonce: "nonce-123",
+      },
+    });
 
-    attachAstroHtmlNonceInjection({
-      res,
+    buffered.res.writeHead(200, {
+      "Content-Type": "application/json; charset=utf-8",
+    });
+    buffered.res.end('{"ok":true}');
+
+    const destination = {
+      body: Buffer.alloc(0),
+      locals: {
+        cspNonce: "nonce-123",
+      },
+      removeHeader: vi.fn(),
+      setHeader: vi.fn(),
+      end: vi.fn((chunk) => {
+        destination.body = Buffer.from(chunk);
+        return destination;
+      }),
+      status: vi.fn(() => destination),
+    };
+
+    sendBufferedAstroResponse({
+      destination,
+      injectNonceIntoHtmlScripts: (html) => `${html}<!-- rewritten -->`,
+      source: buffered,
+    });
+
+    expect(destination.body.toString("utf8")).toBe('{"ok":true}');
+  });
+
+  it("completes a real express response when Astro writes in multiple chunks", async () => {
+    const tempDir = mkdtempSync(path.join(process.cwd(), "tmp-astro-handler-"));
+    tempDirs.push(tempDir);
+    const entryFilePath = path.join(tempDir, "entry.mjs");
+    writeFileSync(
+      entryFilePath,
+      [
+        "export const handler = async (_req, res, _next, locals) => {",
+        "  res.writeHead(200, {",
+        '    "Content-Type": "text/html; charset=utf-8",',
+        '    "X-Route": "astro-test",',
+        "  });",
+        '  res.write("<!doctype html><html><body>");',
+        '  res.end(`<script type="module">window.__origin=${JSON.stringify(locals.nekomata.primaryAppOrigin)};</script></body></html>`);',
+        "};",
+      ].join("\n"),
+      "utf8",
+    );
+
+    const app = express();
+    app.use(compression());
+    app.use((_req, res, next) => {
+      res.locals.cspNonce = "nonce-xyz";
+      next();
+    });
+
+    const handler = createAstroPublicRequestHandler({
+      entryFilePath,
+      fs: {
+        existsSync: (candidate) => candidate === entryFilePath,
+      },
       injectNonceIntoHtmlScripts: (html, nonce) =>
-        html.replace(/nonce="antigo"/g, `nonce="${nonce}"`).replace(/nonce='antigo'/g, `nonce="${nonce}"`),
+        html.replace("<script", `<script nonce="${nonce}"`),
+      isProduction: true,
+      loadAstroPublicBootstrap: () => null,
+      loadAstroRoutePayload: () => null,
+      loadPages: () => null,
+      loadSiteSettings: () => null,
+      primaryAppOrigin: "http://127.0.0.1:0",
     });
 
-    res.end('<!doctype html><html><body><script nonce="antigo">window.Astro={};</script></body></html>');
-
-    expect(getBody()).toContain('<script nonce="nonce-123">window.Astro={};</script>');
-    expect(getBody()).not.toContain("antigo");
-  });
-
-  it("leaves non-html responses untouched", () => {
-    const { getBody, res } = createResponse({
-      contentType: "application/json; charset=utf-8",
+    app.get("/dashboard", (req, res, next) => {
+      void handler(req, res, next);
     });
 
-    attachAstroHtmlNonceInjection({
-      res,
-      injectNonceIntoHtmlScripts: (html) => `${html}<!-- rewritten -->`,
+    const server = await new Promise<Server>((resolve) => {
+      const nextServer = app.listen(0, () => resolve(nextServer));
     });
 
-    res.end('{"ok":true}');
+    try {
+      const address = server.address();
+      const port = typeof address === "object" && address ? address.port : 0;
+      const baseUrl = new URL(`http://127.0.0.1:${port}`);
+      const response = await requestText(baseUrl, "/dashboard");
 
-    expect(getBody()).toBe('{"ok":true}');
-  });
-
-  it("leaves the body untouched when there is no nonce on the response", () => {
-    const { getBody, res } = createResponse({
-      cspNonce: "",
-    });
-
-    attachAstroHtmlNonceInjection({
-      res,
-      injectNonceIntoHtmlScripts: (html) => `${html}<!-- rewritten -->`,
-    });
-
-    res.end("<!doctype html><html><body><script></script></body></html>");
-
-    expect(getBody()).toBe("<!doctype html><html><body><script></script></body></html>");
+      expect(response.status).toBe(200);
+      expect(response.headers.get("content-type")).toContain("text/html");
+      expect(response.headers.get("x-route")).toBe("astro-test");
+      expect(response.body).toContain('nonce="nonce-xyz"');
+      expect(response.body).toContain("window.__origin=");
+      expect(response.body).toContain("http://127.0.0.1:0");
+    } finally {
+      await new Promise((resolve, reject) => {
+        server.close((error) => {
+          if (error) {
+            reject(error);
+            return;
+          }
+          resolve(undefined);
+        });
+      });
+    }
   });
 });
