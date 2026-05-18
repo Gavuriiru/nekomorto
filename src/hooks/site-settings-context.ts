@@ -4,7 +4,7 @@ import { getProjectReaderPresetByType } from "../../shared/project-reader.js";
 
 export const defaultSettings: SiteSettings = {
   site: {
-    name: "NEKOMATA",
+    name: "Nekomata",
     logoUrl: "",
     faviconUrl: "",
     description:
@@ -120,7 +120,7 @@ export const defaultSettings: SiteSettings = {
     { id: "k-maker", label: "K-Maker", icon: "palette" },
   ],
   footer: {
-    brandName: "NEKOMATA",
+    brandName: "Nekomata",
     brandLogoUrl: "",
     brandDescription:
       "Fansub dedicada a trazer histórias inesquecíveis com o carinho que a comunidade merece. Traduzimos por paixão, respeitando autores e apoiando o consumo legal das obras.",

@@ -122,6 +122,6 @@ describe("site-settings-runtime-helpers", () => {
 
   it("fixes mojibake strings deeply and exposes the default settings catalog", () => {
     expect(fixMojibakeDeep({ title: "LanÃ§amento" })).toEqual({ title: "Lançamento" });
-    expect(defaultSiteSettings.site.name).toBe("NEKOMATA");
+    expect(defaultSiteSettings.site.name).toBe("Nekomata");
   });
 });

@@ -62,7 +62,7 @@ const toSection = (value: { title?: string; links?: Array<{ href?: string; label
 
 export const buildPublicChromeModel = (settings: SiteSettings): PublicChromeModel => {
   const branding = resolveBranding(settings);
-  const siteName = toText(settings.site.name) || "NEKOMATA";
+  const siteName = toText(settings.site.name) || "Nekomata";
   const footerBrandName = toText(settings.footer.brandName) || siteName;
   const wordmarkUrl = branding.navbar.showWordmark
     ? branding.navbar.wordmarkUrl

@@ -1,5 +1,5 @@
 const PWA_CLEANUP_RELOAD_SENTINEL_KEY = "nekomata:pwa-cleanup-reloaded";
-const PWA_CLEANUP_RELOAD_MESSAGE = "NEKOMATA_SW_CLEANUP_RELOAD";
+const PWA_CLEANUP_RELOAD_MESSAGE = "Nekomata_SW_CLEANUP_RELOAD";
 const DASHBOARD_PATH_PATTERN = /^\/dashboard(?:[/?]|$)/;
 
 const normalizePathname = (value: unknown) =>

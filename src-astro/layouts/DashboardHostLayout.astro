@@ -16,7 +16,7 @@ const {
 } = Astro.props;
 const locals = Astro.locals.nekomata;
 const siteSettings = (locals?.siteSettings ?? {}) as Partial<SiteSettings>;
-const siteName = String(siteSettings.site?.name || "NEKOMATA").trim() || "NEKOMATA";
+const siteName = String(siteSettings.site?.name || "Nekomata").trim() || "Nekomata";
 const separator = siteSettings.site?.titleSeparator || " | ";
 const pageTitle = _title ? `${_title}${separator}${siteName}` : siteName;
 ---

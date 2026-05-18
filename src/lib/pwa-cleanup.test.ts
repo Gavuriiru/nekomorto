@@ -148,8 +148,8 @@ describe("pwa-cleanup", () => {
       reloadPage: reloadSpy,
     });
 
-    serviceWorker.dispatchMessage({ type: "NEKOMATA_SW_CLEANUP_RELOAD" });
-    serviceWorker.dispatchMessage({ type: "NEKOMATA_SW_CLEANUP_RELOAD" });
+    serviceWorker.dispatchMessage({ type: "Nekomata_SW_CLEANUP_RELOAD" });
+    serviceWorker.dispatchMessage({ type: "Nekomata_SW_CLEANUP_RELOAD" });
 
     expect(reloadSpy).toHaveBeenCalledTimes(1);
 

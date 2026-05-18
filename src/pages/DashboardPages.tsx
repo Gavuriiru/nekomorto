@@ -722,7 +722,7 @@ const DashboardPagesContent = ({ currentUser }: DashboardPagesContentProps) => {
   const [searchParams] = useSearchParams();
   const initialAutosaveEnabledRef = useRef(
     autosaveRuntimeConfig.enabledByDefault &&
-      readAutosavePreference(autosaveStorageKeys.pages, true),
+    readAutosavePreference(autosaveStorageKeys.pages, true),
   );
   const initialCacheRef = useRef(readDashboardPagesCache());
   const [pages, setPages] = useState<PagesConfig>(() =>
@@ -753,7 +753,7 @@ const DashboardPagesContent = ({ currentUser }: DashboardPagesContentProps) => {
   const tabUrlSyncTimeoutRef = useRef<number | null>(null);
 
   const merchantName =
-    String(settings.site.name || settings.footer.brandName || "NEKOMATA").trim() || "NEKOMATA";
+    String(settings.site.name || settings.footer.brandName || "Nekomata").trim() || "Nekomata";
   const previewLibraryFolders = useMemo(
     () =>
       filterImageLibraryFoldersByAccess(["shared", "posts", "projects"], {
@@ -1124,8 +1124,7 @@ const DashboardPagesContent = ({ currentUser }: DashboardPagesContentProps) => {
     dragOverState.index === index;
 
   const getReorderableSurfaceClassName = (list: string, index: number, paddingClassName: string) =>
-    `${dashboardPagesReorderableSurfaceClassName} ${paddingClassName} ${
-      isDragOverTarget(list, index) ? "border-primary/40 bg-primary/5" : ""
+    `${dashboardPagesReorderableSurfaceClassName} ${paddingClassName} ${isDragOverTarget(list, index) ? "border-primary/40 bg-primary/5" : ""
     }`;
 
   const handleMainBlurCapture = useCallback(

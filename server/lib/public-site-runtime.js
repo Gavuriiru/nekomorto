@@ -412,9 +412,9 @@ export const createPublicSiteRuntime = (dependencies = {}) => {
     home:
       pages?.home && typeof pages.home === "object"
         ? {
-            shareImage: String(pages.home.shareImage || ""),
-            shareImageAlt: String(pages.home.shareImageAlt || ""),
-          }
+          shareImage: String(pages.home.shareImage || ""),
+          shareImageAlt: String(pages.home.shareImageAlt || ""),
+        }
         : { shareImage: "", shareImageAlt: "" },
   });
 
@@ -668,8 +668,8 @@ export const createPublicSiteRuntime = (dependencies = {}) => {
           pages,
         }).pages;
         const merchantName =
-          String(settings?.site?.name || settings?.footer?.brandName || "NEKOMATA").trim() ||
-          "NEKOMATA";
+          String(settings?.site?.name || settings?.footer?.brandName || "Nekomata").trim() ||
+          "Nekomata";
         const donationsRoutePayload = await resolvePublicDonationsRoutePayload({
           donationsPage: normalizedPages?.donations,
           merchantName,
@@ -1017,48 +1017,48 @@ export const createPublicSiteRuntime = (dependencies = {}) => {
     const routeCurrentPostDetail =
       routeKind === PUBLIC_ROUTE_KIND_POST && bootstrapMode === PUBLIC_BOOTSTRAP_MODE_FULL
         ? (() => {
-            const routeSlug = String(req?.params?.slug || "").trim();
-            if (!routeSlug) {
-              return null;
-            }
-            const routePost = getPublicVisiblePosts().find(
-              (candidate) => String(candidate?.slug || "").trim() === routeSlug,
-            );
-            return routePost ? buildPublicPostDetail({ post: routePost, resolvePostCover }) : null;
-          })()
+          const routeSlug = String(req?.params?.slug || "").trim();
+          if (!routeSlug) {
+            return null;
+          }
+          const routePost = getPublicVisiblePosts().find(
+            (candidate) => String(candidate?.slug || "").trim() === routeSlug,
+          );
+          return routePost ? buildPublicPostDetail({ post: routePost, resolvePostCover }) : null;
+        })()
         : null;
     const publicBootstrap =
       bootstrapMode === PUBLIC_BOOTSTRAP_MODE_SHELL
         ? buildShellPublicBootstrapPayload({
-            settings,
-            pages: normalizedPages,
-          })
+          settings,
+          pages: normalizedPages,
+        })
         : buildPublicBootstrapResponsePayload({
-            settings,
-            pages: normalizedPages,
-            payloadMode: bootstrapMode,
-            currentPostDetail: routeCurrentPostDetail,
-          });
+          settings,
+          pages: normalizedPages,
+          payloadMode: bootstrapMode,
+          currentPostDetail: routeCurrentPostDetail,
+        });
     const publicRoutePayload =
       bootstrapMode === PUBLIC_BOOTSTRAP_MODE_SHELL
         ? await buildPublicRouteResponsePayload({
-            settings,
-            pages: normalizedPages,
-            routeKind,
-            routeParams: req?.params,
-          })
+          settings,
+          pages: normalizedPages,
+          routeKind,
+          routeParams: req?.params,
+        })
         : null;
     const routeProject =
       routeKind === PUBLIC_ROUTE_KIND_PROJECT_DETAIL ||
-      routeKind === PUBLIC_ROUTE_KIND_PROJECT_READING ||
-      req?.path?.startsWith("/projetos/")
+        routeKind === PUBLIC_ROUTE_KIND_PROJECT_READING ||
+        req?.path?.startsWith("/projetos/")
         ? findBootstrapProjectByRouteSlug(getPublicVisibleProjects(), req?.params?.id)
         : null;
     const routePost =
       routeKind === PUBLIC_ROUTE_KIND_POST && routeCurrentPostDetail
         ? getPublicVisiblePosts().find(
-            (candidate) => String(candidate?.slug || "").trim() === String(req?.params?.slug || ""),
-          ) || null
+          (candidate) => String(candidate?.slug || "").trim() === String(req?.params?.slug || ""),
+        ) || null
         : null;
     const indexability = resolvePublicPathIndexability({
       pathname: req?.path,
@@ -1086,17 +1086,17 @@ export const createPublicSiteRuntime = (dependencies = {}) => {
           publicBootstrap:
             publicRoutePayload?.kind === "project-detail" && publicRoutePayload.project
               ? {
-                  ...publicBootstrap,
-                  projects: [publicRoutePayload.project],
-                  mediaVariants: publicRoutePayload.mediaVariants || publicBootstrap?.mediaVariants,
-                }
+                ...publicBootstrap,
+                projects: [publicRoutePayload.project],
+                mediaVariants: publicRoutePayload.mediaVariants || publicBootstrap?.mediaVariants,
+              }
               : publicRoutePayload?.kind === "team"
                 ? {
-                    ...publicBootstrap,
-                    teamMembers: publicRoutePayload.teamMembers,
-                    mediaVariants:
-                      publicRoutePayload.mediaVariants || publicBootstrap?.mediaVariants,
-                  }
+                  ...publicBootstrap,
+                  teamMembers: publicRoutePayload.teamMembers,
+                  mediaVariants:
+                    publicRoutePayload.mediaVariants || publicBootstrap?.mediaVariants,
+                }
                 : publicBootstrap,
           project: routeProject,
           post: routePost,

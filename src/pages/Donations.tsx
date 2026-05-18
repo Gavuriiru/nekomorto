@@ -162,9 +162,8 @@ const CryptoDonationPanel = ({
     "inline-flex h-6 w-6 shrink-0 items-center justify-center border-0 bg-transparent p-0 transition-colors duration-300 hover:text-accent focus-visible:text-accent focus-visible:outline-hidden";
   const inlineNeutralIconClassName = `${inlineIconBaseClassName} text-muted-foreground`;
   const inlineIconSpacingClassName = "ml-1.5";
-  const copyButtonClassName = `ml-1.5 ${inlineIconBaseClassName} disabled:pointer-events-none disabled:opacity-40 ${
-    copiedKey === copyKey ? "text-accent" : "text-muted-foreground"
-  }`;
+  const copyButtonClassName = `ml-1.5 ${inlineIconBaseClassName} disabled:pointer-events-none disabled:opacity-40 ${copiedKey === copyKey ? "text-accent" : "text-muted-foreground"
+    }`;
 
   return (
     <div className="grid gap-6 md:grid-cols-[minmax(0,1fr)_188px] md:items-start">
@@ -283,7 +282,7 @@ const Donations = () => {
   const shouldShowHydrationState = !pageBootstrap;
   const hasHydrationError = shouldShowHydrationState && bootstrapStatus === "error";
   const merchantName =
-    String(settings.site.name || settings.footer.brandName || "NEKOMATA").trim() || "NEKOMATA";
+    String(settings.site.name || settings.footer.brandName || "Nekomata").trim() || "Nekomata";
   usePageMeta({
     title: "Doações",
     description: resolveInstitutionalOgSupportText({
@@ -357,19 +356,19 @@ const Donations = () => {
   const fallbackPixQrUrl = usePixQrCode(
     donationsRoutePayload?.pixQrCodeUrl
       ? {
-          pixKey: "",
-          pixNote: "",
-          pixCity: "CIDADE",
-          qrCustomUrl: "",
-          merchantName: "",
-        }
+        pixKey: "",
+        pixNote: "",
+        pixCity: "CIDADE",
+        qrCustomUrl: "",
+        merchantName: "",
+      }
       : {
-          pixKey: donations.pixKey,
-          pixNote: donations.pixNote,
-          pixCity: donations.pixCity?.trim() || "CIDADE",
-          qrCustomUrl: donations.qrCustomUrl,
-          merchantName,
-        },
+        pixKey: donations.pixKey,
+        pixNote: donations.pixNote,
+        pixCity: donations.pixCity?.trim() || "CIDADE",
+        qrCustomUrl: donations.qrCustomUrl,
+        merchantName,
+      },
   );
   const pixQrUrl = donationsRoutePayload?.pixQrCodeUrl || fallbackPixQrUrl;
   const monthlyGoal = useMemo(
@@ -480,20 +479,18 @@ const Donations = () => {
                 data-reveal
               >
                 <Card
-                  className={`${publicStackedSurfaceClassName} ${
-                    monthlyGoal.isComplete
+                  className={`${publicStackedSurfaceClassName} ${monthlyGoal.isComplete
                       ? "border-primary/30 bg-primary/5"
                       : "border-border/60 bg-card/90"
-                  }`}
+                    }`}
                 >
                   <CardContent className="space-y-5 p-6 md:p-8">
                     <div className="flex flex-col gap-4 md:flex-row md:items-start md:justify-between">
                       <div className="space-y-3">
                         <div className="flex flex-wrap items-center gap-2">
                           <div
-                            className={`text-sm font-semibold uppercase tracking-widest ${
-                              monthlyGoal.isComplete ? "text-primary" : "text-muted-foreground"
-                            }`}
+                            className={`text-sm font-semibold uppercase tracking-widest ${monthlyGoal.isComplete ? "text-primary" : "text-muted-foreground"
+                              }`}
                           >
                             {monthlyGoal.title}
                           </div>
@@ -510,18 +507,16 @@ const Donations = () => {
                           </span>
                         </p>
                         <p
-                          className={`text-sm ${
-                            monthlyGoal.isComplete ? "text-primary" : "text-muted-foreground"
-                          }`}
+                          className={`text-sm ${monthlyGoal.isComplete ? "text-primary" : "text-muted-foreground"
+                            }`}
                         >
                           {monthlyGoal.statusText}
                         </p>
                       </div>
                       <div className="flex flex-col items-start gap-1.5 md:items-end">
                         <span
-                          className={`text-3xl font-semibold ${
-                            monthlyGoal.isComplete ? "text-primary" : "text-foreground"
-                          }`}
+                          className={`text-3xl font-semibold ${monthlyGoal.isComplete ? "text-primary" : "text-foreground"
+                            }`}
                         >
                           {monthlyGoal.percentage}%
                         </span>
@@ -534,11 +529,10 @@ const Donations = () => {
                     </div>
                     {monthlyGoal.note ? (
                       <div
-                        className={`whitespace-pre-wrap rounded-2xl border px-4 py-3 text-sm ${
-                          monthlyGoal.isComplete
+                        className={`whitespace-pre-wrap rounded-2xl border px-4 py-3 text-sm ${monthlyGoal.isComplete
                             ? "border-primary/15 bg-background/80 text-foreground/80"
                             : "border-border/60 bg-background/60 text-muted-foreground"
-                        }`}
+                          }`}
                       >
                         {monthlyGoal.note}
                       </div>
@@ -564,11 +558,10 @@ const Donations = () => {
               >
                 <Card className={`${publicStackedSurfaceClassName} border-border/60 bg-card/90`}>
                   <CardContent
-                    className={`grid gap-6 p-6 md:p-8 ${
-                      (donations.reasonTitle || donations.reasonText) && donations.pixKey
+                    className={`grid gap-6 p-6 md:p-8 ${(donations.reasonTitle || donations.reasonText) && donations.pixKey
                         ? "md:grid-cols-[1.1fr_0.9fr]"
                         : "md:grid-cols-1"
-                    }`}
+                      }`}
                   >
                     {donations.reasonTitle || donations.reasonText ? (
                       <div
@@ -690,26 +683,23 @@ const Donations = () => {
                                   tabIndex={isActive ? 0 : -1}
                                   data-testid={`donations-crypto-tab-${index}`}
                                   onClick={() => setActiveCryptoIndex(index)}
-                                  className={`group/tab relative flex h-12 w-12 shrink-0 items-center justify-center overflow-hidden rounded-[1.1rem] border transition-all duration-300 md:h-13 md:w-13 ${
-                                    isActive
+                                  className={`group/tab relative flex h-12 w-12 shrink-0 items-center justify-center overflow-hidden rounded-[1.1rem] border transition-all duration-300 md:h-13 md:w-13 ${isActive
                                       ? "border-primary/50 bg-transparent text-primary"
                                       : "border-border/50 bg-transparent text-muted-foreground hover:border-primary/40 hover:text-foreground"
-                                  }`}
+                                    }`}
                                 >
                                   <span
-                                    className={`absolute inset-y-3 left-0 hidden w-1 rounded-full bg-primary transition-opacity md:block ${
-                                      isActive ? "opacity-100" : "opacity-0"
-                                    }`}
+                                    className={`absolute inset-y-3 left-0 hidden w-1 rounded-full bg-primary transition-opacity md:block ${isActive ? "opacity-100" : "opacity-0"
+                                      }`}
                                     aria-hidden="true"
                                   />
                                   <TabIcon
                                     aria-hidden="true"
                                     data-testid={`donations-crypto-tab-icon-${index}`}
-                                    className={`h-4 w-4 transition-transform duration-300 ${
-                                      isActive
+                                    className={`h-4 w-4 transition-transform duration-300 ${isActive
                                         ? "scale-105 text-primary"
                                         : "text-muted-foreground group-hover/tab:text-primary"
-                                    }`}
+                                      }`}
                                   />
                                 </button>
                               );

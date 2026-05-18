@@ -20,7 +20,7 @@ const {
   title: _title,
 } = Astro.props;
 const locals = Astro.locals.nekomata;
-const siteName = String(locals?.siteSettings?.site?.name || "NEKOMATA").trim() || "NEKOMATA";
+const siteName = String(locals?.siteSettings?.site?.name || "Nekomata").trim() || "Nekomata";
 const separator = locals?.siteSettings?.site?.titleSeparator || " | ";
 const pageTitle = _title ? `${_title}${separator}${siteName}` : siteName;
 const canonicalUrl =

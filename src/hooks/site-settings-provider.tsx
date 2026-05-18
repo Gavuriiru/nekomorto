@@ -29,7 +29,7 @@ const applyDocumentSettings = (settings: SiteSettings) => {
   if (!settings) {
     return;
   }
-  const siteName = settings.site.name || "NEKOMATA";
+  const siteName = settings.site.name || "Nekomata";
   const description = truncateMetaDescription(settings.site.description || "");
   const shareImage = normalizeAssetUrl(settings.site.defaultShareImage || "");
   const hasPageMeta = document.documentElement.dataset.pageMeta === "true";
