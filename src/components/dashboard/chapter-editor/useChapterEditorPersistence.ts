@@ -80,7 +80,7 @@ export const useChapterEditorPersistence = ({
       }
       if (errorCode === "image_pages_required_for_publication") {
         toast({
-          title: "N\u00e3o foi poss\u00edvel publicar o cap\u00edtulo",
+          title: "Não foi possível publicar o capítulo",
           description: IMAGE_PUBLICATION_PAGES_REQUIRED_MESSAGE,
           variant: "destructive",
         });
@@ -178,11 +178,11 @@ export const useChapterEditorPersistence = ({
         const errorCode = String(data?.error || "").trim();
         if (errorCode === "duplicate_episode_key") {
           setIdentityError(
-            "J\u00e1 existe um cap\u00edtulo com essa combina\u00e7\u00e3o de n\u00famero e volume.",
+            "Já existe um capítulo com essa combinação de capítulo e volume.",
           );
         } else if (errorCode === "volume_required") {
           setIdentityError(
-            "Informe o volume para salvar um cap\u00edtulo com n\u00famero amb\u00edguo.",
+            "Informe o volume para salvar um capítulo com capítulo ambíguo.",
           );
         } else if (
           errorCode === "image_pages_required_for_publication" ||
@@ -192,13 +192,13 @@ export const useChapterEditorPersistence = ({
           showPublicationError(errorCode);
         } else if (errorCode === "not_found") {
           toast({
-            title: "Cap\u00edtulo n\u00e3o encontrado",
+            title: "Capítulo não encontrado",
             description: "Recarregue o projeto antes de continuar editando.",
             variant: "destructive",
           });
         } else {
           toast({
-            title: "N\u00e3o foi poss\u00edvel salvar o cap\u00edtulo",
+            title: "Não foi possível salvar o capítulo",
             description: "Tente novamente em alguns instantes.",
             variant: "destructive",
           });
@@ -239,7 +239,7 @@ export const useChapterEditorPersistence = ({
       if (findIncompleteDownloadSourceIndex(draft.sources) >= 0) {
         toast({
           title: "Complete as fontes de download",
-          description: "Selecione uma fonte e informe a URL antes de salvar o cap\u00edtulo.",
+          description: "Selecione uma fonte e informe a URL antes de salvar o capítulo.",
           variant: "destructive",
         });
         return false;

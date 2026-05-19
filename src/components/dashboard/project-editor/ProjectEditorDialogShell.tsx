@@ -133,7 +133,7 @@ export const ProjectEditorDialogShell = ({
                 {editorStatusLabel}
               </Badge>
               <span className="text-[11px] text-muted-foreground">
-                {editorEpisodeCount} {isChapterBased ? "cap\u00EDtulos" : "epis\u00F3dios"}
+                {editorEpisodeCount} {isChapterBased ? "capítulos" : "episódios"}
               </span>
             </div>
           </div>

@@ -10,7 +10,7 @@ const NotFound = () => {
   const location = usePublicDocumentLocation();
   const requestedPath = `${location.pathname}${location.search}${location.hash}`;
 
-  usePageMeta({ title: "P\u00e1gina n\u00e3o encontrada", noIndex: true });
+  usePageMeta({ title: "Página não encontrada", noIndex: true });
 
   return (
     <div className="min-h-screen bg-background text-foreground">
@@ -28,21 +28,21 @@ const NotFound = () => {
                 Erro 404
               </Badge>
               <h1 className="text-3xl font-semibold text-foreground md:text-5xl">
-                P\u00e1gina n\u00e3o encontrada
+                Página não encontrada
               </h1>
               <p className="text-sm text-muted-foreground md:text-base">
-                N\u00e3o conseguimos localizar o endere\u00e7o solicitado. Verifique se o link est\u00e1
-                correto ou volte para a p\u00e1gina inicial.
+                Não conseguimos localizar o endereço solicitado. Verifique se o link está
+                correto ou volte para a página inicial.
               </p>
               <div className="w-fit rounded-full border border-border/60 bg-background/70 px-4 py-2 text-xs text-muted-foreground">
                 {requestedPath || "/"}
               </div>
               <div className="flex flex-wrap gap-3">
                 <Button asChild>
-                  <PublicLink href="/">Voltar para a p\u00e1gina inicial</PublicLink>
+                  <PublicLink href="/">Voltar para a página inicial</PublicLink>
                 </Button>
                 <Button variant="outline" onClick={() => window.history.back()}>
-                  Voltar para a p\u00e1gina anterior
+                  Voltar para a página anterior
                 </Button>
               </div>
             </div>
@@ -50,12 +50,12 @@ const NotFound = () => {
             <Card className="bg-card/80 shadow-lg">
               <CardContent className="space-y-4 p-6 md:p-8">
                 <p className="text-xs font-semibold uppercase tracking-[0.2em] text-muted-foreground">
-                  Sugest\u00f5es r\u00e1pidas
+                  Sugestões rápidas
                 </p>
                 <div className="space-y-3 text-sm text-muted-foreground">
-                  <p>Confira os projetos e lan\u00e7amentos mais recentes.</p>
-                  <p>Conhe\u00e7a a equipe e o nosso manifesto.</p>
-                  <p>Acompanhe novidades e atualiza\u00e7\u00f5es no site.</p>
+                  <p>Confira os projetos e lançamentos mais recentes.</p>
+                  <p>Conheça a equipe e o nosso manifesto.</p>
+                  <p>Acompanhe novidades e atualizações no site.</p>
                 </div>
                 <div className="flex flex-wrap gap-3">
                   <Button asChild variant="secondary">

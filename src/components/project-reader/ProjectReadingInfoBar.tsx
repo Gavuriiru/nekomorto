@@ -22,7 +22,7 @@ const formatReaderChapterLabel = (value: string) => {
     return "";
   }
 
-  return trimmedValue.replace(/^cap(?:itulo|\u00edtulo|\.)?\s+/i, "Cap\u00edtulo ");
+  return trimmedValue.replace(/^cap(?:itulo|\u00edtulo|\.)?\s+/i, "Capítulo ");
 };
 
 const ProjectReadingInfoBar = ({

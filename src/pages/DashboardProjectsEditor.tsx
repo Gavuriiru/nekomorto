@@ -1400,7 +1400,7 @@ const DashboardProjectsEditor = () => {
                   >
                     <Link to={lightNovelContentHref}>
                       <DedicatedEditorFooterIcon className="h-4 w-4" aria-hidden="true" />
-                      <span className="sr-only md:not-sr-only">{"Conte\u00FAdo"}</span>
+                      <span className="sr-only md:not-sr-only">{"Conteúdo"}</span>
                     </Link>
                   </DashboardActionButton>
                 ) : (
@@ -1411,7 +1411,7 @@ const DashboardProjectsEditor = () => {
                     disabled
                   >
                     <DedicatedEditorFooterIcon className="h-4 w-4" aria-hidden="true" />
-                    <span className="sr-only md:not-sr-only">{"Conte\u00FAdo"}</span>
+                    <span className="sr-only md:not-sr-only">{"Conteúdo"}</span>
                   </DashboardActionButton>
                 )
               ) : animeContentHref ? (
@@ -1423,7 +1423,7 @@ const DashboardProjectsEditor = () => {
                 >
                   <Link to={animeContentHref}>
                     <Clapperboard className="h-4 w-4" aria-hidden="true" />
-                    <span className="sr-only md:not-sr-only">{"Epis\u00F3dios"}</span>
+                    <span className="sr-only md:not-sr-only">{"Episódios"}</span>
                   </Link>
                 </DashboardActionButton>
               ) : null}
@@ -1436,7 +1436,7 @@ const DashboardProjectsEditor = () => {
                 >
                   <Link target="_blank" rel="noreferrer" to={publicProjectHref}>
                     <Eye className="h-4 w-4" aria-hidden="true" />
-                    <span className="sr-only md:not-sr-only">{"Visualizar p\u00E1gina"}</span>
+                    <span className="sr-only md:not-sr-only">{"Visualizar página"}</span>
                   </Link>
                 </DashboardActionButton>
               ) : null}

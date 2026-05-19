@@ -184,7 +184,7 @@ export const useDashboardProjectsEditorPersistence = ({
           title: publicationFailure?.title || "Não foi possível publicar o episódio",
           description:
             publicationFailure?.description ||
-            "Revise o epis\u00F3dio antes de tentar salvar novamente.",
+            "Revise o episódio antes de tentar salvar novamente.",
           variant: "destructive",
         });
         return;
@@ -319,10 +319,10 @@ export const useDashboardProjectsEditorPersistence = ({
           );
           toast({
             title:
-              publicationFailure?.title || "N\u00E3o foi poss\u00EDvel publicar o epis\u00F3dio",
+              publicationFailure?.title || "Não foi possível publicar o episódio",
             description:
               publicationFailure?.description ||
-              "Revise o epis\u00F3dio antes de tentar salvar novamente.",
+              "Revise o episódio antes de tentar salvar novamente.",
             variant: "destructive",
           });
           return;
