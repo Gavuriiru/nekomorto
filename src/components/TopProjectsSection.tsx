@@ -1,6 +1,5 @@
 import type { CSSProperties } from "react";
 import { useCallback, useMemo, useState } from "react";
-
 import PublicProjectCard, {
   PUBLIC_PROJECT_CARD_CLAMP_PROFILES,
   resolvePublicProjectCardClampState,
@@ -11,6 +10,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
 import { useDynamicSynopsisClamp } from "@/hooks/use-dynamic-synopsis-clamp";
 import { usePublicBootstrap } from "@/hooks/use-public-bootstrap";
+import { comparePtBr } from "@/lib/search-ranking";
 
 const TOP_PROJECTS_LIMIT = 10;
 const TOP_PROJECTS_LAST_7_DAYS = 7;
@@ -129,7 +129,7 @@ const TopProjectsSection = () => {
         if (right.viewsAll !== left.viewsAll) {
           return right.viewsAll - left.viewsAll;
         }
-        return left.title.localeCompare(right.title, "pt-BR");
+        return comparePtBr(left.title, right.title);
       })
       .slice(0, TOP_PROJECTS_LIMIT);
   }, [mode, projects, referenceDate]);
