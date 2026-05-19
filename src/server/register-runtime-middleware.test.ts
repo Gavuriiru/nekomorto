@@ -24,13 +24,7 @@ describe("register-runtime-middleware asset resolution", () => {
         clientDistDir,
         requestPath: "/sw.js",
       }),
-    ).toBe(path.join(clientDistDir, "sw.js"));
-    expect(
-      resolvePwaCriticalAssetPath({
-        clientDistDir,
-        requestPath: "/workbox-abc123.js",
-      }),
-    ).toBe(path.join(clientDistDir, "workbox-abc123.js"));
+    ).toBeNull();
   });
 
   it("resolves client static asset requests that should never fall through to html", () => {
@@ -333,7 +327,7 @@ describe("registerRuntimeMiddleware public asset throttling", () => {
     expect(result.res.headers.get("cache-control")).toBe("no-store");
   });
 
-  it("returns 429 for missing PWA assets before checking the filesystem", async () => {
+  it("returns 429 for missing manifest requests before checking the filesystem", async () => {
     const existsSyncSpy = vi.spyOn(fs, "existsSync");
     const entries = createRuntimeDependencies({
       canReadPublicAsset: vi.fn(async () => false),
@@ -355,8 +349,8 @@ describe("registerRuntimeMiddleware public asset throttling", () => {
 
     const result = await invokeMiddlewareStack(fallbackEntry.args, {
       method: "GET",
-      originalUrl: "/sw.js",
-      path: "/sw.js",
+      originalUrl: "/manifest.webmanifest",
+      path: "/manifest.webmanifest",
     });
 
     expect(result.next).not.toHaveBeenCalled();
@@ -366,7 +360,7 @@ describe("registerRuntimeMiddleware public asset throttling", () => {
     existsSyncSpy.mockRestore();
   });
 
-  it("returns 404 for missing PWA assets after the limiter allows the request", async () => {
+  it("returns 404 for missing manifest requests after the limiter allows the request", async () => {
     const existsSyncSpy = vi.spyOn(fs, "existsSync").mockReturnValue(false);
     const entries = createRuntimeDependencies().entries;
     const fallbackEntryIndex = entries.findIndex(
@@ -384,8 +378,8 @@ describe("registerRuntimeMiddleware public asset throttling", () => {
     expectCodeQlVisibleAssetLimiterBeforeCustomLimiter(fallbackEntry.args);
     const req = {
       method: "GET",
-      originalUrl: "/sw.js",
-      path: "/sw.js",
+      originalUrl: "/manifest.webmanifest",
+      path: "/manifest.webmanifest",
     };
 
     const gate = await invokeMiddlewareStack(fallbackEntry.args, req);

@@ -14,7 +14,6 @@ describe("public path classification", () => {
     expect(isReservedPublicPath("/_astro/layout.css")).toBe(true);
     expect(isReservedPublicPath("/foo.css")).toBe(true);
     expect(isReservedPublicPath("/manifest.webmanifest")).toBe(true);
-    expect(isReservedPublicPath("/workbox-abc123.js")).toBe(true);
     expect(isReservedPublicPath("/uploads/shared/hero.avif")).toBe(true);
     expect(isReservedPublicPath("/rss/posts.xml")).toBe(true);
     expect(isReservedPublicPath("/@vite/client")).toBe(true);

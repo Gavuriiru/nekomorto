@@ -122,35 +122,6 @@ const assertManifestEndpoint = async (path) => {
   return { path, status: response.status, contentType };
 };
 
-const assertServiceWorkerEndpoint = async (path) => {
-  const response = await withTimeout(`${baseUrl}${path}`);
-  if (!response.ok) {
-    const body = await response.text();
-    throw new Error(`${path} returned ${response.status}: ${body}`);
-  }
-  const contentType = String(response.headers.get("content-type") || "").toLowerCase();
-  if (
-    !contentType.includes("javascript") &&
-    !contentType.includes("ecmascript") &&
-    !contentType.includes("text/plain")
-  ) {
-    throw new Error(`${path} expected javascript content-type, got "${contentType}"`);
-  }
-  const body = await response.text();
-  if (/^\s*<!doctype html>/i.test(body)) {
-    throw new Error(`${path} returned HTML instead of service worker JavaScript`);
-  }
-  const workboxMatch = body.match(/workbox-[A-Za-z0-9_-]+\.js/);
-  const workboxScriptPath = workboxMatch ? `/${workboxMatch[0]}` : null;
-  return {
-    path,
-    status: response.status,
-    contentType,
-    hasExternalWorkboxRuntime: Boolean(workboxScriptPath),
-    workboxScriptPath,
-  };
-};
-
 const assertRootHtmlEndpoint = async ({ path, expectProdHtml }) => {
   const response = await withTimeout(`${baseUrl}${path}`, {
     headers: {
@@ -392,40 +363,6 @@ const main = async () => {
   checks.push(rootHtmlCheck);
 
   checks.push(await assertManifestEndpoint("/manifest.webmanifest"));
-  const serviceWorkerCheck = await assertServiceWorkerEndpoint("/sw.js");
-  checks.push({
-    path: serviceWorkerCheck.path,
-    status: serviceWorkerCheck.status,
-    contentType: serviceWorkerCheck.contentType,
-    hasExternalWorkboxRuntime: serviceWorkerCheck.hasExternalWorkboxRuntime,
-  });
-
-  if (serviceWorkerCheck.workboxScriptPath) {
-    const workboxResponse = await withTimeout(`${baseUrl}${serviceWorkerCheck.workboxScriptPath}`);
-    if (!workboxResponse.ok) {
-      const body = await workboxResponse.text();
-      throw new Error(
-        `${serviceWorkerCheck.workboxScriptPath} returned ${workboxResponse.status}: ${body}`,
-      );
-    }
-    const workboxContentType = String(
-      workboxResponse.headers.get("content-type") || "",
-    ).toLowerCase();
-    if (
-      !workboxContentType.includes("javascript") &&
-      !workboxContentType.includes("ecmascript") &&
-      !workboxContentType.includes("text/plain")
-    ) {
-      throw new Error(
-        `${serviceWorkerCheck.workboxScriptPath} expected javascript content-type, got "${workboxContentType}"`,
-      );
-    }
-    checks.push({
-      path: serviceWorkerCheck.workboxScriptPath,
-      status: workboxResponse.status,
-      contentType: workboxContentType,
-    });
-  }
 
   checks.push(await assertMissingAssetEndpoint("/assets/__missing__.js"));
 
@@ -437,7 +374,6 @@ const main = async () => {
 
   if (expectProdHtml) {
     checks.push(await assertNoPublicModuleEndpoint("/@vite/client"));
-    checks.push(await assertNoPublicModuleEndpoint("/@vite-plugin-pwa/pwa-entry-point-loaded"));
     checks.push(await assertNoPublicModuleEndpoint("/src/main.tsx"));
   }
 

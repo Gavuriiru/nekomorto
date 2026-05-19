@@ -5,7 +5,6 @@ import { HTML_CACHE_CONTROL_NO_STORE } from "./html-cache-control.js";
 export const STATIC_DEFAULT_CACHE_CONTROL = "public, max-age=0, must-revalidate";
 export const STATIC_IMMUTABLE_CACHE_CONTROL = "public, max-age=31536000, immutable";
 export const PWA_MANIFEST_CACHE_CONTROL = "public, max-age=300, stale-while-revalidate=600";
-export const PWA_SW_CACHE_CONTROL = "no-cache";
 export const PWA_THEME_COLOR_DARK = "#101114";
 export const PWA_THEME_COLOR_LIGHT = "#f8fafc";
 
@@ -77,11 +76,6 @@ export const setStaticCacheHeaders = (res, filePath) => {
     return;
   }
 
-  if (fileName === "sw.js" || /^workbox-[A-Za-z0-9_-]+\.js$/.test(fileName)) {
-    res.setHeader("Cache-Control", PWA_SW_CACHE_CONTROL);
-    return;
-  }
-
   if (normalizedPath.endsWith(".html")) {
     res.setHeader("Cache-Control", HTML_CACHE_CONTROL_NO_STORE);
     return;
@@ -101,7 +95,6 @@ export const setStaticCacheHeaders = (res, filePath) => {
 export default {
   PWA_MANIFEST_BASE,
   PWA_MANIFEST_CACHE_CONTROL,
-  PWA_SW_CACHE_CONTROL,
   PWA_THEME_COLOR_DARK,
   PWA_THEME_COLOR_LIGHT,
   STATIC_DEFAULT_CACHE_CONTROL,

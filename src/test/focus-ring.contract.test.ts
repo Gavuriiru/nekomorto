@@ -245,54 +245,22 @@ describe("focus ring contract", () => {
       "panelClassName={dashboardStrongFocusScopeClassName}",
     );
 
-    expect(muiFieldsSource).toContain('borderColor: "hsl(var(--primary))"');
-    expect(muiFieldsSource).toContain(
-      '"& .MuiPickersInputBase-root, & .MuiPickersOutlinedInput-root, & .MuiOutlinedInput-root"',
-    );
-    expect(muiFieldsSource).toContain('"& .MuiPickersSectionList-root"');
-    expect(muiFieldsSource).toContain(
-      '"& .MuiPickersSectionList-section, & .MuiPickersSectionList-sectionContent, & .MuiPickersInputBase-sectionContent"',
-    );
-    expect(muiFieldsSource).toContain('color: "hsl(var(--foreground))"');
-    expect(muiFieldsSource).toContain('WebkitTextFillColor: "hsl(var(--foreground))"');
-    expect(muiFieldsSource).toContain('outline: "none"');
-    expect(muiFieldsSource).toContain(
-      '"& .MuiPickersSectionList-root::selection, & .MuiPickersSectionList-sectionContent::selection, & .MuiPickersInputBase-sectionContent::selection"',
-    );
-    expect(muiFieldsSource).toContain(
-      '"& .MuiPickersSectionList-root::-moz-selection, & .MuiPickersSectionList-sectionContent::-moz-selection, & .MuiPickersInputBase-sectionContent::-moz-selection"',
-    );
-    expect(muiFieldsSource).toContain('backgroundColor: "hsl(var(--primary) / 0.22)"');
-    expect(muiFieldsSource).toContain('"& .MuiInputBase-input, & .MuiPickersInputBase-input"');
-    expect(muiFieldsSource).toContain('size: "small"');
     expect(muiFieldsSource).toContain(
       'const muiDateTimeFieldEditorClassName = "mui-date-time-field--editor"',
     );
     expect(muiFieldsSource).toContain(
       'const muiDateTimeFieldDashboardFilterClassName = "mui-date-time-field--dashboard-filter"',
     );
-    expect(muiFieldsSource).toContain('borderRadius: "calc(var(--radius) - 2px)"');
-    expect(muiFieldsSource).toContain('borderRadius: "0.75rem"');
-    expect(muiFieldsSource).toContain('fontSize: "1rem"');
-    expect(muiFieldsSource).toContain('fontSize: "0.875rem"');
-    expect(muiFieldsSource).toContain('minHeight: "2.5rem"');
-    expect(muiFieldsSource).toContain('minHeight: "2.75rem"');
-    expect(muiFieldsSource).toContain("padding: 0");
-    expect(muiFieldsSource).toContain('backgroundColor: "hsl(var(--background) / 0.6)"');
-    expect(muiFieldsSource).toContain('borderColor: "hsl(var(--border) / 0.6)"');
-    expect(muiFieldsSource).toContain('"&.Mui-disabled": {');
-    expect(muiFieldsSource).toContain('WebkitTextFillColor: "hsl(var(--muted-foreground) / 0.72)"');
-    expect(muiFieldsSource).toContain('backgroundColor: "hsl(var(--background))"');
-    expect(muiFieldsSource).toContain('borderColor: "hsl(var(--input))"');
-    expect(muiFieldsSource).not.toContain('"&.Mui-focused": {');
-    expect(muiFieldsSource).not.toContain("outlineOffset:");
-    expect(muiFieldsSource).not.toContain('outline: "2px solid hsl(var(--ring) / 0.45)"');
-    expect(muiFieldsSource).not.toContain('padding: "0.5rem 0"');
-    expect(muiFieldsSource).not.toContain("opacity: 0.5,");
-    expect(muiFieldsSource).not.toContain("boxShadow:");
-    expect(muiFieldsSource).not.toContain('boxShadow: "0 0 0 2px hsl(var(--ring))"');
-    expect(muiFieldsSource).not.toContain('boxShadow: "inset 0 0 0 2px hsl(var(--primary))"');
-    expect(muiFieldsSource).not.toContain('borderColor: "hsl(var(--ring))"');
+    expect(muiFieldsSource).toContain("formatDateDigitsToDisplay");
+    expect(muiFieldsSource).toContain("formatTimeDigitsToDisplay");
+    expect(muiFieldsSource).toContain("displayDateToIso");
+    expect(muiFieldsSource).toContain("displayTimeToCanonical");
+    expect(muiFieldsSource).toContain("baseInputClassName");
+    expect(muiFieldsSource).toContain("dashboardFilterInputClassName");
+    expect(muiFieldsSource).toContain("placeholder=\"dd/mm/aaaa\"");
+    expect(muiFieldsSource).toContain("placeholder=\"hh:mm\"");
+    expect(muiFieldsSource).not.toContain("@mui/x-date-pickers");
+    expect(muiFieldsSource).not.toContain("LocalizationProvider");
   });
 
   it("keeps public form focus overrides aligned with primary", () => {

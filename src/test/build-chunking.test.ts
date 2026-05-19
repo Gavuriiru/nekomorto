@@ -70,22 +70,6 @@ describe("build chunking classifier", () => {
     );
   });
 
-  it("classifica @mui/x-date-pickers como mui-date-time-fields", () => {
-    expect(classifyManualChunk("/repo/node_modules/@mui/x-date-pickers/DatePicker/index.js")).toBe(
-      "mui-date-time-fields",
-    );
-  });
-
-  it("classifica @mui/material como mui", () => {
-    expect(classifyManualChunk("/repo/node_modules/@mui/material/Button/index.js")).toBe("mui");
-  });
-
-  it("classifica react-transition-group como mui", () => {
-    expect(classifyManualChunk("/repo/node_modules/react-transition-group/esm/Transition.js")).toBe(
-      "mui",
-    );
-  });
-
   it("classifica recharts como charts", () => {
     expect(classifyManualChunk("/repo/node_modules/recharts/es6/chart/LineChart.js")).toBe(
       "charts",
@@ -125,8 +109,8 @@ describe("build chunking classifier", () => {
     expect(classifyManualChunk("D:\\dev\\nekomorto\\src\\lib\\lexical\\serialize.ts")).toBe(
       undefined,
     );
-    expect(
-      classifyManualChunk("D:\\dev\\nekomorto\\node_modules\\@mui\\x-date-pickers\\index.js"),
-    ).toBe("mui-date-time-fields");
+    expect(classifyManualChunk("D:\\dev\\nekomorto\\node_modules\\recharts\\index.js")).toBe(
+      "charts",
+    );
   });
 });

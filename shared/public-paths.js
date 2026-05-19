@@ -16,7 +16,6 @@ const RESERVED_PUBLIC_PREFIXES = [
 
 const RESERVED_PUBLIC_EXACT_PATHS = new Set([
   "/manifest.webmanifest",
-  "/sw.js",
   "/favicon.ico",
   "/robots.txt",
   "/sitemap.xml",
@@ -27,7 +26,6 @@ const RESERVED_PUBLIC_EXACT_PATHS = new Set([
 ]);
 
 const RESERVED_PUBLIC_PATH_PATTERNS = [
-  /^\/workbox-[a-z0-9_-]+\.js$/i,
   /\.(?:js|mjs|cjs|css|map|png|jpe?g|gif|svg|webp|avif|ico|woff2?|ttf|otf|eot|json|xml|webmanifest|wasm)$/i,
 ];
 

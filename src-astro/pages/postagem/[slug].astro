@@ -1,5 +1,5 @@
 ---
-import PublicPhase3IslandApp from "../../components/react/PublicPhase3IslandApp";
+import PostIslandApp from "../../components/react/PostIslandApp";
 import PublicLayout from "../../layouts/PublicLayout.astro";
 import { resolvePostPageMeta } from "../../lib/public-phase3-meta";
 
@@ -23,7 +23,7 @@ const _location = `${Astro.url.pathname}${Astro.url.search}`;
   structuredData={_meta.structuredData}
   title={_meta.title}
 >
-  <PublicPhase3IslandApp
+  <PostIslandApp
     client:load
     initialPublicBootstrap={publicBootstrap}
     initialPublicRoutePayload={locals?.routePayload || null}

@@ -15,7 +15,6 @@ import { createUploadsDeliveryMiddleware } from "./uploads-delivery.js";
 
 const MUTATING_HTTP_METHODS = new Set(["POST", "PUT", "PATCH", "DELETE"]);
 const IDEMPOTENCY_KEY_PATTERN = /^[a-zA-Z0-9:_-]{8,200}$/;
-const PWA_WORKBOX_FILE_PATTERN = /^workbox-[\w-]+\.js$/;
 const CLIENT_STATIC_ASSET_PREFIXES = ["/assets/", "/fonts/", "/pwa/"];
 const CLIENT_STATIC_ASSET_EXACT_PATHS = new Set([
   "/favicon.ico",
@@ -31,13 +30,6 @@ export const resolvePwaCriticalAssetPath = ({ clientDistDir, requestPath }) => {
   }
   if (normalizedPath === "/manifest.webmanifest") {
     return path.join(clientDistDir, "manifest.webmanifest");
-  }
-  if (normalizedPath === "/sw.js") {
-    return path.join(clientDistDir, "sw.js");
-  }
-  const fileName = normalizedPath.startsWith("/") ? normalizedPath.slice(1) : normalizedPath;
-  if (PWA_WORKBOX_FILE_PATTERN.test(fileName)) {
-    return path.join(clientDistDir, fileName);
   }
   return null;
 };

@@ -3,8 +3,6 @@ export type ManualChunkName =
   | "lexical-editor"
   | "lexical-viewer"
   | "charts"
-  | "mui-date-time-fields"
-  | "mui"
   | "react-core";
 
 const includesAny = (id: string, patterns: readonly string[]) =>
@@ -21,20 +19,6 @@ const chartsNodeModulePatterns = [
   "/node_modules/recharts-scale/",
   "/node_modules/victory-vendor/",
   "/node_modules/d3-",
-] as const;
-
-const muiDateTimeFieldsPatterns = [
-  "/node_modules/@mui/x-date-pickers/",
-  "/node_modules/@mui/x-date-pickers-pro/",
-  "/node_modules/@mui/x-internals/",
-  "/node_modules/rifm/",
-] as const;
-
-const muiPatterns = [
-  "/node_modules/@mui/",
-  "/node_modules/@emotion/",
-  "/node_modules/@popperjs/core/",
-  "/node_modules/react-transition-group/",
 ] as const;
 
 const reactCorePatterns = [
@@ -55,14 +39,6 @@ export const classifyManualChunk = (id: string): ManualChunkName | undefined => 
 
   if (includesAny(normalizedId, chartsNodeModulePatterns)) {
     return "charts";
-  }
-
-  if (includesAny(normalizedId, muiDateTimeFieldsPatterns)) {
-    return "mui-date-time-fields";
-  }
-
-  if (includesAny(normalizedId, muiPatterns)) {
-    return "mui";
   }
 
   if (includesAny(normalizedId, reactCorePatterns)) {

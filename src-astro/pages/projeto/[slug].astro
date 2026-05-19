@@ -1,6 +1,6 @@
 ---
 import type { PublicRouteProjectDetailPayload } from "../../../src/types/public-bootstrap";
-import PublicPhase3IslandApp from "../../components/react/PublicPhase3IslandApp";
+import ProjectIslandApp from "../../components/react/ProjectIslandApp";
 import PublicLayout from "../../layouts/PublicLayout.astro";
 import { resolveProjectPageMeta } from "../../lib/public-phase3-meta";
 
@@ -29,7 +29,7 @@ const _location = `${Astro.url.pathname}${Astro.url.search}`;
   structuredData={_meta.structuredData}
   title={_meta.title}
 >
-  <PublicPhase3IslandApp
+  <ProjectIslandApp
     client:load
     initialPublicBootstrap={publicBootstrap}
     initialPublicRoutePayload={locals?.routePayload || null}
