@@ -2,9 +2,11 @@ import type { ReactNode } from "react";
 
 import PublicLink from "@/components/PublicLink";
 import { publicPageLayoutTokens } from "@/components/public-page-tokens";
+import { buttonVariants } from "@/components/ui/button-variants";
 import UploadPicture from "@/components/UploadPicture";
 import { PROJECT_COVER_ASPECT_RATIO } from "@/lib/project-card-layout";
 import type { UploadMediaVariantsMap } from "@/lib/upload-variants";
+import { cn } from "@/lib/utils";
 import type { PublicBootstrapProject } from "@/types/public-bootstrap";
 
 type ProjectHeroTagItem = {
@@ -13,8 +15,18 @@ type ProjectHeroTagItem = {
   label: string;
 };
 
+type ProjectHeroActionItem = {
+  href: string;
+  key: string;
+  label: string;
+  variant?: "default" | "outline" | "secondary" | "ghost";
+  className?: string;
+  external?: boolean;
+};
+
 interface ProjectHeroProps {
   children?: ReactNode;
+  actionItems?: ProjectHeroActionItem[];
   mediaVariants?: UploadMediaVariantsMap;
   project: PublicBootstrapProject;
   tagItems?: ProjectHeroTagItem[];
@@ -23,6 +35,7 @@ interface ProjectHeroProps {
 
 const ProjectHero = ({
   children = null,
+  actionItems = [],
   mediaVariants,
   project,
   tagItems = [],
@@ -59,7 +72,7 @@ const ProjectHero = ({
       >
         <div
           data-testid="project-hero-layout"
-          className="grid items-start gap-10 lg:gap-12 reveal md:items-stretch md:grid-cols-[320px_minmax(0,1fr)] lg:grid-cols-[340px_minmax(0,1fr)]"
+          className="grid items-start gap-10 lg:gap-12 reveal reveal-visible md:items-stretch md:grid-cols-[320px_minmax(0,1fr)] lg:grid-cols-[340px_minmax(0,1fr)]"
           data-reveal
         >
           <div
@@ -135,7 +148,38 @@ const ProjectHero = ({
                 ))}
               </div>
             ) : null}
-            {children ? (
+            {actionItems.length > 0 ? (
+              <div
+                data-testid="project-hero-actions-row"
+                className="flex w-full flex-wrap justify-center gap-3 animate-slide-up md:mt-auto md:justify-start"
+                style={{ animationDelay: "0.4s" }}
+              >
+                {actionItems.map((action) => {
+                  const className = cn(
+                    buttonVariants({
+                      variant: action.variant || "default",
+                      className: action.className,
+                    }),
+                  );
+
+                  return action.external || action.href.startsWith("#") ? (
+                    <a
+                      key={action.key}
+                      href={action.href}
+                      target={action.external ? "_blank" : undefined}
+                      rel={action.external ? "noreferrer" : undefined}
+                      className={className}
+                    >
+                      {action.label}
+                    </a>
+                  ) : (
+                    <PublicLink key={action.key} href={action.href} className={className}>
+                      {action.label}
+                    </PublicLink>
+                  );
+                })}
+              </div>
+            ) : children ? (
               <div
                 data-testid="project-hero-actions-row"
                 className="flex w-full flex-wrap justify-center gap-3 animate-slide-up md:mt-auto md:justify-start"

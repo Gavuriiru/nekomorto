@@ -1,7 +1,5 @@
 ---
-import PublicLink from "../../../src/components/PublicLink";
 import ProjectHero from "../../../src/components/project/ProjectHero";
-import { Button } from "../../../src/components/ui/button";
 import { canManageProjectsAccess } from "../../../src/lib/access-control";
 import { buildProjectPublicReadingHref } from "../../../src/lib/project-editor-routes";
 import {
@@ -66,6 +64,46 @@ const firstReadableChapter =
     ?.sort(compareReadableEpisodeOrdering)?.[0] || null;
 const canEditProject = canManageProjectsAccess(locals?.currentUser ?? null);
 const renderAstroHero = Boolean(project);
+const heroActionItems = project
+  ? [
+      {
+        href: "#downloads",
+        key: "downloads",
+        label: isChapterBased ? "Ver capítulos" : "Ver episódios",
+        variant: "default" as const,
+      },
+      project.trailerUrl
+        ? {
+            href: project.trailerUrl,
+            key: "trailer",
+            label: "Assistir trailer",
+            variant: "outline" as const,
+            external: true,
+          }
+        : null,
+      canEditProject
+        ? {
+            href: `/dashboard/projetos?edit=${encodeURIComponent(project.id)}`,
+            key: "edit",
+            label: "Editar projeto",
+            variant: "secondary" as const,
+          }
+        : null,
+      isChapterBased && firstReadableChapter
+        ? {
+            href: buildProjectPublicReadingHref(
+              project.id,
+              firstReadableChapter.number,
+              firstReadableChapter.volume,
+            ),
+            key: "read",
+            label: "Começar leitura",
+            variant: "outline" as const,
+            className: "order-last",
+          }
+        : null,
+    ].filter(Boolean)
+  : [];
 const _meta = resolveProjectPageMeta({
   fallbackOrigin: locals?.primaryAppOrigin || Astro.url.origin,
   pathname: Astro.url.pathname,
@@ -86,41 +124,11 @@ const _meta = resolveProjectPageMeta({
   {
     renderAstroHero ? (
       <ProjectHero
+        actionItems={heroActionItems}
         project={project!}
         mediaVariants={routePayload?.mediaVariants || {}}
         tagItems={translatedTags}
-      >
-        <Button asChild className="gap-2">
-          <a href="#downloads">{isChapterBased ? "Ver capítulos" : "Ver episódios"}</a>
-        </Button>
-        {project?.trailerUrl ? (
-          <Button asChild variant="outline" className="gap-2">
-            <a href={project.trailerUrl} target="_blank" rel="noreferrer">
-              Assistir trailer
-            </a>
-          </Button>
-        ) : null}
-        {canEditProject ? (
-          <Button asChild variant="secondary" className="gap-2">
-            <PublicLink href={`/dashboard/projetos?edit=${encodeURIComponent(project!.id)}`}>
-              Editar projeto
-            </PublicLink>
-          </Button>
-        ) : null}
-        {isChapterBased && firstReadableChapter ? (
-          <Button asChild variant="outline" className="gap-2 order-last">
-            <PublicLink
-              href={buildProjectPublicReadingHref(
-                project!.id,
-                firstReadableChapter.number,
-                firstReadableChapter.volume,
-              )}
-            >
-              Começar leitura
-            </PublicLink>
-          </Button>
-        ) : null}
-      </ProjectHero>
+      />
     ) : null
   }
   <ProjectIslandApp
