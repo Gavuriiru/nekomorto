@@ -1,8 +1,8 @@
 import { Clock } from "lucide-react";
 import type { CSSProperties } from "react";
 import { useEffect, useMemo } from "react";
-import { Link } from "react-router-dom";
 
+import PublicLink from "@/components/PublicLink";
 import PublicInteractiveCardShell from "@/components/PublicInteractiveCardShell";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -135,8 +135,8 @@ const WorkStatusCard = () => {
                   shadowPreset="none"
                   className="group/progress-item rounded-md"
                 >
-                  <Link
-                    to={`/projeto/${item.projectId}`}
+                  <PublicLink
+                    href={`/projeto/${item.projectId}`}
                     className="work-status-item relative z-10 min-h-23 rounded-md p-3 group-hover/progress-item:border-primary/60 group-focus-within/progress-item:border-primary/60 focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-primary/45"
                     {...getPublicRoutePreloadHandlers(`/projeto/${item.projectId}`)}
                   >
@@ -173,7 +173,7 @@ const WorkStatusCard = () => {
                         }
                       />
                     </div>
-                  </Link>
+                  </PublicLink>
                 </PublicInteractiveCardShell>
               );
             })}

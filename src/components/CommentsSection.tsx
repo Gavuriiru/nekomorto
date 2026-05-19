@@ -18,9 +18,9 @@ import { usePublicCurrentUser } from "@/hooks/use-public-current-user";
 import { getApiBase } from "@/lib/api-base";
 import { apiFetch } from "@/lib/api-client";
 import { formatDateTime } from "@/lib/date";
+import { usePublicDocumentLocation } from "@/lib/public-document-navigation";
 import { MessageSquare, Reply } from "lucide-react";
 import { memo, useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { useLocation } from "react-router-dom";
 
 type CommentTargetType = "post" | "project" | "chapter";
 
@@ -100,7 +100,7 @@ const CommentsSection = ({ targetType, targetId, chapterNumber, volume }: Commen
   const { currentUser } = usePublicCurrentUser();
 
   const commentTree = useMemo(() => buildCommentTree(comments), [comments]);
-  const location = useLocation();
+  const location = usePublicDocumentLocation();
   const lastScrolledRef = useRef<string | null>(null);
   const canModerate = useMemo(() => {
     const permissions = Array.isArray(currentUser?.permissions) ? currentUser.permissions : [];

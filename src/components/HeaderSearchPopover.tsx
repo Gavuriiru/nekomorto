@@ -1,4 +1,5 @@
 import { useMemo } from "react";
+import PublicLink from "@/components/PublicLink";
 import UploadPicture from "@/components/UploadPicture";
 import { floatingSurfaceShadowClassName } from "@/components/ui/floating-surface";
 import { usePublicBootstrap } from "@/hooks/use-public-bootstrap";
@@ -10,8 +11,6 @@ import {
   selectVisibleTags,
   sortAlphabeticallyPtBr,
 } from "@/lib/search-ranking";
-import { PublicChromePhase3Link } from "@/routes/public-phase3-navigation";
-import { getPublicRoutePreloadHandlers } from "@/routes/public-preload";
 import { uiCopy } from "@/lib/ui-copy";
 import type { UploadMediaVariantsMap } from "@/lib/upload-variants";
 import { cn } from "@/lib/utils";
@@ -134,10 +133,9 @@ const HeaderSearchPopover = ({
             {activeProjects.map((item) => {
               return (
                 <li key={item.href}>
-                  <PublicChromePhase3Link
+                  <PublicLink
                     href={item.href}
                     className="group flex h-36 items-stretch overflow-hidden rounded-xl border border-border/60 bg-card/60 transition hover:border-primary/60 hover:bg-card/70 focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-primary/45"
-                    {...getPublicRoutePreloadHandlers(item.href)}
                   >
                     <div className="h-full shrink-0 overflow-hidden bg-secondary" style={{ aspectRatio: "9 / 14" }}>
                       <UploadPicture
@@ -172,7 +170,7 @@ const HeaderSearchPopover = ({
                         </div>
                       ) : null}
                     </div>
-                  </PublicChromePhase3Link>
+                  </PublicLink>
                 </li>
               );
             })}
@@ -188,13 +186,12 @@ const HeaderSearchPopover = ({
           <ul className="no-scrollbar mt-2 max-h-[26vh] space-y-2 overflow-y-auto overscroll-contain pr-1">
             {activePosts.map((item) => (
               <li key={item.href}>
-                <PublicChromePhase3Link
+                <PublicLink
                   href={item.href}
                   className="text-sm text-foreground transition-colors hover:text-primary"
-                  {...getPublicRoutePreloadHandlers(item.href)}
                 >
                   {item.label}
-                </PublicChromePhase3Link>
+                </PublicLink>
               </li>
             ))}
           </ul>

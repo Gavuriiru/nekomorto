@@ -10,7 +10,6 @@ import {
   useRef,
   useState,
 } from "react";
-import { useNavigate, useSearchParams } from "react-router-dom";
 
 import PublicProjectCard, {
   PUBLIC_PROJECT_CARD_CLAMP_PROFILES,
@@ -33,6 +32,10 @@ import {
 } from "@/hooks/public-bootstrap-provider";
 import { getApiBase } from "@/lib/api-base";
 import { apiFetch } from "@/lib/api-client";
+import {
+  navigatePublicDocument,
+  usePublicDocumentLocation,
+} from "@/lib/public-document-navigation";
 import { prepareProjectBadges, type ProjectBadgeItem } from "@/lib/project-card-layout";
 import { comparePtBr, normalizeSearchText } from "@/lib/search-ranking";
 import type { UploadMediaVariantsMap } from "@/lib/upload-variants";
@@ -136,7 +139,7 @@ type ProjectsGridProps = {
   projects: Project[];
   tagTranslations: Record<string, string>;
   genreTranslations: Record<string, string>;
-  navigate: ReturnType<typeof useNavigate>;
+  navigate: (href: string) => void;
   mediaVariants: UploadMediaVariantsMap;
   isMobile: boolean;
   rootRef: RefObject<HTMLDivElement | null>;
@@ -263,7 +266,7 @@ const buildCatalogProjectPrimaryBadges = ({
   project: Project;
   tagTranslations: Record<string, string>;
   genreTranslations: Record<string, string>;
-  navigate: ReturnType<typeof useNavigate>;
+  navigate: (href: string) => void;
   isMobile: boolean;
 }) => {
   const { visibleItems, extraCount, showOverflowBadge } = isMobile
@@ -609,6 +612,7 @@ const Projects = () => {
   const bootstrap = useResolvedPublicBootstrap();
   const routePayload = useResolvedPublicRoutePayload();
   const { publishPublicRoutePayload } = usePublishResolvedPublicSnapshots();
+  const location = usePublicDocumentLocation();
   const hasFullBootstrap = Boolean(bootstrap && bootstrap.payloadMode !== "critical-home");
   const projectsRoutePayload = routePayload?.kind === "projects-list" ? routePayload : null;
   const bootstrapProjects = hasFullBootstrap ? ((bootstrap?.projects || []) as Project[]) : [];
@@ -638,18 +642,20 @@ const Projects = () => {
   const [genreTranslations, setGenreTranslations] = useState<Record<string, string>>(
     () => initialTranslations?.genres || {},
   );
-  const [searchParams, setSearchParams] = useSearchParams();
-  const searchParamsRef = useRef(searchParams);
+  const searchParams = useMemo(() => new URLSearchParams(location.search), [location.search]);
+  const searchParamsRef = useRef(location.search);
   const [searchInputValue, setSearchInputValue] = useState(() => searchParams.get("q") || "");
   const [isMobileFiltersOpen, setIsMobileFiltersOpen] = useState(false);
   const [isClampReady, setIsClampReady] = useState(false);
-  const navigate = useNavigate();
+  const navigate = useCallback((href: string) => {
+    navigatePublicDocument(href);
+  }, []);
   const pageMediaVariants = bootstrap?.mediaVariants || {};
   const projectsPerPage = 16;
 
   useEffect(() => {
-    searchParamsRef.current = searchParams;
-  }, [searchParams]);
+    searchParamsRef.current = location.search;
+  }, [location.search]);
 
   const selectedLetter = parseLetterParam(searchParams.get("letter"));
   const selectedType = parseTypeParam(searchParams.get("type"));
@@ -827,9 +833,13 @@ const Projects = () => {
     }
     nextParams.delete("genre");
     if (nextParams.toString() !== searchParams.toString()) {
-      setSearchParams(nextParams, { replace: true });
+      const nextQuery = nextParams.toString();
+      navigatePublicDocument(
+        `${location.pathname}${nextQuery ? `?${nextQuery}` : ""}${location.hash || ""}`,
+        { replace: true },
+      );
     }
-  }, [searchParams, setSearchParams]);
+  }, [location.hash, location.pathname, searchParams]);
 
   useEffect(() => {
     setSearchInputValue(selectedQuery);
@@ -843,9 +853,13 @@ const Projects = () => {
       if (next.toString() === current.toString()) {
         return;
       }
-      setSearchParams(next, { replace: options?.replace });
+      const nextQuery = next.toString();
+      navigatePublicDocument(
+        `${location.pathname}${nextQuery ? `?${nextQuery}` : ""}${location.hash || ""}`,
+        { replace: options?.replace },
+      );
     },
-    [setSearchParams],
+    [location.hash, location.pathname],
   );
 
   const deferredProjects = useDeferredValue(projects);

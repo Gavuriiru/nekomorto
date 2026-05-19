@@ -1,7 +1,8 @@
 # Migracao React/Vite -> Astro
 
 Documento operacional do desenho tecnico atual da migracao da superficie publica do
-Nekomorto para Astro, atualizado para o estado real do repositorio em 2026-05-19.
+Nekomorto para Astro, atualizado para o estado real do repositorio em 2026-05-19 apos o
+fechamento do router publico da Fase 3.
 
 ## 1. Objetivo
 
@@ -77,7 +78,8 @@ O repositorio esta em estado **hibrido controlado**:
 
 Observacao:
 
-- `PublicPhase3IslandApp.tsx` nao faz mais parte da arquitetura atual.
+- `Phase3PublicAppShell.tsx` nao faz mais parte da arquitetura atual.
+- o chrome publico e as rotas indexaveis nao dependem mais de `react-router-dom`.
 
 ## 5. Contrato de dados
 
@@ -142,13 +144,12 @@ Impacto:
 
 ## 7. Limites atuais
 
-O fechamento arquitetural ainda nao terminou.
+O fechamento de ownership e roteamento publico foi concluido.
 
 ### O que ainda continua hibrido
 
 - `/`, `/projetos`, `/projeto/[slug]` e `/postagem/[slug]` continuam com islands de
   pagina inteira.
-- componentes publicos ainda usam `react-router-dom` internamente.
 - `usePageMeta` e parte do ecossistema publico React ainda existem no repositorio para
   a camada que nao foi convertida para Astro puro.
 
@@ -268,8 +269,10 @@ npm run lighthouse:public-surface
 
 ## 12. Ponto exato para retomar
 
-Se a migracao for retomada agora, o proximo trabalho tecnico correto e:
+Se houver continuidade tecnica nesse tema, ela deixa de ser migracao obrigatoria e passa a ser
+otimizacao:
 
-1. remover `react-router-dom` do publico indexavel;
-2. mover mais HTML de `/`, `/projetos`, `/projeto/[slug]` e `/postagem/[slug]` para Astro;
+1. mover widgets isolados de `/`, `/projetos`, `/projeto/[slug]` e `/postagem/[slug]` para
+   ilhas menores ou Astro server-first quando houver ganho claro;
+2. revisar preload, chunking e custo de hidratacao;
 3. manter React apenas nos widgets realmente interativos.

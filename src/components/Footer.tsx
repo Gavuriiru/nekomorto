@@ -1,13 +1,10 @@
+import PublicLink from "@/components/PublicLink";
 import ThemedSvgLogo from "@/components/ThemedSvgLogo";
 import ThemedSvgMaskIcon from "@/components/ThemedSvgMaskIcon";
 import { useSiteSettings } from "@/hooks/use-site-settings";
 import { resolveBranding } from "@/lib/branding";
 import { isIconUrlSource, sanitizeIconSource, sanitizePublicHref } from "@/lib/url-safety";
-import {
-  getPublicRoutePreloadHandlers,
-  schedulePublicRouteIdlePreload,
-} from "@/routes/public-preload";
-import { PublicChromePhase3Link, isPhase3PublicPath } from "@/routes/public-phase3-navigation";
+import { schedulePublicRouteIdlePreload } from "@/routes/public-preload";
 import { Camera, Globe, MessageCircle, Play, Users, X } from "lucide-react";
 import { useEffect, useMemo } from "react";
 
@@ -110,22 +107,13 @@ const Footer = ({ shellClassName = "" }: FooterProps) => {
                   }
                   return (
                     <li key={`${link.label}-${link.href}-${linkIndex}`}>
-                      {isInternalLink(safeHref) && isPhase3PublicPath(safeHref) ? (
-                        <PublicChromePhase3Link
+                      {isInternalLink(safeHref) ? (
+                        <PublicLink
                           href={safeHref}
                           className="text-foreground/80 transition-colors hover:text-primary"
-                          {...getPublicRoutePreloadHandlers(safeHref)}
                         >
                           {link.label}
-                        </PublicChromePhase3Link>
-                      ) : isInternalLink(safeHref) ? (
-                        <a
-                          href={safeHref}
-                          className="text-foreground/80 transition-colors hover:text-primary"
-                          {...getPublicRoutePreloadHandlers(safeHref)}
-                        >
-                          {link.label}
-                        </a>
+                        </PublicLink>
                       ) : (
                         <a
                           href={safeHref}
@@ -194,20 +182,18 @@ const Footer = ({ shellClassName = "" }: FooterProps) => {
         <div className="mx-auto flex max-w-7xl flex-col gap-2 px-6 py-6 text-xs text-muted-foreground md:flex-row md:justify-between md:px-12">
           <p>{footer.copyright || ""}</p>
           <div className="flex flex-wrap gap-x-4 gap-y-2">
-            <a
+            <PublicLink
               href="/termos-de-uso"
               className="transition-colors hover:text-foreground"
-              {...getPublicRoutePreloadHandlers("/termos-de-uso")}
             >
               Termos de Uso
-            </a>
-            <a
+            </PublicLink>
+            <PublicLink
               href="/politica-de-privacidade"
               className="transition-colors hover:text-foreground"
-              {...getPublicRoutePreloadHandlers("/politica-de-privacidade")}
             >
               Política de Privacidade
-            </a>
+            </PublicLink>
           </div>
         </div>
       </div>

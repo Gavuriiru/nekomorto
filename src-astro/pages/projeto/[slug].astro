@@ -18,7 +18,6 @@ const _meta = resolveProjectPageMeta({
   routePayload,
   siteSettings,
 });
-const _location = `${Astro.url.pathname}${Astro.url.search}`;
 ---
 
 <PublicLayout
@@ -31,8 +30,10 @@ const _location = `${Astro.url.pathname}${Astro.url.search}`;
 >
   <ProjectIslandApp
     client:load
+    initialCurrentUser={locals?.currentUser ?? null}
     initialPublicBootstrap={publicBootstrap}
     initialPublicRoutePayload={locals?.routePayload || null}
-    location={_location}
+    initialSettings={locals?.siteSettings || null}
+    slug={Astro.params.slug}
   />
 </PublicLayout>

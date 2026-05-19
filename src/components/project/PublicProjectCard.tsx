@@ -1,7 +1,7 @@
 import { Eye, Hash } from "lucide-react";
 import { memo, type CSSProperties, type MouseEvent, type Ref } from "react";
-import { Link } from "react-router-dom";
 
+import PublicLink from "@/components/PublicLink";
 import { usePublicRoutePreload } from "@/routes/use-public-route-preload";
 
 import PublicInteractiveCardShell from "@/components/PublicInteractiveCardShell";
@@ -340,9 +340,9 @@ const PublicProjectCard = ({
         shadowPreset={shellPreset}
         className={cn("rounded-2xl", shellClassName)}
       >
-        <Link
+        <PublicLink
           ref={viewportRef}
-          to={model.href}
+          href={model.href}
           {...preloadHandlers}
           className={cn(
             "projects-public-card group relative flex h-50 w-full items-stretch overflow-hidden rounded-2xl border border-border/60 bg-gradient-card focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-primary/45 md:h-60",
@@ -421,7 +421,7 @@ const PublicProjectCard = ({
               </div>
             ) : null}
           </div>
-        </Link>
+        </PublicLink>
       </PublicInteractiveCardShell>
     );
   }
@@ -433,9 +433,9 @@ const PublicProjectCard = ({
         shadowPreset={shellPreset}
         className={cn("rounded-xl", shellClassName)}
       >
-        <Link
+        <PublicLink
           ref={viewportRef}
-          to={model.href}
+          href={model.href}
           {...preloadHandlers}
           className={cn(
             "group flex h-36 items-stretch overflow-hidden rounded-xl border border-border/60 bg-card/60 transition hover:border-primary/60 hover:bg-card/70 focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-primary/45",
@@ -496,7 +496,7 @@ const PublicProjectCard = ({
               </div>
             ) : null}
           </div>
-        </Link>
+        </PublicLink>
       </PublicInteractiveCardShell>
     );
   }
@@ -507,10 +507,10 @@ const PublicProjectCard = ({
         shadowPreset={shellPreset}
         className={cn("rounded-2xl", shellClassName)}
       >
-        <Link
+        <PublicLink
           data-testid={testIdBase}
           ref={viewportRef}
-          to={model.href}
+          href={model.href}
           {...preloadHandlers}
           className={cn(
             "top-projects-link group relative z-10 rounded-2xl focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-primary/45",
@@ -594,7 +594,7 @@ const PublicProjectCard = ({
               </p>
             ) : null}
           </div>
-        </Link>
+        </PublicLink>
       </PublicInteractiveCardShell>
     );
   }
@@ -605,9 +605,9 @@ const PublicProjectCard = ({
         shadowPreset={shellPreset}
         className={cn("rounded-xl", shellClassName)}
       >
-        <Link
+        <PublicLink
           ref={viewportRef}
-          to={model.href}
+          href={model.href}
           {...preloadHandlers}
           className={cn(
             "group flex overflow-hidden rounded-xl border border-border/50 bg-background/60 focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-primary/45 hover:border-primary/60 hover:bg-background/80",
@@ -655,7 +655,7 @@ const PublicProjectCard = ({
               </p>
             ) : null}
           </div>
-        </Link>
+        </PublicLink>
       </PublicInteractiveCardShell>
     );
   }
@@ -665,9 +665,9 @@ const PublicProjectCard = ({
       shadowPreset={shellPreset}
       className={cn("rounded-2xl", shellClassName)}
     >
-      <Link
+      <PublicLink
         ref={viewportRef}
-        to={model.href}
+        href={model.href}
         {...preloadHandlers}
         className={cn(
           "project-embed-card group block overflow-hidden rounded-2xl border border-border/60 bg-card focus-visible:border-primary/60 focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-primary/45 hover:border-primary/60 hover:bg-card/90",
@@ -763,7 +763,7 @@ const PublicProjectCard = ({
             </div>
           </CardContent>
         </Card>
-      </Link>
+      </PublicLink>
     </PublicInteractiveCardShell>
   );
 };

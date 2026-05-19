@@ -1,6 +1,7 @@
 import heroImageAvif from "@/assets/hero-illya.avif";
 import heroImageJpg from "@/assets/hero-illya.jpg";
 import heroImageWebp from "@/assets/hero-illya.webp";
+import PublicLink from "@/components/PublicLink";
 import UploadPicture from "@/components/UploadPicture";
 import { Button } from "@/components/ui/button";
 import {
@@ -20,7 +21,6 @@ import type {
 } from "@/types/public-bootstrap";
 import { ChevronLeft, ChevronRight, Globe, Play } from "lucide-react";
 import * as React from "react";
-import { Link } from "react-router-dom";
 
 import { usePublicRoutePreload } from "@/routes/use-public-route-preload";
 import "./HeroSection.css";
@@ -562,15 +562,15 @@ const HeroSlideFrame = ({
               style={resolveHeroEntryStyle("actions", shouldAnimateEntry)}
             >
               <Button asChild className="gap-2">
-                <Link
+                <PublicLink
                   ref={viewportRef}
-                  to={projectHref}
+                  href={projectHref}
                   aria-label={`Acessar página de ${slide.title}`}
                   {...preloadHandlers}
                 >
                   <Globe className="h-4 w-4" />
                   Acessar página
-                </Link>
+                </PublicLink>
               </Button>
               {slide.trailerUrl ? (
                 <Button asChild variant="outline" className="gap-2">

@@ -16,9 +16,9 @@ import {
 } from "lucide-react";
 import type { CSSProperties } from "react";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { Link, useParams } from "react-router-dom";
 
 import CommentsSection from "@/components/CommentsSection";
+import PublicLink from "@/components/PublicLink";
 import PublicProjectCard from "@/components/project/PublicProjectCard";
 import { publicPageLayoutTokens } from "@/components/public-page-tokens";
 import ThemedSvgLogo from "@/components/ThemedSvgLogo";
@@ -50,6 +50,7 @@ import { apiFetch, apiFetchBestEffort } from "@/lib/api-client";
 import { normalizeAssetUrl } from "@/lib/asset-url";
 import { formatDate } from "@/lib/date";
 import { formatBytesCompact } from "@/lib/file-size";
+import { usePublicDocumentLocation } from "@/lib/public-document-navigation";
 import { PROJECT_COVER_ASPECT_RATIO } from "@/lib/project-card-layout";
 import { buildProjectPublicReadingHref } from "@/lib/project-editor-routes";
 import { buildEpisodeKey } from "@/lib/project-episode-key";
@@ -164,9 +165,14 @@ const projectFilterPillClassName =
 
 const ProjectFilterPillLink = ({ label, to, tone }: ProjectFilterPillLinkProps) => (
   <PillButton asChild tone={tone} className={projectFilterPillClassName}>
-    <Link to={to}>{label}</Link>
+    <PublicLink href={to}>{label}</PublicLink>
   </PillButton>
 );
+
+const resolveProjectSlugFromPath = (pathname: string) => {
+  const match = String(pathname || "").match(/^\/projeto\/([^/]+)$/);
+  return match?.[1] ? decodeURIComponent(match[1]) : undefined;
+};
 
 const buildDownloadSourceHoverColor = (color: string) => {
   const trimmed = color.trim();
@@ -260,8 +266,9 @@ const resolveProjectRoutePayloadForSlug = (
   return resolveBootstrapProject(projectListBootstrap, slug) ? payload : null;
 };
 
-const ProjectPage = () => {
-  const { slug } = useParams<{ slug: string }>();
+const ProjectPage = ({ slug: slugProp }: { slug?: string }) => {
+  const location = usePublicDocumentLocation();
+  const slug = slugProp || resolveProjectSlugFromPath(location.pathname);
   const apiBase = getApiBase();
   const bootstrapData = useResolvedPublicBootstrap();
   const routePayload = useResolvedPublicRoutePayload();
@@ -957,9 +964,9 @@ const ProjectPage = () => {
             <div className="mt-2 flex flex-wrap items-center justify-end gap-2 md:absolute md:bottom-0 md:left-0 md:right-0 md:mt-0 md:justify-end">
               {hasReadAction ? (
                 <Button asChild size="sm">
-                  <Link to={String(readAction?.href || "#")}>
+                  <PublicLink href={String(readAction?.href || "#")}>
                     {String(readAction?.label || "")}
-                  </Link>
+                  </PublicLink>
                 </Button>
               ) : null}
               {hasSources
@@ -1101,7 +1108,7 @@ const ProjectPage = () => {
               : null}
             {readAction ? (
               <Button asChild size="sm" className="order-last">
-                <Link to={readAction.href}>{readAction.label}</Link>
+                <PublicLink href={readAction.href}>{readAction.label}</PublicLink>
               </Button>
             ) : null}
             {!readAction && !hasSources ? (
@@ -1445,22 +1452,22 @@ const ProjectPage = () => {
                   ) : null}
                   {canEditProject ? (
                     <Button asChild variant="secondary" className="gap-2">
-                      <Link to={`/dashboard/projetos?edit=${encodeURIComponent(project.id)}`}>
+                      <PublicLink href={`/dashboard/projetos?edit=${encodeURIComponent(project.id)}`}>
                         Editar projeto
-                      </Link>
+                      </PublicLink>
                     </Button>
                   ) : null}
                   {isChapterBased && firstReadableChapter ? (
                     <Button asChild variant="outline" className="gap-2 order-last">
-                      <Link
-                        to={buildProjectPublicReadingHref(
+                      <PublicLink
+                        href={buildProjectPublicReadingHref(
                           project.id,
                           firstReadableChapter.number,
                           firstReadableChapter.volume,
                         )}
                       >
                         Começar leitura
-                      </Link>
+                      </PublicLink>
                     </Button>
                   ) : null}
                 </div>

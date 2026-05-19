@@ -1,4 +1,5 @@
 import type { DashboardMenuItem } from "@/components/dashboard-menu";
+import PublicLink from "@/components/PublicLink";
 import ThemeModeSwitcher from "@/components/ThemeModeSwitcher";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
@@ -11,8 +12,6 @@ import {
 } from "@/components/ui/dropdown-menu";
 import { getNavbarIcon } from "@/lib/navbar-icons";
 import type { PublicBootstrapCurrentUser } from "@/lib/public-bootstrap-global";
-import { PublicChromePhase3Link, isPhase3PublicPath } from "@/routes/public-phase3-navigation";
-import { getPublicRoutePreloadHandlers } from "@/routes/public-preload";
 import { uiCopy } from "@/lib/ui-copy";
 import { useThemeMode } from "@/hooks/use-theme-mode";
 import { LogOut, Menu, Sun, Moon } from "lucide-react";
@@ -74,24 +73,11 @@ const HeaderActionMenus = ({
                 asChild
                 className={headerMenuItemClass}
               >
-                {isInternalHref(item.href) && isPhase3PublicPath(item.href) ? (
-                  <PublicChromePhase3Link
-                    href={item.href}
-                    className="flex items-center gap-2"
-                    {...getPublicRoutePreloadHandlers(item.href)}
-                  >
+                {isInternalHref(item.href) ? (
+                  <PublicLink href={item.href} className="flex items-center gap-2">
                     <ItemIcon className="h-4 w-4" />
                     {item.label}
-                  </PublicChromePhase3Link>
-                ) : isInternalHref(item.href) ? (
-                  <a
-                    href={item.href}
-                    className="flex items-center gap-2"
-                    {...getPublicRoutePreloadHandlers(item.href)}
-                  >
-                    <ItemIcon className="h-4 w-4" />
-                    {item.label}
-                  </a>
+                  </PublicLink>
                 ) : (
                   <a
                     href={item.href}

@@ -1,8 +1,8 @@
 import { Clock, Sparkles } from "lucide-react";
 import type { CSSProperties } from "react";
 import { useEffect, useMemo } from "react";
-import { Link } from "react-router-dom";
 
+import PublicLink from "@/components/PublicLink";
 import PublicInteractiveCardShell from "@/components/PublicInteractiveCardShell";
 import UploadPicture from "@/components/UploadPicture";
 import { buttonVariants } from "@/components/ui/button-variants";
@@ -203,8 +203,8 @@ const LatestEpisodeCard = () => {
                   }
                   className="group/recent-update rounded-2xl"
                 >
-                  <Link
-                    to={`/projeto/${update.projectId}`}
+                  <PublicLink
+                    href={`/projeto/${update.projectId}`}
                     className="recent-updates-item relative z-10 rounded-2xl transition-[border-color,background-color,color] duration-200 ease-[cubic-bezier(0.16,1,0.3,1)] hover:border-primary/60 focus-visible:border-primary/60 focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-primary/45"
                     {...getPublicRoutePreloadHandlers(`/projeto/${update.projectId}`)}
                   >
@@ -273,7 +273,7 @@ const LatestEpisodeCard = () => {
                         {formatDate(update.updatedAt.split("T")[0])}
                       </span>
                     </div>
-                  </Link>
+                  </PublicLink>
                 </PublicInteractiveCardShell>
               );
             })}

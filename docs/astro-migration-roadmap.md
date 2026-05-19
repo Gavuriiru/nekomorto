@@ -17,7 +17,7 @@ estado real do repositorio em 2026-05-19.
 | Fase 5 | concluida | Reader shell sob Astro |
 | Fase 6 | concluida | Remocao do SSR/prerender publico legado |
 | Fase 7 | concluida | Cleanup de PWA legado e enclave MUI/Emotion |
-| Fechamento final | parcial | Rotas publicas ainda usam `react-router-dom` dentro de islands locais |
+| Fechamento final | concluido | `react-router-dom` saiu do slice publico indexavel e o shell Phase 3 foi removido |
 
 ### 1.2 O que ja foi concluido
 
@@ -26,11 +26,15 @@ estado real do repositorio em 2026-05-19.
   ownership Astro das rotas publicas e do reader.
 - `build:public:ssr` e `prerender:public` sairam do pipeline oficial na Fase 6.
 - `/`, `/projetos`, `/projeto/[slug]` e `/postagem/[slug]` continuam em ownership Astro,
-  mas a antiga island compartilhada da Fase 3 foi quebrada em islands por rota:
+  agora com hydration dedicada por rota e sem o shell/router publico compartilhado:
   - `HomeIslandApp.tsx`
   - `ProjectsIslandApp.tsx`
   - `ProjectIslandApp.tsx`
   - `PostIslandApp.tsx`
+- o shell legado `Phase3PublicAppShell.tsx` e a navegacao publica compartilhada da Fase 3
+  sairam do codigo ativo.
+- `react-router-dom` foi removido das rotas publicas indexaveis e do chrome publico dessas
+  paginas.
 - o enclave MUI/Emotion dos campos de data/hora do dashboard foi substituido por campos
   nativos em `src/components/ui/mui-date-time-fields.tsx`, preservando a API local.
 - o pipeline legado de service worker foi removido:
@@ -42,13 +46,9 @@ estado real do repositorio em 2026-05-19.
 
 ### 1.3 O que ainda resta
 
-- remover `react-router-dom` das rotas publicas indexaveis, deixando-o restrito a:
-  - `/login`
-  - `/dashboard/**`
-  - `/projeto/[slug]/leitura/[chapter]`
-- mover mais HTML das rotas publicas principais para Astro puro, reduzindo a dependencia
-  de islands de pagina inteira.
-- revisar, depois de novo bundle real, se ainda faz sentido simplificar mais o chunking
+- reduzir mais a hidratacao das paginas publicas principais quando houver ganho real de bundle
+  ou manutencao.
+- revisar, depois de novos ciclos de produto, se ainda faz sentido simplificar mais o chunking
   manual restante ou retirar dependencias residuais.
 
 ## 2. Ownership atual
@@ -62,10 +62,10 @@ estado real do repositorio em 2026-05-19.
 | `/equipe` | Astro | institucional |
 | `/doacoes` | Astro | institucional |
 | `/recrutamento` | Astro | institucional |
-| `/` | Astro + island React dedicada por rota | ainda usa router React internamente |
-| `/projetos` | Astro + island React dedicada por rota | ainda usa router React internamente |
-| `/projeto/[slug]` | Astro + island React dedicada por rota | ainda usa router React internamente |
-| `/postagem/[slug]` | Astro + island React dedicada por rota | ainda usa router React internamente |
+| `/` | Astro + island React dedicada por rota | sem `react-router-dom` no slice publico |
+| `/projetos` | Astro + island React dedicada por rota | filtros e querystring sem router React |
+| `/projeto/[slug]` | Astro + island React dedicada por rota | detalhe sem router React |
+| `/postagem/[slug]` | Astro + island React dedicada por rota | detalhe sem router React |
 | `/login` | Astro + island React dedicada | manter React |
 | `/dashboard/**` | Astro host + app React | manter React |
 | `/projeto/[slug]/leitura/[chapter]` | Astro shell + island React | manter React |
@@ -79,14 +79,14 @@ Status: **concluida**
 Resultado real:
 
 - ownership Astro das quatro rotas publicas principais foi concluido.
-- o shell compartilhado `PublicPhase3IslandApp.tsx` nao existe mais.
-- cada rota agora tem sua propria island React, o que reduz acoplamento e prepara a
-  remocao futura do router publico.
+- o shell compartilhado de roteamento da Fase 3 nao existe mais.
+- cada rota agora tem sua propria island React, sem `BrowserRouter`, `StaticRouter`,
+  `Routes` ou `Route` no slice publico indexavel.
 
 Limite conhecido:
 
 - as rotas ainda nao sao Astro puras.
-- `react-router-dom` ainda aparece dentro das islands locais e em componentes publicos.
+- ainda existem islands de pagina inteira por rota em partes do publico principal.
 
 ### Fase 6
 
@@ -117,13 +117,13 @@ Limite conhecido:
 
 ## 4. Proximo marco oficial
 
-O proximo marco de implementacao nao e mais uma fase macro de infra.
-O trabalho restante e um fechamento arquitetural:
+Nao existe mais uma fase obrigatoria de migracao em aberto.
 
-1. retirar `react-router-dom` das rotas publicas indexaveis;
-2. reduzir as islands de pagina inteira em `/`, `/projetos`, `/projeto/[slug]` e
-   `/postagem/[slug]`;
-3. manter React apenas onde a interatividade continua estrutural.
+Os proximos trabalhos, se houver, passam a ser otimizacoes incrementais:
+
+1. reduzir hidratacao por widget nas rotas publicas principais;
+2. simplificar bundle e preload conforme necessidade real;
+3. manter React restrito a enclaves justificados por interatividade.
 
 ## 5. Validacao minima para qualquer retomada
 
@@ -149,11 +149,12 @@ npm run lighthouse:public-surface
 
 ## 6. Regra de continuidade
 
-Se uma sessao futura retomar daqui, nao assumir que a migracao pendente e mais infra.
+Se uma sessao futura retomar daqui, nao assumir que ainda existe uma fase pendente de
+ownership.
+
 O ponto atual do repositorio e:
 
 - Astro ja e o owner das rotas publicas principais;
-- o reader, login e dashboard ja estao segmentados;
-- o lastro maior de SSR/prerender/PWA legado ja saiu;
-- o restante e fechamento de ownership publico, remocao do router React das rotas
-  indexaveis e reducao adicional de hidratacao.
+- o router React publico foi removido do slice indexavel;
+- o reader, login e dashboard seguem como enclaves React controlados;
+- o restante e trabalho opcional de reducao adicional de hidratacao e bundle.

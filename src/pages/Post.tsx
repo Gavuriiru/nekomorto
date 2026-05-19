@@ -1,8 +1,8 @@
 import { CalendarDays, Clock, User } from "lucide-react";
 import { useEffect, useMemo, useRef, useState } from "react";
-import { Link, useLocation, useParams } from "react-router-dom";
 
 import CommentsSection from "@/components/CommentsSection";
+import PublicLink from "@/components/PublicLink";
 import PublicPostLegacyContent from "@/components/PublicPostLegacyContent";
 import ProjectEmbedCard from "@/components/ProjectEmbedCard";
 import PublicUserProfileCard from "@/components/PublicUserProfileCard";
@@ -21,6 +21,7 @@ import { getApiBase } from "@/lib/api-base";
 import { apiFetch, apiFetchBestEffort } from "@/lib/api-client";
 import { normalizeAssetUrl } from "@/lib/asset-url";
 import { formatDateTime } from "@/lib/date";
+import { usePublicDocumentLocation } from "@/lib/public-document-navigation";
 import { estimateReadTime } from "@/lib/post-content";
 import { extractFirstImageFromPostContent } from "@/lib/post-cover";
 import type { UploadMediaVariantsMap } from "@/lib/upload-variants";
@@ -175,9 +176,14 @@ const mergeMediaVariants = (base: UploadMediaVariantsMap, nextValue: unknown) =>
   ...(nextValue && typeof nextValue === "object" ? (nextValue as UploadMediaVariantsMap) : {}),
 });
 
-const Post = () => {
-  const { slug } = useParams();
-  const location = useLocation();
+const resolvePostSlugFromPath = (pathname: string) => {
+  const match = String(pathname || "").match(/^\/postagem\/([^/]+)$/);
+  return match?.[1] ? decodeURIComponent(match[1]) : undefined;
+};
+
+const Post = ({ slug: slugProp }: { slug?: string }) => {
+  const location = usePublicDocumentLocation();
+  const slug = slugProp || resolvePostSlugFromPath(location.pathname);
   const apiBase = getApiBase();
   const resolvedBootstrap = useResolvedPublicBootstrap();
   const [bootstrapData] = useState<PublicBootstrapPayload | null>(() => resolvedBootstrap);
@@ -443,9 +449,9 @@ const Post = () => {
                           variant="outline"
                           className="h-7 px-2.5 text-[10px] uppercase"
                         >
-                          <Link to={`/dashboard/posts?edit=${encodeURIComponent(post.id)}`}>
+                          <PublicLink href={`/dashboard/posts?edit=${encodeURIComponent(post.id)}`}>
                             Editar postagem
-                          </Link>
+                          </PublicLink>
                         </Button>
                       ) : null}
                     </div>

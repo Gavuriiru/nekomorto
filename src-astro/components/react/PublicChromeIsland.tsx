@@ -19,10 +19,9 @@ const PublicChromeIsland = ({
   initialPublicRoutePayload,
   initialSettings,
   kind,
-  location: _location,
+  location,
 }: PublicChromeIslandProps) => {
-  const chrome =
-    kind === "header" ? <Header variant="fixed" locationPath={_location} /> : <Footer />;
+  const chrome = kind === "header" ? <Header variant="fixed" locationPath={location} /> : <Footer />;
   const content = (
     <AppProviders
       initialCurrentUser={initialCurrentUser}

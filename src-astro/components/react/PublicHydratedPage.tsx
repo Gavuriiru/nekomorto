@@ -1,31 +1,32 @@
-import Post from "@/pages/Post";
+import { AppProviders } from "@/components/AppProviders";
 import type { PublicBootstrapPayload, PublicRoutePayload } from "@/types/public-bootstrap";
 import type { SiteSettings } from "@/types/site-settings";
-import PublicHydratedPage from "./PublicHydratedPage";
+import type { ReactNode } from "react";
 
-interface PostIslandAppProps {
+export interface PublicHydratedPageProps {
+  children: ReactNode;
   initialCurrentUser?: unknown;
   initialPublicBootstrap: PublicBootstrapPayload | null;
   initialPublicRoutePayload?: PublicRoutePayload | null;
   initialSettings?: SiteSettings | null;
-  slug?: string;
 }
 
-const PostIslandApp = ({
+const PublicHydratedPage = ({
+  children,
   initialCurrentUser,
   initialPublicBootstrap,
   initialPublicRoutePayload,
   initialSettings,
-  slug,
-}: PostIslandAppProps) => (
-  <PublicHydratedPage
+}: PublicHydratedPageProps) => (
+  <AppProviders
     initialCurrentUser={initialCurrentUser}
     initialPublicBootstrap={initialPublicBootstrap}
     initialPublicRoutePayload={initialPublicRoutePayload}
-    initialSettings={initialSettings}
+    initialSettings={initialSettings ?? initialPublicBootstrap?.settings}
+    initiallyLoaded={Boolean(initialSettings ?? initialPublicBootstrap?.settings)}
   >
-    <Post slug={slug} />
-  </PublicHydratedPage>
+    {children}
+  </AppProviders>
 );
 
-export default PostIslandApp;
+export default PublicHydratedPage;

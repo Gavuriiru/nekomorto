@@ -1,5 +1,31 @@
-import Phase3PublicAppShell, { type Phase3PublicAppShellProps } from "./Phase3PublicAppShell";
+import Project from "@/pages/Project";
+import type { PublicBootstrapPayload, PublicRoutePayload } from "@/types/public-bootstrap";
+import type { SiteSettings } from "@/types/site-settings";
+import PublicHydratedPage from "./PublicHydratedPage";
 
-const ProjectIslandApp = (props: Phase3PublicAppShellProps) => <Phase3PublicAppShell {...props} />;
+interface ProjectIslandAppProps {
+  initialCurrentUser?: unknown;
+  initialPublicBootstrap: PublicBootstrapPayload | null;
+  initialPublicRoutePayload?: PublicRoutePayload | null;
+  initialSettings?: SiteSettings | null;
+  slug?: string;
+}
+
+const ProjectIslandApp = ({
+  initialCurrentUser,
+  initialPublicBootstrap,
+  initialPublicRoutePayload,
+  initialSettings,
+  slug,
+}: ProjectIslandAppProps) => (
+  <PublicHydratedPage
+    initialCurrentUser={initialCurrentUser}
+    initialPublicBootstrap={initialPublicBootstrap}
+    initialPublicRoutePayload={initialPublicRoutePayload}
+    initialSettings={initialSettings}
+  >
+    <Project slug={slug} />
+  </PublicHydratedPage>
+);
 
 export default ProjectIslandApp;
