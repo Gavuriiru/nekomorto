@@ -1,6 +1,6 @@
 import type { PublicBootstrapPayload, PublicRoutePayload } from "@/types/public-bootstrap";
 import type { SiteSettings } from "@/types/site-settings";
-import PublicHomeProjectsIslandApp from "./PublicHomeProjectsIslandApp";
+import PublicPhase3IslandApp from "./PublicPhase3IslandApp";
 
 interface HomeIslandAppProps {
   initialCurrentUser?: unknown;
@@ -15,8 +15,9 @@ const HomeIslandApp = ({
   initialPublicRoutePayload,
   initialSettings,
 }: HomeIslandAppProps) => (
-  <PublicHomeProjectsIslandApp
+  <PublicPhase3IslandApp
     initialCurrentUser={initialCurrentUser}
+    initialPath="/"
     initialPublicBootstrap={initialPublicBootstrap}
     initialPublicRoutePayload={initialPublicRoutePayload}
     initialSettings={initialSettings}

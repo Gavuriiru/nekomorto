@@ -1,7 +1,11 @@
 import { useEffect, useMemo, useState } from "react";
 
 export const PUBLIC_DOCUMENT_LOCATION_CHANGE_EVENT = "nekomata:public-document-location-change";
-const PUBLIC_ASTRO_CLIENT_ROUTE_PATHS = new Set(["/", "/projetos"]);
+
+const isPublicAstroClientRoutePath = (value: string) => {
+  const pathname = normalizePathname(value);
+  return pathname === "/" || pathname === "/projetos" || /^\/projeto\/[^/]+$/.test(pathname);
+};
 
 const buildBrowserLocationSnapshot = () => {
   if (typeof window === "undefined") {
@@ -41,8 +45,7 @@ export const canUsePublicAstroClientNavigation = ({
   currentPath: string;
   targetPath: string;
 }) =>
-  PUBLIC_ASTRO_CLIENT_ROUTE_PATHS.has(normalizePathname(currentPath)) &&
-  PUBLIC_ASTRO_CLIENT_ROUTE_PATHS.has(normalizePathname(targetPath));
+  isPublicAstroClientRoutePath(currentPath) && isPublicAstroClientRoutePath(targetPath);
 
 export const navigatePublicDocument = (
   href: string,

@@ -64,46 +64,54 @@ const firstReadableChapter =
     ?.sort(compareReadableEpisodeOrdering)?.[0] || null;
 const canEditProject = canManageProjectsAccess(locals?.currentUser ?? null);
 const renderAstroHero = Boolean(project);
-const heroActionItems = project
-  ? [
-      {
-        href: "#downloads",
-        key: "downloads",
-        label: isChapterBased ? "Ver capítulos" : "Ver episódios",
-        variant: "default" as const,
-      },
-      project.trailerUrl
-        ? {
-            href: project.trailerUrl,
-            key: "trailer",
-            label: "Assistir trailer",
-            variant: "outline" as const,
-            external: true,
-          }
-        : null,
-      canEditProject
-        ? {
-            href: `/dashboard/projetos?edit=${encodeURIComponent(project.id)}`,
-            key: "edit",
-            label: "Editar projeto",
-            variant: "secondary" as const,
-          }
-        : null,
-      isChapterBased && firstReadableChapter
-        ? {
-            href: buildProjectPublicReadingHref(
-              project.id,
-              firstReadableChapter.number,
-              firstReadableChapter.volume,
-            ),
-            key: "read",
-            label: "Começar leitura",
-            variant: "outline" as const,
-            className: "order-last",
-          }
-        : null,
-    ].filter(Boolean)
-  : [];
+type HeroActionItem = {
+  href: string;
+  key: string;
+  label: string;
+  variant: "default" | "outline" | "secondary";
+  external?: boolean;
+  className?: string;
+};
+const heroActionItems: HeroActionItem[] = [];
+if (project) {
+  heroActionItems.push({
+    href: "#downloads",
+    key: "downloads",
+    label: isChapterBased ? "Ver capÃ­tulos" : "Ver episÃ³dios",
+    variant: "default",
+  });
+  if (project.trailerUrl) {
+    heroActionItems.push({
+      href: project.trailerUrl,
+      key: "trailer",
+      label: "Assistir trailer",
+      variant: "outline",
+      external: true,
+    });
+  }
+  if (canEditProject) {
+    heroActionItems.push({
+      href: `/dashboard/projetos?edit=${encodeURIComponent(project.id)}`,
+      key: "edit",
+      label: "Editar projeto",
+      variant: "secondary",
+    });
+  }
+  if (isChapterBased && firstReadableChapter) {
+    heroActionItems.push({
+      href: buildProjectPublicReadingHref(
+        project.id,
+        firstReadableChapter.number,
+        firstReadableChapter.volume,
+      ),
+      key: "read",
+      label: "ComeÃ§ar leitura",
+      variant: "outline",
+      className: "order-last",
+    });
+  }
+}
+const staticProjectHeroId = "public-phase3-project-hero";
 const _meta = resolveProjectPageMeta({
   fallbackOrigin: locals?.primaryAppOrigin || Astro.url.origin,
   pathname: Astro.url.pathname,
@@ -123,12 +131,14 @@ const _meta = resolveProjectPageMeta({
 >
   {
     renderAstroHero ? (
-      <ProjectHero
-        actionItems={heroActionItems}
-        project={project!}
-        mediaVariants={routePayload?.mediaVariants || {}}
-        tagItems={translatedTags}
-      />
+      <div id={staticProjectHeroId}>
+        <ProjectHero
+          actionItems={heroActionItems}
+          project={project!}
+          mediaVariants={routePayload?.mediaVariants || {}}
+          tagItems={translatedTags}
+        />
+      </div>
     ) : null
   }
   <ProjectIslandApp
@@ -137,7 +147,7 @@ const _meta = resolveProjectPageMeta({
     initialPublicBootstrap={publicBootstrap}
     initialPublicRoutePayload={locals?.routePayload || null}
     initialSettings={locals?.siteSettings || null}
-    renderHero={!renderAstroHero}
-    slug={Astro.params.slug}
+    slug={Astro.params.slug || ""}
+    staticProjectHeroId={renderAstroHero ? staticProjectHeroId : undefined}
   />
 </PublicLayout>

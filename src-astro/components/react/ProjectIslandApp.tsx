@@ -1,15 +1,14 @@
-import Project from "@/pages/Project";
 import type { PublicBootstrapPayload, PublicRoutePayload } from "@/types/public-bootstrap";
 import type { SiteSettings } from "@/types/site-settings";
-import PublicHydratedPage from "./PublicHydratedPage";
+import PublicPhase3IslandApp from "./PublicPhase3IslandApp";
 
 interface ProjectIslandAppProps {
   initialCurrentUser?: unknown;
   initialPublicBootstrap: PublicBootstrapPayload | null;
   initialPublicRoutePayload?: PublicRoutePayload | null;
   initialSettings?: SiteSettings | null;
-  renderHero?: boolean;
-  slug?: string;
+  slug: string;
+  staticProjectHeroId?: string;
 }
 
 const ProjectIslandApp = ({
@@ -17,17 +16,18 @@ const ProjectIslandApp = ({
   initialPublicBootstrap,
   initialPublicRoutePayload,
   initialSettings,
-  renderHero = true,
   slug,
+  staticProjectHeroId,
 }: ProjectIslandAppProps) => (
-  <PublicHydratedPage
+  <PublicPhase3IslandApp
     initialCurrentUser={initialCurrentUser}
+    initialPath={`/projeto/${encodeURIComponent(slug)}`}
+    initialProjectSlug={slug}
     initialPublicBootstrap={initialPublicBootstrap}
     initialPublicRoutePayload={initialPublicRoutePayload}
     initialSettings={initialSettings}
-  >
-    <Project slug={slug} renderHero={renderHero} />
-  </PublicHydratedPage>
+    staticProjectHeroId={staticProjectHeroId}
+  />
 );
 
 export default ProjectIslandApp;

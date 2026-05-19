@@ -32,6 +32,18 @@ describe("public-document-navigation", () => {
         currentPath: "/projetos",
         targetPath: "/projeto/slug-teste",
       }),
+    ).toBe(true);
+    expect(
+      canUsePublicAstroClientNavigation({
+        currentPath: "/projeto/slug-teste",
+        targetPath: "/",
+      }),
+    ).toBe(true);
+    expect(
+      canUsePublicAstroClientNavigation({
+        currentPath: "/equipe",
+        targetPath: "/projeto/slug-teste",
+      }),
     ).toBe(false);
   });
 });
