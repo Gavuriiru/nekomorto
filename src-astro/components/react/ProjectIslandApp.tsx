@@ -8,6 +8,7 @@ interface ProjectIslandAppProps {
   initialPublicBootstrap: PublicBootstrapPayload | null;
   initialPublicRoutePayload?: PublicRoutePayload | null;
   initialSettings?: SiteSettings | null;
+  renderHero?: boolean;
   slug?: string;
 }
 
@@ -16,6 +17,7 @@ const ProjectIslandApp = ({
   initialPublicBootstrap,
   initialPublicRoutePayload,
   initialSettings,
+  renderHero = true,
   slug,
 }: ProjectIslandAppProps) => (
   <PublicHydratedPage
@@ -24,7 +26,7 @@ const ProjectIslandApp = ({
     initialPublicRoutePayload={initialPublicRoutePayload}
     initialSettings={initialSettings}
   >
-    <Project slug={slug} />
+    <Project slug={slug} renderHero={renderHero} />
   </PublicHydratedPage>
 );
 

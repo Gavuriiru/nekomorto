@@ -1821,7 +1821,17 @@ const astroPublicRequestHandler = createAstroPublicRequestHandler({
   isProduction,
   loadAstroFallbackRoutePayload: async ({ pathname, pages, req, routePayload, siteSettings }) => {
     if (pathname !== "/equipe" && pathname !== "/doacoes") {
-      return routePayload;
+      if (/^\/projeto\/[^/]+$/.test(pathname)) {
+        const isCompleteProjectPayload =
+          routePayload?.kind === "project-detail" &&
+          routePayload.project &&
+          typeof routePayload.project === "object";
+        if (isCompleteProjectPayload) {
+          return routePayload;
+        }
+      } else {
+        return routePayload;
+      }
     }
     if (pathname === "/equipe") {
       const isCompleteTeamPayload =

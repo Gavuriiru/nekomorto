@@ -431,4 +431,99 @@ describe("buffered Astro response delivery", () => {
       });
     }
   });
+
+  it("repairs incomplete project-detail payloads before Astro renders", async () => {
+    const tempDir = mkdtempSync(path.join(process.cwd(), "tmp-astro-handler-"));
+    tempDirs.push(tempDir);
+    const entryFilePath = path.join(tempDir, "entry.mjs");
+    writeFileSync(
+      entryFilePath,
+      [
+        "export const handler = async (_req, res, _next, locals) => {",
+        '  res.writeHead(200, { "Content-Type": "text/html; charset=utf-8" });',
+        "  res.end(`<!doctype html><html><body>${JSON.stringify(locals.nekomata.routePayload)}</body></html>`);",
+        "};",
+      ].join("\n"),
+      "utf8",
+    );
+
+    const app = express();
+    const repairedPayload = {
+      kind: "project-detail",
+      generatedAt: "2026-05-19T00:00:00.000Z",
+      project: {
+        id: "project-1",
+        title: "Projeto Teste",
+      },
+      revision: "revision-1",
+      mediaVariants: {},
+      relationProjectLookup: {},
+      tagTranslations: {
+        tags: {},
+        genres: {},
+        staffRoles: {},
+      },
+    };
+    const handler = createAstroPublicRequestHandler({
+      entryFilePath,
+      fs: {
+        existsSync: (candidate) => candidate === entryFilePath,
+      },
+      injectAstroPublicHtml: ({ html }) => html,
+      isProduction: true,
+      loadAstroFallbackRoutePayload: async ({ pathname, routePayload }) => {
+        if (pathname !== "/projeto/project-1" || routePayload?.project) {
+          return routePayload;
+        }
+        return repairedPayload;
+      },
+      loadAstroPublicBootstrap: () => null,
+      loadAstroRoutePayload: () => ({
+        kind: "project-detail",
+        generatedAt: "2026-05-19T00:00:00.000Z",
+        project: null,
+        revision: "",
+        mediaVariants: {},
+        relationProjectLookup: {},
+        tagTranslations: {
+          tags: {},
+          genres: {},
+          staffRoles: {},
+        },
+      }),
+      loadPages: () => null,
+      loadSiteSettings: () => null,
+      primaryAppOrigin: "http://127.0.0.1:0",
+    });
+
+    app.get("/projeto/:slug", (req, res, next) => {
+      void handler(req, res, next);
+    });
+
+    const server = await new Promise<Server>((resolve) => {
+      const nextServer = app.listen(0, () => resolve(nextServer));
+    });
+
+    try {
+      const address = server.address();
+      const port = typeof address === "object" && address ? address.port : 0;
+      const baseUrl = new URL(`http://127.0.0.1:${port}`);
+      const response = await requestText(baseUrl, "/projeto/project-1");
+
+      expect(response.status).toBe(200);
+      expect(response.body).toContain('"kind":"project-detail"');
+      expect(response.body).toContain('"id":"project-1"');
+      expect(response.body).toContain('"title":"Projeto Teste"');
+    } finally {
+      await new Promise((resolve, reject) => {
+        server.close((error) => {
+          if (error) {
+            reject(error);
+            return;
+          }
+          resolve(undefined);
+        });
+      });
+    }
+  });
 });

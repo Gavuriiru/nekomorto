@@ -1,4 +1,16 @@
 ---
+import PublicLink from "../../../src/components/PublicLink";
+import ProjectHero from "../../../src/components/project/ProjectHero";
+import { Button } from "../../../src/components/ui/button";
+import { canManageProjectsAccess } from "../../../src/lib/access-control";
+import { buildProjectPublicReadingHref } from "../../../src/lib/project-editor-routes";
+import {
+  buildTranslationMap,
+  sortByTranslatedLabel,
+  translateTag,
+} from "../../../src/lib/project-taxonomy";
+import { hasPublicEpisodeReadableContent } from "../../../src/lib/public-project-episodes";
+import { isChapterBasedType } from "../../../src/lib/project-utils";
 import type { PublicRouteProjectDetailPayload } from "../../../src/types/public-bootstrap";
 import ProjectIslandApp from "../../components/react/ProjectIslandApp";
 import PublicLayout from "../../layouts/PublicLayout.astro";
@@ -11,6 +23,49 @@ const routePayload =
   locals?.routePayload && locals.routePayload.kind === "project-detail"
     ? (locals.routePayload as PublicRouteProjectDetailPayload)
     : null;
+const project = routePayload?.project || null;
+const tagTranslationMap = buildTranslationMap(routePayload?.tagTranslations?.tags || {});
+const translatedTags = project
+  ? sortByTranslatedLabel(project.tags || [], (tag) => translateTag(tag, tagTranslationMap)).map(
+      (tag) => ({
+        href: `/projetos?tag=${encodeURIComponent(tag)}`,
+        key: tag,
+        label: translateTag(tag, tagTranslationMap),
+      }),
+    )
+  : [];
+const compareReadableEpisodeOrdering = (
+  left: { number?: number; volume?: number; readingOrder?: number },
+  right: { number?: number; volume?: number; readingOrder?: number },
+) => {
+  const leftReadingOrder = Number(left?.readingOrder);
+  const rightReadingOrder = Number(right?.readingOrder);
+  const hasLeftReadingOrder = Number.isFinite(leftReadingOrder);
+  const hasRightReadingOrder = Number.isFinite(rightReadingOrder);
+  if (hasLeftReadingOrder || hasRightReadingOrder) {
+    if (!hasLeftReadingOrder) {
+      return 1;
+    }
+    if (!hasRightReadingOrder) {
+      return -1;
+    }
+    if (leftReadingOrder !== rightReadingOrder) {
+      return leftReadingOrder - rightReadingOrder;
+    }
+  }
+  const numberDelta = (left.number || 0) - (right.number || 0);
+  if (numberDelta !== 0) {
+    return numberDelta;
+  }
+  return (left.volume || 0) - (right.volume || 0);
+};
+const isChapterBased = isChapterBasedType(project?.type || "");
+const firstReadableChapter =
+  project?.episodeDownloads
+    ?.filter((episode) => hasPublicEpisodeReadableContent(episode))
+    ?.sort(compareReadableEpisodeOrdering)?.[0] || null;
+const canEditProject = canManageProjectsAccess(locals?.currentUser ?? null);
+const renderAstroHero = Boolean(project);
 const _meta = resolveProjectPageMeta({
   fallbackOrigin: locals?.primaryAppOrigin || Astro.url.origin,
   pathname: Astro.url.pathname,
@@ -28,12 +83,53 @@ const _meta = resolveProjectPageMeta({
   structuredData={_meta.structuredData}
   title={_meta.title}
 >
+  {
+    renderAstroHero ? (
+      <ProjectHero
+        project={project!}
+        mediaVariants={routePayload?.mediaVariants || {}}
+        tagItems={translatedTags}
+      >
+        <Button asChild className="gap-2">
+          <a href="#downloads">{isChapterBased ? "Ver capítulos" : "Ver episódios"}</a>
+        </Button>
+        {project?.trailerUrl ? (
+          <Button asChild variant="outline" className="gap-2">
+            <a href={project.trailerUrl} target="_blank" rel="noreferrer">
+              Assistir trailer
+            </a>
+          </Button>
+        ) : null}
+        {canEditProject ? (
+          <Button asChild variant="secondary" className="gap-2">
+            <PublicLink href={`/dashboard/projetos?edit=${encodeURIComponent(project!.id)}`}>
+              Editar projeto
+            </PublicLink>
+          </Button>
+        ) : null}
+        {isChapterBased && firstReadableChapter ? (
+          <Button asChild variant="outline" className="gap-2 order-last">
+            <PublicLink
+              href={buildProjectPublicReadingHref(
+                project!.id,
+                firstReadableChapter.number,
+                firstReadableChapter.volume,
+              )}
+            >
+              Começar leitura
+            </PublicLink>
+          </Button>
+        ) : null}
+      </ProjectHero>
+    ) : null
+  }
   <ProjectIslandApp
     client:load
     initialCurrentUser={locals?.currentUser ?? null}
     initialPublicBootstrap={publicBootstrap}
     initialPublicRoutePayload={locals?.routePayload || null}
     initialSettings={locals?.siteSettings || null}
+    renderHero={!renderAstroHero}
     slug={Astro.params.slug}
   />
 </PublicLayout>

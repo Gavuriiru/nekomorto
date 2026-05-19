@@ -266,7 +266,7 @@ const resolveProjectRoutePayloadForSlug = (
   return resolveBootstrapProject(projectListBootstrap, slug) ? payload : null;
 };
 
-const ProjectPage = ({ slug: slugProp }: { slug?: string }) => {
+const ProjectPage = ({ renderHero = true, slug: slugProp }: { renderHero?: boolean; slug?: string }) => {
   const location = usePublicDocumentLocation();
   const slug = slugProp || resolveProjectSlugFromPath(location.pathname);
   const apiBase = getApiBase();
@@ -1340,7 +1340,8 @@ const ProjectPage = ({ slug: slugProp }: { slug?: string }) => {
   return (
     <div className="min-h-screen bg-background text-foreground">
       <main>
-        <section data-testid="project-hero" className="relative overflow-hidden">
+        {renderHero ? (
+          <section data-testid="project-hero" className="relative overflow-hidden">
           <UploadPicture
             src={heroBannerSrc}
             alt={heroBannerAlt}
@@ -1474,10 +1475,13 @@ const ProjectPage = ({ slug: slugProp }: { slug?: string }) => {
               </div>
             </div>
           </div>
-        </section>
+          </section>
+        ) : null}
 
         <section
-          className={`${publicPageLayoutTokens.sectionBase} relative z-10 -mt-8 max-w-6xl pb-12 pt-8 md:-mt-10 md:pt-10 reveal`}
+          className={`${publicPageLayoutTokens.sectionBase} relative z-10 ${
+            renderHero ? "-mt-8 pt-8 md:-mt-10 md:pt-10" : "pt-12 md:pt-14"
+          } max-w-6xl pb-12 reveal`}
           data-reveal
         >
           <div

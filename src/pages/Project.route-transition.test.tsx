@@ -1,5 +1,5 @@
 import { act, fireEvent, render, screen, waitFor } from "@testing-library/react";
-import { MemoryRouter, Route, Routes, useNavigate } from "react-router-dom";
+import { MemoryRouter, Route, Routes, useNavigate, useParams } from "react-router-dom";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { PublicBootstrapProvider } from "@/hooks/public-bootstrap-provider";
 import ProjectPage from "@/pages/Project";
@@ -154,13 +154,14 @@ const routePayload: PublicRouteProjectDetailPayload = {
 
 const ProjectRouteHarness = () => {
   const navigate = useNavigate();
+  const params = useParams<{ slug: string }>();
 
   return (
     <>
       <button type="button" onClick={() => navigate("/projeto/project-2")}>
         Abrir projeto seguinte
       </button>
-      <ProjectPage />
+      <ProjectPage slug={params.slug} />
     </>
   );
 };
@@ -254,5 +255,38 @@ describe("Project route transitions", () => {
     expect(
       screen.queryByRole("heading", { level: 1, name: "Projeto Inicial" }),
     ).not.toBeInTheDocument();
+  });
+
+  it("permite desabilitar o hero hidratado quando a shell Astro ja o renderizou", () => {
+    apiFetchMock.mockImplementation(
+      async (_apiBase: string, endpoint: string, options?: RequestInit) => {
+        const method = String(options?.method || "GET").toUpperCase();
+
+        if (endpoint === "/api/public/bootstrap" && method === "GET") {
+          return mockJsonResponse(true, bootstrapPayload);
+        }
+
+        if (endpoint === "/api/public/projects/project-1/view" && method === "POST") {
+          return mockJsonResponse(true, { ok: true });
+        }
+
+        return mockJsonResponse(false, { error: "not_found" }, 404);
+      },
+    );
+
+    render(
+      <PublicBootstrapProvider
+        initialPublicBootstrap={bootstrapPayload}
+        initialPublicRoutePayload={routePayload}
+      >
+        <MemoryRouter initialEntries={["/projeto/project-1"]}>
+          <ProjectPage slug="project-1" renderHero={false} />
+        </MemoryRouter>
+      </PublicBootstrapProvider>,
+    );
+
+    expect(screen.queryByTestId("project-hero")).not.toBeInTheDocument();
+    expect(screen.getByText("Sobre o projeto")).toBeInTheDocument();
+    expect(screen.queryByText("Carregando projeto...")).not.toBeInTheDocument();
   });
 });
