@@ -1,6 +1,6 @@
 import { Clock } from "lucide-react";
 import type { CSSProperties } from "react";
-import { useMemo } from "react";
+import { useEffect, useMemo } from "react";
 import { Link } from "react-router-dom";
 
 import PublicInteractiveCardShell from "@/components/PublicInteractiveCardShell";
@@ -8,13 +8,16 @@ import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Progress } from "@/components/ui/progress";
 import { Skeleton } from "@/components/ui/skeleton";
-import { getPublicRoutePreloadHandlers } from "@/routes/public-preload";
 import { usePublicBootstrap } from "@/hooks/use-public-bootstrap";
 import { buildEpisodeKey } from "@/lib/project-episode-key";
 import {
   getProjectProgressKindForPublicCard,
   getProjectProgressStateForPublicCard,
 } from "@/lib/project-progress";
+import {
+  getPublicRoutePreloadHandlers,
+  schedulePublicRouteIdlePreload,
+} from "@/routes/public-preload";
 import type { PublicBootstrapInProgressItem } from "@/types/public-bootstrap";
 
 interface WorkItem {
@@ -82,6 +85,13 @@ const WorkStatusCard = () => {
   }, [inProgressItems]);
 
   const itemsInProgress = workItems.filter((item) => item.progressState.isInProgress);
+
+  useEffect(() => {
+    return schedulePublicRouteIdlePreload(
+      itemsInProgress.slice(0, VISIBLE_PROGRESS_ITEMS).map((item) => `/projeto/${item.projectId}`),
+      { delayMs: 700 },
+    );
+  }, [itemsInProgress]);
 
   return (
     <Card

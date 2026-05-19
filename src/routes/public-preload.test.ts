@@ -10,10 +10,21 @@ vi.mock("@/lib/api-client", () => ({
   apiFetch: (...args: unknown[]) => apiFetchMock(...args),
 }));
 
+vi.mock("@/lib/browser-idle", () => ({
+  scheduleOnBrowserLoadIdle: (callback: (deadline: IdleDeadline) => void) => {
+    callback({
+      didTimeout: false,
+      timeRemaining: () => 0,
+    } as IdleDeadline);
+    return () => undefined;
+  },
+}));
+
 import {
   clearPublicRoutePreloadCacheForTests,
   peekPreloadedPublicRoutePayload,
   preloadPublicRoute,
+  schedulePublicRouteIdlePreload,
 } from "@/routes/public-preload";
 
 const mockJsonResponse = (ok: boolean, payload: unknown, status = ok ? 200 : 500) =>
@@ -179,5 +190,73 @@ describe("preloadPublicRoute", () => {
     await preloadPublicRoute("/projeto/project-2");
 
     expect(apiFetchMock).toHaveBeenCalledTimes(1);
+  });
+
+  it("schedules idle preloads once per path", async () => {
+    apiFetchMock.mockResolvedValue(
+      mockJsonResponse(true, {
+        project: {
+          id: "project-2",
+          title: "Projeto Seguinte",
+          synopsis: "Sinopse seguinte",
+          description: "Descricao seguinte",
+          type: "Anime",
+          status: "Em andamento",
+          year: "2026",
+          tags: [],
+          genres: [],
+          cover: "/uploads/project-next-cover.jpg",
+          coverAlt: "",
+          banner: "/uploads/project-next-banner.jpg",
+          bannerAlt: "",
+          season: "",
+          schedule: "",
+          rating: "",
+          country: "",
+          source: "",
+          heroImageUrl: "",
+          heroImageAlt: "",
+          heroLogoUrl: "",
+          heroLogoAlt: "",
+          forceHero: false,
+          trailerUrl: "",
+          studio: "",
+          animationStudios: [],
+          episodes: "",
+          producers: [],
+          score: null,
+          startDate: "",
+          endDate: "",
+          staff: [],
+          animeStaff: [],
+          relations: [],
+          volumeEntries: [],
+          volumeCovers: [],
+          episodeDownloads: [],
+          views: 0,
+          viewsDaily: {},
+          commentsCount: 0,
+        },
+        revision: "revision-project-2",
+        mediaVariants: {},
+        translations: {
+          tags: {},
+          genres: {},
+          staffRoles: {},
+        },
+      }),
+    );
+
+    schedulePublicRouteIdlePreload(["/projeto/project-2", "/projeto/project-2"], {
+      delayMs: 0,
+    });
+
+    await Promise.resolve();
+    await Promise.resolve();
+
+    expect(apiFetchMock).toHaveBeenCalledTimes(1);
+    expect(apiFetchMock).toHaveBeenCalledWith("", "/api/public/projects/project-2", {
+      cache: "force-cache",
+    });
   });
 });

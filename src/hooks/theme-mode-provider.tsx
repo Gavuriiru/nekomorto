@@ -117,6 +117,9 @@ const applyThemeToDocument = (mode: ThemeMode, accentHex: unknown) => {
   }
 };
 
+const buildThemeDocumentSignature = (mode: ThemeMode, accentHex: unknown) =>
+  `${mode}::${resolveThemeColor(accentHex)}`;
+
 const disableThemeTransitionsTemporarily = () => {
   if (typeof document === "undefined" || typeof window === "undefined") {
     return () => undefined;
@@ -168,6 +171,7 @@ export const ThemeModeProvider = ({ children }: { children: ReactNode }) => {
   const [preference, setPreferenceState] = useState<ThemeModePreference>("global");
   const [hasSyncedStoredPreference, setHasSyncedStoredPreference] = useState(false);
   const previousModeRef = useRef<ThemeMode | null>(null);
+  const previousDocumentThemeRef = useRef("");
   const transitionCleanupRef = useRef<(() => void) | null>(null);
 
   const globalMode = normalizeMode(settings.theme?.mode);
@@ -216,6 +220,11 @@ export const ThemeModeProvider = ({ children }: { children: ReactNode }) => {
       transitionCleanupRef.current = null;
     }
 
+    const nextDocumentThemeSignature = buildThemeDocumentSignature(effectiveMode, themeAccent);
+    if (previousDocumentThemeRef.current === nextDocumentThemeSignature) {
+      return;
+    }
+    previousDocumentThemeRef.current = nextDocumentThemeSignature;
     applyThemeToDocument(effectiveMode, themeAccent);
   }, [effectiveMode, hasSyncedStoredPreference, themeAccent]);
 

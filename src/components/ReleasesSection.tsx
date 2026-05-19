@@ -5,9 +5,12 @@ import { usePublicBootstrap } from "@/hooks/use-public-bootstrap";
 import { formatDate } from "@/lib/date";
 import { cn } from "@/lib/utils";
 import { CalendarDays, User } from "lucide-react";
-import { lazy, Suspense, useCallback, useMemo, useRef, useState } from "react";
+import { lazy, Suspense, useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { Link } from "react-router-dom";
-import { getPublicRoutePreloadHandlers } from "@/routes/public-preload";
+import {
+  getPublicRoutePreloadHandlers,
+  schedulePublicRouteIdlePreload,
+} from "@/routes/public-preload";
 import DiscordInviteCard from "./DiscordInviteCard";
 import LatestEpisodeCard from "./LatestEpisodeCard";
 import UploadPicture from "./UploadPicture";
@@ -81,6 +84,13 @@ const ReleasesSection = () => {
     },
     [currentPage, totalPages],
   );
+
+  useEffect(() => {
+    return schedulePublicRouteIdlePreload(
+      pagedReleases.slice(0, 4).map((release) => `/postagem/${release.slug}`),
+      { delayMs: 500 },
+    );
+  }, [pagedReleases]);
 
   return (
     <section

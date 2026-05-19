@@ -52,6 +52,8 @@ describe("html bootstrap injection", () => {
     expect(result).toContain("window.__BOOTSTRAP_PUBLIC_PROMISE__");
     expect(result).toContain("normalizeThemeColor");
     expect(result).toContain("meta.setAttribute('content', normalizeThemeColor(accentHex));");
+    expect(result).toContain("root.style.setProperty('--primary', primaryValue);");
+    expect(result).toContain("root.style.setProperty('--accent', accentValue);");
     expect(result).not.toContain("resolveThemeColorSection");
     expect(result).not.toContain("THEME_COLOR_OFFSETS");
     expect(result).not.toContain("applyThemeColor(window.location.pathname");

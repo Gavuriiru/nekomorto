@@ -2,7 +2,7 @@ import { Eye, Hash } from "lucide-react";
 import { memo, type CSSProperties, type MouseEvent, type Ref } from "react";
 import { Link } from "react-router-dom";
 
-import { getPublicRoutePreloadHandlers } from "@/routes/public-preload";
+import { usePublicRoutePreload } from "@/routes/use-public-route-preload";
 
 import PublicInteractiveCardShell from "@/components/PublicInteractiveCardShell";
 import UploadPicture from "@/components/UploadPicture";
@@ -254,7 +254,10 @@ const PublicProjectCard = ({
   const metaPills = Array.isArray(model.metaPills) ? model.metaPills : [];
   const secondaryBadges = Array.isArray(model.secondaryBadges) ? model.secondaryBadges : [];
   const trailingStats = Array.isArray(model.trailingStats) ? model.trailingStats : [];
-  const preloadHandlers = getPublicRoutePreloadHandlers(model.href);
+  const { preloadHandlers, viewportRef } = usePublicRoutePreload(model.href, {
+    enableIdle: true,
+    enableViewport: true,
+  });
 
   const renderPrimaryBadge = (badge: PublicProjectCardBadge) => {
     if (badge.href && badge.onClickHref) {
@@ -338,6 +341,7 @@ const PublicProjectCard = ({
         className={cn("rounded-2xl", shellClassName)}
       >
         <Link
+          ref={viewportRef}
           to={model.href}
           {...preloadHandlers}
           className={cn(
@@ -430,6 +434,7 @@ const PublicProjectCard = ({
         className={cn("rounded-xl", shellClassName)}
       >
         <Link
+          ref={viewportRef}
           to={model.href}
           {...preloadHandlers}
           className={cn(
@@ -504,6 +509,7 @@ const PublicProjectCard = ({
       >
         <Link
           data-testid={testIdBase}
+          ref={viewportRef}
           to={model.href}
           {...preloadHandlers}
           className={cn(
@@ -600,6 +606,7 @@ const PublicProjectCard = ({
         className={cn("rounded-xl", shellClassName)}
       >
         <Link
+          ref={viewportRef}
           to={model.href}
           {...preloadHandlers}
           className={cn(
@@ -659,6 +666,7 @@ const PublicProjectCard = ({
       className={cn("rounded-2xl", shellClassName)}
     >
       <Link
+        ref={viewportRef}
         to={model.href}
         {...preloadHandlers}
         className={cn(

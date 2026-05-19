@@ -1,5 +1,6 @@
 import { getApiBase } from "@/lib/api-base";
 import { apiFetch } from "@/lib/api-client";
+import { scheduleOnBrowserLoadIdle } from "@/lib/browser-idle";
 import { readWindowPublicBootstrap } from "@/lib/public-bootstrap-global";
 import type { PublicRoutePayload, PublicRouteProjectDetailPayload } from "@/types/public-bootstrap";
 import {
@@ -32,6 +33,7 @@ const preloadedPublicRouteKinds = new Set<string>();
 const preloadedPublicRoutePayloads = new Map<string, PublicRoutePayload | null>();
 const inflightPublicRoutePayloads = new Map<string, Promise<PublicRoutePayload | null>>();
 const prewarmedImageUrls = new Set<string>();
+const idleScheduledPublicPaths = new Set<string>();
 
 const normalizePathname = (value: string) => {
   const normalized = normalizePublicPrefetchPath(value);
@@ -312,9 +314,44 @@ export const getPublicRoutePreloadHandlers = (path: string) => {
   };
 };
 
+export const schedulePublicRouteIdlePreload = (
+  paths: string[],
+  options?: { delayMs?: number },
+) => {
+  const normalizedPaths = paths
+    .map((path) => normalizePathname(path))
+    .filter(Boolean)
+    .filter((path, index, list) => list.indexOf(path) === index)
+    .filter((path) => !idleScheduledPublicPaths.has(path));
+
+  if (normalizedPaths.length === 0) {
+    return () => undefined;
+  }
+
+  normalizedPaths.forEach((path) => {
+    idleScheduledPublicPaths.add(path);
+  });
+
+  let isCancelled = false;
+  const cancelIdle = scheduleOnBrowserLoadIdle(() => {
+    if (isCancelled) {
+      return;
+    }
+    normalizedPaths.forEach((path) => {
+      void preloadPublicRoute(path);
+    });
+  }, options);
+
+  return () => {
+    isCancelled = true;
+    cancelIdle();
+  };
+};
+
 export const clearPublicRoutePreloadCacheForTests = () => {
   preloadedPublicRouteKinds.clear();
   preloadedPublicRoutePayloads.clear();
   inflightPublicRoutePayloads.clear();
   prewarmedImageUrls.clear();
+  idleScheduledPublicPaths.clear();
 };

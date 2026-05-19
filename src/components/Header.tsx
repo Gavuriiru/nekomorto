@@ -29,7 +29,10 @@ import { Menu } from "lucide-react";
 import type { ReactNode } from "react";
 import { lazy, Suspense, useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useLocation } from "react-router-dom";
-import { getPublicRoutePreloadHandlers } from "@/routes/public-preload";
+import {
+  getPublicRoutePreloadHandlers,
+  schedulePublicRouteIdlePreload,
+} from "@/routes/public-preload";
 
 type HeaderProps = {
   variant?: "fixed" | "static";
@@ -413,6 +416,22 @@ const Header = ({
       accessRole: resolveAccessRole(currentUser),
     });
   }, [currentUser, dashboardMenuItems]);
+
+  useEffect(() => {
+    const candidatePaths = [
+      "/",
+      "/projetos",
+      "/equipe",
+      "/recrutamento",
+      "/sobre",
+      "/faq",
+      "/doacoes",
+      "/termos-de-uso",
+      "/politica-de-privacidade",
+      ...navbarLinks.map((item) => item.href),
+    ].filter(isInternalHref);
+    return schedulePublicRouteIdlePreload(candidatePaths, { delayMs: 900 });
+  }, [navbarLinks]);
   const dashboardHomeHref = useMemo(
     () =>
       currentUser

@@ -1,6 +1,6 @@
 import { Clock, Sparkles } from "lucide-react";
 import type { CSSProperties } from "react";
-import { useMemo } from "react";
+import { useEffect, useMemo } from "react";
 import { Link } from "react-router-dom";
 
 import PublicInteractiveCardShell from "@/components/PublicInteractiveCardShell";
@@ -8,10 +8,13 @@ import UploadPicture from "@/components/UploadPicture";
 import { buttonVariants } from "@/components/ui/button-variants";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
-import { getPublicRoutePreloadHandlers } from "@/routes/public-preload";
 import { usePublicBootstrap } from "@/hooks/use-public-bootstrap";
 import { formatDate } from "@/lib/date";
 import { PROJECT_COVER_ASPECT_RATIO } from "@/lib/project-card-layout";
+import {
+  getPublicRoutePreloadHandlers,
+  schedulePublicRouteIdlePreload,
+} from "@/routes/public-preload";
 import { cn } from "@/lib/utils";
 
 const PT_DIACRITICS_REGEX = /[\u0300-\u036f]/g;
@@ -97,6 +100,13 @@ const LatestEpisodeCard = () => {
         .map(({ update }) => update),
     [recentUpdates],
   );
+
+  useEffect(() => {
+    return schedulePublicRouteIdlePreload(
+      sortedRecentUpdates.map((update) => `/projeto/${update.projectId}`),
+      { delayMs: 650 },
+    );
+  }, [sortedRecentUpdates]);
 
   return (
     <Card

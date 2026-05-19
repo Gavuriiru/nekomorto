@@ -3,8 +3,12 @@ import ThemedSvgMaskIcon from "@/components/ThemedSvgMaskIcon";
 import { useSiteSettings } from "@/hooks/use-site-settings";
 import { resolveBranding } from "@/lib/branding";
 import { isIconUrlSource, sanitizeIconSource, sanitizePublicHref } from "@/lib/url-safety";
-import { getPublicRoutePreloadHandlers } from "@/routes/public-preload";
+import {
+  getPublicRoutePreloadHandlers,
+  schedulePublicRouteIdlePreload,
+} from "@/routes/public-preload";
 import { Camera, Globe, MessageCircle, Play, Users, X } from "lucide-react";
+import { useEffect, useMemo } from "react";
 
 type FooterProps = {
   shellClassName?: string;
@@ -35,6 +39,23 @@ const Footer = ({ shellClassName = "" }: FooterProps) => {
     globe: Globe,
     site: Globe,
   };
+  const idlePreloadPaths = useMemo(
+    () =>
+      [
+        ...footerColumns.flatMap((column) =>
+          column.links
+            .map((link) => sanitizePublicHref(link.href))
+            .filter((href): href is string => Boolean(href && isInternalLink(href))),
+        ),
+        "/termos-de-uso",
+        "/politica-de-privacidade",
+      ].filter((path, index, list) => list.indexOf(path) === index),
+    [footerColumns],
+  );
+
+  useEffect(() => {
+    return schedulePublicRouteIdlePreload(idlePreloadPaths, { delayMs: 1200 });
+  }, [idlePreloadPaths]);
 
   return (
     <footer className={`border-t border-border/60 bg-background ${shellClassName}`.trim()}>

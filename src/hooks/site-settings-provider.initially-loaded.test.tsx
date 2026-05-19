@@ -79,4 +79,33 @@ describe("SiteSettingsProvider initiallyLoaded", () => {
       expect(screen.getByTestId("site-name")).toHaveTextContent("Nekomata API");
     });
   });
+
+  it("nao reaplica tokens do tema quando as mesmas configuracoes entram novamente", async () => {
+    const setPropertySpy = vi.spyOn(document.documentElement.style, "setProperty");
+    const initialSettings = {
+      site: { name: "Nekomata" },
+      theme: { accent: "#34A853", mode: "dark" },
+    } as any;
+
+    const view = render(
+      <SiteSettingsProvider initialSettings={initialSettings} initiallyLoaded>
+        <Consumer />
+      </SiteSettingsProvider>,
+    );
+
+    await waitFor(() => {
+      expect(screen.getByTestId("loading-state")).toHaveTextContent("idle");
+    });
+
+    setPropertySpy.mockClear();
+
+    view.rerender(
+      <SiteSettingsProvider initialSettings={initialSettings} initiallyLoaded>
+        <Consumer />
+      </SiteSettingsProvider>,
+    );
+
+    await Promise.resolve();
+    expect(setPropertySpy).not.toHaveBeenCalled();
+  });
 });

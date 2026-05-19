@@ -22,7 +22,7 @@ import { ChevronLeft, ChevronRight, Globe, Play } from "lucide-react";
 import * as React from "react";
 import { Link } from "react-router-dom";
 
-import { getPublicRoutePreloadHandlers } from "@/routes/public-preload";
+import { usePublicRoutePreload } from "@/routes/use-public-route-preload";
 import "./HeroSection.css";
 type HeroSlide = PublicBootstrapHomeHeroSlide & {
   optimizedImageSet?: {
@@ -426,7 +426,12 @@ const HeroSlideFrame = ({
   const isPrioritySlide = index === 0 || index === activeIndex;
   const shouldLoadImage = loadedSlideIds.has(slide.id) || isPrioritySlide;
   const projectHref = `/projeto/${slide.projectId}`;
-  const preloadHandlers = getPublicRoutePreloadHandlers(projectHref);
+  const { preloadHandlers, viewportRef } = usePublicRoutePreload(projectHref, {
+    enableIdle: true,
+    enableViewport: true,
+    idleDelayMs: 250,
+    rootMargin: "480px 0px",
+  });
   const loading = isPrioritySlide ? "eager" : "lazy";
   const imagePriorityProps = {
     fetchPriority: isPrioritySlide ? "high" : "auto",
@@ -557,7 +562,12 @@ const HeroSlideFrame = ({
               style={resolveHeroEntryStyle("actions", shouldAnimateEntry)}
             >
               <Button asChild className="gap-2">
-                <Link to={projectHref} aria-label={`Acessar página de ${slide.title}`} {...preloadHandlers}>
+                <Link
+                  ref={viewportRef}
+                  to={projectHref}
+                  aria-label={`Acessar página de ${slide.title}`}
+                  {...preloadHandlers}
+                >
                   <Globe className="h-4 w-4" />
                   Acessar página
                 </Link>

@@ -11,7 +11,7 @@ import { truncateMetaDescription } from "@/lib/meta-description";
 import { applyThemeAccentVariables } from "@/lib/theme-accent";
 import type { SiteSettings } from "@/types/site-settings";
 import type { ReactNode } from "react";
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 
 const ensureMeta = (selector: string, attrs: Record<string, string>) => {
   let el = document.querySelector(selector) as HTMLMetaElement | null;
@@ -24,6 +24,16 @@ const ensureMeta = (selector: string, attrs: Record<string, string>) => {
   }
   return el;
 };
+
+const buildSettingsSignature = (settings: SiteSettings) =>
+  JSON.stringify({
+    siteName: settings.site.name || "Nekomata",
+    siteDescription: truncateMetaDescription(settings.site.description || ""),
+    shareImage: normalizeAssetUrl(settings.site.defaultShareImage || ""),
+    faviconUrl: settings.site.faviconUrl || "",
+    accent: String(settings.theme?.accent || "").trim(),
+    mode: String(settings.theme?.mode || "").trim(),
+  });
 
 const applyDocumentSettings = (settings: SiteSettings) => {
   if (!settings) {
@@ -91,6 +101,7 @@ export const SiteSettingsProvider = ({
   const [settings, setSettings] = useState<SiteSettings>(
     mergeSettings(defaultSettings, resolvedInitialSettings || {}),
   );
+  const appliedSettingsSignatureRef = useRef("");
   const [isLoading, setIsLoading] = useState(
     !(initiallyLoaded || Boolean(resolvedInitialSettings)),
   );
@@ -106,7 +117,12 @@ export const SiteSettingsProvider = ({
           : await refreshPublicBootstrapCacheIfStale({ apiBase });
         const nextSettings = bootstrapPayload?.settings;
         if (nextSettings) {
-          setSettings(mergeSettings(defaultSettings, nextSettings));
+          setSettings((current) => {
+            const mergedSettings = mergeSettings(defaultSettings, nextSettings);
+            return buildSettingsSignature(current) === buildSettingsSignature(mergedSettings)
+              ? current
+              : mergedSettings;
+          });
           return;
         }
 
@@ -115,7 +131,12 @@ export const SiteSettingsProvider = ({
           return;
         }
         const data = await response.json();
-        setSettings(mergeSettings(defaultSettings, data.settings || {}));
+        setSettings((current) => {
+          const mergedSettings = mergeSettings(defaultSettings, data.settings || {});
+          return buildSettingsSignature(current) === buildSettingsSignature(mergedSettings)
+            ? current
+            : mergedSettings;
+        });
       } finally {
         if (showLoading) {
           setIsLoading(false);
@@ -129,7 +150,12 @@ export const SiteSettingsProvider = ({
     if (!resolvedInitialSettings) {
       return;
     }
-    setSettings(mergeSettings(defaultSettings, resolvedInitialSettings));
+    setSettings((current) => {
+      const mergedSettings = mergeSettings(defaultSettings, resolvedInitialSettings);
+      return buildSettingsSignature(current) === buildSettingsSignature(mergedSettings)
+        ? current
+        : mergedSettings;
+    });
     setIsLoading(false);
   }, [resolvedInitialSettings]);
 
@@ -148,6 +174,11 @@ export const SiteSettingsProvider = ({
   }, [refresh, resolvedInitialSettings]);
 
   useEffect(() => {
+    const nextSignature = buildSettingsSignature(settings);
+    if (appliedSettingsSignatureRef.current === nextSignature) {
+      return;
+    }
+    appliedSettingsSignatureRef.current = nextSignature;
     applyDocumentSettings(settings);
   }, [settings]);
 
