@@ -5,6 +5,9 @@ import { SiteSettingsProvider } from "@/hooks/site-settings-provider";
 import { useSiteSettings } from "@/hooks/use-site-settings";
 
 const apiFetchMock = vi.hoisted(() => vi.fn());
+const useResolvedPublicBootstrapMock = vi.hoisted(
+  () => vi.fn<() => Record<string, unknown> | null>(() => null),
+);
 
 vi.mock("@/lib/api-base", () => ({
   getApiBase: () => "",
@@ -13,6 +16,14 @@ vi.mock("@/lib/api-base", () => ({
 vi.mock("@/lib/api-client", () => ({
   apiFetch: (...args: unknown[]) => apiFetchMock(...args),
 }));
+
+vi.mock("@/hooks/public-bootstrap-provider", async () => {
+  const actual = await vi.importActual("@/hooks/public-bootstrap-provider");
+  return {
+    ...actual,
+    useResolvedPublicBootstrap: () => useResolvedPublicBootstrapMock(),
+  };
+});
 
 const mockJsonResponse = (ok: boolean, payload: unknown, status = ok ? 200 : 500) =>
   ({
@@ -34,6 +45,8 @@ const Consumer = () => {
 describe("SiteSettingsProvider initiallyLoaded", () => {
   beforeEach(() => {
     apiFetchMock.mockReset();
+    useResolvedPublicBootstrapMock.mockReset();
+    useResolvedPublicBootstrapMock.mockReturnValue(null);
   });
 
   it("revalida via /api/public/bootstrap quando initiallyLoaded=true", async () => {
@@ -86,6 +99,10 @@ describe("SiteSettingsProvider initiallyLoaded", () => {
       site: { name: "Nekomata" },
       theme: { accent: "#34A853", mode: "dark" },
     } as any;
+    useResolvedPublicBootstrapMock.mockReturnValue({
+      payloadMode: "full",
+      settings: initialSettings,
+    });
 
     const view = render(
       <SiteSettingsProvider initialSettings={initialSettings} initiallyLoaded>
@@ -107,5 +124,25 @@ describe("SiteSettingsProvider initiallyLoaded", () => {
 
     await Promise.resolve();
     expect(setPropertySpy).not.toHaveBeenCalled();
+  });
+
+  it("nao revalida quando o bootstrap inicial ja vem completo", async () => {
+    useResolvedPublicBootstrapMock.mockReturnValue({
+      payloadMode: "full",
+      settings: {
+        site: { name: "Nekomata Bootstrap" },
+      },
+    });
+
+    render(
+      <SiteSettingsProvider initialSettings={{ site: { name: "Nekomata" } } as any} initiallyLoaded>
+        <Consumer />
+      </SiteSettingsProvider>,
+    );
+
+    await waitFor(() => {
+      expect(screen.getByTestId("loading-state")).toHaveTextContent("idle");
+    });
+    expect(apiFetchMock).not.toHaveBeenCalled();
   });
 });

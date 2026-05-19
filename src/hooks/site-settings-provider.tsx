@@ -96,8 +96,10 @@ export const SiteSettingsProvider = ({
   initiallyLoaded?: boolean;
 }) => {
   const apiBase = getApiBase();
-  const bootstrapSettings = useResolvedPublicBootstrap()?.settings;
+  const bootstrapPayload = useResolvedPublicBootstrap();
+  const bootstrapSettings = bootstrapPayload?.settings;
   const resolvedInitialSettings = initialSettings || bootstrapSettings;
+  const hasFreshFullBootstrap = Boolean(bootstrapPayload && bootstrapPayload.payloadMode === "full");
   const [settings, setSettings] = useState<SiteSettings>(
     mergeSettings(defaultSettings, resolvedInitialSettings || {}),
   );
@@ -170,8 +172,11 @@ export const SiteSettingsProvider = ({
     if (!resolvedInitialSettings) {
       return;
     }
+    if (hasFreshFullBootstrap) {
+      return;
+    }
     void refresh(false);
-  }, [refresh, resolvedInitialSettings]);
+  }, [hasFreshFullBootstrap, refresh, resolvedInitialSettings]);
 
   useEffect(() => {
     const nextSignature = buildSettingsSignature(settings);

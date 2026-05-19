@@ -1,6 +1,7 @@
 import { act, fireEvent, render, screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
-import { MemoryRouter, useLocation } from "react-router-dom";
+import { MemoryRouter as ReactRouterMemoryRouter } from "react-router-dom";
+import { type ReactNode, useRef } from "react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 const useDynamicSynopsisClampMock = vi.hoisted(() => vi.fn());
@@ -11,6 +12,7 @@ vi.mock("@/hooks/use-dynamic-synopsis-clamp", () => ({
 }));
 
 import Projects from "@/pages/Projects";
+import { usePublicDocumentLocation } from "@/lib/public-document-navigation";
 
 const apiFetchMock = vi.hoisted(() => vi.fn());
 const resizeObserverObserveMock = vi.hoisted(() => vi.fn());
@@ -109,14 +111,26 @@ const setupApiMock = ({
 };
 
 const LocationProbe = () => {
-  const location = useLocation();
+  const location = usePublicDocumentLocation("/projetos");
   return <div data-testid="location-search">{location.search}</div>;
 };
 
-const getSearchParams = () =>
-  new URLSearchParams(
-    String(screen.getByTestId("location-search").textContent || "").replace(/^\?/, ""),
-  );
+const MemoryRouter = ({
+  children,
+  initialEntries,
+}: {
+  children: ReactNode;
+  initialEntries: string[];
+}) => {
+  const hasSyncedInitialEntryRef = useRef(false);
+  if (!hasSyncedInitialEntryRef.current) {
+    window.history.replaceState(null, "", String(initialEntries[0] || "/"));
+    hasSyncedInitialEntryRef.current = true;
+  }
+  return <ReactRouterMemoryRouter initialEntries={initialEntries}>{children}</ReactRouterMemoryRouter>;
+};
+
+const getSearchParams = () => new URLSearchParams(String(window.location.search || "").replace(/^\?/, ""));
 
 const getRenderedProjectCards = (container: HTMLElement) =>
   Array.from(container.querySelectorAll("a.projects-public-card"));

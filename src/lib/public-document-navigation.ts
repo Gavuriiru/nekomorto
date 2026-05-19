@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useState } from "react";
 
 export const PUBLIC_DOCUMENT_LOCATION_CHANGE_EVENT = "nekomata:public-document-location-change";
+const PUBLIC_ASTRO_CLIENT_ROUTE_PATHS = new Set(["/", "/projetos"]);
 
 const buildBrowserLocationSnapshot = () => {
   if (typeof window === "undefined") {
@@ -27,6 +28,22 @@ const emitPublicDocumentLocationChange = () => {
   window.dispatchEvent(new CustomEvent(PUBLIC_DOCUMENT_LOCATION_CHANGE_EVENT));
 };
 
+const normalizePathname = (value: string) => {
+  const pathname = value.split(/[?#]/, 1)[0] || "/";
+  const withoutTrailingSlash = pathname.replace(/\/+$/, "");
+  return withoutTrailingSlash || "/";
+};
+
+export const canUsePublicAstroClientNavigation = ({
+  currentPath,
+  targetPath,
+}: {
+  currentPath: string;
+  targetPath: string;
+}) =>
+  PUBLIC_ASTRO_CLIENT_ROUTE_PATHS.has(normalizePathname(currentPath)) &&
+  PUBLIC_ASTRO_CLIENT_ROUTE_PATHS.has(normalizePathname(targetPath));
+
 export const navigatePublicDocument = (
   href: string,
   options: { replace?: boolean; state?: unknown } = {},
@@ -44,8 +61,14 @@ export const navigatePublicDocument = (
   const currentUrl = new URL(window.location.href);
   const isSameDocumentRoute =
     targetUrl.origin === currentUrl.origin && targetUrl.pathname === currentUrl.pathname;
+  const canSoftNavigateBetweenRoutes =
+    targetUrl.origin === currentUrl.origin &&
+    canUsePublicAstroClientNavigation({
+      currentPath: currentUrl.pathname,
+      targetPath: targetUrl.pathname,
+    });
 
-  if (!isSameDocumentRoute) {
+  if (!isSameDocumentRoute && !canSoftNavigateBetweenRoutes) {
     window.location.assign(targetUrl.toString());
     return;
   }

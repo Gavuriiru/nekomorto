@@ -22,17 +22,17 @@ export type ProjectEpisodePublicationState = {
 };
 
 export const DOWNLOAD_SOURCES_REQUIRED_FOR_PUBLICATION_MESSAGE =
-  "Epis\u00f3dios publicados precisam ter pelo menos uma fonte de download completa.";
+  "Episódios publicados precisam ter pelo menos uma fonte de download completa.";
 
 export const READER_CONTENT_OR_DOWNLOAD_REQUIRED_FOR_PUBLICATION_MESSAGE =
-  "Cap\u00edtulos publicados precisam ter conte\u00fado no leitor ou pelo menos uma fonte de download completa.";
+  "Capítulos publicados precisam ter conteúdo no leitor ou pelo menos uma fonte de download completa.";
 
 const buildReaderContentOrDownloadMessage = (projectType?: string | null) => {
   if (isMangaType(projectType)) {
-    return "Cap\u00edtulos publicados precisam ter p\u00e1ginas no leitor ou pelo menos uma fonte de download completa.";
+    return "Capítulos publicados precisam ter páginas no leitor ou pelo menos uma fonte de download completa.";
   }
   if (isLightNovelType(projectType)) {
-    return "Cap\u00edtulos publicados precisam ter conte\u00fado leg\u00edvel no leitor ou pelo menos uma fonte de download completa.";
+    return "Capítulos publicados precisam ter conteúdo legível no leitor ou pelo menos uma fonte de download completa.";
   }
   return READER_CONTENT_OR_DOWNLOAD_REQUIRED_FOR_PUBLICATION_MESSAGE;
 };
@@ -57,14 +57,14 @@ export const resolveProjectEpisodePublicationErrorState = (
 ): { title: string; description: string } | null => {
   if (errorCode === "download_sources_required_for_publication") {
     return {
-      title: "N\u00e3o foi poss\u00edvel publicar o epis\u00f3dio",
+      title: "Não foi possível publicar o episódio",
       description: DOWNLOAD_SOURCES_REQUIRED_FOR_PUBLICATION_MESSAGE,
     };
   }
 
   if (errorCode === "reader_content_or_download_required_for_publication") {
     return {
-      title: "N\u00e3o foi poss\u00edvel publicar o cap\u00edtulo",
+      title: "Não foi possível publicar o capítulo",
       description: buildReaderContentOrDownloadMessage(projectType),
     };
   }

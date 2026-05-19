@@ -1,7 +1,6 @@
-import Projects from "@/pages/Projects";
 import type { PublicBootstrapPayload, PublicRoutePayload } from "@/types/public-bootstrap";
 import type { SiteSettings } from "@/types/site-settings";
-import PublicHydratedPage from "./PublicHydratedPage";
+import PublicHomeProjectsIslandApp from "./PublicHomeProjectsIslandApp";
 
 interface ProjectsIslandAppProps {
   initialCurrentUser?: unknown;
@@ -16,14 +15,12 @@ const ProjectsIslandApp = ({
   initialPublicRoutePayload,
   initialSettings,
 }: ProjectsIslandAppProps) => (
-  <PublicHydratedPage
+  <PublicHomeProjectsIslandApp
     initialCurrentUser={initialCurrentUser}
     initialPublicBootstrap={initialPublicBootstrap}
     initialPublicRoutePayload={initialPublicRoutePayload}
     initialSettings={initialSettings}
-  >
-    <Projects />
-  </PublicHydratedPage>
+  />
 );
 
 export default ProjectsIslandApp;
