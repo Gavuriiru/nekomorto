@@ -8,7 +8,7 @@ import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Progress } from "@/components/ui/progress";
 import { Skeleton } from "@/components/ui/skeleton";
-import { preloadPublicRoute } from "@/routes/public-preload";
+import { getPublicRoutePreloadHandlers } from "@/routes/public-preload";
 import { usePublicBootstrap } from "@/hooks/use-public-bootstrap";
 import { buildEpisodeKey } from "@/lib/project-episode-key";
 import {
@@ -127,8 +127,8 @@ const WorkStatusCard = () => {
                 >
                   <Link
                     to={`/projeto/${item.projectId}`}
-                    onMouseEnter={() => preloadPublicRoute(`/projeto/${item.projectId}`)}
                     className="work-status-item relative z-10 min-h-23 rounded-md p-3 group-hover/progress-item:border-primary/60 group-focus-within/progress-item:border-primary/60 focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-primary/45"
+                    {...getPublicRoutePreloadHandlers(`/projeto/${item.projectId}`)}
                   >
                     <div className="flex items-start justify-between gap-3">
                       <div className="flex-1 min-w-0">

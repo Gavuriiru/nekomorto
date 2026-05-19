@@ -8,7 +8,7 @@ import UploadPicture from "@/components/UploadPicture";
 import { buttonVariants } from "@/components/ui/button-variants";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
-import { preloadPublicRoute } from "@/routes/public-preload";
+import { getPublicRoutePreloadHandlers } from "@/routes/public-preload";
 import { usePublicBootstrap } from "@/hooks/use-public-bootstrap";
 import { formatDate } from "@/lib/date";
 import { PROJECT_COVER_ASPECT_RATIO } from "@/lib/project-card-layout";
@@ -195,8 +195,8 @@ const LatestEpisodeCard = () => {
                 >
                   <Link
                     to={`/projeto/${update.projectId}`}
-                    onMouseEnter={() => preloadPublicRoute(`/projeto/${update.projectId}`)}
                     className="recent-updates-item relative z-10 rounded-2xl transition-[border-color,background-color,color] duration-200 ease-[cubic-bezier(0.16,1,0.3,1)] hover:border-primary/60 focus-visible:border-primary/60 focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-primary/45"
+                    {...getPublicRoutePreloadHandlers(`/projeto/${update.projectId}`)}
                   >
                     <div
                       className="h-full shrink-0 overflow-hidden bg-secondary/60"

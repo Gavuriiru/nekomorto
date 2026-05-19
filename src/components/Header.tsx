@@ -28,8 +28,8 @@ import type { SearchSuggestion } from "@/types/search-suggestion";
 import { Menu } from "lucide-react";
 import type { ReactNode } from "react";
 import { lazy, Suspense, useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { Link, useLocation } from "react-router-dom";
-import { preloadPublicRoute } from "@/routes/public-preload";
+import { useLocation } from "react-router-dom";
+import { getPublicRoutePreloadHandlers } from "@/routes/public-preload";
 
 type HeaderProps = {
   variant?: "fixed" | "static";
@@ -502,9 +502,10 @@ const Header = ({
           )}
         >
           {leading}
-          <Link
-            to="/"
+          <a
+            href="/"
             className="flex items-center gap-3 text-2xl md:text-3xl font-black tracking-wider text-foreground"
+            {...getPublicRoutePreloadHandlers("/")}
           >
             {showWordmarkInNavbar ? (
               <>
@@ -533,7 +534,7 @@ const Header = ({
                 {showTextInNavbar ? <span>{siteName}</span> : null}
               </>
             )}
-          </Link>
+          </a>
         </div>
         <div className="flex shrink-0 items-center gap-3 md:gap-6">
           <div className="hidden lg:flex items-center gap-6 text-sm font-medium text-foreground/80">
@@ -547,14 +548,14 @@ const Header = ({
               }`;
               if (isInternal) {
                 return (
-                  <Link
+                  <a
                     key={`${item.label}-${item.href}`}
-                    to={item.href}
+                    href={item.href}
                     className={className}
-                    onMouseEnter={() => preloadPublicRoute(item.href)}
+                    {...getPublicRoutePreloadHandlers(item.href)}
                   >
                     {item.label}
-                  </Link>
+                  </a>
                 );
               }
               return (

@@ -15,7 +15,7 @@ import {
   Users,
 } from "lucide-react";
 import type { CSSProperties } from "react";
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { Link, useParams } from "react-router-dom";
 
 import CommentsSection from "@/components/CommentsSection";
@@ -36,6 +36,7 @@ import { PillButton } from "@/components/ui/pill-button";
 import { toast } from "@/components/ui/use-toast";
 import type { Project } from "@/data/projects";
 import {
+  usePublishResolvedPublicSnapshots,
   useResolvedPublicBootstrap,
   useResolvedPublicRoutePayload,
 } from "@/hooks/public-bootstrap-provider";
@@ -73,7 +74,12 @@ import type {
   PublicBootstrapPayload,
   PublicBootstrapProject,
   PublicRoutePayloadProjectLookup,
+  PublicRouteProjectDetailPayload,
 } from "@/types/public-bootstrap";
+import {
+  peekPreloadedPublicRoutePayload,
+  preloadPublicRoutePayload,
+} from "@/routes/public-preload";
 import NotFound from "./NotFound";
 
 type ProjectFilterPillTone = "secondary" | "outline";
@@ -86,12 +92,6 @@ type ProjectFilterPillLinkProps = {
   label: string;
   to: string;
   tone: ProjectFilterPillTone;
-};
-
-type ProjectTaxonomyTranslations = {
-  tags: Record<string, string>;
-  genres: Record<string, string>;
-  staffRoles: Record<string, string>;
 };
 
 const normalizeProjectStaffEntries = (value: unknown) => {
@@ -247,30 +247,17 @@ const buildRelationProjectLookup = ({
   }, {});
 };
 
-const normalizeProjectTaxonomyTranslations = (
-  value: unknown,
-): ProjectTaxonomyTranslations | null => {
-  if (!value || typeof value !== "object" || Array.isArray(value)) {
+const resolveProjectRoutePayloadForSlug = (
+  payload: PublicRouteProjectDetailPayload | null,
+  slug: string | undefined,
+) => {
+  if (!payload?.project) {
     return null;
   }
-
-  const candidate = value as Partial<ProjectTaxonomyTranslations>;
-  return {
-    tags:
-      candidate.tags && typeof candidate.tags === "object" && !Array.isArray(candidate.tags)
-        ? candidate.tags
-        : {},
-    genres:
-      candidate.genres && typeof candidate.genres === "object" && !Array.isArray(candidate.genres)
-        ? candidate.genres
-        : {},
-    staffRoles:
-      candidate.staffRoles &&
-      typeof candidate.staffRoles === "object" &&
-      !Array.isArray(candidate.staffRoles)
-        ? candidate.staffRoles
-        : {},
-  };
+  const projectListBootstrap = {
+    projects: [payload.project],
+  } as PublicBootstrapPayload;
+  return resolveBootstrapProject(projectListBootstrap, slug) ? payload : null;
 };
 
 const ProjectPage = () => {
@@ -278,31 +265,35 @@ const ProjectPage = () => {
   const apiBase = getApiBase();
   const bootstrapData = useResolvedPublicBootstrap();
   const routePayload = useResolvedPublicRoutePayload();
+  const { publishPublicRoutePayload } = usePublishResolvedPublicSnapshots();
   const hasFullBootstrap = bootstrapData?.payloadMode === "full";
   const rawProjectRoutePayload = routePayload?.kind === "project-detail" ? routePayload : null;
+  const canonicalProjectPath = slug ? `/projeto/${slug}` : "";
   const bootstrapProject = resolveBootstrapProject(bootstrapData, slug);
-  const routeProject = useMemo(() => {
-    if (!rawProjectRoutePayload?.project) {
-      return null;
-    }
-    const projectListBootstrap = {
-      ...bootstrapData,
-      projects: [rawProjectRoutePayload.project],
-    } as PublicBootstrapPayload;
-    return resolveBootstrapProject(projectListBootstrap, slug)
-      ? (rawProjectRoutePayload.project as Project)
-      : null;
-  }, [bootstrapData, rawProjectRoutePayload?.project, slug]);
-  const projectRoutePayload = routeProject ? rawProjectRoutePayload : null;
+  const projectRoutePayload = useMemo(
+    () => resolveProjectRoutePayloadForSlug(rawProjectRoutePayload, slug),
+    [rawProjectRoutePayload, slug],
+  );
+  const preloadedProjectRoutePayload = useMemo(() => {
+    const payload = peekPreloadedPublicRoutePayload(canonicalProjectPath);
+    return payload?.kind === "project-detail" ? resolveProjectRoutePayloadForSlug(payload, slug) : null;
+  }, [canonicalProjectPath, slug]);
+  const routeProject = projectRoutePayload?.project ? (projectRoutePayload.project as Project) : null;
+  const preloadedProject = preloadedProjectRoutePayload?.project
+    ? (preloadedProjectRoutePayload.project as Project)
+    : null;
   const bootstrapProjectSnapshot = hasFullBootstrap ? (bootstrapProject as Project | null) : null;
-  const initialProject = routeProject || bootstrapProjectSnapshot || null;
+  const initialProject = routeProject || preloadedProject || bootstrapProjectSnapshot || null;
   const [project, setProject] = useState<Project | null>(() => initialProject);
-  const [projectRevision, setProjectRevision] = useState(() => projectRoutePayload?.revision || "");
+  const [projectRevision, setProjectRevision] = useState(
+    () => projectRoutePayload?.revision || preloadedProjectRoutePayload?.revision || "",
+  );
   const [hasLoaded, setHasLoaded] = useState(Boolean(initialProject));
   const [relationProjectLookup, setRelationProjectLookup] =
     useState<PublicRoutePayloadProjectLookup>(
       () =>
         projectRoutePayload?.relationProjectLookup ||
+        preloadedProjectRoutePayload?.relationProjectLookup ||
         buildRelationProjectLookup({
           project: bootstrapProjectSnapshot as PublicBootstrapProject | null,
           projects: hasFullBootstrap ? ((bootstrapData?.projects || []) as Project[]) : [],
@@ -311,22 +302,24 @@ const ProjectPage = () => {
   const [tagTranslations, setTagTranslations] = useState<Record<string, string>>(
     () =>
       projectRoutePayload?.tagTranslations?.tags ||
+      preloadedProjectRoutePayload?.tagTranslations?.tags ||
       (hasFullBootstrap ? bootstrapData?.tagTranslations?.tags || {} : {}),
   );
   const [genreTranslations, setGenreTranslations] = useState<Record<string, string>>(
     () =>
       projectRoutePayload?.tagTranslations?.genres ||
+      preloadedProjectRoutePayload?.tagTranslations?.genres ||
       (hasFullBootstrap ? bootstrapData?.tagTranslations?.genres || {} : {}),
   );
   const [staffRoleTranslations, setStaffRoleTranslations] = useState<Record<string, string>>(
     () =>
       projectRoutePayload?.tagTranslations?.staffRoles ||
+      preloadedProjectRoutePayload?.tagTranslations?.staffRoles ||
       (hasFullBootstrap ? bootstrapData?.tagTranslations?.staffRoles || {} : {}),
   );
   const [hasLoadedTaxonomyTranslations, setHasLoadedTaxonomyTranslations] = useState(
-    () => Boolean(projectRoutePayload) || hasFullBootstrap,
+    () => Boolean(projectRoutePayload || preloadedProjectRoutePayload) || hasFullBootstrap,
   );
-  const shouldHydrateProjectFromApi = !routeProject && !bootstrapProjectSnapshot;
   const shouldHydrateProjectMetaFromApi = !projectRoutePayload && !hasFullBootstrap;
   const { status: bootstrapStatus } = usePublicBootstrap();
   const isHydratingProject = !project && !hasLoaded;
@@ -365,82 +358,33 @@ const ProjectPage = () => {
     type: "article",
   });
 
-  useEffect(() => {
-    if (!slug) {
-      return;
-    }
-    if (!shouldHydrateProjectFromApi) {
-      setHasLoaded(true);
-      return;
-    }
-    setHasLoaded(false);
-    let isActive = true;
-    const load = async () => {
-      try {
-        const response = await apiFetch(apiBase, `/api/public/projects/${slug}`);
-        if (!response.ok) {
-          if (isActive) {
-            setProject(null);
-            setProjectRevision("");
-            setMediaVariants({});
-            setRelationProjectLookup({});
-          }
-          return;
-        }
-        const data = await response.json();
-        if (isActive) {
-          setProject(data.project || null);
-          setProjectRevision(String(data?.revision || "").trim());
-          setMediaVariants(
-            data?.mediaVariants && typeof data.mediaVariants === "object" ? data.mediaVariants : {},
-          );
-          const normalizedTranslations = normalizeProjectTaxonomyTranslations(data?.translations);
-          if (normalizedTranslations) {
-            setTagTranslations(normalizedTranslations.tags);
-            setGenreTranslations(normalizedTranslations.genres);
-            setStaffRoleTranslations(normalizedTranslations.staffRoles);
-            setHasLoadedTaxonomyTranslations(true);
-          }
-        }
-      } catch {
-        if (isActive) {
-          setProject(null);
-          setProjectRevision("");
-          setMediaVariants({});
-        }
-      } finally {
-        if (isActive) {
-          setHasLoaded(true);
-        }
-      }
-    };
-    void load();
-    return () => {
-      isActive = false;
-    };
-  }, [apiBase, shouldHydrateProjectFromApi, slug]);
-
-  useEffect(() => {
-    if (projectRoutePayload) {
-      setProject((projectRoutePayload.project as Project | null) || null);
-      setProjectRevision(projectRoutePayload.revision || "");
-      setMediaVariants(projectRoutePayload.mediaVariants || {});
-      setRelationProjectLookup(projectRoutePayload.relationProjectLookup || {});
-      setTagTranslations(projectRoutePayload.tagTranslations?.tags || {});
-      setGenreTranslations(projectRoutePayload.tagTranslations?.genres || {});
-      setStaffRoleTranslations(projectRoutePayload.tagTranslations?.staffRoles || {});
+  const applyProjectRoutePayloadSnapshot = useCallback(
+    (payload: PublicRouteProjectDetailPayload, options?: { publish?: boolean }) => {
+      setProject((payload.project as Project | null) || null);
+      setProjectRevision(payload.revision || "");
+      setMediaVariants(payload.mediaVariants || {});
+      setRelationProjectLookup(payload.relationProjectLookup || {});
+      setTagTranslations(payload.tagTranslations?.tags || {});
+      setGenreTranslations(payload.tagTranslations?.genres || {});
+      setStaffRoleTranslations(payload.tagTranslations?.staffRoles || {});
       setHasLoadedTaxonomyTranslations(true);
-      setHasLoaded(Boolean(projectRoutePayload.project));
-      return;
-    }
-    if (bootstrapProjectSnapshot) {
-      setProject(bootstrapProjectSnapshot);
+      setHasLoaded(Boolean(payload.project));
+      if (options?.publish) {
+        publishPublicRoutePayload(payload);
+      }
+    },
+    [publishPublicRoutePayload],
+  );
+
+  const applyBootstrapProjectSnapshot = useCallback(
+    (nextProject: Project) => {
+      setProject(nextProject);
       setProjectRevision("");
       setHasLoaded(true);
       setMediaVariants(bootstrapData?.mediaVariants || {});
       setRelationProjectLookup(
         buildRelationProjectLookup({
-          project: bootstrapProjectSnapshot as PublicBootstrapProject | null,
+          project: nextProject as PublicBootstrapProject | null,
           projects: (bootstrapData?.projects || []) as Project[],
         }),
       );
@@ -448,21 +392,72 @@ const ProjectPage = () => {
       setGenreTranslations(bootstrapData?.tagTranslations?.genres || {});
       setStaffRoleTranslations(bootstrapData?.tagTranslations?.staffRoles || {});
       setHasLoadedTaxonomyTranslations(true);
+    },
+    [
+      bootstrapData?.mediaVariants,
+      bootstrapData?.projects,
+      bootstrapData?.tagTranslations?.genres,
+      bootstrapData?.tagTranslations?.staffRoles,
+      bootstrapData?.tagTranslations?.tags,
+    ],
+  );
+
+  const clearProjectPendingState = useCallback(() => {
+    setProject(null);
+    setProjectRevision("");
+    setMediaVariants({});
+    setRelationProjectLookup({});
+    setHasLoaded(false);
+  }, []);
+
+  useEffect(() => {
+    if (!slug) {
       return;
     }
-    if (shouldHydrateProjectFromApi) {
-      setHasLoaded(false);
+    if (projectRoutePayload) {
+      applyProjectRoutePayloadSnapshot(projectRoutePayload);
+      return;
     }
+    if (preloadedProjectRoutePayload) {
+      applyProjectRoutePayloadSnapshot(preloadedProjectRoutePayload, { publish: true });
+      return;
+    }
+    if (bootstrapProjectSnapshot) {
+      applyBootstrapProjectSnapshot(bootstrapProjectSnapshot);
+      return;
+    }
+    clearProjectPendingState();
+    let isActive = true;
+    const load = async () => {
+      const preloadedPayload = await preloadPublicRoutePayload(canonicalProjectPath);
+      if (!isActive) {
+        return;
+      }
+      if (preloadedPayload?.kind === "project-detail") {
+        const matchingPayload = resolveProjectRoutePayloadForSlug(preloadedPayload, slug);
+        if (matchingPayload) {
+          applyProjectRoutePayloadSnapshot(matchingPayload, { publish: true });
+          return;
+        }
+      }
+      if (isActive) {
+        setHasLoaded(true);
+      }
+    };
+    void load();
+    return () => {
+      isActive = false;
+    };
   }, [
-    bootstrapData?.mediaVariants,
-    bootstrapData?.projects,
-    bootstrapData?.tagTranslations?.genres,
-    bootstrapData?.tagTranslations?.staffRoles,
-    bootstrapData?.tagTranslations?.tags,
+    apiBase,
+    applyBootstrapProjectSnapshot,
+    applyProjectRoutePayloadSnapshot,
     bootstrapProjectSnapshot,
-    hasFullBootstrap,
+    canonicalProjectPath,
+    clearProjectPendingState,
+    preloadedProjectRoutePayload,
     projectRoutePayload,
-    shouldHydrateProjectFromApi,
+    slug,
   ]);
 
   useEffect(() => {

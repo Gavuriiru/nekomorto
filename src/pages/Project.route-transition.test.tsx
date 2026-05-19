@@ -3,6 +3,7 @@ import { MemoryRouter, Route, Routes, useNavigate } from "react-router-dom";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { PublicBootstrapProvider } from "@/hooks/public-bootstrap-provider";
 import ProjectPage from "@/pages/Project";
+import { clearPublicRoutePreloadCacheForTests } from "@/routes/public-preload";
 import type {
   PublicBootstrapPayload,
   PublicBootstrapProject,
@@ -167,9 +168,10 @@ const ProjectRouteHarness = () => {
 describe("Project route transitions", () => {
   beforeEach(() => {
     apiFetchMock.mockReset();
+    clearPublicRoutePreloadCacheForTests();
   });
 
-  it("mantem o projeto anterior visivel ate o novo slug resolver", async () => {
+  it("limpa o projeto anterior e mostra loading ate o novo slug resolver", async () => {
     let resolveProjectRequest: ((value: Response) => void) | null = null;
 
     apiFetchMock.mockImplementation(
@@ -180,6 +182,10 @@ describe("Project route transitions", () => {
           return await new Promise<Response>((resolve) => {
             resolveProjectRequest = resolve;
           });
+        }
+
+        if (endpoint === "/api/public/bootstrap" && method === "GET") {
+          return mockJsonResponse(true, bootstrapPayload);
         }
 
         if (
@@ -212,11 +218,15 @@ describe("Project route transitions", () => {
     fireEvent.click(screen.getByRole("button", { name: "Abrir projeto seguinte" }));
 
     await waitFor(() => {
-      expect(apiFetchMock).toHaveBeenCalledWith("", "/api/public/projects/project-2");
+      expect(apiFetchMock).toHaveBeenCalledWith("", "/api/public/projects/project-2", {
+        cache: "force-cache",
+      });
     });
-    expect(screen.getByRole("heading", { level: 1, name: "Projeto Inicial" })).toBeInTheDocument();
-    expect(screen.getByText("Sinopse inicial")).toBeInTheDocument();
-    expect(screen.queryByText("Carregando projeto...")).not.toBeInTheDocument();
+    expect(
+      screen.queryByRole("heading", { level: 1, name: "Projeto Inicial" }),
+    ).not.toBeInTheDocument();
+    expect(screen.queryByText("Sinopse inicial")).not.toBeInTheDocument();
+    expect(screen.getByText("Carregando projeto...")).toBeInTheDocument();
 
     await act(async () => {
       resolveProjectRequest?.(

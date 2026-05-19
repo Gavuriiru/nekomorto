@@ -11,6 +11,7 @@ import {
 } from "@/components/ui/dropdown-menu";
 import { getNavbarIcon } from "@/lib/navbar-icons";
 import type { PublicBootstrapCurrentUser } from "@/lib/public-bootstrap-global";
+import { getPublicRoutePreloadHandlers } from "@/routes/public-preload";
 import { uiCopy } from "@/lib/ui-copy";
 import { useThemeMode } from "@/hooks/use-theme-mode";
 import { LogOut, Menu, Sun, Moon } from "lucide-react";
@@ -74,10 +75,14 @@ const HeaderActionMenus = ({
                 className={headerMenuItemClass}
               >
                 {isInternalHref(item.href) ? (
-                  <Link to={item.href} className="flex items-center gap-2">
+                  <a
+                    href={item.href}
+                    className="flex items-center gap-2"
+                    {...getPublicRoutePreloadHandlers(item.href)}
+                  >
                     <ItemIcon className="h-4 w-4" />
                     {item.label}
-                  </Link>
+                  </a>
                 ) : (
                   <a
                     href={item.href}
