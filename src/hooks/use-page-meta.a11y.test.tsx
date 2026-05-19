@@ -47,6 +47,9 @@ describe("usePageMeta accessibility metadata", () => {
   beforeEach(() => {
     document.head.innerHTML = "";
     document.title = "";
+    delete document.documentElement.dataset.pageMeta;
+    delete document.documentElement.dataset.pageOwner;
+    delete document.documentElement.dataset.clientRouteMeta;
     window.history.replaceState(null, "", "/");
     mockSiteSettings.theme.accent = "#9667e0";
     (
@@ -151,6 +154,28 @@ describe("usePageMeta accessibility metadata", () => {
 
     expect(document.querySelector('meta[name="theme-color"]')?.getAttribute("content")).toBe(
       resolveThemeColor("#34A853"),
+    );
+  });
+
+  it("does not override Astro-owned metadata without the phase3 client opt-in", () => {
+    document.documentElement.dataset.pageOwner = "astro";
+    document.title = "Astro title";
+
+    render(<TestMeta description="Nao deve sobrescrever" />);
+
+    expect(document.title).toBe("Astro title");
+    expect(document.querySelector('meta[property="og:title"]')).toBeNull();
+  });
+
+  it("updates metadata inside Astro-owned documents when phase3 client meta is enabled", () => {
+    document.documentElement.dataset.pageOwner = "astro";
+    document.documentElement.dataset.clientRouteMeta = "phase3";
+
+    render(<TestMeta description="Atualiza fase 3" />);
+
+    expect(document.title).toBe("Pagina de teste | Nekomata");
+    expect(document.querySelector('meta[property="og:title"]')?.getAttribute("content")).toBe(
+      "Pagina de teste | Nekomata",
     );
   });
 });

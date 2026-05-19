@@ -7,6 +7,7 @@ import {
   getPublicRoutePreloadHandlers,
   schedulePublicRouteIdlePreload,
 } from "@/routes/public-preload";
+import { PublicChromePhase3Link, isPhase3PublicPath } from "@/routes/public-phase3-navigation";
 import { Camera, Globe, MessageCircle, Play, Users, X } from "lucide-react";
 import { useEffect, useMemo } from "react";
 
@@ -109,7 +110,15 @@ const Footer = ({ shellClassName = "" }: FooterProps) => {
                   }
                   return (
                     <li key={`${link.label}-${link.href}-${linkIndex}`}>
-                      {isInternalLink(safeHref) ? (
+                      {isInternalLink(safeHref) && isPhase3PublicPath(safeHref) ? (
+                        <PublicChromePhase3Link
+                          href={safeHref}
+                          className="text-foreground/80 transition-colors hover:text-primary"
+                          {...getPublicRoutePreloadHandlers(safeHref)}
+                        >
+                          {link.label}
+                        </PublicChromePhase3Link>
+                      ) : isInternalLink(safeHref) ? (
                         <a
                           href={safeHref}
                           className="text-foreground/80 transition-colors hover:text-primary"

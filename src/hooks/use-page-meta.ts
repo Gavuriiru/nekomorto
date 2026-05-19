@@ -102,7 +102,9 @@ export const usePageMeta = ({
     if (isLoading) {
       return;
     }
-    if (document.documentElement.dataset.pageOwner === "astro") {
+    const isPhase3ClientRouteMetaEnabled =
+      document.documentElement.dataset.clientRouteMeta === "phase3";
+    if (document.documentElement.dataset.pageOwner === "astro" && !isPhase3ClientRouteMetaEnabled) {
       return;
     }
     document.documentElement.dataset.pageMeta = "true";

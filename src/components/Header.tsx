@@ -21,6 +21,11 @@ import { buildAvatarRenderUrl } from "@/lib/avatar-render-url";
 import { resolveBranding } from "@/lib/branding";
 import { scheduleOnBrowserLoadIdle } from "@/lib/browser-idle";
 import { uiCopy } from "@/lib/ui-copy";
+import {
+  isPhase3PublicPath,
+  PublicChromePhase3Link,
+  usePublicChromeLocation,
+} from "@/routes/public-phase3-navigation";
 import type { UploadMediaVariantsMap } from "@/lib/upload-variants";
 import { sanitizePublicHref } from "@/lib/url-safety";
 import { cn } from "@/lib/utils";
@@ -28,7 +33,6 @@ import type { SearchSuggestion } from "@/types/search-suggestion";
 import { Menu } from "lucide-react";
 import type { ReactNode } from "react";
 import { lazy, Suspense, useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { useLocation } from "react-router-dom";
 import {
   getPublicRoutePreloadHandlers,
   schedulePublicRouteIdlePreload,
@@ -39,6 +43,7 @@ type HeaderProps = {
   showBottomGradient?: boolean;
   leading?: ReactNode;
   className?: string;
+  locationPath?: string;
 };
 type HeaderToastPayload = {
   title?: ReactNode;
@@ -112,6 +117,7 @@ const Header = ({
   showBottomGradient = true,
   leading,
   className,
+  locationPath = "/",
 }: HeaderProps) => {
   const MIN_SUGGEST_QUERY_LENGTH = 2;
   const [isSearchOpen, setIsSearchOpen] = useState(false);
@@ -127,7 +133,7 @@ const Header = ({
   const searchRef = useRef<HTMLDivElement | null>(null);
   const actionsClusterRef = useRef<HTMLDivElement | null>(null);
   const searchInputRef = useRef<HTMLInputElement | null>(null);
-  const location = useLocation();
+  const location = usePublicChromeLocation(locationPath);
   const apiBase = getApiBase();
   const isMobile = useIsMobile();
   const { settings } = useSiteSettings();
@@ -157,6 +163,8 @@ const Header = ({
     "border-border/70 bg-popover/95 text-popover-foreground backdrop-blur-xs";
   const headerMenuItemClass = "focus:bg-accent focus:text-accent-foreground";
   const isInternalHref = (href: string) => href.startsWith("/") && !href.startsWith("//");
+  const isPhase3ClientNavigableHref = (href: string) =>
+    isInternalHref(href) && isPhase3PublicPath(href);
   const normalizePathname = (value: string) => {
     const pathname = value.split(/[?#]/, 1)[0] || "/";
     const withoutTrailingSlash = pathname.replace(/\/+$/, "");
@@ -521,7 +529,7 @@ const Header = ({
           )}
         >
           {leading}
-          <a
+          <PublicChromePhase3Link
             href="/"
             className="flex items-center gap-3 text-2xl md:text-3xl font-black tracking-wider text-foreground"
             {...getPublicRoutePreloadHandlers("/")}
@@ -553,7 +561,7 @@ const Header = ({
                 {showTextInNavbar ? <span>{siteName}</span> : null}
               </>
             )}
-          </a>
+          </PublicChromePhase3Link>
         </div>
         <div className="flex shrink-0 items-center gap-3 md:gap-6">
           <div className="hidden lg:flex items-center gap-6 text-sm font-medium text-foreground/80">
@@ -565,6 +573,18 @@ const Header = ({
                   ? "text-foreground font-semibold"
                   : "text-foreground/80 hover:text-foreground"
               }`;
+              if (isPhase3ClientNavigableHref(item.href)) {
+                return (
+                  <PublicChromePhase3Link
+                    key={`${item.label}-${item.href}`}
+                    href={item.href}
+                    className={className}
+                    {...getPublicRoutePreloadHandlers(item.href)}
+                  >
+                    {item.label}
+                  </PublicChromePhase3Link>
+                );
+              }
               if (isInternal) {
                 return (
                   <a

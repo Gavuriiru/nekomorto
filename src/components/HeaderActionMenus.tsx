@@ -11,11 +11,11 @@ import {
 } from "@/components/ui/dropdown-menu";
 import { getNavbarIcon } from "@/lib/navbar-icons";
 import type { PublicBootstrapCurrentUser } from "@/lib/public-bootstrap-global";
+import { PublicChromePhase3Link, isPhase3PublicPath } from "@/routes/public-phase3-navigation";
 import { getPublicRoutePreloadHandlers } from "@/routes/public-preload";
 import { uiCopy } from "@/lib/ui-copy";
 import { useThemeMode } from "@/hooks/use-theme-mode";
 import { LogOut, Menu, Sun, Moon } from "lucide-react";
-import { Link } from "react-router-dom";
 
 export type HeaderActionMenuNavbarLink = {
   label: string;
@@ -74,7 +74,16 @@ const HeaderActionMenus = ({
                 asChild
                 className={headerMenuItemClass}
               >
-                {isInternalHref(item.href) ? (
+                {isInternalHref(item.href) && isPhase3PublicPath(item.href) ? (
+                  <PublicChromePhase3Link
+                    href={item.href}
+                    className="flex items-center gap-2"
+                    {...getPublicRoutePreloadHandlers(item.href)}
+                  >
+                    <ItemIcon className="h-4 w-4" />
+                    {item.label}
+                  </PublicChromePhase3Link>
+                ) : isInternalHref(item.href) ? (
                   <a
                     href={item.href}
                     className="flex items-center gap-2"
@@ -132,10 +141,10 @@ const HeaderActionMenus = ({
               const ItemIcon = item.icon;
               return (
                 <DropdownMenuItem key={item.href} asChild className={headerMenuItemClass}>
-                  <Link to={item.href} className="flex items-center gap-2">
+                  <a href={item.href} className="flex items-center gap-2">
                     <ItemIcon className="h-4 w-4" />
                     {item.label}
-                  </Link>
+                  </a>
                 </DropdownMenuItem>
               );
             })}

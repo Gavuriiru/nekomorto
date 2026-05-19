@@ -1,13 +1,6 @@
-import { useCallback, useMemo } from "react";
-import { Link } from "react-router-dom";
-
-import PublicProjectCard, {
-  PUBLIC_PROJECT_CARD_CLAMP_PROFILES,
-  resolvePublicProjectCardClampState,
-  resolvePublicProjectCardResponsiveMaxLines,
-} from "@/components/project/PublicProjectCard";
+import { useMemo } from "react";
+import UploadPicture from "@/components/UploadPicture";
 import { floatingSurfaceShadowClassName } from "@/components/ui/floating-surface";
-import { useDynamicSynopsisClamp } from "@/hooks/use-dynamic-synopsis-clamp";
 import { usePublicBootstrap } from "@/hooks/use-public-bootstrap";
 import { buildTranslationMap, translateTag } from "@/lib/project-taxonomy";
 import { buildPublicSearchIndex } from "@/lib/public-search-index";
@@ -17,6 +10,8 @@ import {
   selectVisibleTags,
   sortAlphabeticallyPtBr,
 } from "@/lib/search-ranking";
+import { PublicChromePhase3Link } from "@/routes/public-phase3-navigation";
+import { getPublicRoutePreloadHandlers } from "@/routes/public-preload";
 import { uiCopy } from "@/lib/ui-copy";
 import type { UploadMediaVariantsMap } from "@/lib/upload-variants";
 import { cn } from "@/lib/utils";
@@ -39,7 +34,6 @@ const HeaderSearchPopover = ({
   remoteSuggestions,
   remoteMediaVariants,
 }: HeaderSearchPopoverProps) => {
-  const searchClampProfile = PUBLIC_PROJECT_CARD_CLAMP_PROFILES.search;
   const { data: bootstrapData } = usePublicBootstrap();
   const projects = bootstrapData?.projects || [];
   const posts = bootstrapData?.posts || [];
@@ -116,26 +110,9 @@ const HeaderSearchPopover = ({
   );
   const hasResults =
     hasMinimumSearchQueryLength && (activeProjects.length > 0 || activePosts.length > 0);
-  const synopsisKeys = useMemo(() => activeProjects.map((item) => item.href), [activeProjects]);
-  const resolveSearchSynopsisMaxLines = useCallback(
-    ({ columnWidth, defaultMaxLines }: { columnWidth: number; defaultMaxLines: number }) =>
-      resolvePublicProjectCardResponsiveMaxLines({
-        profile: searchClampProfile,
-        columnWidth,
-        defaultMaxLines,
-      }),
-    [searchClampProfile],
-  );
-  const { rootRef: synopsisRootRef, lineByKey } = useDynamicSynopsisClamp({
-    enabled: activeProjects.length > 0,
-    keys: synopsisKeys,
-    maxLines: searchClampProfile.defaultMaxLines,
-    resolveMaxLines: resolveSearchSynopsisMaxLines,
-  });
 
   return (
     <div
-      ref={synopsisRootRef}
       data-testid="public-header-results"
       className={cn(
         "search-popover-enter absolute top-12 left-0 right-0 mx-auto max-h-[78vh] w-[min(24rem,calc(100vw-1rem))] overflow-hidden rounded-xl border border-border/60 bg-background/95 p-4 backdrop-blur-sm md:left-auto md:right-0 md:mx-0 md:w-80",
@@ -155,32 +132,47 @@ const HeaderSearchPopover = ({
           </p>
           <ul className="no-scrollbar mt-3 max-h-[44vh] space-y-3 overflow-y-auto overscroll-contain pr-1">
             {activeProjects.map((item) => {
-              const synopsisClampState = resolvePublicProjectCardClampState({
-                profile: searchClampProfile,
-                lines: lineByKey[item.href],
-              });
-
               return (
                 <li key={item.href}>
-                  <PublicProjectCard
-                    variant="search"
-                    model={{
-                      href: item.href,
-                      title: item.label,
-                      coverSrc: item.image,
-                      coverAlt: item.label,
-                      mediaVariants: activeProjectMediaVariants,
-                      synopsis: item.synopsis || "",
-                      synopsisKey: item.href,
-                      synopsisClampClass: synopsisClampState.synopsisClampClass,
-                      synopsisLines: synopsisClampState.synopsisLines,
-                      secondaryBadges: item.tags.map((tag) => ({
-                        key: `search-tag-${item.href}-${tag}`,
-                        label: tag,
-                        variant: "secondary",
-                      })),
-                    }}
-                  />
+                  <PublicChromePhase3Link
+                    href={item.href}
+                    className="group flex h-36 items-stretch overflow-hidden rounded-xl border border-border/60 bg-card/60 transition hover:border-primary/60 hover:bg-card/70 focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-primary/45"
+                    {...getPublicRoutePreloadHandlers(item.href)}
+                  >
+                    <div className="h-full shrink-0 overflow-hidden bg-secondary" style={{ aspectRatio: "9 / 14" }}>
+                      <UploadPicture
+                        src={item.image || "/placeholder.svg"}
+                        alt={item.label}
+                        preset="posterThumb"
+                        mediaVariants={activeProjectMediaVariants}
+                        className="block h-full w-full"
+                        imgClassName="h-full w-full object-cover transition-transform duration-300 group-hover:scale-105"
+                        loading="lazy"
+                      />
+                    </div>
+                    <div className="flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden p-4">
+                      <p className="line-clamp-1 shrink-0 text-sm font-semibold text-foreground group-hover:text-primary">
+                        {item.label}
+                      </p>
+                      {item.synopsis ? (
+                        <p className="mt-1 line-clamp-3 shrink-0 overflow-hidden text-xs leading-snug text-muted-foreground">
+                          {item.synopsis}
+                        </p>
+                      ) : null}
+                      {item.tags.length > 0 ? (
+                        <div className="mt-auto flex min-w-0 shrink-0 flex-nowrap gap-1.5 overflow-hidden pb-1 pt-2">
+                          {item.tags.map((tag) => (
+                            <span
+                              key={`${item.href}-${tag}`}
+                              className="shrink-0 whitespace-nowrap rounded-full border border-border/70 px-2 py-0.5 text-[9px] uppercase text-muted-foreground"
+                            >
+                              {tag}
+                            </span>
+                          ))}
+                        </div>
+                      ) : null}
+                    </div>
+                  </PublicChromePhase3Link>
                 </li>
               );
             })}
@@ -196,12 +188,13 @@ const HeaderSearchPopover = ({
           <ul className="no-scrollbar mt-2 max-h-[26vh] space-y-2 overflow-y-auto overscroll-contain pr-1">
             {activePosts.map((item) => (
               <li key={item.href}>
-                <Link
-                  to={item.href}
+                <PublicChromePhase3Link
+                  href={item.href}
                   className="text-sm text-foreground transition-colors hover:text-primary"
+                  {...getPublicRoutePreloadHandlers(item.href)}
                 >
                   {item.label}
-                </Link>
+                </PublicChromePhase3Link>
               </li>
             ))}
           </ul>
