@@ -17,13 +17,20 @@ As principais superficies do produto aparecem diretamente nas rotas do frontend:
 - publico: `src/routes/PublicRoutes.tsx`
 - dashboard: `src/routes/DashboardRoutes.tsx`
 
+No estado atual da migracao, as rotas ja atendidas por Astro ficam em `src-astro/pages/**` e incluem:
+
+- publicas institucionais: `/sobre`, `/faq`, `/equipe`, `/doacoes`, `/recrutamento`, `/politica-de-privacidade` e `/termos-de-uso`
+- superficie publica principal: `/`, `/projetos`, `/projeto/[slug]`, `/postagem/[slug]`
+- leitura publica: `/projeto/[slug]/leitura/[chapter]`
+- shells Astro autenticados: `/login` e `/dashboard/**`
+
 ### 1.2 Visao tecnica
 
 O Nekomorto e uma aplicacao web **DB-only**:
 
 - O PostgreSQL e a fonte unica de verdade dos dados.
 - O backend roda em Node.js/Express (`server/index.js`).
-- A superficie publica esta em migracao para um runtime hibrido: o legado React/Vite continua ativo e o Astro ja atende um primeiro slice de rotas publicas.
+- A superficie publica e parte da superficie autenticada rodam em um runtime hibrido: o legado React/Vite continua ativo, enquanto o Astro ja atende as rotas publicas principais, as paginas institucionais, o leitor publico e os hosts de `/login` e `/dashboard/**`.
 - As sessoes HTTP sao persistidas no PostgreSQL com `connect-pg-simple` (tabela padrao `user_sessions`).
 - Uploads podem ser servidos localmente ou via object storage, preservando o contrato publico em `/uploads/...`.
 
@@ -253,10 +260,10 @@ O `build` de producao agora faz quatro etapas para a superficie publica:
 
 - gera o bundle Astro em `dist-astro/`
 - gera o bundle cliente em `dist/`
-- gera o renderer SSR publico em `dist-ssr/public/renderer.mjs`
-- tenta semear artefatos HTML prerenderizados via `npm run prerender:public`
+- roda `node scripts/check-build-chunks.mjs` para validar limites e regressao de chunks
+- roda `npm run build:home:guard` para proteger o build da home publica
 
-Se `DATABASE_URL` nao estiver definida durante o build, a etapa `prerender:public` e ignorada de forma segura e o fallback dinamico do Express continua ativo.
+O pipeline oficial nao usa mais `build:public:ssr` nem `prerender:public`. O `npm run start` sobe `server/index.js` em `NODE_ENV=production` e serve os artefatos gerados por `vite build` e `astro build`.
 
 Depois valide:
 
