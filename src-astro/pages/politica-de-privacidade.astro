@@ -1,5 +1,5 @@
 ---
-/* biome-ignore-all lint/correctness/noUnusedVariables: Astro template consumes frontmatter bindings. */
+import PublicSiteIslandApp from "../components/react/PublicSiteIslandApp";
 import PublicLayout from "../layouts/PublicLayout.astro";
 import { buildInstitutionalPageMeta } from "../lib/public-page-meta";
 
@@ -12,84 +12,17 @@ const meta = buildInstitutionalPageMeta({
 ---
 
 <PublicLayout
-  title="Política de Privacidade"
+  title="Politica de Privacidade"
   description={meta.description}
   image={meta.image}
   imageAlt={meta.imageAlt}
 >
-  <section class="mx-auto max-w-3xl px-6 pb-20 pt-16 md:px-8 md:pt-24">
-    <div class="space-y-10 rounded-3xl border border-border/60 bg-card/75 p-6 shadow-sm md:p-8">
-      <header class="space-y-3">
-        <p class="text-xs font-semibold uppercase tracking-[0.24em] text-muted-foreground">
-          Informações legais
-        </p>
-        <h1 class="text-3xl font-semibold tracking-tight md:text-4xl">Política de Privacidade</h1>
-        <p class="text-sm leading-relaxed text-muted-foreground md:text-base">
-          Esta Política de Privacidade explica, de forma objetiva, como tratamos dados ligados ao
-          uso do site, aos comentários públicos, à autenticação e à operação da plataforma.
-        </p>
-      </header>
-
-      <section class="space-y-3">
-        <h2 class="text-lg font-semibold">1. Dados fornecidos por você</h2>
-        <p class="text-sm leading-relaxed text-muted-foreground md:text-base">
-          Ao enviar um comentário público, podemos tratar o nome escolhido, o conteúdo enviado e
-          um e-mail opcional. Também podem ser processados dados de contexto do próprio comentário,
-          como a página ou item ao qual ele está vinculado.
-        </p>
-      </section>
-
-      <section class="space-y-3">
-        <h2 class="text-lg font-semibold">2. Comentários e avatar</h2>
-        <p class="text-sm leading-relaxed text-muted-foreground md:text-base">
-          Comentários aprovados podem exibir publicamente o nome informado, o conteúdo enviado, a
-          data da publicação e o avatar associado ao comentário. Quando o e-mail opcional é
-          informado, ele pode ser usado para obter avatar por meio do Gravatar.
-        </p>
-      </section>
-
-      <section class="space-y-3">
-        <h2 class="text-lg font-semibold">3. Login e áreas restritas</h2>
-        <p class="text-sm leading-relaxed text-muted-foreground md:text-base">
-          Para acesso a áreas restritas da plataforma, podemos tratar dados de autenticação
-          fornecidos por provedores autorizados, como Google e Discord, além das informações
-          necessárias para sessão, segurança e controle de acesso.
-        </p>
-        <p class="text-sm leading-relaxed text-muted-foreground md:text-base">
-          O login com Google é usado para autenticar usuários autorizados da equipe no dashboard e
-          em outras áreas internas. Esse login não é necessário para visitantes navegarem pelas
-          páginas públicas do site.
-        </p>
-      </section>
-
-      <section class="space-y-3">
-        <h2 class="text-lg font-semibold">4. Segurança e operação</h2>
-        <p class="text-sm leading-relaxed text-muted-foreground md:text-base">
-          Dados técnicos e operacionais podem ser tratados para autenticação, manutenção de sessão,
-          moderação, prevenção de spam, rate limiting, segurança, diagnóstico e operação geral do
-          serviço. Isso pode incluir registros técnicos e identificadores necessários para proteger
-          a plataforma.
-        </p>
-      </section>
-
-      <section class="space-y-3">
-        <h2 class="text-lg font-semibold">5. Retenção e terceiros</h2>
-        <p class="text-sm leading-relaxed text-muted-foreground md:text-base">
-          Os dados podem ser mantidos pelo tempo necessário para operação do site, moderação,
-          segurança e cumprimento de obrigações aplicáveis. Quando houver uso de serviços de
-          terceiros, como autenticação externa ou avatar, o tratamento correspondente também pode
-          seguir as políticas próprias desses serviços.
-        </p>
-      </section>
-
-      <section class="space-y-3">
-        <h2 class="text-lg font-semibold">6. Atualizações desta política</h2>
-        <p class="text-sm leading-relaxed text-muted-foreground md:text-base">
-          Esta Política de Privacidade pode ser atualizada para refletir mudanças técnicas,
-          operacionais ou legais. A versão publicada nesta página será considerada a versão
-          vigente.
-        </p>
-      </section>
-    </div>
-  </section>
+  <PublicSiteIslandApp
+    client:load
+    initialPath={`${Astro.url.pathname}${Astro.url.search}`}
+    initialCurrentUser={locals?.currentUser ?? null}
+    initialPublicBootstrap={locals?.publicBootstrap || null}
+    initialPublicRoutePayload={locals?.routePayload || null}
+    initialSettings={locals?.siteSettings || null}
+  />
 </PublicLayout>

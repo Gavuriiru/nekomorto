@@ -24,6 +24,7 @@ import { formatDateTime } from "@/lib/date";
 import { usePublicDocumentLocation } from "@/lib/public-document-navigation";
 import { estimateReadTime } from "@/lib/post-content";
 import { extractFirstImageFromPostContent } from "@/lib/post-cover";
+import { peekPreloadedPublicPostDetail } from "@/lib/public-post-preload";
 import type { UploadMediaVariantsMap } from "@/lib/upload-variants";
 import type {
   PublicBootstrapPayload,
@@ -200,8 +201,12 @@ const Post = ({ slug: slugProp }: { slug?: string }) => {
     () => toBootstrapPostDetailRecord(bootstrapPostDetail) || toBootstrapPostRecord(bootstrapPost),
     [bootstrapPost, bootstrapPostDetail],
   );
-  const [post, setPost] = useState<PostRecord | null>(bootstrapPostRecord);
-  const [hasLoaded, setHasLoaded] = useState(Boolean(bootstrapPostRecord));
+  const preloadedPostRecord = useMemo(
+    () => toBootstrapPostDetailRecord(peekPreloadedPublicPostDetail(slug)),
+    [slug],
+  );
+  const [post, setPost] = useState<PostRecord | null>(bootstrapPostRecord || preloadedPostRecord);
+  const [hasLoaded, setHasLoaded] = useState(Boolean(bootstrapPostRecord || preloadedPostRecord));
   const [loadError, setLoadError] = useState(false);
   const [mediaVariants, setMediaVariants] = useState<UploadMediaVariantsMap>(
     () => bootstrapData?.mediaVariants || {},
@@ -215,11 +220,11 @@ const Post = ({ slug: slugProp }: { slug?: string }) => {
     });
 
   useEffect(() => {
-    setPost(bootstrapPostRecord);
-    setHasLoaded(Boolean(bootstrapPostRecord));
+    setPost(bootstrapPostRecord || preloadedPostRecord);
+    setHasLoaded(Boolean(bootstrapPostRecord || preloadedPostRecord));
     setLoadError(false);
     setMediaVariants(bootstrapData?.mediaVariants || {});
-  }, [bootstrapData?.mediaVariants, bootstrapPostRecord]);
+  }, [bootstrapData?.mediaVariants, bootstrapPostRecord, preloadedPostRecord]);
 
   const shouldHydratePostFromApi = Boolean(slug);
   const shouldRenderLexicalContent = !post?.contentFormat || post.contentFormat === "lexical";
@@ -248,7 +253,7 @@ const Post = ({ slug: slugProp }: { slug?: string }) => {
         const response = await apiFetch(apiBase, `/api/public/posts/${slug}`);
         if (!response.ok) {
           if (isActive) {
-            if (!bootstrapPostRecord) {
+            if (!bootstrapPostRecord && !preloadedPostRecord) {
               setPost(null);
             }
             setLoadError(true);
@@ -280,7 +285,7 @@ const Post = ({ slug: slugProp }: { slug?: string }) => {
         setLoadError(false);
       } catch {
         if (isActive) {
-          if (!bootstrapPostRecord) {
+          if (!bootstrapPostRecord && !preloadedPostRecord) {
             setPost(null);
           }
           setLoadError(true);
@@ -296,7 +301,14 @@ const Post = ({ slug: slugProp }: { slug?: string }) => {
     return () => {
       isActive = false;
     };
-  }, [apiBase, bootstrapData?.mediaVariants, bootstrapPostRecord, shouldHydratePostFromApi, slug]);
+  }, [
+    apiBase,
+    bootstrapData?.mediaVariants,
+    bootstrapPostRecord,
+    preloadedPostRecord,
+    shouldHydratePostFromApi,
+    slug,
+  ]);
 
   useEffect(() => {
     if (!post?.slug) {

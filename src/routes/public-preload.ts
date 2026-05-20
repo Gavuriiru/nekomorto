@@ -1,7 +1,12 @@
 import { getApiBase } from "@/lib/api-base";
 import { apiFetch } from "@/lib/api-client";
 import { scheduleOnBrowserLoadIdle } from "@/lib/browser-idle";
+import {
+  clearPreloadedPublicPostDetailsForTests,
+  storePreloadedPublicPostDetail,
+} from "@/lib/public-post-preload";
 import { readWindowPublicBootstrap } from "@/lib/public-bootstrap-global";
+import type { UploadMediaVariantsMap } from "@/lib/upload-variants";
 import type { PublicRoutePayload, PublicRouteProjectDetailPayload } from "@/types/public-bootstrap";
 import {
   PUBLIC_ROUTE_KIND_ABOUT,
@@ -32,6 +37,7 @@ const normalizePublicPrefetchPath = (value: string) => {
 const preloadedPublicRouteKinds = new Set<string>();
 const preloadedPublicRoutePayloads = new Map<string, PublicRoutePayload | null>();
 const inflightPublicRoutePayloads = new Map<string, Promise<PublicRoutePayload | null>>();
+const inflightPublicPostPayloads = new Map<string, Promise<unknown | null>>();
 const prewarmedImageUrls = new Set<string>();
 const idleScheduledPublicPaths = new Set<string>();
 
@@ -163,6 +169,27 @@ const buildProjectDetailRoutePayload = ({
   };
 };
 
+const buildTeamRoutePayload = ({
+  generatedAt,
+  linkTypes,
+  mediaVariants,
+  teamMembers,
+}: {
+  generatedAt: string;
+  linkTypes: unknown;
+  mediaVariants: unknown;
+  teamMembers: unknown;
+}): PublicRoutePayload => ({
+    kind: "team",
+    generatedAt,
+    mediaVariants:
+      mediaVariants && typeof mediaVariants === "object"
+        ? (mediaVariants as UploadMediaVariantsMap)
+        : {},
+    teamLinkTypes: Array.isArray(linkTypes) ? linkTypes : [],
+    teamMembers: Array.isArray(teamMembers) ? teamMembers : [],
+  });
+
 const preloadProjectDetailPayload = async (path: string): Promise<PublicRoutePayload | null> => {
   const cacheKey = resolvePreloadCacheKey(path);
   if (!cacheKey) {
@@ -217,6 +244,86 @@ const preloadProjectDetailPayload = async (path: string): Promise<PublicRoutePay
   const payload = await requestPromise;
   preloadedPublicRoutePayloads.set(cacheKey, payload);
   return payload;
+};
+
+const preloadTeamRoutePayload = async (path: string): Promise<PublicRoutePayload | null> => {
+  const cacheKey = resolvePreloadCacheKey(path);
+  if (!cacheKey) {
+    return null;
+  }
+  if (preloadedPublicRoutePayloads.has(cacheKey)) {
+    return preloadedPublicRoutePayloads.get(cacheKey) || null;
+  }
+  const inflight = inflightPublicRoutePayloads.get(cacheKey);
+  if (inflight) {
+    return await inflight;
+  }
+  const requestPromise = (async () => {
+    try {
+      const bootstrap = readWindowPublicBootstrap();
+      const [usersResponse, linkTypesResponse] = await Promise.all([
+        apiFetch(getApiBase(), "/api/public/users", { cache: "force-cache" }),
+        apiFetch(getApiBase(), "/api/link-types", { cache: "force-cache" }),
+      ]);
+      const [usersData, linkTypesData] = await Promise.all([
+        usersResponse.ok ? usersResponse.json() : Promise.resolve({}),
+        linkTypesResponse.ok ? linkTypesResponse.json() : Promise.resolve({}),
+      ]);
+      return buildTeamRoutePayload({
+        generatedAt: String(bootstrap?.generatedAt || ""),
+        linkTypes: linkTypesData?.items,
+        mediaVariants: usersData?.mediaVariants,
+        teamMembers: usersData?.users,
+      });
+    } catch {
+      return null;
+    } finally {
+      inflightPublicRoutePayloads.delete(cacheKey);
+    }
+  })();
+  inflightPublicRoutePayloads.set(cacheKey, requestPromise);
+  const payload = await requestPromise;
+  preloadedPublicRoutePayloads.set(cacheKey, payload);
+  return payload;
+};
+
+const preloadPostDetailPayload = async (path: string) => {
+  const cacheKey = resolvePreloadCacheKey(path);
+  if (!cacheKey) {
+    return null;
+  }
+  const inflight = inflightPublicPostPayloads.get(cacheKey);
+  if (inflight) {
+    return await inflight;
+  }
+  const slugMatch = cacheKey.match(/^\/postagem\/([^/]+)$/);
+  const slug = slugMatch?.[1] ? decodeURIComponent(slugMatch[1]) : "";
+  if (!slug) {
+    return null;
+  }
+  const requestPromise = (async () => {
+    try {
+      const response = await apiFetch(getApiBase(), `/api/public/posts/${encodeURIComponent(slug)}`, {
+        cache: "force-cache",
+      });
+      if (!response.ok) {
+        return null;
+      }
+      const data = await response.json();
+      const post =
+        data?.post && typeof data.post === "object" ? storePreloadedPublicPostDetail(data.post) : null;
+      if (post?.coverImageUrl) {
+        prewarmImage(String(post.coverImageUrl));
+      }
+      return post;
+    } catch {
+      return null;
+    } finally {
+      inflightPublicPostPayloads.delete(cacheKey);
+    }
+  })();
+  inflightPublicPostPayloads.set(cacheKey, requestPromise);
+  return await requestPromise;
 };
 
 const loadPublicRouteModule = (routeKind: string) => {
@@ -278,6 +385,10 @@ export const preloadPublicRoute = async (path: string) => {
   const payloadPreloadPromise =
     routeKind === PUBLIC_ROUTE_KIND_PROJECT_DETAIL
       ? preloadProjectDetailPayload(normalizedPath)
+      : routeKind === PUBLIC_ROUTE_KIND_TEAM
+        ? preloadTeamRoutePayload(normalizedPath)
+        : routeKind === PUBLIC_ROUTE_KIND_POST
+          ? preloadPostDetailPayload(normalizedPath).then(() => null)
       : Promise.resolve(null);
   const [, payload] = await Promise.all([codePreloadPromise, payloadPreloadPromise]);
   return payload;
@@ -352,6 +463,8 @@ export const clearPublicRoutePreloadCacheForTests = () => {
   preloadedPublicRouteKinds.clear();
   preloadedPublicRoutePayloads.clear();
   inflightPublicRoutePayloads.clear();
+  inflightPublicPostPayloads.clear();
   prewarmedImageUrls.clear();
   idleScheduledPublicPaths.clear();
+  clearPreloadedPublicPostDetailsForTests();
 };

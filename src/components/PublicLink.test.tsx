@@ -18,6 +18,16 @@ describe("PublicLink", () => {
     expect(window.location.pathname).toBe("/projetos");
   });
 
+  it("intercepta clique simples para outras rotas publicas Astro", () => {
+    window.history.replaceState(null, "", "/projetos");
+
+    render(<PublicLink href="/equipe">Equipe</PublicLink>);
+
+    fireEvent.click(screen.getByRole("link", { name: "Equipe" }));
+
+    expect(window.location.pathname).toBe("/equipe");
+  });
+
   it("nao intercepta clique com modificador", () => {
     window.history.replaceState(null, "", "/");
 

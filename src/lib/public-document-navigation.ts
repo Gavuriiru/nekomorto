@@ -1,10 +1,18 @@
+import {
+  PUBLIC_ROUTE_KIND_NOT_FOUND,
+  PUBLIC_ROUTE_KIND_PROJECT_READING,
+  resolvePublicRouteKind,
+} from "../../shared/public-route-registry.js";
 import { useEffect, useMemo, useState } from "react";
 
 export const PUBLIC_DOCUMENT_LOCATION_CHANGE_EVENT = "nekomata:public-document-location-change";
 
 const isPublicAstroClientRoutePath = (value: string) => {
   const pathname = normalizePathname(value);
-  return pathname === "/" || pathname === "/projetos" || /^\/projeto\/[^/]+$/.test(pathname);
+  const routeKind = resolvePublicRouteKind(pathname);
+  return (
+    routeKind !== PUBLIC_ROUTE_KIND_NOT_FOUND && routeKind !== PUBLIC_ROUTE_KIND_PROJECT_READING
+  );
 };
 
 const buildBrowserLocationSnapshot = () => {

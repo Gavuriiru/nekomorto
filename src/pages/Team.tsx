@@ -13,6 +13,7 @@ import { useSiteSettings } from "@/hooks/use-site-settings";
 import { getApiBase } from "@/lib/api-base";
 import { apiFetch } from "@/lib/api-client";
 import type { UploadMediaVariantsMap } from "@/lib/upload-variants";
+import { peekPreloadedPublicRoutePayload } from "@/routes/public-preload";
 import type { PublicTeamLinkType, PublicTeamMember } from "@/types/public-team";
 import {
   buildInstitutionalOgImageAlt,
@@ -32,8 +33,14 @@ const Team = () => {
   const { data: bootstrapData } = usePublicBootstrap();
   const bootstrap = bootstrapData || windowBootstrap;
   const routePayload = useResolvedPublicRoutePayload();
+  const preloadedRoutePayload = peekPreloadedPublicRoutePayload("/equipe");
   const hasFullBootstrap = bootstrap?.payloadMode === "full";
-  const teamRoutePayload = routePayload?.kind === "team" ? routePayload : null;
+  const teamRoutePayload =
+    routePayload?.kind === "team"
+      ? routePayload
+      : preloadedRoutePayload?.kind === "team"
+        ? preloadedRoutePayload
+        : null;
   const bootstrapHasTeamSnapshot = Boolean(
     bootstrap &&
       (Array.isArray(bootstrap.teamMembers) ||

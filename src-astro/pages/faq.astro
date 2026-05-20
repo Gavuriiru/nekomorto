@@ -1,16 +1,9 @@
 ---
-/* biome-ignore-all lint/correctness/noUnusedVariables: Astro template consumes frontmatter bindings. */
-import { resolveFaqIcon } from "../../src/lib/institutional-page-icons";
-import type { FaqPageConfig } from "../../src/types/public-pages";
-import { HelpCircle } from "lucide-react";
-import { normalizeFaqPublicPage } from "../../shared/public-page-content.js";
-import PublicPageHero from "../components/PublicPageHero.astro";
+import PublicSiteIslandApp from "../components/react/PublicSiteIslandApp";
 import { buildInstitutionalPageMeta } from "../lib/public-page-meta";
-import { astroStaticRevealClassName } from "../lib/public-reveal";
 import PublicLayout from "../layouts/PublicLayout.astro";
 
 const locals = Astro.locals.nekomata;
-const faq = normalizeFaqPublicPage(locals?.pages?.faq) as FaqPageConfig;
 const meta = buildInstitutionalPageMeta({
   pageKey: "faq",
   pages: locals?.pages,
@@ -18,61 +11,18 @@ const meta = buildInstitutionalPageMeta({
 });
 ---
 
-<PublicLayout title={meta.title || "FAQ"} description={meta.description} image={meta.image} imageAlt={meta.imageAlt}>
-  <div class="min-h-screen bg-background text-foreground">
-    <main>
-      <PublicPageHero title={faq.heroTitle} subtitle={faq.heroSubtitle} />
-
-      {faq.introCards.length > 0 ? (
-        <section class={`mx-auto grid w-full max-w-6xl gap-6 px-6 pb-16 pt-10 md:grid-cols-2 md:px-10 ${astroStaticRevealClassName}`} data-reveal>
-          {faq.introCards.map((card) => {
-            const Icon = resolveFaqIcon(card.icon, HelpCircle);
-            return (
-              <article class="stacked-surface stacked-surface--public stacked-surface--interactive group rounded-2xl border border-border/60 bg-card/80 p-6">
-                <p class="flex items-center gap-3 text-sm font-semibold uppercase tracking-widest text-muted-foreground transition-colors duration-300 group-hover:text-primary">
-                  <Icon className="h-4 w-4 text-primary/80 transition-colors duration-300 group-hover:text-primary" />
-                  {card.title}
-                </p>
-                <p class="mt-4 whitespace-pre-wrap text-sm text-muted-foreground transition-colors duration-300 group-hover:text-foreground/80">
-                  {card.text}
-                </p>
-                <div class="my-4 h-px bg-border/60"></div>
-                <p class="whitespace-pre-wrap text-sm text-muted-foreground transition-colors duration-300 group-hover:text-foreground/80">
-                  {card.note}
-                </p>
-              </article>
-            );
-          })}
-        </section>
-      ) : null}
-
-      {faq.groups.length > 0 ? (
-        <section class={`mx-auto grid w-full max-w-6xl gap-6 px-6 pb-24 pt-2 md:px-10 ${astroStaticRevealClassName}`} data-reveal>
-          {faq.groups.map((group) => {
-            const Icon = resolveFaqIcon(group.icon, HelpCircle);
-            return (
-              <article class="stacked-surface stacked-surface--public rounded-2xl border border-border/60 bg-card/80 p-6">
-                <p class="flex items-center gap-3 text-sm font-semibold uppercase tracking-widest text-muted-foreground">
-                  <Icon className="h-4 w-4 text-primary/80" />
-                  {group.title}
-                </p>
-                <div class="mt-5 grid gap-4">
-                  {group.items.map((item) => (
-                    <div class="group rounded-2xl border border-border/60 bg-background/60 p-4 transition-all duration-300 hover:-translate-y-1 hover:border-primary/60 hover:bg-background/70">
-                      <p class="text-sm font-semibold text-foreground transition-colors duration-300 group-hover:text-primary">
-                        {item.question}
-                      </p>
-                      <p class="mt-2 whitespace-pre-wrap text-sm text-muted-foreground transition-colors duration-300 group-hover:text-foreground/80">
-                        {item.answer}
-                      </p>
-                    </div>
-                  ))}
-                </div>
-              </article>
-            );
-          })}
-        </section>
-      ) : null}
-    </main>
-  </div>
+<PublicLayout
+  title={meta.title || "FAQ"}
+  description={meta.description}
+  image={meta.image}
+  imageAlt={meta.imageAlt}
+>
+  <PublicSiteIslandApp
+    client:load
+    initialPath={`${Astro.url.pathname}${Astro.url.search}`}
+    initialCurrentUser={locals?.currentUser ?? null}
+    initialPublicBootstrap={locals?.publicBootstrap || null}
+    initialPublicRoutePayload={locals?.routePayload || null}
+    initialSettings={locals?.siteSettings || null}
+  />
 </PublicLayout>

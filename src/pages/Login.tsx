@@ -5,11 +5,14 @@ import { Button } from "@/components/ui/button";
 import { usePageMeta } from "@/hooks/use-page-meta";
 import { getApiBase } from "@/lib/api-base";
 import { apiFetch } from "@/lib/api-client";
+import {
+  navigatePublicDocument,
+  usePublicDocumentLocation,
+} from "@/lib/public-document-navigation";
 import { cn } from "@/lib/utils";
 import "@/styles/login.css";
 import { Lock } from "lucide-react";
 import { useEffect, useMemo, useState } from "react";
-import { useLocation, useNavigate } from "react-router-dom";
 
 const DiscordIcon = ({ className }: { className?: string }) => (
   <svg viewBox="0 0 24 24" fill="currentColor" className={className} aria-hidden="true">
@@ -43,8 +46,7 @@ type SessionCheckState = "default" | "mfa";
 const Login = () => {
   usePageMeta({ title: "Login", noIndex: true });
 
-  const location = useLocation();
-  const navigate = useNavigate();
+  const location = usePublicDocumentLocation("/login");
   const params = useMemo(() => new URLSearchParams(location.search), [location.search]);
   const error = params.get("error");
   const next = params.get("next");
@@ -79,7 +81,7 @@ const Login = () => {
           return;
         }
         if (isActive) {
-          navigate("/dashboard", { replace: true });
+          navigatePublicDocument("/dashboard", { replace: true });
         }
       } catch {
         if (isActive) setIsCheckingSession(false);
@@ -89,7 +91,7 @@ const Login = () => {
     return () => {
       isActive = false;
     };
-  }, [apiBase, navigate]);
+  }, [apiBase]);
 
   useEffect(() => {
     setSessionState(mfa === "required" ? "mfa" : "default");

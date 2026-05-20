@@ -44,6 +44,18 @@ describe("public-document-navigation", () => {
         currentPath: "/equipe",
         targetPath: "/projeto/slug-teste",
       }),
+    ).toBe(true);
+    expect(
+      canUsePublicAstroClientNavigation({
+        currentPath: "/faq",
+        targetPath: "/login",
+      }),
+    ).toBe(true);
+    expect(
+      canUsePublicAstroClientNavigation({
+        currentPath: "/projetos",
+        targetPath: "/projeto/slug-teste/leitura/capitulo-1",
+      }),
     ).toBe(false);
   });
 });

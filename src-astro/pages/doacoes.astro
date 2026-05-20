@@ -1,8 +1,5 @@
 ---
-import PublicPageHero from "../components/PublicPageHero.astro";
-import PublicDonationsPageContent from "../../src/components/public-pages/PublicDonationsPageContent";
-import type { PublicRouteDonationsPayload } from "../../src/types/public-bootstrap";
-import { emptyPublicPagesConfig } from "../../src/types/public-pages";
+import PublicSiteIslandApp from "../components/react/PublicSiteIslandApp";
 import { buildInstitutionalPageMeta } from "../lib/public-page-meta";
 import PublicLayout from "../layouts/PublicLayout.astro";
 
@@ -12,29 +9,20 @@ const meta = buildInstitutionalPageMeta({
   pages: locals?.pages,
   siteSettings: locals?.siteSettings,
 });
-
-const routePayload =
-  locals?.routePayload && locals.routePayload.kind === "donations"
-    ? (locals.routePayload as PublicRouteDonationsPayload)
-    : null;
-
-const donations = {
-  ...emptyPublicPagesConfig.donations,
-  ...(locals?.pages?.donations || {}),
-};
-const merchantName =
-  locals?.siteSettings?.site?.name || locals?.siteSettings?.footer?.brandName || "Nekomata";
 ---
 
-<PublicLayout title={meta.title || "Doacoes"} description={meta.description} image={meta.image} imageAlt={meta.imageAlt}>
-  <div class="min-h-screen bg-background text-foreground">
-    <PublicPageHero title={donations.heroTitle} subtitle={donations.heroSubtitle} />
-    <PublicDonationsPageContent
-      client:load
-      donations={donations}
-      merchantName={merchantName}
-      routePayload={routePayload}
-      shouldShowHydrationState={false}
-    />
-  </div>
+<PublicLayout
+  title={meta.title || "Doacoes"}
+  description={meta.description}
+  image={meta.image}
+  imageAlt={meta.imageAlt}
+>
+  <PublicSiteIslandApp
+    client:load
+    initialPath={`${Astro.url.pathname}${Astro.url.search}`}
+    initialCurrentUser={locals?.currentUser ?? null}
+    initialPublicBootstrap={locals?.publicBootstrap || null}
+    initialPublicRoutePayload={locals?.routePayload || null}
+    initialSettings={locals?.siteSettings || null}
+  />
 </PublicLayout>

@@ -1,9 +1,8 @@
 ---
-import LoginIslandApp from "../components/react/LoginIslandApp";
+import PublicSiteIslandApp from "../components/react/PublicSiteIslandApp";
 import PublicLayout from "../layouts/PublicLayout.astro";
 
 const locals = Astro.locals.nekomata;
-const _location = `${Astro.url.pathname}${Astro.url.search}`;
 ---
 
 <PublicLayout
@@ -12,11 +11,12 @@ const _location = `${Astro.url.pathname}${Astro.url.search}`;
   robots="noindex, nofollow"
   title="Login"
 >
-  <LoginIslandApp
+  <PublicSiteIslandApp
     client:load
+    initialPath={`${Astro.url.pathname}${Astro.url.search}`}
+    initialCurrentUser={locals?.currentUser ?? null}
     initialPublicBootstrap={locals?.publicBootstrap || null}
     initialPublicRoutePayload={locals?.routePayload || null}
     initialSettings={locals?.siteSettings || null}
-    location={_location}
   />
 </PublicLayout>
