@@ -24,6 +24,36 @@ describe("institutional Astro hero shell", () => {
     expect(source).toContain("subtitle={donations.heroSubtitle}");
   });
 
+  it("keeps the about hero in the Astro page shell", () => {
+    const source = readPageSource("sobre.astro");
+
+    expect(source).toContain('import PublicPageHero from "../components/PublicPageHero.astro"');
+    expect(source).toContain("<PublicPageHero");
+    expect(source).toContain("badge={about.heroBadge}");
+    expect(source).toContain("title={about.heroTitle}");
+    expect(source).toContain("subtitle={about.heroSubtitle}");
+  });
+
+  it("keeps the FAQ hero in the Astro page shell", () => {
+    const source = readPageSource("faq.astro");
+
+    expect(source).toContain('import PublicPageHero from "../components/PublicPageHero.astro"');
+    expect(source).toContain("<PublicPageHero");
+    expect(source).toContain("title={faq.heroTitle}");
+    expect(source).toContain("subtitle={faq.heroSubtitle}");
+  });
+
+  it("keeps the recruitment hero and content in the Astro page shell", () => {
+    const source = readPageSource("recrutamento.astro");
+
+    expect(source).toContain('import PublicPageHero from "../components/PublicPageHero.astro"');
+    expect(source).toContain("<PublicPageHero");
+    expect(source).toContain("badge={recruitment.heroBadge}");
+    expect(source).toContain("title={recruitment.heroTitle}");
+    expect(source).toContain("subtitle={recruitment.heroSubtitle}");
+    expect(source).toContain("recruitment.roles.length > 0");
+  });
+
   it("keeps the project hero in the Astro page shell and disables the duplicate island hero", () => {
     const source = readPageSource("projeto/[slug].astro");
 

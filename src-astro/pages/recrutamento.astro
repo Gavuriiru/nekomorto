@@ -1,14 +1,27 @@
 ---
+/* biome-ignore-all lint/correctness/noUnusedVariables: Astro template consumes frontmatter bindings. */
+import { resolveRecruitmentIcon } from "../../src/lib/institutional-page-icons";
+import { normalizeRecruitmentPublicPage } from "../../shared/public-page-content.js";
+import { sanitizePublicHref } from "../../src/lib/url-safety";
+import type { RecruitmentPageConfig } from "../../src/types/public-pages";
+import { Sparkles } from "lucide-react";
+import PublicPageHero from "../components/PublicPageHero.astro";
 import PublicSiteIslandApp from "../components/react/PublicSiteIslandApp";
 import { buildInstitutionalPageMeta } from "../lib/public-page-meta";
+import { astroStaticRevealClassName } from "../lib/public-reveal";
 import PublicLayout from "../layouts/PublicLayout.astro";
 
 const locals = Astro.locals.nekomata;
+const recruitment = normalizeRecruitmentPublicPage(
+  locals?.pages?.recruitment,
+) as RecruitmentPageConfig;
 const meta = buildInstitutionalPageMeta({
   pageKey: "recruitment",
   pages: locals?.pages,
   siteSettings: locals?.siteSettings,
 });
+const discordUrl = sanitizePublicHref(locals?.siteSettings?.community?.discordUrl) || "#";
+const staticShellRootId = "public-recruitment-route-shell";
 ---
 
 <PublicLayout
@@ -17,6 +30,68 @@ const meta = buildInstitutionalPageMeta({
   image={meta.image}
   imageAlt={meta.imageAlt}
 >
+  <div id={staticShellRootId} class="min-h-screen bg-background text-foreground">
+    <main class="pb-20">
+      <PublicPageHero
+        badge={recruitment.heroBadge}
+        title={recruitment.heroTitle}
+        subtitle={recruitment.heroSubtitle}
+      />
+
+      {recruitment.roles.length > 0 ? (
+        <section class={`mx-auto grid w-full max-w-6xl gap-4 px-6 pt-10 sm:grid-cols-2 md:px-10 lg:grid-cols-3 ${astroStaticRevealClassName}`} data-reveal>
+          {recruitment.roles.map((role, index) => {
+            const Icon = resolveRecruitmentIcon(role.icon, Sparkles);
+            return (
+              <article
+                class="stacked-surface stacked-surface--public stacked-surface--interactive group rounded-2xl border border-border/60 bg-card/70 p-5 opacity-0 animate-fade-in"
+                style={`animation-delay:${index * 80}ms`}
+              >
+                <div class="flex items-center gap-3">
+                  <span class="flex h-10 w-10 items-center justify-center rounded-xl bg-secondary/80 text-primary transition-transform duration-300 group-hover:scale-105 group-hover:bg-primary/15">
+                    <Icon className="h-5 w-5" />
+                  </span>
+                  <h2 class="text-base font-semibold text-foreground transition-colors duration-300 group-hover:text-primary">
+                    {role.title}
+                  </h2>
+                </div>
+                <p class="mt-3 whitespace-pre-wrap text-sm text-muted-foreground transition-colors duration-300 group-hover:text-foreground/80">
+                  {role.description}
+                </p>
+              </article>
+            );
+          })}
+        </section>
+      ) : null}
+
+      {recruitment.ctaTitle || recruitment.ctaSubtitle || recruitment.ctaButtonLabel ? (
+        <section class={`mx-auto mt-12 w-full max-w-6xl px-6 md:px-10 ${astroStaticRevealClassName}`} data-reveal>
+          <article class="rounded-2xl border border-border/60 bg-card/70 p-6 opacity-0 animate-fade-in" style="animation-delay:0.4s">
+            <div class="flex flex-col items-stretch gap-4 md:flex-row md:items-center md:justify-between">
+              <div class="space-y-1">
+                {recruitment.ctaTitle ? (
+                  <h2 class="text-lg font-semibold text-foreground">{recruitment.ctaTitle}</h2>
+                ) : null}
+                {recruitment.ctaSubtitle ? (
+                  <p class="whitespace-pre-wrap text-sm text-muted-foreground">{recruitment.ctaSubtitle}</p>
+                ) : null}
+              </div>
+              {recruitment.ctaButtonLabel ? (
+                <a
+                  href={discordUrl}
+                  target="_blank"
+                  rel="noreferrer noopener"
+                  class="inline-flex w-full items-center justify-center gap-2 whitespace-nowrap rounded-xl border border-primary/70 bg-primary/10 px-4 py-3 text-center text-sm font-semibold text-foreground shadow-none transition-[background-color,border-color,color] duration-200 focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-ring/45 hover:border-primary hover:bg-primary hover:text-primary-foreground focus-visible:border-primary focus-visible:bg-primary focus-visible:text-primary-foreground md:w-auto"
+                >
+                  {recruitment.ctaButtonLabel}
+                </a>
+              ) : null}
+            </div>
+          </article>
+        </section>
+      ) : null}
+    </main>
+  </div>
   <PublicSiteIslandApp
     client:load
     initialPath={`${Astro.url.pathname}${Astro.url.search}`}
@@ -24,5 +99,6 @@ const meta = buildInstitutionalPageMeta({
     initialPublicBootstrap={locals?.publicBootstrap || null}
     initialPublicRoutePayload={locals?.routePayload || null}
     initialSettings={locals?.siteSettings || null}
+    staticShellRootId={staticShellRootId}
   />
 </PublicLayout>

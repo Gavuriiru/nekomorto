@@ -79,7 +79,7 @@ const Donations = () => {
     String(settings.site.name || settings.footer.brandName || "Nekomata").trim() || "Nekomata";
 
   usePageMeta({
-    title: "DoaÃ§Ãµes",
+    title: "Doações",
     description: resolveInstitutionalOgSupportText({
       pageKey: "donations",
       pages: pageBootstrap?.pages,
@@ -107,10 +107,10 @@ const Donations = () => {
   return (
     <div className="min-h-screen bg-background text-foreground">
       <PublicPageHero
-        title={shouldShowHydrationState ? "DoaÃ§Ãµes" : donations.heroTitle}
+        title={shouldShowHydrationState ? "Doações" : donations.heroTitle}
         subtitle={
           shouldShowHydrationState
-            ? "Carregando informaÃ§Ãµes de apoio..."
+            ? "Carregando informações de apoio..."
             : donations.heroSubtitle
         }
       />

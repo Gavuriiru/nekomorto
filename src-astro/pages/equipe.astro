@@ -1,5 +1,9 @@
 ---
+import PublicPageHero from "../components/PublicPageHero.astro";
 import PublicSiteIslandApp from "../components/react/PublicSiteIslandApp";
+import PublicTeamPageContent from "../../src/components/public-pages/PublicTeamPageContent";
+import type { PublicRouteTeamPayload } from "../../src/types/public-bootstrap";
+import { emptyPublicPagesConfig } from "../../src/types/public-pages";
 import { buildInstitutionalPageMeta } from "../lib/public-page-meta";
 import PublicLayout from "../layouts/PublicLayout.astro";
 
@@ -9,6 +13,23 @@ const meta = buildInstitutionalPageMeta({
   pages: locals?.pages,
   siteSettings: locals?.siteSettings,
 });
+
+const routePayload =
+  locals?.routePayload && locals.routePayload.kind === "team"
+    ? (locals.routePayload as PublicRouteTeamPayload)
+    : null;
+
+const teamPage = {
+  ...emptyPublicPagesConfig.team,
+  heroBadge: "Equipe",
+  heroTitle: "Conheca quem faz o projeto acontecer",
+  heroSubtitle:
+    "Os perfis e redes sociais sao gerenciados pela dashboard. Esta pagina ja sai consistente no caminho Astro de producao.",
+  retiredTitle: "Membros aposentados",
+  retiredSubtitle: "Agradecemos por todas as contribuicoes.",
+  ...(locals?.pages?.team || {}),
+};
+const staticShellRootId = "public-team-route-shell";
 ---
 
 <PublicLayout
@@ -17,6 +38,22 @@ const meta = buildInstitutionalPageMeta({
   image={meta.image}
   imageAlt={meta.imageAlt}
 >
+  <div id={staticShellRootId} class="min-h-screen bg-background text-foreground">
+    <PublicPageHero
+      badge={teamPage.heroBadge}
+      title={teamPage.heroTitle}
+      subtitle={teamPage.heroSubtitle}
+    />
+    <PublicTeamPageContent
+      client:load
+      isLoading={false}
+      linkTypes={routePayload?.teamLinkTypes || []}
+      mediaVariants={routePayload?.mediaVariants || {}}
+      members={routePayload?.teamMembers || []}
+      pageCopy={teamPage}
+      siteSettings={locals?.siteSettings || null}
+    />
+  </div>
   <PublicSiteIslandApp
     client:load
     initialPath={`${Astro.url.pathname}${Astro.url.search}`}
@@ -24,5 +61,6 @@ const meta = buildInstitutionalPageMeta({
     initialPublicBootstrap={locals?.publicBootstrap || null}
     initialPublicRoutePayload={locals?.routePayload || null}
     initialSettings={locals?.siteSettings || null}
+    staticShellRootId={staticShellRootId}
   />
 </PublicLayout>

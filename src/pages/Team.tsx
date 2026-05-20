@@ -77,11 +77,11 @@ const Team = () => {
       heroBadge: resolveTextOrFallback(bootstrap?.pages.team?.heroBadge, "Equipe"),
       heroTitle: resolveTextOrFallback(
         bootstrap?.pages.team?.heroTitle,
-        "ConheÃ§a quem faz o projeto acontecer",
+        "Conheça quem faz o projeto acontecer",
       ),
       heroSubtitle: resolveTextOrFallback(
         bootstrap?.pages.team?.heroSubtitle,
-        "Os perfis e redes sociais serÃ£o gerenciados pela dashboard. Este layout antecipa como a equipe aparecerÃ¡ para o pÃºblico.",
+        "Os perfis e redes sociais serão gerenciados pela dashboard. Este layout antecipa como a equipe aparecerá para o público.",
       ),
       retiredTitle: resolveTextOrFallback(
         bootstrap?.pages.team?.retiredTitle,
@@ -89,7 +89,7 @@ const Team = () => {
       ),
       retiredSubtitle: resolveTextOrFallback(
         bootstrap?.pages.team?.retiredSubtitle,
-        "Agradecemos por todas as contribuiÃ§Ãµes.",
+        "Agradecemos por todas as contribuições.",
       ),
     }),
     [bootstrap],

@@ -12,7 +12,10 @@ import Projects from "@/pages/Projects";
 import Recruitment from "@/pages/Recruitment";
 import Team from "@/pages/Team";
 import TermsOfService from "@/pages/TermsOfService";
+import PublicScrollToTop from "@/components/PublicScrollToTop";
+import usePublicReveal from "@/hooks/use-public-reveal";
 import { usePublicDocumentLocation } from "@/lib/public-document-navigation";
+import { initRouteMotion } from "@/lib/route-motion";
 import type { PublicBootstrapPayload, PublicRoutePayload } from "@/types/public-bootstrap";
 import type { SiteSettings } from "@/types/site-settings";
 import {
@@ -39,12 +42,22 @@ interface PublicSiteIslandAppProps {
   initialPublicBootstrap: PublicBootstrapPayload | null;
   initialPublicRoutePayload?: PublicRoutePayload | null;
   initialSettings?: SiteSettings | null;
+  staticShellRootId?: string;
   staticProjectHeroId?: string;
 }
 
 const resolveProjectSlugFromPath = (pathname: string) => {
   const match = String(pathname || "").match(/^\/projeto(?:s)?\/([^/]+)$/);
   return match?.[1] ? decodeURIComponent(match[1]) : "";
+};
+
+const buildRouteKey = (value: string) => {
+  try {
+    const parsed = new URL(String(value || "/"), "https://nekomata.moe");
+    return `${parsed.pathname || "/"}${parsed.search || ""}`;
+  } catch {
+    return String(value || "/").split("#", 1)[0] || "/";
+  }
 };
 
 const PublicSiteIslandApp = ({
@@ -54,18 +67,29 @@ const PublicSiteIslandApp = ({
   initialPublicBootstrap,
   initialPublicRoutePayload,
   initialSettings,
+  staticShellRootId = "",
   staticProjectHeroId = "",
 }: PublicSiteIslandAppProps) => {
   const location = usePublicDocumentLocation(initialPath);
   const pathname = location.pathname || "/";
+  const currentRouteKey = `${pathname}${location.search || ""}`;
+  const initialRouteKey = buildRouteKey(initialPath);
   const routeKind = resolvePublicRouteKind(pathname);
   const currentProjectSlug = resolveProjectSlugFromPath(pathname);
+  const shouldUseStaticShell = Boolean(staticShellRootId && currentRouteKey === initialRouteKey);
   const shouldUseStaticProjectHero = Boolean(
     staticProjectHeroId &&
       initialProjectSlug &&
       currentProjectSlug &&
       currentProjectSlug === initialProjectSlug,
   );
+  const shouldEnablePublicReveal = !shouldUseStaticShell;
+
+  usePublicReveal({ enabled: shouldEnablePublicReveal, initialPath });
+
+  useEffect(() => {
+    return initRouteMotion();
+  }, []);
 
   useEffect(() => {
     document.documentElement.dataset.clientRouteMeta = "public-site";
@@ -73,6 +97,20 @@ const PublicSiteIslandApp = ({
       delete document.documentElement.dataset.clientRouteMeta;
     };
   }, []);
+
+  useEffect(() => {
+    if (!staticShellRootId) {
+      return;
+    }
+    const shellRoot = document.getElementById(staticShellRootId);
+    if (!shellRoot) {
+      return;
+    }
+    shellRoot.hidden = !shouldUseStaticShell;
+    return () => {
+      shellRoot.hidden = false;
+    };
+  }, [shouldUseStaticShell, staticShellRootId]);
 
   useEffect(() => {
     if (!staticProjectHeroId) {
@@ -95,7 +133,8 @@ const PublicSiteIslandApp = ({
       initialPublicRoutePayload={initialPublicRoutePayload}
       initialSettings={initialSettings}
     >
-      {routeKind === PUBLIC_ROUTE_KIND_HOME ? (
+      <PublicScrollToTop initialPath={initialPath} />
+      {shouldUseStaticShell ? null : routeKind === PUBLIC_ROUTE_KIND_HOME ? (
         <Index />
       ) : routeKind === PUBLIC_ROUTE_KIND_PROJECTS_LIST ? (
         <Projects />

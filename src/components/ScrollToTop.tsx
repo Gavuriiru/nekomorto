@@ -81,6 +81,9 @@ export const ScrollToTop = () => {
     if (shouldPreserveBrowserHistoryScroll) {
       return;
     }
+    if (!hasMountedRef.current) {
+      return;
+    }
 
     const locationState =
       typeof location.state === "object" && location.state !== null
@@ -90,8 +93,9 @@ export const ScrollToTop = () => {
     if (shouldPreserveScroll || location.hash) {
       return;
     }
-    let raf = window.requestAnimationFrame(() => {
-      raf = window.requestAnimationFrame(() => {
+    let secondFrameId = 0;
+    const firstFrameId = window.requestAnimationFrame(() => {
+      secondFrameId = window.requestAnimationFrame(() => {
         if (shouldPreserveBrowserHistoryScroll) {
           return;
         }
@@ -100,7 +104,12 @@ export const ScrollToTop = () => {
         }
       });
     });
-    return () => window.cancelAnimationFrame(raf);
+    return () => {
+      window.cancelAnimationFrame(firstFrameId);
+      if (secondFrameId) {
+        window.cancelAnimationFrame(secondFrameId);
+      }
+    };
   }, [
     location.hash,
     location.pathname,

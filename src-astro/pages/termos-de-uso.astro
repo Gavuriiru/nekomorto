@@ -1,4 +1,5 @@
 ---
+/* biome-ignore-all lint/correctness/noUnusedVariables: Astro template consumes frontmatter bindings. */
 import PublicSiteIslandApp from "../components/react/PublicSiteIslandApp";
 import PublicLayout from "../layouts/PublicLayout.astro";
 import { buildInstitutionalPageMeta } from "../lib/public-page-meta";
@@ -9,6 +10,7 @@ const meta = buildInstitutionalPageMeta({
   pages: locals?.pages,
   siteSettings: locals?.siteSettings,
 });
+const staticShellRootId = "public-terms-route-shell";
 ---
 
 <PublicLayout
@@ -17,6 +19,69 @@ const meta = buildInstitutionalPageMeta({
   image={meta.image}
   imageAlt={meta.imageAlt}
 >
+  <section id={staticShellRootId} class="mx-auto max-w-3xl px-6 pb-20 pt-16 md:px-8 md:pt-24">
+    <div class="space-y-10 rounded-3xl border border-border/60 bg-card/75 p-6 shadow-sm md:p-8">
+      <header class="space-y-3">
+        <p class="text-xs font-semibold uppercase tracking-[0.24em] text-muted-foreground">
+          Informacoes legais
+        </p>
+        <h1 class="text-3xl font-semibold tracking-tight md:text-4xl">Termos de Uso</h1>
+        <p class="text-sm leading-relaxed text-muted-foreground md:text-base">
+          Estes Termos de Uso descrevem, de forma resumida, as regras aplicaveis ao uso do site,
+          aos comentarios publicos e ao acesso a areas restritas da plataforma.
+        </p>
+      </header>
+
+      <section class="space-y-3">
+        <h2 class="text-lg font-semibold">1. Uso do site</h2>
+        <p class="text-sm leading-relaxed text-muted-foreground md:text-base">
+          O site pode ser utilizado para navegacao publica e, quando aplicavel, para interacao
+          com recursos disponibilizados pela plataforma. O uso deve ocorrer de forma legitima,
+          sem abuso tecnico, fraude, automacao indevida ou tentativa de contornar autenticacao,
+          seguranca, moderacao ou rate limiting.
+        </p>
+      </section>
+
+      <section class="space-y-3">
+        <h2 class="text-lg font-semibold">2. Comentarios publicos</h2>
+        <p class="text-sm leading-relaxed text-muted-foreground md:text-base">
+          Comentarios enviados por usuarios podem passar por moderacao antes de aparecer no site.
+          Conteudo com spam, ofensa, fraude, violacao de direitos ou qualquer uso incompativel com
+          a finalidade da plataforma podera ser recusado, ocultado ou removido.
+        </p>
+        <p class="text-sm leading-relaxed text-muted-foreground md:text-base">
+          Cada pessoa usuaria e responsavel pelo conteudo que envia e pelas consequencias da sua
+          publicacao.
+        </p>
+      </section>
+
+      <section class="space-y-3">
+        <h2 class="text-lg font-semibold">3. Areas restritas</h2>
+        <p class="text-sm leading-relaxed text-muted-foreground md:text-base">
+          Algumas areas sao destinadas exclusivamente a equipe e dependem de autenticacao e
+          autorizacao especificas. O uso de um provedor de login nao garante, por si so,
+          liberacao de acesso ao painel ou a outras areas internas.
+        </p>
+      </section>
+
+      <section class="space-y-3">
+        <h2 class="text-lg font-semibold">4. Servicos de terceiros</h2>
+        <p class="text-sm leading-relaxed text-muted-foreground md:text-base">
+          Parte da experiencia pode envolver servicos externos, como provedores de autenticacao e
+          servicos de avatar. Quando isso ocorrer, o tratamento correspondente tambem podera estar
+          sujeito aos termos e politicas desses terceiros.
+        </p>
+      </section>
+
+      <section class="space-y-3">
+        <h2 class="text-lg font-semibold">5. Atualizacoes</h2>
+        <p class="text-sm leading-relaxed text-muted-foreground md:text-base">
+          Estes Termos de Uso podem ser atualizados para refletir mudancas tecnicas, operacionais
+          ou legais. A versao publicada nesta pagina sera considerada a versao vigente.
+        </p>
+      </section>
+    </div>
+  </section>
   <PublicSiteIslandApp
     client:load
     initialPath={`${Astro.url.pathname}${Astro.url.search}`}
@@ -24,5 +89,6 @@ const meta = buildInstitutionalPageMeta({
     initialPublicBootstrap={locals?.publicBootstrap || null}
     initialPublicRoutePayload={locals?.routePayload || null}
     initialSettings={locals?.siteSettings || null}
+    staticShellRootId={staticShellRootId}
   />
 </PublicLayout>

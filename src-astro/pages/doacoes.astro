@@ -1,5 +1,9 @@
 ---
+import PublicPageHero from "../components/PublicPageHero.astro";
 import PublicSiteIslandApp from "../components/react/PublicSiteIslandApp";
+import PublicDonationsPageContent from "../../src/components/public-pages/PublicDonationsPageContent";
+import type { PublicRouteDonationsPayload } from "../../src/types/public-bootstrap";
+import { emptyPublicPagesConfig } from "../../src/types/public-pages";
 import { buildInstitutionalPageMeta } from "../lib/public-page-meta";
 import PublicLayout from "../layouts/PublicLayout.astro";
 
@@ -9,6 +13,19 @@ const meta = buildInstitutionalPageMeta({
   pages: locals?.pages,
   siteSettings: locals?.siteSettings,
 });
+
+const routePayload =
+  locals?.routePayload && locals.routePayload.kind === "donations"
+    ? (locals.routePayload as PublicRouteDonationsPayload)
+    : null;
+
+const donations = {
+  ...emptyPublicPagesConfig.donations,
+  ...(locals?.pages?.donations || {}),
+};
+const merchantName =
+  locals?.siteSettings?.site?.name || locals?.siteSettings?.footer?.brandName || "Nekomata";
+const staticShellRootId = "public-donations-route-shell";
 ---
 
 <PublicLayout
@@ -17,6 +34,16 @@ const meta = buildInstitutionalPageMeta({
   image={meta.image}
   imageAlt={meta.imageAlt}
 >
+  <div id={staticShellRootId} class="min-h-screen bg-background text-foreground">
+    <PublicPageHero title={donations.heroTitle} subtitle={donations.heroSubtitle} />
+    <PublicDonationsPageContent
+      client:load
+      donations={donations}
+      merchantName={merchantName}
+      routePayload={routePayload}
+      shouldShowHydrationState={false}
+    />
+  </div>
   <PublicSiteIslandApp
     client:load
     initialPath={`${Astro.url.pathname}${Astro.url.search}`}
@@ -24,5 +51,6 @@ const meta = buildInstitutionalPageMeta({
     initialPublicBootstrap={locals?.publicBootstrap || null}
     initialPublicRoutePayload={locals?.routePayload || null}
     initialSettings={locals?.siteSettings || null}
+    staticShellRootId={staticShellRootId}
   />
 </PublicLayout>
