@@ -1,10 +1,10 @@
-import { Input } from "@/components/dashboard/dashboard-form-controls";
-import DashboardActionButton from "@/components/dashboard/DashboardActionButton";
-import { Card, CardContent } from "@/components/ui/card";
-import { TabsContent } from "@/components/ui/tabs";
 import { Download, Plus, Save, Trash2 } from "lucide-react";
 import type { UIEvent } from "react";
 import { useState } from "react";
+import DashboardActionButton from "@/components/dashboard/DashboardActionButton";
+import { Input } from "@/components/dashboard/dashboard-form-controls";
+import { Card, CardContent } from "@/components/ui/card";
+import { TabsContent } from "@/components/ui/tabs";
 import { useDashboardSettingsContext } from "./dashboard-settings-context";
 import {
   dashboardSettingsCardClassName,
@@ -181,6 +181,7 @@ export const DashboardSettingsTranslationsTab = () => {
                         <td className="px-4 py-3 text-right">
                           <DashboardActionButton
                             size="icon"
+                            aria-label="Remover tradução da tag"
                             onClick={() =>
                               setTagTranslations((prev) => {
                                 const next = { ...prev };
@@ -317,6 +318,7 @@ export const DashboardSettingsTranslationsTab = () => {
                         <td className="px-4 py-3 text-right">
                           <DashboardActionButton
                             size="icon"
+                            aria-label="Remover tradução do gênero"
                             onClick={() =>
                               setGenreTranslations((prev) => {
                                 const next = { ...prev };
@@ -448,6 +450,7 @@ export const DashboardSettingsTranslationsTab = () => {
                         <td className="px-4 py-3 text-right">
                           <DashboardActionButton
                             size="icon"
+                            aria-label="Remover tradução do cargo"
                             onClick={() =>
                               setStaffRoleTranslations((prev) => {
                                 const next = { ...prev };
