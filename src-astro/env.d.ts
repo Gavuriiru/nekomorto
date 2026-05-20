@@ -1,4 +1,6 @@
 /// <reference types="astro/client" />
+/// <reference types="vitest/globals" />
+/// <reference types="@testing-library/jest-dom" />
 
 import type { PublicPagesConfig } from "../src/types/public-pages";
 import type { PublicBootstrapPayload, PublicRoutePayload } from "../src/types/public-bootstrap";
