@@ -39,7 +39,7 @@ export const registerContentPostRollbackRoute = ({
     const backupVersion = appendPostVersion({
       post: existing,
       reason: "manual",
-      label: "backup prÃƒÆ’Ã‚Â©-rollback",
+      label: "backup pré-rollback",
       actor: req.session?.user || null,
     });
 

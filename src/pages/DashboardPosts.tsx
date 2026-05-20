@@ -2704,7 +2704,7 @@ const DashboardPosts = () => {
                                 <span className="inline-flex shrink-0 items-center gap-2 whitespace-nowrap">
                                   <Eye className="h-4 w-4" />
                                   {post.views}
-                                  {" visualizações"}
+                                  {"?"}
                                 </span>
                                 <span className="inline-flex shrink-0 items-center gap-2 whitespace-nowrap">
                                   <MessageSquare className="h-4 w-4" />
@@ -2901,7 +2901,7 @@ const DashboardPosts = () => {
                           {formatDateTimeShort(version.createdAt)}
                         </p>
                         <p className="text-xs text-muted-foreground">
-                          {version.actorName || "Sistema"} {"â€¢"} /{version.slug}
+                          {version.actorName || "Sistema"} {"•"} /{version.slug}
                         </p>
                       </div>
                       <div className="shrink-0 self-start">

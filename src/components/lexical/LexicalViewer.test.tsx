@@ -104,7 +104,7 @@ describe("LexicalViewer", () => {
   });
 
   it("usa aria-label explicito quando fornecido", () => {
-    render(<LexicalViewer value={EMPTY_ROOT_STATE} ariaLabel="ConteÃºdo de teste" />);
+    render(<LexicalViewer value={EMPTY_ROOT_STATE} ariaLabel="Conte?do de teste" />);
 
     expect(screen.getByRole("textbox", { name: /teste/i })).toBeInTheDocument();
   });

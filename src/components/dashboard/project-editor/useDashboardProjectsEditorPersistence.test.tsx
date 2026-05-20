@@ -186,7 +186,7 @@ describe("useDashboardProjectsEditorPersistence", () => {
         episodeDownloads: [
           {
             number: 1,
-            title: "Episódio 1",
+            title: "Epis?dio 1",
             synopsis: "",
             releaseDate: "",
             duration: "",
@@ -217,10 +217,10 @@ describe("useDashboardProjectsEditorPersistence", () => {
     expect(apiFetchMock).not.toHaveBeenCalled();
   });
 
-  it("permite salvar metadados quando o episÃ³dio publicado jÃ¡ estava sem fonte antes da ediÃ§Ã£o", async () => {
+  it("permite salvar metadados quando o epis?dio publicado j? estava sem fonte antes da edi??o", async () => {
     const brokenPublishedEpisode = {
       number: 1,
-      title: "EpisÃ³dio 1",
+      title: "Episódio 1",
       synopsis: "",
       releaseDate: "",
       duration: "",

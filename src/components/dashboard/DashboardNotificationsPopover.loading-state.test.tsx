@@ -142,7 +142,7 @@ describe("DashboardNotificationsPopover loading state", () => {
 
     renderPopover(false);
 
-    expect(screen.queryByText("NotificaÃ§Ãµes operacionais")).not.toBeInTheDocument();
+    expect(screen.queryByText("Notifica??es operacionais")).not.toBeInTheDocument();
     expect(screen.queryByTestId("dashboard-notifications-loading")).not.toBeInTheDocument();
   });
 

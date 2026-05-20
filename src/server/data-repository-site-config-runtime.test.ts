@@ -10,7 +10,7 @@ const createRepository = () => ({
   })),
   loadPages: vi.fn(() => ({
     home: {
-      title: "OlÃ¡",
+      title: "Ol?",
     },
   })),
   loadSiteSettings: vi.fn(() => ({
@@ -104,11 +104,11 @@ describe("data-repository-site-config-runtime", () => {
 
     expect(runtime.loadPages()).toEqual({
       home: {
-        title: "OlÃ¡",
+        title: "Ol?",
       },
     });
-    runtime.writePages({ about: { title: "Sobre" } });
-    expect(dataRepository.writePages).toHaveBeenCalledWith({ about: { title: "Sobre" } });
+    runtime.writePages({ about: { title: "Ol?" } });
+    expect(dataRepository.writePages).toHaveBeenCalledWith({ about: { title: "Ol?" } });
 
     expect(runtime.loadSiteSettings()).toEqual({
       site: { name: "Example" },

@@ -22,7 +22,7 @@ export const registerPublicFeedsSitemapRoutes = ({
   app.get("/rss/posts.xml", (_req, res) => {
     const settings = loadSiteSettings();
     const xml = buildRssXml({
-      title: `${settings?.site?.name || "Nekomata"} â€¢ Posts`,
+      title: `${settings?.site?.name || "Nekomata"} • Posts`,
       link: PRIMARY_APP_ORIGIN,
       description: "Feed de postagens publicadas",
       selfUrl: `${PRIMARY_APP_ORIGIN}/rss/posts.xml`,
@@ -34,9 +34,9 @@ export const registerPublicFeedsSitemapRoutes = ({
   app.get("/rss/lancamentos.xml", (_req, res) => {
     const settings = loadSiteSettings();
     const xml = buildRssXml({
-      title: `${settings?.site?.name || "Nekomata"} â€¢ LanÃ§amentos`,
+      title: `${settings?.site?.name || "Nekomata"} • Lançamentos`,
       link: `${PRIMARY_APP_ORIGIN}/projetos`,
-      description: "Feed de lanÃ§amentos e ajustes de projetos",
+      description: "Feed de lançamentos e ajustes de projetos",
       selfUrl: `${PRIMARY_APP_ORIGIN}/rss/lancamentos.xml`,
       items: buildLaunchesRssItems(),
     });
@@ -50,9 +50,9 @@ export const registerPublicFeedsSitemapRoutes = ({
     if (feed === "lancamentos") {
       const settings = loadSiteSettings();
       const xml = buildRssXml({
-        title: `${settings?.site?.name || "Nekomata"} â€¢ LanÃ§amentos`,
+        title: `${settings?.site?.name || "Nekomata"} • Lançamentos`,
         link: `${PRIMARY_APP_ORIGIN}/projetos`,
-        description: "Feed de lanÃ§amentos e ajustes de projetos",
+        description: "Feed de lançamentos e ajustes de projetos",
         selfUrl: `${PRIMARY_APP_ORIGIN}/api/public/rss.xml?feed=lancamentos`,
         items: buildLaunchesRssItems(),
       });
@@ -60,7 +60,7 @@ export const registerPublicFeedsSitemapRoutes = ({
     }
     const settings = loadSiteSettings();
     const xml = buildRssXml({
-      title: `${settings?.site?.name || "Nekomata"} â€¢ Posts`,
+      title: `${settings?.site?.name || "Nekomata"} • Posts`,
       link: PRIMARY_APP_ORIGIN,
       description: "Feed de postagens publicadas",
       selfUrl: `${PRIMARY_APP_ORIGIN}/api/public/rss.xml?feed=posts`,

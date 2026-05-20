@@ -3543,9 +3543,9 @@ export const importProjectEpub = async ({
       const resolvedChapterIndex = Number.isFinite(Number(chapter?.chapterIndex))
         ? Number(chapter.chapterIndex) + 1
         : 1;
-      const chapterTitle = String(chapter?.title || "").trim() || "CapÃ­tulo";
+      const chapterTitle = String(chapter?.title || "").trim() || "Cap?tulo";
       const manifestId = String(chapter?.manifestId || "").trim() || null;
-      const message = `Falha ao converter o capÃ­tulo ${resolvedChapterIndex} ("${chapterTitle}"), item "${manifestId || "unknown"}": ${String(error?.message || error || "conversion_failed")}`;
+      const message = `Falha ao converter o cap?tulo ${resolvedChapterIndex} ("${chapterTitle}"), item "${manifestId || "unknown"}": ${String(error?.message || error || "conversion_failed")}`;
       console.error("epub_import_conversion_failed", {
         chapterIndex: resolvedChapterIndex,
         chapterTitle,

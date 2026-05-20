@@ -273,11 +273,11 @@ export const registerAnalyticsDashboardRoutes = ({
           kind: "pending",
           source: "comments",
           severity: pendingCount > 20 ? "critical" : "warning",
-          title: "ComentÃ¡rios pendentes",
+          title: "Comentários pendentes",
           description:
             pendingCount === 1
-              ? "HÃ¡ 1 comentÃ¡rio aguardando moderaÃ§Ã£o."
-              : `HÃ¡ ${pendingCount} comentÃ¡rios aguardando moderaÃ§Ã£o.`,
+              ? "Há 1 comentário aguardando moderação."
+              : `Há ${pendingCount} comentários aguardando moderação.`,
           href: "/dashboard/comentarios",
           ts,
         });
@@ -297,11 +297,11 @@ export const registerAnalyticsDashboardRoutes = ({
           kind: "approval",
           source: "comments",
           severity: "info",
-          title: "AprovaÃ§Ãµes recentes",
+          title: "Aprovações recentes",
           description:
             approvedRecent === 1
-              ? "1 comentÃ¡rio foi aprovado nas Ãºltimas 24h."
-              : `${approvedRecent} comentÃ¡rios foram aprovados nas Ãºltimas 24h.`,
+              ? "1 comentário foi aprovado nas últimas 24h."
+              : `${approvedRecent} comentários foram aprovados nas últimas 24h.`,
           href: "/dashboard/comentarios",
           ts,
         });

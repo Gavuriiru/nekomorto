@@ -136,21 +136,21 @@ const buildProjectPersistenceFailureState = ({
 
   if (errorCode === "image_pages_required_for_publication") {
     return {
-      title: "Não foi possível publicar o capítulo",
+      title: "N?o foi poss?vel publicar o cap?tulo",
       description: IMAGE_PUBLICATION_PAGES_REQUIRED_MESSAGE,
     };
   }
 
   if (errorCode === "reader_content_or_download_required_for_publication") {
     return {
-      title: "NÃ£o foi possÃ­vel publicar o capÃ­tulo",
+      title: "N?o foi poss?vel publicar o cap?tulo",
       description: READER_CONTENT_OR_DOWNLOAD_REQUIRED_FOR_PUBLICATION_MESSAGE,
     };
   }
 
   if (errorCode === "download_sources_required_for_publication") {
     return {
-      title: "NÃ£o foi possÃ­vel publicar o capÃ­tulo",
+      title: "N?o foi poss?vel publicar o cap?tulo",
       description: DOWNLOAD_SOURCES_REQUIRED_FOR_PUBLICATION_MESSAGE,
     };
   }

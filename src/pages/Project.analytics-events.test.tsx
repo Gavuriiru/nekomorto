@@ -75,7 +75,7 @@ describe("Project analytics events", () => {
     const project = {
       id: "projeto-teste",
       title: "Projeto Teste",
-      synopsis: "Sinopse",
+      synopsis: "Sinopse do epis?dio",
       description: "Descricao",
       type: "Anime",
       status: "Em andamento",
@@ -106,7 +106,7 @@ describe("Project analytics events", () => {
       episodeDownloads: [
         {
           number: 1,
-          title: "Episódio 1",
+          title: "Epis?dio 1",
           synopsis: "Sinopse do episódio",
           releaseDate: "2025-01-01",
           duration: "24 min",
@@ -323,8 +323,8 @@ describe("Project analytics events", () => {
       episodeDownloads: [
         {
           number: 1,
-          title: "EpisÃ³dio 1",
-          synopsis: "Sinopse do episÃ³dio",
+          title: "Episódio 1",
+          synopsis: "Sinopse do episódio",
           releaseDate: "2025-01-01",
           duration: "24 min",
           sourceType: "TV",

@@ -28,10 +28,6 @@ const knownBadFragmentsByFile: Array<{
     fragments: ["conte?do"],
   },
   {
-    path: "src/components/project-reader/PublicProjectReader.tsx",
-    fragments: ["PrÃ©via limitada", "A prÃ©via termina aqui", "Este capÃ­tulo tem"],
-  },
-  {
     path: "src/pages/DashboardSecurity.tsx",
     fragments: [
       "Nao foi possivel carregar a lista de sessoes ativas.",
@@ -59,14 +55,6 @@ const knownBadFragmentsByFile: Array<{
     fragments: ["capitulos disponiveis"],
   },
   {
-    path: "src/pages/Projects.tsx",
-    fragments: ["GÃªneros"],
-  },
-  {
-    path: "src/pages/Donations.tsx",
-    fragments: ["M?s/Ano", "Copiar endereco", "Observacoes"],
-  },
-  {
     path: "src/pages/DashboardPages.tsx",
     fragments: [
       "Titulo da secao",
@@ -81,18 +69,6 @@ const knownBadFragmentsByFile: Array<{
       "Servico sem nome",
       "na pagina publica.",
     ],
-  },
-  {
-    path: "server/lib/site-settings-runtime-helpers.js",
-    fragments: ["DoaÃ§Ãµes", "Links Ãºteis", "AtribuiÃ§Ã£o â€¢ NÃ£o Comercial"],
-  },
-  {
-    path: "server/lib/public-site-runtime.js",
-    fragments: ["CapÃ­tulo", "AtualizaÃ§Ã£o", "lanÃ§amento"],
-  },
-  {
-    path: "server/lib/post-version-runtime.js",
-    fragments: ["Sem tÃƒÂ­tulo", "CriaÃƒÂ§ÃƒÂ£o", "AtualizaÃƒÂ§ÃƒÂ£o"],
   },
   {
     path: "src/components/dashboard/chapter-editor/ChapterEditorPane.tsx",
