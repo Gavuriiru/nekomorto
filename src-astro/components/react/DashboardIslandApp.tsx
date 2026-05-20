@@ -1,4 +1,7 @@
 import { AppProviders } from "@/components/AppProviders";
+import ScrollToTop from "@/components/ScrollToTop";
+import { useReveal } from "@/hooks/use-reveal";
+import { initRouteMotion } from "@/lib/route-motion";
 import DashboardRoutes from "@/routes/DashboardRoutes";
 import type { SiteSettings } from "@/types/site-settings";
 import { useEffect } from "react";
@@ -25,6 +28,21 @@ const DashboardHostRoutes = () => (
   </Routes>
 );
 
+const DashboardRouterShell = () => {
+  useReveal();
+
+  useEffect(() => {
+    return initRouteMotion();
+  }, []);
+
+  return (
+    <>
+      <ScrollToTop />
+      <DashboardHostRoutes />
+    </>
+  );
+};
+
 interface DashboardIslandAppProps {
   initialCurrentUser?: unknown;
   initialSettings?: SiteSettings | null;
@@ -37,7 +55,7 @@ const DashboardIslandApp = ({ initialCurrentUser, initialSettings }: DashboardIs
     initiallyLoaded={Boolean(initialSettings)}
   >
     <BrowserRouter>
-      <DashboardHostRoutes />
+      <DashboardRouterShell />
     </BrowserRouter>
   </AppProviders>
 );
