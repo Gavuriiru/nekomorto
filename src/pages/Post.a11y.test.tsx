@@ -3,6 +3,7 @@ import { axe } from "jest-axe";
 import { MemoryRouter } from "react-router-dom";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
+import { clearPreloadedPublicPostDetailsForTests } from "@/lib/public-post-preload";
 import Post from "@/pages/Post";
 
 const apiFetchMock = vi.hoisted(() => vi.fn());
@@ -33,7 +34,6 @@ vi.mock("react-router-dom", async () => {
   const actual = await vi.importActual<typeof import("react-router-dom")>("react-router-dom");
   return {
     ...actual,
-    useParams: () => ({ slug: "post-teste" }),
   };
 });
 
@@ -86,6 +86,8 @@ const authorFixture = {
 
 describe("Post accessibility", () => {
   beforeEach(() => {
+    clearPreloadedPublicPostDetailsForTests();
+    window.history.replaceState({}, "", "/postagem/post-teste#comment-1");
     (
       window as Window & {
         __BOOTSTRAP_PUBLIC__?: unknown;
@@ -153,6 +155,8 @@ describe("Post accessibility", () => {
   });
 
   afterEach(() => {
+    clearPreloadedPublicPostDetailsForTests();
+    window.history.replaceState({}, "", "/");
     delete (
       window as Window & {
         __BOOTSTRAP_PUBLIC__?: unknown;
@@ -170,7 +174,7 @@ describe("Post accessibility", () => {
   it("mantem a ordem semantica dos headings com o card do autor sem violacoes axe", async () => {
     const { container } = render(
       <MemoryRouter initialEntries={["/postagem/post-teste#comment-1"]}>
-        <Post />
+        <Post slug="post-teste" />
       </MemoryRouter>,
     );
 

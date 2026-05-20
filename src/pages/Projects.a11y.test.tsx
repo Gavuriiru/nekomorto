@@ -142,7 +142,15 @@ describe("Projects accessibility", () => {
     expect(screen.getByRole("combobox", { name: "Filtrar por gênero" })).toBeInTheDocument();
     expect(screen.getByRole("combobox", { name: "Filtrar por formato" })).toBeInTheDocument();
     expect(await axe(container)).toHaveNoViolations();
-    expect(apiFetchMock).not.toHaveBeenCalled();
+    await waitFor(() => {
+      expect(apiFetchMock).toHaveBeenCalledWith(
+        "http://api.local",
+        "/api/public/projects/project-a11y",
+        {
+          cache: "force-cache",
+        },
+      );
+    });
   });
 
   it("mantem o disclosure mobile acessivel ao abrir os filtros", async () => {
