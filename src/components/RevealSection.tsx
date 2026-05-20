@@ -17,7 +17,7 @@ const RevealSection = ({
   staggerStepMs = dashboardMotionDelays.itemStepMs,
   sectionIndex = 0,
 }: RevealSectionProps) => {
-  const sectionDelay = sectionIndex * dashboardMotionDelays.sectionStaggerGapMs;
+  const sectionDelay = sectionIndex * dashboardMotionDelays.sectionStepMs;
 
   return (
     <section
